@@ -1689,9 +1689,9 @@ section.active{animation:vIn .28s ease both}
   </section>
 
   <section id="view-inventario">
-    <div class="inv-head"><h2>📦 Inventario</h2><button type="button" class="btn-camera" id="invScan">📷 Escanear para dar entrada</button><button type="button" class="btn-camera" id="invInvoiceBtn" title="Funciona sin internet: lee el texto de la foto en el celular">🧾 Escanear factura de proveedor (sin internet)</button><button type="button" class="btn-camera" id="invPriceBtn" title="Funciona sin internet: lee el texto de la foto en el celular">🏷️ Escanear precio y margen (sin internet)</button><button type="button" class="btn-ghost" id="invDup">🧩 Unir repetidos</button></div>
-    <input type="file" id="invoiceInput" accept="image/*" capture="environment" style="display:none">
-    <input type="file" id="pricePhotoInput" accept="image/*" capture="environment" style="display:none">
+    <div class="inv-head"><h2>📦 Inventario</h2><button type="button" class="btn-camera" id="invScan">📷 Escanear para dar entrada</button><button type="button" class="btn-camera" id="invInvoiceBtn" title="Funciona sin internet: foto o PDF de la factura, se lee en el celular">🧾 Factura: foto o PDF (sin internet)</button><button type="button" class="btn-camera" id="invPriceBtn" title="Funciona sin internet: foto o PDF de la etiqueta, se lee en el celular">🏷️ Precio y margen: foto o PDF (sin internet)</button><button type="button" class="btn-ghost" id="invDup">🧩 Unir repetidos</button></div>
+    <input type="file" id="invoiceInput" accept="image/*,application/pdf" style="display:none">
+    <input type="file" id="pricePhotoInput" accept="image/*,application/pdf" style="display:none">
     <div id="invSummary" class="inv-sum"></div>
     <details id="marginBlock" open style="display:none;margin:10px 0 14px;border:1px solid var(--line);border-radius:10px;padding:2px 10px">
       <summary style="cursor:pointer;padding:10px 2px;font-weight:600;list-style:none">💰 Costos y márgenes</summary>
@@ -2247,7 +2247,7 @@ section.active{animation:vIn .28s ease both}
   <div class="modal invoice-modal" style="max-width:560px">
     <h2>🧾 Revisa la factura</h2>
     <div class="modal-sub" id="invoiceSub">Analizando la foto…</div>
-    <div class="iv-offline-note">🔌 Lectura de texto sin internet. Revisa y corrige cada renglón antes de aplicar.</div>
+    <div class="iv-offline-note">🔌 Lectura de texto sin internet, desde foto o PDF. Revisa y corrige cada renglón antes de aplicar.</div>
     <div id="invoiceBody"></div>
     <button type="button" class="btn-ghost iv-add-row-btn" id="invoiceAddRowBtn">+ Agregar producto</button>
     <div class="modal-actions">
@@ -2261,7 +2261,7 @@ section.active{animation:vIn .28s ease both}
   <div class="modal invoice-modal" style="max-width:560px">
     <h2>🏷️ Precio y margen</h2>
     <div class="modal-sub" id="priceSub">Analizando la foto…</div>
-    <div class="iv-offline-note">🔌 Lectura de texto sin internet. Corrige el nombre o el precio si hace falta.</div>
+    <div class="iv-offline-note">🔌 Lectura de texto sin internet, desde foto o PDF. Corrige el nombre o el precio si hace falta.</div>
     <div id="priceBody"></div>
     <div class="modal-actions">
       <button class="btn-close" id="priceCancelBtn">Cancelar</button>
@@ -6978,11 +6978,8 @@ async function extractEmbeddedPdfText(file){
     return texts.join('\n');
   }catch(e){ return ''; }
 }
-async function renderPdfPageToImage(file){
-  const pdfjs = await getPdfjsOffline();
-  const buf = await file.arrayBuffer();
-  const pdf = await pdfjs.getDocument({ data: buf }).promise;
-  const page = await pdf.getPage(1);
+async function renderPdfPageToImage(pdf, pageNum){
+  const page = await pdf.getPage(pageNum);
   const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
   const canvas = document.createElement('canvas');
   canvas.width = viewport.width; canvas.height = viewport.height;
@@ -6996,15 +6993,29 @@ async function ocrCanvasToText(canvas){
   const { data } = await worker.recognize(blob);
   return (data && data.text) || '';
 }
-// Punto de entrada: dado el archivo elegido (foto o PDF), devuelve el texto
-// reconocido, siempre sin salir a internet.
+// Un PDF escaneado (foto guardada como PDF, sin texto embebido) no se puede
+// leer directo: hay que "fotografiar" cada página y pasarla por OCR, igual
+// que con una foto normal. Se hacen hasta 6 páginas por factura.
+async function ocrPdfPagesAsImages(file){
+  const pdfjs = await getPdfjsOffline();
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({ data: buf }).promise;
+  const maxPages = Math.min(pdf.numPages, 6);
+  const texts = [];
+  for(let p = 1; p <= maxPages; p++){
+    const canvas = await renderPdfPageToImage(pdf, p);
+    texts.push(await ocrCanvasToText(canvas));
+  }
+  return texts.join('\n');
+}
+// Punto de entrada: dado el archivo elegido (foto o PDF, de una o varias
+// páginas), devuelve el texto reconocido, siempre sin salir a internet.
 async function ocrReadFile(file){
   const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
   if(isPdf){
     const embedded = await extractEmbeddedPdfText(file);
     if(embedded && embedded.replace(/\s/g, '').length > 20) return embedded;
-    const canvas = await renderPdfPageToImage(file);
-    return await ocrCanvasToText(canvas);
+    return await ocrPdfPagesAsImages(file);
   }
   const canvas = await fileToOcrCanvas(file);
   return await ocrCanvasToText(canvas);
@@ -7277,7 +7288,7 @@ invoiceInput.addEventListener('change', async e => {
   const btn = document.getElementById('invInvoiceBtn'), lbl = btn.textContent;
   btn.disabled = true; btn.textContent = '🧾 Leyendo factura (sin internet)…';
   document.getElementById('invoiceOverlay').classList.add('show');
-  document.getElementById('invoiceSub').textContent = 'Reconociendo el texto de la foto, sin conexión…';
+  document.getElementById('invoiceSub').textContent = 'Reconociendo el texto de la foto o PDF, sin conexión…';
   document.getElementById('invoiceBody').innerHTML = '';
   try{
     // Siempre se intenta primero SIN internet (OCR embebido en el archivo).
@@ -7507,7 +7518,7 @@ pricePhotoInput.addEventListener('change', async e => {
   const btn = document.getElementById('invPriceBtn'), lbl = btn.textContent;
   const my = ++pcToken;
   pcDraft = null;
-  btn.disabled = true; btn.textContent = '🏷️ Leyendo foto (sin internet)…';
+  btn.disabled = true; btn.textContent = '🏷️ Leyendo foto/PDF (sin internet)…';
   document.getElementById('priceOverlay').classList.add('show');
   document.getElementById('priceSub').textContent = 'Reconociendo el producto y el precio, sin conexión…';
   document.getElementById('priceBody').innerHTML = '';
