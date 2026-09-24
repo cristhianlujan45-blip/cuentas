@@ -1056,6 +1056,25 @@
     padding: 16px;
     margin-bottom: 18px;
   }
+  /* Ajustes por categorías: en vez de una sola lista larga (20 secciones
+     seguidas), primero se ve un menú de categorías y solo se muestra la
+     sección elegida — pensado para que alguien nuevo encuentre lo que
+     busca sin tener que bajar y bajar. */
+  .ajustes-cats{ display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
+  .ajustes-cats[hidden]{ display:none; }
+  .ajustes-cat{
+    display:flex; align-items:center; gap:14px; width:100%;
+    background: var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:15px 16px; text-align:left; color:var(--ink); cursor:pointer;
+    transition: border-color .15s ease, transform .1s ease;
+  }
+  .ajustes-cat:hover{ border-color: var(--amber); }
+  .ajustes-cat .ac-icon{ font-size:22px; flex:none; width:28px; text-align:center; }
+  .ajustes-cat .ac-label{ flex:1; font-weight:700; font-size:15px; }
+  .ajustes-cat .ac-arrow{ color:var(--ink-soft); font-size:20px; flex:none; }
+  .ajustes-cat.ajustes-cat-danger{ border-color: color-mix(in srgb, var(--brick) 45%, var(--line)); }
+  .ajustes-cat.ajustes-cat-danger .ac-label{ color: var(--brick); }
+  .ajustes-back{ margin-bottom:16px; }
   .settings-group h2{
     margin: 0 0 4px 0;
     font-size: 16px;
@@ -2209,7 +2228,18 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
   </section>
 
   <section id="view-ajustes">
-    <div class="settings-group">
+    <div class="ajustes-cats" id="ajustesCats">
+      <button type="button" class="ajustes-cat" data-cat="negocio"><span class="ac-icon">🏢</span><span class="ac-label">Negocio y facturación</span><span class="ac-arrow">›</span></button>
+      <button type="button" class="ajustes-cat" data-cat="pedidos"><span class="ac-icon">🛎️</span><span class="ac-label">Pedidos, QR y caja</span><span class="ac-arrow">›</span></button>
+      <button type="button" class="ajustes-cat" data-cat="apariencia"><span class="ac-icon">🎨</span><span class="ac-label">Apariencia</span><span class="ac-arrow">›</span></button>
+      <button type="button" class="ajustes-cat" data-cat="voz"><span class="ac-icon">🎤</span><span class="ac-label">Voz</span><span class="ac-arrow">›</span></button>
+      <button type="button" class="ajustes-cat" data-cat="datos"><span class="ac-icon">💾</span><span class="ac-label">Datos y herramientas</span><span class="ac-arrow">›</span></button>
+      <button type="button" class="ajustes-cat" data-cat="ayuda"><span class="ac-icon">📖</span><span class="ac-label">Guía y soporte</span><span class="ac-arrow">›</span></button>
+      <button type="button" class="ajustes-cat ajustes-cat-danger" data-cat="peligro"><span class="ac-icon">⚠️</span><span class="ac-label">Zona de riesgo</span><span class="ac-arrow">›</span></button>
+    </div>
+    <button type="button" class="btn-ghost ajustes-back" id="ajustesBackBtn" hidden>← Volver a categorías</button>
+
+    <div class="settings-group" hidden data-cat="peligro">
       <h2>Restablecer</h2>
       <div class="settings-desc">Estas acciones no se pueden deshacer.</div>
       <div class="settings-row">
@@ -2235,7 +2265,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="negocio">
       <h2>Cuenta y negocio</h2>
       <div class="settings-desc">Sesión iniciada como <strong id="accUserLabel"></strong>. Sirve para tiendas, cafeterías, restaurantes y bares.</div>
       <div class="settings-row">
@@ -2268,7 +2298,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="voz">
       <h2>Micrófono</h2>
       <div class="settings-desc">Activa o desactiva el botón flotante de comando por voz.</div>
       <div class="settings-row">
@@ -2293,7 +2323,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="datos">
       <h2>Datos y transferencia</h2>
       <div class="settings-desc">Guarda una copia de todos los datos de la aplicación o transfiérela a otro celular. Esta opción está disponible desde Ajustes.</div>
       <div class="settings-row">
@@ -2327,7 +2357,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="negocio">
       <h2>🏢 Sedes o negocios</h2>
       <div class="settings-desc">Si manejas más de un negocio o más de un local (por ejemplo la tienda y la cervecería), cada uno lleva sus propias mesas, productos, inventario y ventas por separado, pero desde la misma cuenta.</div>
       <div id="sedesList" class="fav-chips"></div>
@@ -2337,7 +2367,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="negocio">
       <h2>💵 Propina al cobrar</h2>
       <div class="settings-desc">Si lo activas, cada vez que cobres una mesa te pregunta si el cliente quiere dejar propina antes de cerrar la cuenta.</div>
       <div class="settings-row">
@@ -2346,7 +2376,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="negocio">
       <h2>🛵 Domicilios</h2>
       <div class="settings-desc">Para restaurantes y bares que también entregan a domicilio. Si lo activas, aparece un botón "🛵 Domicilio" junto a "Venta rápida" para facturar el pedido con cliente, dirección y el valor del envío, sin necesidad de abrir una mesa.</div>
       <div class="settings-row">
@@ -2355,7 +2385,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="negocio">
       <h2>💜 Pasarela de pago (Nequi)</h2>
       <div class="settings-desc">Muestra tu número de Nequi en el QR de la mesa cuando el cliente pide la cuenta, con el valor exacto a pagar, para que transfiera directo desde su celular. No es un cobro automático: el cliente transfiere desde su propia app Nequi y avisa con un botón; tú confirmas el pago cuando lo veas llegar a tu cuenta. Un cobro automático de verdad (sin que tú confirmes) requiere que Nequi te dé una cuenta de comercio con API, que se tramita directo con ellos, fuera de la app.</div>
       <div class="settings-row">
@@ -2373,7 +2403,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       <div class="auth-hint">Después de guardar, reimprime o vuelve a compartir los QR de tus mesas (Ajustes → tus QR) para que lleven el número actualizado — los que ya imprimiste antes no lo tienen.</div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="negocio">
       <h2>🧾 Factura de venta (Colombia)</h2>
       <div class="settings-desc">Estos datos aparecen en el recibo que imprimes o envías al cliente (NIT, dirección, número consecutivo y, si eres responsable de IVA, el desglose). <b>Ojo:</b> esto NO es facturación electrónica DIAN — esa exige CUFE, firma digital y validación en tiempo real con un proveedor tecnológico autorizado (Siigo, Alegra, Factus, etc.). Si tu negocio ya está obligado a eso, necesitas contratar uno de esos proveedores; esta app deja el recibo listo con el formato que usan los negocios que no tienen esa obligación.</div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch">
@@ -2405,7 +2435,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="pedidos">
       <h2>🛎️ Personalizar la página de pedidos</h2>
       <div class="settings-desc">Esto lo ve el cliente en pedido.html: un mensaje tuyo, datos de contacto/info extra y el horario (con reloj y aviso de abierto/cerrado en vivo). Se publica junto con el catálogo — usa el botón "📤 Publicar catálogo" más abajo (o simplemente espera unos segundos) para que se actualice.</div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch">
@@ -2430,7 +2460,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="pedidos">
       <h2>Cierre automático de caja</h2>
       <div class="settings-desc">La app cierra la caja sola a la hora que elijas. Tiene que estar abierta a esa hora; si la abres dentro de las 4 horas siguientes, lo hace al entrar.</div>
       <div class="settings-row">
@@ -2447,7 +2477,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="pedidos">
       <h2>QR de las mesas (permanentes)</h2>
       <div class="settings-desc">Imprímelos una sola vez. El QR de cada mesa no cambia mientras no cambies el link, el WhatsApp ni el número de mesa.</div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
@@ -2463,7 +2493,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       <div id="qrGrid"></div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="pedidos">
       <h2>🔔 Alertas con el celular bloqueado</h2>
       <div class="settings-desc">Un navegador no puede avisar con la pantalla apagada. Para eso usa la app gratuita <b>ntfy</b>: cada pedido, cuenta o canción te llega como notificación con sonido aunque esta app esté cerrada.</div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
@@ -2479,7 +2509,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="apariencia">
       <h2>Letra</h2>
       <div class="settings-desc">Cambia la tipografía, el color y el tamaño del texto de toda la app.</div>
       <div class="settings-row"><div class="settings-row-text"><strong>Tipografía</strong></div>
@@ -2491,7 +2521,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       <div class="settings-row"><div class="settings-row-text"><strong>Restablecer letra</strong></div><button class="btn-ghost" id="tyReset" type="button">Restablecer</button></div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="apariencia">
       <h2>Fondo de la aplicación</h2>
       <div class="settings-desc">Elige una foto de tu celular como fondo, o cambia los colores a tu gusto. Todo se guarda en la aplicación.</div>
       <div class="settings-row">
@@ -2523,19 +2553,19 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="apariencia">
       <h2>Apariencia</h2>
       <div class="settings-desc">Diseños pensados para que los vea el negocio: se leen fácil, se ven profesionales y dan buena imagen a clientes y empleados.</div>
       <div class="palette-grid" id="paletteGrid"></div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="apariencia">
       <h2>🔒 Tu diseño personal</h2>
       <div class="settings-desc">El diseño original de la app — se queda guardado aquí aparte, solo para ti. Los demás son los que le puedes mostrar al negocio.</div>
       <div class="palette-grid" id="palettePersonalGrid"></div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="datos">
       <h2>🧮 Calculadoras rápidas</h2>
       <div class="settings-desc">Herramientas rápidas para el día a día del negocio: no guardan nada, solo calculan.</div>
       <div class="calc-tabs" id="calcTabs">
@@ -2582,7 +2612,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="apariencia">
       <h2>🧓 Modo fácil</h2>
       <div class="settings-desc">Letras y botones más grandes, más contraste y sin animaciones. Pensado para pantallas táctiles y para gente mayor. El diseño original no se toca: se activa y desactiva cuando quieras.</div>
       <div class="settings-row">
@@ -2591,7 +2621,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
-    <div class="settings-group">
+    <div class="settings-group" hidden data-cat="ayuda">
       <h2>📖 Guía y soporte</h2>
       <div class="settings-desc">Escribe lo que quieres hacer (ej: "cómo cierro una mesa") y te mostramos cómo. Si no lo encuentras, más abajo puedes escribirnos por WhatsApp.</div>
       <input type="text" id="guideSearchInput" class="mz-in" style="width:100%;margin-bottom:10px" placeholder="🔎 Escribe tu pregunta, ej: ¿cómo escaneo una factura?" autocomplete="off">
@@ -12620,6 +12650,25 @@ function iniTipo(){
   $('tyReset').onclick=()=>{SS('vito_tipo',{});aplicarTipo();iniTipo();};
 }
 
+/* ---------- Ajustes por categorías ---------- */
+function mostrarCategoriaAjustes(cat){
+  document.querySelectorAll('#view-ajustes .settings-group[data-cat]').forEach(g=>{ g.hidden = g.dataset.cat !== cat; });
+  $('ajustesCats').hidden = true;
+  $('ajustesBackBtn').hidden = false;
+  document.getElementById('view-ajustes').scrollTo({ top: 0 });
+}
+function volverACategoriasAjustes(){
+  document.querySelectorAll('#view-ajustes .settings-group[data-cat]').forEach(g=>{ g.hidden = true; });
+  $('ajustesCats').hidden = false;
+  $('ajustesBackBtn').hidden = true;
+}
+function iniAjustesCats(){
+  document.querySelectorAll('.ajustes-cat').forEach(b=>{
+    b.addEventListener('click', ()=>mostrarCategoriaAjustes(b.dataset.cat));
+  });
+  $('ajustesBackBtn').addEventListener('click', volverACategoriasAjustes);
+}
+
 /* ---------- Cierre automático de caja ---------- */
 const acCfg=()=>Object.assign({on:false,times:[],last:{},open:'saltar'},LS('vito_auto',{}));
 function acRender(){
@@ -13230,7 +13279,7 @@ function iniReloj(){
 }
 
 /* ---------- Arranque ---------- */
-aplicarTipo();iniTipo();iniAuto();iniHist();iniMusica();iniYT();iniAutoPlay();iniReloj();
+aplicarTipo();iniTipo();iniAjustesCats();iniAuto();iniHist();iniMusica();iniYT();iniAutoPlay();iniReloj();
 const w=setInterval(()=>{if(typeof data!=='undefined'&&data){clearInterval(w);iniQR();renderMusica();mejorarHist();if(typeof i18nRefreshDynamic==='function')i18nRefreshDynamic();setTimeout(publicarCuentas,4000);}},400);
 })();
 
