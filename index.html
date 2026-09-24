@@ -1588,6 +1588,52 @@
   #tvpLink{ width:100%; box-sizing:border-box; margin:8px 0; font-weight:700; }
   #ytBox.yt-espera iframe{ visibility:hidden; }
   #ytBox.yt-espera::after{ content:'🎵 Esperando la próxima canción…'; position:absolute; inset:0; display:grid; place-items:center; border-radius:12px; background:var(--surface-2); color:var(--ink-soft); font-size:14px; font-weight:600; }
+  /* ---------- Contabilidad ---------- */
+  .ct-head{ margin-bottom:12px; }
+  .ct-periodos{ display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
+  .ct-periodos button{ flex:none; height:36px; padding:0 13px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font:700 13px var(--font-main); cursor:pointer; }
+  .ct-periodos button.on{ background:var(--amber); border-color:var(--amber); color:#fff; }
+  .ct-rango{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .ct-rango[hidden]{ display:none; }
+  .ct-rango label{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-soft); }
+  .ct-rango input{ padding:8px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--ink); }
+  .ct-titulo{ margin-top:8px; font-size:13px; color:var(--ink-soft); }
+  .ct-kpis{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-bottom:10px; }
+  .ct-kpi{ padding:12px 14px; border-radius:14px; border:1px solid var(--line); background:var(--surface); }
+  .ct-kpi small{ display:block; font-size:12px; color:var(--ink-soft); font-weight:600; }
+  .ct-kpi b{ display:block; font-size:20px; margin-top:3px; }
+  .ct-kpi span{ display:block; font-size:11.5px; color:var(--ink-soft); margin-top:2px; line-height:1.3; }
+  .ct-kpi.in b{ color:var(--paid); } .ct-kpi.out b{ color:var(--brick); }
+  .ct-kpi.res{ border-color:var(--amber-deep); background:color-mix(in srgb, var(--amber) 12%, var(--surface)); }
+  .ct-aviso{ font-size:12.5px; color:var(--ink-soft); line-height:1.45; margin:0 2px 12px; }
+  .ct-form{ display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:8px; }
+  .ct-form .mz-in{ width:100%; box-sizing:border-box; }
+  .ct-tipo{ display:flex; gap:6px; grid-column:1 / -1; }
+  .ct-tipo button{ flex:1; height:40px; border-radius:10px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); font:700 14px var(--font-main); cursor:pointer; }
+  .ct-tipo button.on{ border-color:var(--amber); background:color-mix(in srgb, var(--amber) 22%, transparent); }
+  .ct-form .btn-primary{ height:44px; }
+  .ct-dos{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:0 12px; }
+  .ct-barra{ display:grid; grid-template-columns:minmax(90px,38%) 1fr auto; align-items:center; gap:8px; font-size:13.5px; margin:7px 0; }
+  .ct-barra i{ display:block; height:10px; border-radius:6px; background:var(--amber); min-width:3px; }
+  .ct-barra.g i{ background:var(--brick); } .ct-barra.v i{ background:var(--paid); }
+  .ct-barra b{ font-size:13px; white-space:nowrap; }
+  .ct-chart{ display:flex; align-items:flex-end; gap:4px; height:150px; padding-top:6px; overflow-x:auto; }
+  .ct-col{ flex:1 0 18px; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:18px; }
+  .ct-col .bs{ display:flex; align-items:flex-end; gap:2px; height:120px; }
+  .ct-col .bs i{ display:block; width:8px; border-radius:3px 3px 0 0; background:var(--paid); }
+  .ct-col .bs i.g{ background:var(--brick); }
+  .ct-col small{ font-size:10px; color:var(--ink-soft); }
+  .ct-leyenda{ display:flex; gap:14px; font-size:12px; color:var(--ink-soft); margin-top:6px; }
+  .ct-leyenda i{ display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+  .ct-mov{ display:flex; align-items:center; gap:10px; padding:10px 2px; border-top:1px solid var(--line); font-size:14px; }
+  .ct-mov:first-child{ border-top:0; }
+  .ct-mov .ic{ width:34px; height:34px; border-radius:10px; display:grid; place-items:center; flex-shrink:0; background:var(--surface-2); }
+  .ct-mov .tx{ flex:1; min-width:0; }
+  .ct-mov .tx b{ display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ct-mov .tx small{ color:var(--ink-soft); font-size:12px; }
+  .ct-mov .vl{ font-weight:800; white-space:nowrap; }
+  .ct-mov .vl.in{ color:var(--paid); } .ct-mov .vl.out{ color:var(--brick); }
+  .ct-mov button{ padding:4px 8px; font-size:12px; }
   .acc-users{ display:flex; flex-direction:column; gap:6px; margin:8px 0; }
   .acc-user{ display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line); font-size:14px; }
   .acc-user b{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
@@ -1601,7 +1647,7 @@
   .auth-users small{ opacity:.7; font-weight:500; }
   /* Modo mesero (usuario con rol Mesero en este equipo): solo lo del servicio */
   body.modo-mesero nav button[data-view="productos"], body.modo-mesero nav button[data-view="inventario"], body.modo-mesero nav button[data-view="estadisticas"],
-  body.modo-mesero nav button[data-view="historial"], body.modo-mesero nav button[data-view="ajustes"], body.modo-mesero .more-tile[data-go="estadisticas"],
+  body.modo-mesero nav button[data-view="historial"], body.modo-mesero nav button[data-view="ajustes"], body.modo-mesero .more-tile[data-go="estadisticas"], body.modo-mesero nav button[data-view="contabilidad"], body.modo-mesero .more-tile[data-go="contabilidad"],
   body.modo-mesero .more-tile[data-go="historial"], body.modo-mesero .more-tile[data-go="ajustes"], body.modo-mesero .more-tile[data-go="ia"],
   body.modo-mesero #asisFab, body.modo-mesero #voiceFabAI, body.modo-mesero #mesoraFixPill{ display:none !important; }
   .mesero-chip{ display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 6px 0 12px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font:700 13px var(--font-main); }
@@ -2332,6 +2378,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
         <button data-view="cocina"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11h16v2a7 7 0 0 1-7 7h-2a7 7 0 0 1-7-7z"/><path d="M2 11h20M9 7.5c0-1.5 1-2 1-3.5M14 7.5c0-1.5 1-2 1-3.5"/></svg><span class="nav-lbl">Cocina</span><span id="kdsBadge" class="nav-badge"></span></button>
         <button data-view="productos"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2.5h4V6l2 3v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V9l2-3z"/><path d="M8 12.5h8M8 17h8"/></svg><span class="nav-lbl">Productos</span></button>
         <button data-view="inventario"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg><span class="nav-lbl">Inventario</span><span id="invBadge" class="nav-badge"></span></button>
+        <button data-view="contabilidad" class="nav-extra"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 8.5h8M8 12h8M8 15.5h4"/></svg><span class="nav-lbl">Contabilidad</span></button>
         <button data-view="estadisticas" class="nav-extra"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M6.5 16v-5M11.5 16V6M16.5 16V9"/></svg><span class="nav-lbl">Estadísticas</span></button>
         <button data-view="carta" id="cartaTab" class="nav-extra"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4.5h6a3 3 0 0 1 3 3V20a2.5 2.5 0 0 0-2.5-2.5H3z"/><path d="M21 4.5h-6a3 3 0 0 0-3 3V20a2.5 2.5 0 0 1 2.5-2.5H21z"/></svg><span class="nav-lbl">Carta</span></button>
         <button data-view="historial" class="nav-extra"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5M12 7.5V12l3 2"/></svg><span class="nav-lbl">Historial</span></button>
@@ -2452,6 +2499,40 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
 
     <input id="cartaQ" type="search" placeholder="Buscar…" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px;margin:8px 0;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px">
     <div id="cartaList"></div>
+  </section>
+
+  <section id="view-contabilidad">
+    <div class="ct-head">
+      <div class="ct-periodos" id="ctPeriodos">
+        <button type="button" data-p="hoy">Hoy</button><button type="button" data-p="semana">7 días</button><button type="button" data-p="mes">Este mes</button><button type="button" data-p="mesant">Mes pasado</button><button type="button" data-p="anio">Este año</button><button type="button" data-p="rango">Fechas…</button>
+      </div>
+      <div class="ct-rango" id="ctRango" hidden><label>Desde <input type="date" id="ctDesde"></label><label>Hasta <input type="date" id="ctHasta"></label></div>
+      <div class="ct-titulo" id="ctTitulo"></div>
+    </div>
+    <div class="ct-kpis" id="ctKpis"></div>
+    <div class="ct-aviso" id="ctAviso"></div>
+    <div class="settings-group">
+      <h2>➕ Registrar gasto o ingreso</h2>
+      <div class="ct-form">
+        <div class="ct-tipo" id="ctTipo"><button type="button" data-t="gasto" class="on">💸 Gasto</button><button type="button" data-t="ingreso">💰 Otro ingreso</button></div>
+        <select id="ctCat" class="mz-in"></select>
+        <input id="ctMonto" class="mz-in" type="number" inputmode="numeric" min="0" step="100" placeholder="Valor ($)">
+        <input id="ctFecha" class="mz-in" type="date">
+        <select id="ctMetodo" class="mz-in"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="nequi">Nequi / Daviplata</option><option value="tarjeta">Tarjeta</option></select>
+        <input id="ctNota" class="mz-in" placeholder="Detalle (ej. arriendo de octubre, factura de luz)" maxlength="120">
+        <button class="btn-primary" id="ctGuardar" type="button">Guardar</button>
+      </div>
+    </div>
+    <div class="settings-group"><h2>📈 Entradas y gastos</h2><div id="ctGrafica"></div></div>
+    <div class="ct-dos">
+      <div class="settings-group"><h2>💳 Dinero que entró, por medio de pago</h2><div id="ctMedios"></div></div>
+      <div class="settings-group"><h2>🧾 Gastos por categoría</h2><div id="ctCats"></div></div>
+    </div>
+    <div class="settings-group">
+      <h2>📋 Movimientos</h2>
+      <div class="mz-actions" style="margin-bottom:8px"><button class="btn-ghost" id="ctCsv" type="button">⬇️ Descargar para Excel</button></div>
+      <div id="ctLista"></div>
+    </div>
   </section>
 
   <section id="view-historial">
@@ -3043,6 +3124,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
     <div class="more-grip"></div>
     <div class="more-title">Más secciones</div>
     <div class="more-grid">
+      <button type="button" class="more-tile" data-go="contabilidad"><span class="more-ic">📒</span><strong>Contabilidad</strong><small>Entradas, gastos y ganancia</small></button>
       <button type="button" class="more-tile" data-go="estadisticas"><span class="more-ic">📊</span><strong>Estadísticas</strong><small>Ventas y ganancias</small></button>
       <button type="button" class="more-tile" data-go="carta"><span class="more-ic" id="moreCartaIc">📖</span><strong id="moreCartaLbl">Carta</strong><small>Lo que ven tus clientes</small></button>
       <button type="button" class="more-tile" data-go="historial"><span class="more-ic">🧾</span><strong>Historial</strong><small>Cuentas cerradas y fiados</small></button>
@@ -6064,6 +6146,7 @@ document.querySelectorAll('nav button').forEach(btn=>{
     if(btn.dataset.view === 'inventario') renderInventario();
     if(btn.dataset.view === 'carta') renderCarta();
     if(btn.dataset.view === 'estadisticas') renderStats();
+    if(btn.dataset.view === 'contabilidad' && typeof renderConta === 'function') renderConta();
     if(btn.dataset.view === 'cocina') renderCocina();
   });
 });
@@ -10591,6 +10674,7 @@ function asisContext(q){
     // Cuentas cerradas que quedaron debiendo (fiados).
     deudas: asisDeudas().slice(0, 30).map(d => ({ quien: d.quien, debe: d.debe, fecha: new Date(d.fecha).toLocaleDateString('es-CO') })),
     clientesFrecuentes: (data.clientesFrecuentes || []).slice().sort((a, b) => b.visitas - a.visitas).slice(0, 10).map(c => ({ cliente: c.nombre || c.telefono, visitas: c.visitas, gastado: c.totalGastado })),
+    contabilidadEsteMes: (() => { try{ const m0 = new Date(); m0.setHours(0, 0, 0, 0); m0.setDate(1); const x = ctMovimientos({ ini: m0.getTime(), fin: Date.now() + 1 }); const ent = x.mov.filter(m => m.tipo !== 'gasto').reduce((a, m) => a + m.monto, 0), gas = x.mov.filter(m => m.tipo === 'gasto').reduce((a, m) => a + m.monto, 0); return { entradas: ent, gastos: gas, resultado: ent - gas, gastosPorCategoria: x.mov.filter(m => m.tipo === 'gasto').reduce((o, m) => { const k = ctCatNombre('gasto', m.cat); o[k] = (o[k] || 0) + m.monto; return o; }, {}) }; }catch(e){ return null; } })(),
     reclamosAbiertos: (data.casos || []).filter(c => c.estado !== 'resuelto').slice(0, 10).map(c => ({ tipo: CASO_CATEGORIAS[c.categoria] || c.categoria, urgencia: c.urgencia, detalle: c.descripcion, asignadoA: c.asignadoA || '' })),
     // Compacto para que la IA responda más rápido: una fila por producto.
     productosColumnas: 'nombre | tamaño | categoría | precio | costo (0 = sin costo) | margen % | stock (- = sin control) | estado',
@@ -10660,6 +10744,7 @@ const ASIS_NAV = [
   { view: 'cocina', re: /\b(cocina|comandas)\b/, name: 'Cocina' },
   { view: 'productos', re: /\bproductos?\b/, name: 'Productos' },
   { view: 'inventario', re: /\b(inventario|bodega|existencias)\b/, name: 'Inventario' },
+  { view: 'contabilidad', re: /\b(contabilidad|gastos?|egresos?|entradas y salidas|flujo de caja|balance)\b/, name: 'Contabilidad' },
   { view: 'estadisticas', re: /\b(estadisticas?|graficas?|reportes?|informes?)\b/, name: 'Estadísticas' },
   { view: 'carta', re: /\b(carta|menu)\b/, name: 'la carta' },
   { view: 'historial', re: /\b(historial|cuentas cerradas)\b/, name: 'Historial' },
@@ -13146,7 +13231,7 @@ function aplicarModoMesero(){
     }
     chip.querySelector('span').textContent = '🧑‍🍳 ' + authUser;
     const act = document.querySelector('nav button.active');
-    if(act && /^(productos|inventario|estadisticas|historial|ajustes)$/.test(act.dataset.view)){ const b = document.querySelector('nav button[data-view="mesas"]'); if(b) b.click(); }
+    if(act && /^(productos|inventario|estadisticas|contabilidad|historial|ajustes)$/.test(act.dataset.view)){ const b = document.querySelector('nav button[data-view="mesas"]'); if(b) b.click(); }
   } else if(chip) chip.remove();
 }
 function authIsAdmin(){
@@ -16964,7 +17049,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
    la Pantalla del TV de Mesora (tv.html) y reproduce la cola en vivo: cada canción que piden las
    mesas entra sola. Los Smart TV LG/Samsung sin Chromecast no aparecen aquí (solo los ve la app
    de YouTube): para esos están los botones de YouTube Music / YouTube. */
-const MESORA_VERSION = '2026-09-24 · v14';
+const MESORA_VERSION = '2026-09-24 · v15';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
@@ -17462,6 +17547,168 @@ function iniLounge(){
   lngEstado();
 }
 
+/* ---------- Contabilidad: entradas, gastos y resultado del negocio ----------
+   Entradas automáticas: lo cobrado en las cuentas cerradas y ventas de mostrador (por medio de
+   pago; los fiados cuentan el día que se pagan). Gastos automáticos: las compras a proveedores
+   (facturas escaneadas). Además se registran a mano otros gastos (arriendo, servicios, nómina…)
+   y otros ingresos (data.contab). Todo sale de los datos que ya tiene la app. */
+const CT_CATS = {
+  gasto: [['proveedores', '📦 Proveedores / mercancía'], ['arriendo', '🏠 Arriendo'], ['servicios', '💡 Servicios (luz, agua, gas, internet)'], ['nomina', '👥 Nómina / sueldos'], ['impuestos', '🏛️ Impuestos'], ['mantenimiento', '🛠️ Mantenimiento'], ['transporte', '🚚 Transporte / domicilios'], ['publicidad', '📣 Publicidad'], ['otros', '🗂️ Otros gastos']],
+  ingreso: [['otros_ingresos', '💰 Otros ingresos'], ['aporte', '🙋 Aporte del dueño'], ['prestamo', '🏦 Préstamo recibido']]
+};
+const CT_METODOS = { efectivo: '💵 Efectivo', transferencia: '🏦 Transferencia', nequi: '📱 Nequi / Daviplata', tarjeta: '💳 Tarjeta', debe: 'Fiado', otro: 'Otro' };
+let ctPeriodo = 'mes', ctTipo = 'gasto', ctCsvData = null;
+const ctCatNombre = (t, c) => { const x = (CT_CATS[t] || []).find(y => y[0] === c); return x ? x[1] : (c || ''); };
+const ctDia = d => { const x = new Date(d); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+const ctFmt = n => fmt(Math.round(n));
+function ctRango(){
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const fin = new Date(hoy); fin.setDate(fin.getDate() + 1);
+  let ini = new Date(hoy), f = fin, titulo;
+  if(ctPeriodo === 'hoy'){ titulo = 'Hoy'; }
+  else if(ctPeriodo === 'semana'){ ini.setDate(ini.getDate() - 6); titulo = 'Últimos 7 días'; }
+  else if(ctPeriodo === 'mes'){ ini.setDate(1); titulo = 'Este mes'; }
+  else if(ctPeriodo === 'mesant'){ ini = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1); f = new Date(hoy.getFullYear(), hoy.getMonth(), 1); titulo = 'Mes pasado'; }
+  else if(ctPeriodo === 'anio'){ ini = new Date(hoy.getFullYear(), 0, 1); titulo = 'Este año'; }
+  else {
+    const d = document.getElementById('ctDesde').value, h = document.getElementById('ctHasta').value;
+    ini = d ? new Date(d + 'T00:00') : new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    f = h ? new Date(new Date(h + 'T00:00').getTime() + 864e5) : fin;
+    titulo = 'Fechas elegidas';
+  }
+  const opt = { day: 'numeric', month: 'short', year: 'numeric' };
+  return { ini: ini.getTime(), fin: f.getTime(), titulo: titulo + ' · ' + new Date(ini).toLocaleDateString('es-CO', opt) + ' al ' + new Date(f.getTime() - 1).toLocaleDateString('es-CO', opt) };
+}
+// Todos los movimientos del periodo en un solo formato: { tipo: venta|ingreso|gasto, monto, fecha, ... }
+function ctMovimientos(r){
+  const mov = [];
+  let vendido = 0, costo = 0, sinCosto = false, porCobrar = 0, nVentas = 0;
+  (data.history || []).forEach(h => {
+    const t = new Date(h.date).getTime();
+    if(t >= r.ini && t < r.fin){
+      nVentas++; vendido += Number(h.total) || 0;
+      (h.items || []).forEach(it => { const c = Number(it.cost); if(c > 0) costo += c * (Number(it.qty) || 0); else if(!/domicilio|propina/i.test(it.name || '')) sinCosto = true; });
+      porCobrar += Number(h.debt) || 0;
+    }
+    const pagoTarde = h.paidLater ? new Date(h.paidLater).getTime() : 0;
+    (h.payments || []).forEach(p => {
+      if(p.method === 'debe' || !(Number(p.amount) > 0)) return;
+      const tarde = pagoTarde && /pagó después/.test(p.note || '');
+      const cuando = tarde ? pagoTarde : t;
+      if(cuando >= r.ini && cuando < r.fin){
+        const quien = h.tableName || (h.table ? 'Mesa ' + h.table : 'Venta');
+        mov.push({ tipo: 'venta', monto: Number(p.amount), metodo: p.method || 'otro', fecha: cuando, desc: tarde ? 'Fiado cobrado · ' + quien : quien });
+      }
+    });
+  });
+  (data.purchases || []).forEach(pu => {
+    const t = new Date(pu.at || pu.date).getTime();
+    if(t >= r.ini && t < r.fin && Number(pu.total) > 0) mov.push({ tipo: 'gasto', cat: 'proveedores', monto: Number(pu.total), metodo: 'otro', fecha: t, desc: 'Compra' + (pu.supplier ? ' a ' + pu.supplier : '') + ' (factura escaneada)', auto: true });
+  });
+  (data.contab || []).forEach(g => {
+    const t = new Date(g.fecha + 'T12:00').getTime();
+    if(t >= r.ini && t < r.fin) mov.push({ tipo: g.tipo, cat: g.cat, monto: Number(g.monto) || 0, metodo: g.metodo, fecha: t, desc: g.nota || ctCatNombre(g.tipo, g.cat).replace(/^\S+\s/, ''), id: g.id });
+  });
+  mov.sort((a, b) => b.fecha - a.fecha);
+  return { mov, vendido, costo, sinCosto, porCobrar, nVentas };
+}
+function renderConta(){
+  if(!document.getElementById('view-contabilidad') || typeof data === 'undefined' || !data) return;
+  document.querySelectorAll('#ctPeriodos button').forEach(b => b.classList.toggle('on', b.dataset.p === ctPeriodo));
+  document.getElementById('ctRango').hidden = ctPeriodo !== 'rango';
+  const r = ctRango(); document.getElementById('ctTitulo').textContent = r.titulo;
+  const x = ctMovimientos(r);
+  const suma = f => x.mov.filter(f).reduce((a, m) => a + m.monto, 0);
+  const ventas = suma(m => m.tipo === 'venta'), otrosIn = suma(m => m.tipo === 'ingreso'), gastos = suma(m => m.tipo === 'gasto');
+  const entradas = ventas + otrosIn, resultado = entradas - gastos;
+  const k = (cls, t, v, sub) => '<div class="ct-kpi ' + cls + '"><small>' + t + '</small><b>' + v + '</b>' + (sub ? '<span>' + sub + '</span>' : '') + '</div>';
+  document.getElementById('ctKpis').innerHTML =
+    k('in', '💰 Entradas', ctFmt(entradas), 'Cobrado ' + ctFmt(ventas) + (otrosIn ? ' + otros ' + ctFmt(otrosIn) : '')) +
+    k('out', '💸 Gastos', ctFmt(gastos), 'Compras y gastos registrados') +
+    k('res', resultado >= 0 ? '✅ Te quedó' : '⚠️ Faltó', ctFmt(Math.abs(resultado)), 'Entradas − gastos') +
+    k('', '🧾 Vendido', ctFmt(x.vendido), x.nVentas + (x.nVentas === 1 ? ' cuenta' : ' cuentas')) +
+    k('', '📈 Ganancia de lo vendido', ctFmt(x.vendido - x.costo), 'Vendido − costo de los productos' + (x.sinCosto ? ' (faltan costos)' : '')) +
+    k('', '🕒 Por cobrar (fiados)', ctFmt(x.porCobrar), 'De las ventas de este periodo');
+  document.getElementById('ctAviso').textContent = (x.sinCosto ? '⚠️ Algunos productos vendidos no tienen costo: la ganancia de lo vendido sale más alta de lo real (ponlo en Productos → tocar el producto → Costo). ' : '') + 'Entradas = dinero cobrado (los fiados cuentan el día que los pagan). Las compras a proveedores entran solas al escanear sus facturas; los demás gastos regístralos aquí abajo.';
+  const barras = (obj, cls, nombre) => { const ks = Object.keys(obj).sort((a, b) => obj[b] - obj[a]); const max = Math.max(1, ...ks.map(q => obj[q])); return ks.length ? ks.map(q => '<div class="ct-barra ' + cls + '"><span>' + invEsc(nombre(q)) + '</span><i style="width:' + Math.max(2, obj[q] / max * 100) + '%"></i><b>' + ctFmt(obj[q]) + '</b></div>').join('') : '<div class="empty-note">Nada en este periodo.</div>'; };
+  const porMedio = {}, porCat = {};
+  x.mov.forEach(m => { if(m.tipo === 'gasto') porCat[m.cat || 'otros'] = (porCat[m.cat || 'otros'] || 0) + m.monto; else porMedio[m.metodo || 'otro'] = (porMedio[m.metodo || 'otro'] || 0) + m.monto; });
+  document.getElementById('ctMedios').innerHTML = barras(porMedio, 'v', q => CT_METODOS[q] || q);
+  document.getElementById('ctCats').innerHTML = barras(porCat, 'g', q => ctCatNombre('gasto', q));
+  // Gráfica: por día (hasta ~2 meses) o por mes
+  const porMes = (r.fin - r.ini) / 864e5 > 62, grupos = {}, llaves = [];
+  const clave = t => { const d = new Date(t); return porMes ? d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') : ctDia(d); };
+  x.mov.forEach(m => { const g = grupos[clave(m.fecha)] || (grupos[clave(m.fecha)] = { in: 0, out: 0 }); if(m.tipo === 'gasto') g.out += m.monto; else g.in += m.monto; });
+  if(porMes){ const d = new Date(r.ini); while(d.getTime() < r.fin){ llaves.push(clave(d)); d.setMonth(d.getMonth() + 1); } }
+  else { for(let t = r.ini; t < r.fin; t += 864e5) llaves.push(clave(t)); }
+  const mx = Math.max(1, ...llaves.map(q => Math.max((grupos[q] || {}).in || 0, (grupos[q] || {}).out || 0)));
+  const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  document.getElementById('ctGrafica').innerHTML = x.mov.length ? '<div class="ct-chart">' + llaves.map(q => { const g = grupos[q] || { in: 0, out: 0 }; const et = porMes ? MES[parseInt(q.slice(5), 10) - 1] : String(parseInt(q.slice(8), 10)); return '<div class="ct-col" title="' + q + ': entró ' + ctFmt(g.in) + ', gastos ' + ctFmt(g.out) + '"><div class="bs"><i style="height:' + (g.in / mx * 120) + 'px"></i><i class="g" style="height:' + (g.out / mx * 120) + 'px"></i></div><small>' + et + '</small></div>'; }).join('') + '</div><div class="ct-leyenda"><span><i style="background:var(--paid)"></i>Entradas</span><span><i style="background:var(--brick)"></i>Gastos</span></div>' : '<div class="empty-note">Todavía no hay movimientos en este periodo.</div>';
+  { const ch = document.querySelector('#ctGrafica .ct-chart'); if(ch) ch.scrollLeft = ch.scrollWidth; }   // se ven primero los días más recientes
+  // Movimientos: las ventas se agrupan por día para no llenar la lista
+  const filas = [], ventasDia = {};
+  x.mov.forEach(m => { if(m.tipo === 'venta'){ const kk = ctDia(m.fecha); const v = ventasDia[kk] || (ventasDia[kk] = { monto: 0, n: 0 }); v.monto += m.monto; v.n++; } else filas.push(m); });
+  Object.keys(ventasDia).forEach(kk => filas.push({ tipo: 'venta', monto: ventasDia[kk].monto, fecha: new Date(kk + 'T23:00').getTime(), desc: 'Ventas cobradas del día', sub: ventasDia[kk].n + (ventasDia[kk].n === 1 ? ' pago' : ' pagos') }));
+  filas.sort((a, b) => b.fecha - a.fecha);
+  const lista = document.getElementById('ctLista');
+  lista.innerHTML = filas.length ? '' : '<div class="empty-note">Sin movimientos en este periodo.</div>';
+  filas.slice(0, 300).forEach(m => {
+    const d = document.createElement('div'); d.className = 'ct-mov';
+    const ic = m.tipo === 'venta' ? '🧾' : m.tipo === 'ingreso' ? '💰' : (ctCatNombre('gasto', m.cat).split(' ')[0] || '💸');
+    const med = m.metodo && m.metodo !== 'otro' && CT_METODOS[m.metodo] ? ' · ' + CT_METODOS[m.metodo].replace(/^\S+\s/, '') : '';
+    const sub = new Date(m.fecha).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) + ' · ' + (m.sub || (ctCatNombre(m.tipo, m.cat).replace(/^\S+\s/, '') + med + (m.auto ? ' · automático' : '')));
+    d.innerHTML = '<span class="ic">' + ic + '</span><span class="tx"><b></b><small></small></span><span class="vl ' + (m.tipo === 'gasto' ? 'out' : 'in') + '">' + (m.tipo === 'gasto' ? '−' : '+') + ctFmt(m.monto) + '</span>';
+    d.querySelector('b').textContent = m.desc; d.querySelector('small').textContent = sub;
+    if(m.id){
+      const del = document.createElement('button'); del.type = 'button'; del.className = 'btn-ghost'; del.textContent = '🗑'; del.title = 'Borrar este movimiento';
+      del.onclick = async () => {
+        const ok = await showConfirm({ title: '¿Borrar este movimiento?', message: m.desc + ' · ' + ctFmt(m.monto), confirmText: 'Sí, borrar', icon: '🗑️' });
+        if(!ok) return;
+        data.contab = (data.contab || []).filter(g => g.id !== m.id); saveData(); renderConta(); showToast('Movimiento borrado.');
+      };
+      d.appendChild(del);
+    }
+    lista.appendChild(d);
+  });
+  ctCsvData = { filas: x.mov, titulo: r.titulo };
+}
+function ctPintarCats(){
+  const sel = document.getElementById('ctCat'); if(!sel) return;
+  sel.innerHTML = CT_CATS[ctTipo].map(c => '<option value="' + c[0] + '">' + c[1] + '</option>').join('');
+  document.querySelectorAll('#ctTipo button').forEach(b => b.classList.toggle('on', b.dataset.t === ctTipo));
+}
+function iniConta(){
+  if(!document.getElementById('ctPeriodos')) return;
+  document.querySelectorAll('#ctPeriodos button').forEach(b => b.onclick = () => { ctPeriodo = b.dataset.p; renderConta(); });
+  ['ctDesde', 'ctHasta'].forEach(id => document.getElementById(id).onchange = renderConta);
+  document.querySelectorAll('#ctTipo button').forEach(b => b.onclick = () => { ctTipo = b.dataset.t; ctPintarCats(); });
+  ctPintarCats();
+  document.getElementById('ctFecha').value = ctDia(Date.now());
+  document.getElementById('ctGuardar').onclick = () => {
+    const monto = Math.round(parseFloat(document.getElementById('ctMonto').value));
+    if(!(monto > 0)){ showToast('⚠️ Escribe el valor.'); return; }
+    data.contab = Array.isArray(data.contab) ? data.contab : [];
+    data.contab.unshift({ id: 'ct' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), tipo: ctTipo, cat: document.getElementById('ctCat').value, monto, fecha: document.getElementById('ctFecha').value || ctDia(Date.now()), metodo: document.getElementById('ctMetodo').value, nota: document.getElementById('ctNota').value.trim(), by: authUser || '', at: Date.now() });
+    saveData();
+    document.getElementById('ctMonto').value = ''; document.getElementById('ctNota').value = '';
+    showToast('✅ ' + (ctTipo === 'gasto' ? 'Gasto' : 'Ingreso') + ' de ' + ctFmt(monto) + ' guardado.');
+    renderConta();
+  };
+  document.getElementById('ctCsv').onclick = () => {
+    if(!ctCsvData || !ctCsvData.filas.length){ showToast('No hay movimientos para descargar.'); return; }
+    const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const filas = [['Fecha', 'Tipo', 'Categoría', 'Detalle', 'Medio de pago', 'Entrada', 'Salida']].concat(ctCsvData.filas.slice().reverse().map(m => [
+      new Date(m.fecha).toLocaleString('es-CO'), m.tipo === 'venta' ? 'Venta' : m.tipo === 'ingreso' ? 'Otro ingreso' : 'Gasto',
+      m.tipo === 'venta' ? 'Ventas' : ctCatNombre(m.tipo, m.cat).replace(/^\S+\s/, ''), m.desc, (CT_METODOS[m.metodo] || '').replace(/^\S+\s/, ''),
+      m.tipo === 'gasto' ? '' : Math.round(m.monto), m.tipo === 'gasto' ? Math.round(m.monto) : '']));
+    const csv = '﻿' + filas.map(f => f.map(q).join(';')).join('\r\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'contabilidad-' + String(data.businessName || 'negocio').replace(/[^\w]+/g, '-') + '-' + ctDia(Date.now()) + '.csv';
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    showToast('⬇️ Descargado: ábrelo con Excel o Google Sheets.');
+  };
+}
+
 /* ---------- Ajustes → App de meseros ---------- */
 function iniMeseros(){
   const sw = document.getElementById('mesOn'); if(!sw || !vm().mCfg) return;
@@ -17651,6 +17898,7 @@ let fotosListas = false;
   try{ iniCast(); }catch(e){ mesoraLogError('arranque', 'Transmisión: ' + e.message, ''); }
   try{ iniLounge(); }catch(e){ mesoraLogError('arranque', 'YouTube del TV: ' + e.message, ''); }
   try{ iniMeseros(); }catch(e){ mesoraLogError('arranque', 'Meseros: ' + e.message, ''); }
+  try{ iniConta(); }catch(e){ mesoraLogError('arranque', 'Contabilidad: ' + e.message, ''); }
   try{ aplicarModoMesero(); }catch(e){}
   licCargar().then(licDesdeLink).catch(e => mesoraLogError('arranque', 'Licencia: ' + e.message, ''));
   window.addEventListener('hashchange', () => { licDesdeLink(); });   // link abierto con Mesora ya abierta
