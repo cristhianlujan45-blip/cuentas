@@ -4195,6 +4195,41 @@ function collapseRepeatedVoicePhrase(text){
   return text;
 }
 
+// Separa una frase en un ítem por cada producto pedido. Antes solo se
+// partía por la palabra "y" (o por una coma, que se cambia por "y" antes de
+// llegar aquí) — pero al hablar de corrido una lista de varios productos,
+// mucha gente NO dice "y" entre cada uno, solo antes del último (ej. "tres
+// águilas, dos póker y cinco cigarrillos"), y el reconocedor de voz tampoco
+// siempre transcribe la coma como una pausa marcada. Eso hacía que "tres
+// águilas" y "dos póker" quedaran pegados en un solo ítem ilegible y se
+// perdiera el segundo producto. Ahora también se corta cada vez que aparece
+// una cantidad nueva (un número) después de que el ítem que se venía
+// armando YA empezó con su propia cantidad y ya tiene una palabra de
+// producto — así "tres águilas dos póker" (sin "y" entre medio) se separa
+// igual en dos ítems. No corta un número que viene DESPUÉS del nombre del
+// producto sin cantidad inicial (ej. "corrige poker a 5"), porque ahí el
+// ítem no arrancó con una cantidad.
+function splitVoiceChunks(text){
+  const words = text.split(' ').filter(Boolean);
+  const isQtyWord = w => /^\d+$/.test(w) || NUM_WORDS_VOICE[w] !== undefined;
+  const chunks = [];
+  let current = [];
+  words.forEach(w => {
+    if(w === 'y' || w === 'tambien' || w === 'también'){
+      if(current.length){ chunks.push(current.join(' ')); current = []; }
+      return;
+    }
+    if(isQtyWord(w) && current.length){
+      const startsWithQty = isQtyWord(current[0]);
+      const hasProductWord = current.some(cw => !isQtyWord(cw));
+      if(startsWithQty && hasProductWord){ chunks.push(current.join(' ')); current = []; }
+    }
+    current.push(w);
+  });
+  if(current.length) chunks.push(current.join(' '));
+  return chunks;
+}
+
 function parseVoiceCommand(rawText){
   // Las comas de una lista hablada ("mesa 3, 5 águilas, 2 pokers") se tratan
   // igual que decir "y" entre cada producto, así no hace falta decir "y"
@@ -4265,7 +4300,7 @@ function parseVoiceCommand(rawText){
   // la lista de productos.
   text = text.replace(/^(?:y|tambien|también)\s+/, '').replace(/\s+(?:y|tambien|también)$/, '').trim();
 
-  const chunks = text.split(/\s+(?:y|tambien|también)\s+/).map(c => c.trim()).filter(Boolean);
+  const chunks = splitVoiceChunks(text).map(c => c.trim()).filter(Boolean);
   const items = chunks.map(chunk => {
     const words = chunk.split(' ').filter(Boolean);
     let qty = null;
