@@ -1950,6 +1950,13 @@
   .voice-fab{width:54px;height:54px;border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.28)}
   .voice-fab-icon{display:flex}
   .voice-fab-close{display:none!important}
+  .voice-fab-help{position:absolute;top:-8px;left:-8px;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);background:var(--surface-2);color:var(--cream);font:800 13px/1 var(--font-main);display:grid;place-items:center;cursor:pointer;z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+  .voice-fab-ai{position:absolute;right:62px;top:50%;transform:translateY(-50%);height:40px;padding:0 13px;border-radius:999px;border:1px solid var(--amber-deep);background:var(--surface);color:var(--cream);font:800 13px var(--font-main);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+  .voice-fab-ai[hidden]{display:none}
+  .vh-list{display:flex;flex-direction:column;gap:12px;text-align:left;margin-top:8px}
+  .vh-list h3{margin:0 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft)}
+  .vh-list div div{font-size:14px;line-height:1.5}
+  .vh-list q{color:var(--cream);font-weight:700;quotes:'«' '»'}
   .voice-fab-wrap{
     position: fixed;
     right: 16px;
@@ -2620,8 +2627,8 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
       <div class="settings-row">
         <div class="settings-row-text">
-          <strong>Interpretar con IA (opcional)</strong>
-          <span>Apagado = voz clásica, sin internet. Solo funciona si hay clave guardada.</span>
+          <strong>Micrófono con IA, aparte (opcional)</strong>
+          <span>Muestra un segundo botón «IA» junto al micrófono para dictar con tus palabras. El micrófono normal siempre usa la voz clásica, sin internet.</span>
         </div>
         <label class="switch">
           <input type="checkbox" id="voiceAiToggle">
@@ -3526,6 +3533,8 @@ export default {
 
 <div class="voice-fab-wrap" id="voiceFabWrap">
   <button class="voice-fab-close" id="voiceFabCloseBtn" title="Ocultar comando por voz">✕</button>
+  <button class="voice-fab-help" id="voiceFabHelp" type="button" title="Ver los comandos de voz" aria-label="Comandos de voz">?</button>
+  <button class="voice-fab-ai" id="voiceFabAI" type="button" title="Pedido por voz con IA" hidden>IA</button>
   <button class="voice-fab" id="voiceFab" title="Agregar productos por voz">
     <span class="voice-fab-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></span>
   </button>
@@ -3924,7 +3933,7 @@ function showToast(msg, ms){
   const m = msg.match(/^\s*((?:\p{Extended_Pictographic}|[\u2600-\u27BF])(?:\uFE0F|\u200D\p{Extended_Pictographic})*)\s*/u);
   const icon = m ? m[1] : 'ℹ️';
   const text = m ? msg.slice(m[0].length) : msg;
-  const tipo = /^(⚠|❌|🔴|🟠|⛔|🚫)/.test(icon) || /^(error|no se pudo|no hay|falta)/i.test(text) ? 'warn' : /^(✅|🟢|🎉|✔)/.test(icon) ? 'ok' : 'info';
+  const tipo = /^(⚠|❌|🔴|🟠|⛔|🚫)/.test(icon) || /^(error|no se pudo|no hay|falta|no encontr|no entend|no escuch)/i.test(text) ? 'warn' : /^(✅|🟢|🎉|✔)/.test(icon) ? 'ok' : 'info';
   const dur = ms || Math.min(7000, Math.max(2600, text.length * 45));
   t.className = 'toast toast-' + tipo;
   t.textContent = '';
@@ -5253,6 +5262,95 @@ function doRemoveTable(target){
   showToast('➖ ' + msg); speakVoice(msg);
 }
 
+// ---- Ayuda: lista de comandos de voz ("comandos", "ayuda", "qué puedo decir") ----
+function isVoiceHelpCommand(rawText){
+  const t = normVoiceText(rawText);
+  return /^(comandos?|ayuda|lista de comandos|que (comandos|puedo decir|te puedo decir)|cuales son (los )?comandos|que comandos hay|como te hablo)\b/.test(t);
+}
+const VOICE_AYUDA = [
+  ['Pedidos', ['mesa 1, cinco águilas', 'dos póker y una Heineken para la mesa 3', 'agregar Heineken mesa 5', 'misma ronda para la mesa 2']],
+  ['Crear mesas', ['agrégame una mesa a nombre de Juan y agrégale dos cervezas y una póker', 'crea la mesa Carolina con tres Club Colombia', 'nueva mesa para don Pedro', 'agrega una mesa', 'agrega hasta la mesa 10']],
+  ['Corregir', ['quita una póker de la mesa 2', 'la mesa 4 son tres águilas (corrige la cantidad)', 'deshacer', 'quitar mesa 3']],
+  ['Cuentas', ['cuenta de la mesa 2', 'total de todas las mesas', 'cuánto llevo vendido', 'cuál fue mi último pedido']],
+  ['Abrir', ['mesa 4 (abre esa mesa)', 'mesa Juan']]
+];
+function voiceAyuda(){
+  let ov = document.getElementById('voiceHelpOverlay');
+  if(!ov){
+    ov = document.createElement('div'); ov.id = 'voiceHelpOverlay'; ov.className = 'overlay';
+    ov.innerHTML = '<div class="modal" style="max-width:440px;max-height:88vh;overflow:auto"><h2>🎤 Comandos de voz</h2>' +
+      '<div class="modal-sub">Toca el micrófono y di, por ejemplo:</div><div class="vh-list">' +
+      VOICE_AYUDA.map(([g, xs]) => '<div><h3>' + g + '</h3>' + xs.map(x => '<div><q>' + x.replace(/ \(.*\)$/, '') + '</q>' + (/\(.*\)$/.test(x) ? ' <small>' + x.match(/\((.*)\)$/)[1] + '</small>' : '') + '</div>').join('') + '</div>').join('') +
+      '</div><div class="modal-sub" style="margin-top:12px">El micrófono usa la voz clásica (sin internet). Para dictar con tus palabras usa el botón «IA» (actívalo en Ajustes → Voz).</div>' +
+      '<div class="modal-actions"><button class="btn-primary" type="button" id="voiceHelpOk">Entendido</button></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#voiceHelpOk').onclick = () => ov.classList.remove('show');
+    ov.addEventListener('click', e => { if(e.target === ov) ov.classList.remove('show'); });
+  }
+  ov.classList.add('show');
+  speakVoice('Estos son los comandos de voz.');
+}
+
+// ---- Crear una mesa con nombre (y pedido) por voz ----
+// "agrégame una mesa con el nombre Juan y agrégale dos cervezas, una póker"
+// "crea la mesa Carolina con tres Club Colombia" · "nueva mesa para don Pedro" · "abre una mesa a nombre de Ana"
+const VOICE_MESA_VERBOS = /^(agrega|agregame|agregue|agregar|anade|anademe|anadir|crea|creame|crear|abre|abreme|abrir|abrime|pon|ponme|haz|hazme|arma|armame|monta|montame)$/;
+const VOICE_MESA_CORTE = new Set(['y','con','agregale','agregar','agrega','ponle','pon','anotale','anota','sirvele','sirve','dale','traele','traigale','llevale','que','mesa','por','favor','porfavor']);
+const VOICE_CANTIDAD = /^(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|media|medio)$/;
+function voiceCrearMesaConNombre(rawText){
+  const rw = String(rawText || '').replace(/[,.;:!?¿¡"]/g, ' ').split(/\s+/).filter(Boolean);
+  const nw = rw.map(w => w.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ''));
+  let i = 0;
+  while(i < nw.length && i < 3 && !VOICE_MESA_VERBOS.test(nw[i]) && nw[i] !== 'nueva') i++;
+  if(i >= nw.length || i >= 3) return false;
+  let m = i + 1;
+  while(m < nw.length && m < i + 4 && nw[m] !== 'mesa') m++;
+  if(nw[m] !== 'mesa') return false;
+  let p = m + 1;
+  if(nw[p] === 'nueva') p++;
+  // Marcador del nombre: "con (el) nombre (de)", "a nombre de", "de nombre", "para (el/la/don/doña)", "llamada", "que se llama", "de"
+  const seq = (...ws) => ws.every((w, k) => nw[p + k] === w);
+  if(seq('con', 'el', 'nombre', 'de')) p += 4; else if(seq('con', 'el', 'nombre')) p += 3; else if(seq('con', 'nombre', 'de')) p += 3; else if(seq('con', 'nombre')) p += 2;
+  else if(seq('a', 'nombre', 'de')) p += 3; else if(seq('de', 'nombre')) p += 2; else if(seq('que', 'se', 'llama')) p += 3;
+  else if(nw[p] === 'llamada' || nw[p] === 'nombre' || nw[p] === 'para' || nw[p] === 'de' || nw[p] === 'del') p += 1;
+  if(nw[p] === 'el' || nw[p] === 'la' || nw[p] === 'don' || nw[p] === 'dona' || nw[p] === 'senor' || nw[p] === 'senora') { if(nw[p] === 'don' || nw[p] === 'dona') {} else p++; }
+  const ini = p;
+  while(p < nw.length && p - ini < 3 && !VOICE_MESA_CORTE.has(nw[p]) && !VOICE_CANTIDAD.test(nw[p])) p++;
+  const nombre = rw.slice(ini, p).join(' ').replace(/[^\p{L}\p{N} .'-]/gu, '').trim();
+  if(!nombre || /^\d+$/.test(nombre)) return false;
+  // Lo que sigue es el pedido: se quitan los conectores ("y agrégale", "con", "ponle"...).
+  let q = p;
+  while(q < nw.length && (VOICE_MESA_CORTE.has(nw[q]) || nw[q] === 'le' || nw[q] === 'de')) q++;
+  const pedidoTxt = rw.slice(q).join(' ');
+  const bonito = nombre.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  // ¿Ya hay una mesa con ese nombre? Se usa esa en vez de crear otra.
+  const clave = bonito.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  let id = Object.keys(data.tables).map(Number).find(k => { const n = data.tables[k] && data.tables[k].name; return n && n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() === clave; });
+  let creada = false;
+  if(!id){
+    id = Math.max(0, ...Object.keys(data.tables).map(Number)) + 1;
+    data.tables[id] = { items: [], people: [], name: bonito };
+    data.tableCount = Math.max(data.tableCount || 0, id);
+    creada = true;
+  }
+  let resumen = '', noEncontre = [];
+  if(pedidoTxt){
+    const items = parseVoiceCommand(pedidoTxt).items || [];
+    if(items.length){
+      const r = applyVoiceItems(id, items, 'add');
+      resumen = r.added.map(a => (a.qty > 1 ? a.qty + ' ' : '') + a.name).join(', ');
+      noEncontre = r.notFound || [];
+    } else noEncontre = [pedidoTxt];
+  }
+  saveData(); try{ renderMesas(); }catch(e){}
+  const quien = 'la mesa ' + bonito;
+  let msg = (creada ? 'Creé ' + quien : 'Ya existía ' + quien) + (resumen ? (creada ? ' y le agregué ' : '; le agregué ') + resumen : '') + '.';
+  showToast((creada ? '➕ ' : '✅ ') + msg + (noEncontre.length ? ' No encontré: ' + noEncontre.join(', ') + '.' : ''), 6000);
+  speakVoice(msg + (noEncontre.length ? ' No encontré ' + noEncontre.join(', ') + '.' : ''));
+  if(!pedidoTxt && !creada){ try{ openTableModal(id); }catch(e){} }
+  return true;
+}
+
 function voiceTableManagement(rawText){
   const t = normVoiceText(rawText).replace(/\s+/g,' ').trim();
   const det = '(?:(?:la|una|otra|nueva|esa|hasta)\\s+)*';
@@ -5335,6 +5433,7 @@ function handleSimpleVoiceCommands(rawText){
     pendingTableRemoval = null;
   }
 
+  if(voiceCrearMesaConNombre(rawText)) return true;
   if(voiceTableManagement(rawText)) return true;
 
   if(isAllTablesTotalVoiceCommand(rawText)){
@@ -5361,22 +5460,27 @@ function voiceLocalCanHandle(rawText){
   return p.items.every(it => matchProductVoice(it.productText));
 }
 
+// El micrófono de pedidos es SIEMPRE la voz clásica: instantánea, gratis y sin internet.
+// La IA solo se usa desde su propio botón («IA», junto al micrófono), si se activa en Ajustes → Voz.
+let voiceModoIA = false;
 async function handleVoiceTranscript(rawText){
+  const conIA = voiceModoIA; voiceModoIA = false;
   try{
+    if(isVoiceHelpCommand(rawText)){ voiceAyuda(); return; }
     if(handleSimpleVoiceCommands(rawText)) return;
-    // 1) Primero la interpretación local: es instantánea, gratis y funciona sin internet.
-    if(voiceLocalCanHandle(rawText)) return handleVoiceTranscriptLocal(rawText);
-    // 2) Si el comando no quedó claro y hay IA configurada, la IA ayuda a corregir
-    //    nombres, cantidades, mesas y formas de hablar.
-    return await handleVoiceTranscriptAI(rawText);
+    if(conIA){
+      if(!hasAIKey()){ showToast('⚠️ La IA no está conectada (⚙️ Configurar IA). Usé la voz clásica.'); return handleVoiceTranscriptLocal(rawText); }
+      return await handleVoiceTranscriptAI(rawText, true);
+    }
+    return handleVoiceTranscriptLocal(rawText);
   }catch(err){
     console.error('Voz:', err);
     showToast('Error al procesar el comando de voz: ' + (err && err.message ? err.message : err));
   }
 }
 
-async function handleVoiceTranscriptAI(rawText){
-  if(voiceAiOn() && hasAIKey()){
+async function handleVoiceTranscriptAI(rawText, forzar){
+  if((forzar || voiceAiOn()) && hasAIKey()){
     const ai = await interpretVoiceWithAI(rawText);
     if(ai && ai.confidence >= 0.72){
       if(ai.intent === 'undo'){
@@ -5675,8 +5779,9 @@ function ensureVoiceRecognizer(){
   return voiceRecognizer;
 }
 
-function startVoiceCommand(){
+function startVoiceCommand(conIA){
   if(!micEnabled) return;
+  voiceModoIA = !!conIA;
   if(data.products.length === 0){
     showToast('Primero agrega productos en la pestaña Productos.');
     return;
@@ -5691,7 +5796,7 @@ function startVoiceCommand(){
     voiceListening = true;
     voiceFinalBuffer = '';
     updateVoiceFabUI();
-    showToast('🎤 Escuchando… ej: "mesa 1, 5 águilas", "agregar Heineken mesa 5", "quitar mesa 3", "total de todas las mesas", "cuál fue mi último pedido", "deshacer". Toca 🎤 de nuevo para terminar.');
+    showToast(conIA ? '🤖 Escuchando con IA… di tu pedido con tus palabras. Toca de nuevo para terminar.' : '🎤 Escuchando… ej: "mesa 1, 5 águilas", "agrega una mesa a nombre de Juan con dos póker", "deshacer". Di "comandos" para ver todos. Toca 🎤 de nuevo para terminar.');
     rec.start();
     scheduleVoiceSilenceStop(VOICE_INITIAL_TIMEOUT_MS);
   }catch(e){
@@ -5809,6 +5914,7 @@ const FAB_DRAG_THRESHOLD = 6;
 
 voiceFabWrap.addEventListener('pointerdown', (e) => {
   if(e.target.closest('#voiceFabCloseBtn')) return;
+  if(e.target.closest('#voiceFabHelp')) return;
   fabDrag = {
     startX: e.clientX,
     startY: e.clientY,
@@ -5853,8 +5959,16 @@ window.addEventListener('resize', () => {
 document.getElementById('voiceFab').addEventListener('click', () => {
   if(fabJustDragged){ fabJustDragged = false; return; }
   if(voiceListening){ stopVoiceCommand(); return; }
-  startVoiceCommand();
+  startVoiceCommand(false);
 });
+document.getElementById('voiceFabAI').addEventListener('click', () => {
+  if(fabJustDragged){ fabJustDragged = false; return; }
+  if(voiceListening){ stopVoiceCommand(); return; }
+  if(!hasAIKey()){ showToast('⚠️ Conecta la IA primero (⚙️ Configurar IA).'); try{ openAIConfigDialog(); }catch(e){} return; }
+  startVoiceCommand(true);
+});
+document.getElementById('voiceFabHelp').addEventListener('click', () => { if(fabJustDragged){ fabJustDragged = false; return; } voiceAyuda(); });
+function voiceAIBtnSync(){ const b = document.getElementById('voiceFabAI'); if(b) b.hidden = !voiceAiOn(); }
 
 /* ---------- Navigation ---------- */
 document.querySelectorAll('nav button').forEach(btn=>{
@@ -13155,7 +13269,8 @@ function wireAccountUI(){
   document.getElementById('accLogoutBtn').onclick = () => { localStorage.removeItem(AUTH_SESSION_KEY); location.reload(); };
   const ai = document.getElementById('voiceAiToggle');
   ai.checked = voiceAiOn();
-  ai.onchange = () => { localStorage.setItem(VOICE_AI_KEY, ai.checked ? '1' : '0'); };
+  ai.onchange = () => { localStorage.setItem(VOICE_AI_KEY, ai.checked ? '1' : '0'); voiceAIBtnSync(); };
+  voiceAIBtnSync();
   const domToggle = document.getElementById('domiciliosOnToggle');
   if(domToggle){
     domToggle.checked = !!data.domiciliosOn;
@@ -16538,7 +16653,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
    la Pantalla del TV de Mesora (tv.html) y reproduce la cola en vivo: cada canción que piden las
    mesas entra sola. Los Smart TV LG/Samsung sin Chromecast no aparecen aquí (solo los ve la app
    de YouTube): para esos están los botones de YouTube Music / YouTube. */
-const MESORA_VERSION = '2026-09-24 · v11';
+const MESORA_VERSION = '2026-09-24 · v12';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
