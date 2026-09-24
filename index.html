@@ -1583,6 +1583,14 @@
   #mesoraFixPill{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(84px + env(safe-area-inset-bottom)); z-index:9000; display:none; align-items:center; gap:8px; padding:10px 16px; border-radius:999px; border:1px solid var(--amber-deep); background:var(--surface); color:var(--cream); font:600 14px/1.2 inherit; box-shadow:0 8px 24px rgba(0,0,0,.35); cursor:pointer; max-width:calc(100vw - 32px); }
   #mesoraFixPill.show{ display:inline-flex; }
   .cast-state{ margin:8px 0 0; font-size:13px; line-height:1.4; opacity:.9; }
+  .cast-devs{ display:flex; align-items:center; gap:8px; margin:10px 0 4px; padding:10px 12px; border-radius:12px; background:var(--surface-2, var(--surface)); border:1px solid var(--line); font-size:13.5px; line-height:1.35; }
+  .cast-dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; background:var(--ink-soft); }
+  .cast-devs.ok .cast-dot{ background:var(--paid); box-shadow:0 0 0 4px color-mix(in srgb, var(--paid) 25%, transparent); }
+  .cast-devs.no .cast-dot{ background:var(--brick); }
+  .cast-devs.busy .cast-dot{ animation:castPulse 1.2s ease-in-out infinite; background:var(--cream); }
+  @keyframes castPulse{ 0%,100%{ opacity:.35 } 50%{ opacity:1 } }
+  .cast-guide ol{ margin:6px 0 0; padding-left:20px; display:flex; flex-direction:column; gap:9px; font-size:14px; line-height:1.45; text-align:left; }
+  .cast-guide b{ color:var(--cream); }
   .product-row .p-name{ font-weight:600; font-size: 14.5px; }
   .product-row .p-size{
     display:inline-flex;
@@ -1742,23 +1750,73 @@
   .hist-detail-line span:last-child{ font-family: var(--font-main); color: var(--cream); }
   .hist-detail-title{ font-size: 11px; text-transform:uppercase; letter-spacing:.04em; color: var(--ink-soft); margin: 8px 0 2px; }
 
+  /* ---------- Avisos (toast): tarjeta con ícono, color según el tipo y barra de tiempo ---------- */
   .toast{
     position: fixed;
     bottom: 20px;
     left: 50%;
-    transform: translateX(-50%) translateY(10px);
+    transform: translate(-50%, 14px) scale(.97);
+    display: flex; align-items: flex-start; gap: 11px;
+    width: max-content;
+    max-width: min(440px, calc(100vw - 32px));
+    box-sizing: border-box;
+    padding: 11px 16px 13px 11px;
     background: var(--surface-2);
-    border: 1px solid var(--amber);
-    color: var(--cream);
-    padding: 10px 18px;
-    border-radius: 8px;
-    font-size: 13px;
+    background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 14px 34px rgba(0,0,0,.38), 0 2px 6px rgba(0,0,0,.2);
+    color: var(--ink);
+    font-size: 14px; line-height: 1.4; font-weight: 500;
+    overflow: hidden;
     opacity: 0;
     pointer-events: none;
-    transition: opacity .2s ease, transform .2s ease;
-    z-index: 100;
+    transition: opacity .22s ease, transform .28s cubic-bezier(.2,.9,.3,1.2);
+    z-index: 10050;
+    cursor: pointer;
   }
-  .toast.show{ opacity:1; transform: translateX(-50%) translateY(0); }
+  .toast.show{ opacity:1; transform: translate(-50%, 0) scale(1); pointer-events:auto; }
+  .toast-ic{ width:32px; height:32px; flex-shrink:0; border-radius:10px; display:grid; place-items:center; font-size:17px; line-height:1;
+    background: color-mix(in srgb, var(--amber) 24%, transparent); }
+  .toast-ok .toast-ic{ background: color-mix(in srgb, var(--paid) 24%, transparent); }
+  .toast-warn .toast-ic{ background: color-mix(in srgb, var(--brick) 24%, transparent); }
+  .toast-tx{ padding-top:6px; white-space:pre-line; overflow-wrap:anywhere; }
+  .toast-bar{ position:absolute; left:0; right:0; bottom:0; height:3px; background:var(--amber); transform-origin:left; }
+  .toast.show .toast-bar{ animation: toastBar var(--dur, 2600ms) linear forwards; }
+  .toast-ok .toast-bar{ background: var(--paid); }
+  .toast-warn .toast-bar{ background: var(--brick); }
+  @keyframes toastBar{ from{ transform:scaleX(1); } to{ transform:scaleX(0); } }
+
+  /* ---------- Campana: panel de notificaciones y tarjetas de pedido, con los colores del tema ---------- */
+  html body .vito-campana-menu{ background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:18px; padding:12px; gap:8px; box-shadow:0 20px 48px rgba(0,0,0,.45); font-family:var(--font-main); }
+  html body .vito-np-sec{ font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); opacity:1; margin:8px 4px 0; }
+  html body .vito-np-sec:first-child{ font-size:17px; font-weight:800; letter-spacing:0; text-transform:none; color:var(--ink); margin:2px 4px 4px; }
+  html body .vito-np-item{ position:relative; background:var(--surface-2); border:1px solid var(--line); border-left:1px solid var(--line); border-radius:14px; padding:11px 12px 11px 16px; }
+  html body .vito-np-item::before{ content:''; position:absolute; left:0; top:12px; bottom:12px; width:4px; border-radius:0 4px 4px 0; background:var(--ink-soft); }
+  html body .vito-np-item.recibido::before{ background:var(--amber); }
+  html body .vito-np-item.enviado::before{ background:var(--paid); }
+  html body .vito-np-item.rechazado::before{ background:var(--brick); }
+  html body .vito-np-top{ font-weight:700; font-size:14px; align-items:baseline; }
+  html body .vito-np-time{ color:var(--ink-soft); opacity:1; font-size:12px; font-weight:600; }
+  html body .vito-np-body{ color:var(--ink-soft); font-size:13.5px; margin-top:4px; line-height:1.4; }
+  html body .vito-np-vacio{ color:var(--ink-soft); opacity:1; text-align:center; padding:14px 6px; font-size:13.5px; }
+  html body .vito-campana-menu > button{ background:transparent; color:var(--ink); border:1px solid var(--line); border-radius:12px; padding:11px 14px; font-weight:600; font-family:inherit; transition:background .15s ease, border-color .15s ease; }
+  html body .vito-campana-menu > button:hover{ background:var(--surface-2); border-color:var(--amber-deep); }
+  html body .vito-campana-menu > button:first-of-type{ margin-top:6px; }
+  html body .vito-pedidos-cards{ top:calc(12px + env(safe-area-inset-top)); right:12px; max-width:340px; gap:10px; }
+  html body .vito-pedido-card{ position:relative; overflow:hidden; background:var(--surface); color:var(--ink); border:1px solid var(--line); border-left:4px solid var(--amber); border-radius:16px; padding:12px 14px 15px; box-shadow:0 16px 38px rgba(0,0,0,.45); font-family:var(--font-main); animation:vitoCardIn .35s cubic-bezier(.2,.9,.3,1.2); }
+  html body .vito-pedido-card::after{ content:''; position:absolute; left:0; right:0; bottom:0; height:3px; background:var(--amber); transform-origin:left; animation:toastBar 10s linear forwards; }
+  html body .vito-pedido-card-h{ font-weight:800; font-size:14.5px; margin-bottom:4px; }
+  html body .vito-pedido-card-b{ color:var(--ink-soft); opacity:1; font-size:13.5px; line-height:1.4; margin-bottom:10px; }
+  html body .vito-pedido-card-acts{ gap:8px; }
+  html body .vito-pedido-card-acts button{ border-radius:10px; padding:10px 6px; font-size:13.5px; font-weight:700; font-family:inherit; }
+  html body .vito-pedido-card-acts .vito-ok{ background:var(--paid); color:#06281c; border:0; }
+  html body .vito-pedido-card-acts .vito-no{ background:transparent; color:var(--brick); border:1px solid color-mix(in srgb, var(--brick) 55%, transparent); }
+  html body .vito-ajustes{ background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:16px; padding:16px; box-shadow:0 18px 44px rgba(0,0,0,.45); font-family:var(--font-main); }
+  html body .vito-ajustes button{ background:var(--surface-2) !important; color:var(--ink) !important; border:1px solid var(--line) !important; border-radius:10px !important; font-weight:600; }
+  html body .vito-ajustes input[type=range]{ accent-color:var(--amber); }
+  @keyframes vitoCardIn{ from{ opacity:0; transform:translateX(24px); } to{ opacity:1; transform:none; } }
 
   /* ---------- Comando por voz (botón flotante) ---------- */
   /* ---- Barra superior: pocas cosas, discretas ---- */
@@ -2379,9 +2437,11 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
     </div>
     <div class="settings-group">
       <h2>📺 Transmitir al TV con YouTube</h2>
-      <div class="settings-desc">Toca «Transmitir al TV»: se abre la app de YouTube con la lista de canciones pedidas. Ahí toca el ícono de transmitir (el rectángulo con ondas, arriba) y elige tu televisor; si ya estaba conectado, suena directo en el TV. Con Google conectado (más abajo), las canciones que pidan las mesas se agregan solas a esa lista en tiempo real, sin volver a tocar nada.</div>
+      <div class="settings-desc">Toca «Buscar TV y transmitir»: aparece la lista de televisores de tu wifi; elige el tuyo y se abre YouTube en el TV. Enseguida se abre la app de YouTube del celular con la lista de canciones pedidas: toca el ícono de transmitir y elige el mismo TV. Con Google conectado (más abajo), las canciones que pidan las mesas se agregan solas a esa lista en tiempo real, sin volver a tocar nada.</div>
+      <div class="cast-devs" id="castDevs"><span class="cast-dot"></span><span id="castDevsTxt">Buscando televisores en tu wifi…</span></div>
       <div class="mz-actions">
-        <button class="btn-primary" id="castStart" type="button">📺 Transmitir al TV</button>
+        <button class="btn-primary" id="castStart" type="button">📺 Buscar TV y transmitir</button>
+        <button class="btn-ghost" id="castHelp" type="button">¿No aparece tu TV?</button>
         <button class="btn-ghost" id="castStop" type="button" hidden>Terminar transmisión</button>
       </div>
       <div class="cast-state" id="castEstado"></div>
@@ -3764,12 +3824,29 @@ function openAutoBackupDialog(){
   document.body.appendChild(o);
 }
 
+// Aviso emergente: el emoji del inicio del mensaje pasa a ser el ícono, y el color va
+// según el tipo (✅ bien · ⚠️/❌ problema · el resto informativo). Se cierra al tocarlo.
 function showToast(msg, ms){
   const t = document.getElementById('toast');
-  t.textContent = msg;
+  msg = String(msg == null ? '' : msg);
+  const m = msg.match(/^\s*((?:\p{Extended_Pictographic}|[\u2600-\u27BF])(?:\uFE0F|\u200D\p{Extended_Pictographic})*)\s*/u);
+  const icon = m ? m[1] : 'ℹ️';
+  const text = m ? msg.slice(m[0].length) : msg;
+  const tipo = /^(⚠|❌|🔴|🟠|⛔|🚫)/.test(icon) || /^(error|no se pudo|no hay|falta)/i.test(text) ? 'warn' : /^(✅|🟢|🎉|✔)/.test(icon) ? 'ok' : 'info';
+  const dur = ms || Math.min(7000, Math.max(2600, text.length * 45));
+  t.className = 'toast toast-' + tipo;
+  t.textContent = '';
+  const ic = document.createElement('span'); ic.className = 'toast-ic'; ic.textContent = icon;
+  const tx = document.createElement('span'); tx.className = 'toast-tx'; tx.textContent = text;
+  const bar = document.createElement('span'); bar.className = 'toast-bar';
+  t.append(ic, tx, bar);
+  t.style.setProperty('--dur', dur + 'ms');
+  t.setAttribute('role', tipo === 'warn' ? 'alert' : 'status');
+  void t.offsetWidth;
   t.classList.add('show');
+  t.onclick = () => { clearTimeout(showToast._t); t.classList.remove('show'); };
   clearTimeout(showToast._t);
-  showToast._t = setTimeout(()=> t.classList.remove('show'), ms || 2200);
+  showToast._t = setTimeout(()=> t.classList.remove('show'), dur);
 }
 
 function tableLabel(id){
@@ -10387,7 +10464,7 @@ function asisCommand(raw){
   if(asisPideReparar(t)) return { text: '🛠️ Dame un segundo, reviso la app…', run: () => { if(typeof mesoraDiagnosticoChat === 'function') mesoraDiagnosticoChat(raw); } };
   if(/^(recarga|recargar|reinicia|reiniciar) (la )?(app|aplicacion|pagina)\b/.test(t)) return { text: 'Listo, recargo la app. Tus datos quedan guardados.', run: () => location.reload() };
   if(/\b(transmit\w*|castea\w*|chromecast)\b/.test(t) || (/\b(musica|youtube|cancion|canciones|lista)\b/.test(t) && /\b(tv|tele|televisor|television)\b/.test(t))){
-    return { text: 'Te llevo a Música. Toca «📺 Transmitir al TV» y se abre YouTube con la lista, lista para mandarla al televisor.', run: () => { asisClose(); asisGoView('musica'); setTimeout(() => { const b = document.getElementById('castStart'); if(b) b.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 300); } };
+    return { text: 'Te llevo a Música. Toca «📺 Buscar TV y transmitir»: te muestro los televisores de tu wifi y abro YouTube con la lista.', run: () => { asisClose(); asisGoView('musica'); setTimeout(() => { const b = document.getElementById('castStart'); if(b) b.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 300); } };
   }
   if(nWords <= 4 && /^(hola|holi|buenas|buenos dias|buenas tardes|buenas noches|hey|que mas|quiubo|q hubo)\b/.test(t)){
     const h = new Date().getHours();
@@ -16064,9 +16141,10 @@ function castEstado(){
   const e = document.getElementById('castEstado'); if(!e) return;
   const c = LS(CAST_KEY, {}), g = !!(vm().yTok && vm().yTok());
   document.getElementById('castStop').hidden = !c.on;
-  if(!c.on){ e.textContent = g ? '🟢 Google conectado: la lista del TV se actualizará sola.' : '⚪ Sin Google conectado: se manda al TV la cola actual (las nuevas se agregan volviendo a tocar «Transmitir al TV»). Conecta Google abajo para que entren solas.'; return; }
+  castDevsPintar();
+  if(!c.on){ e.textContent = g ? '🟢 Google conectado: la lista del TV se actualizará sola.' : '⚪ Sin Google conectado: YouTube abre la primera canción de la cola. Conecta Google abajo (una sola vez) para que la lista completa se arme y se actualice sola.'; return; }
   const pend = vm().cola().filter(x => !x.done).length;
-  e.textContent = '📡 Transmitiendo desde ' + new Date(c.desde).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) + (g ? ' · las canciones nuevas entran solas a la lista en vivo' : ' · sin Google: toca «Transmitir al TV» otra vez para mandar las nuevas') + (pend ? ' · ' + pend + ' por agregar' : '') + '.';
+  e.textContent = '📡 Transmitiendo desde ' + new Date(c.desde).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) + (g ? ' · las canciones nuevas entran solas a la lista en vivo' : ' · sin Google: toca «Buscar TV y transmitir» otra vez para mandar las nuevas') + (pend ? ' · ' + pend + ' por agregar' : '') + '.';
 }
 // Abre la APP de YouTube (nunca el navegador). En Android se le pide la app por su
 // paquete exacto (com.google.android.youtube); si no está instalada, Android abre la
@@ -16110,7 +16188,91 @@ function castLanzar(path, aviso){
 }
 const CAST_AVISO = '📺 En YouTube toca el ícono de transmitir (arriba) y elige tu televisor: YouTube busca solo los TV conectados a tu mismo wifi. Si ya estaba conectado, suena directo en el TV.';
 let castEsperaGoogle = 0;
-async function transmitirTV(){
+
+/* Buscador de televisores (Google Cast de Chrome). Chrome, en Android y en computador,
+   sí puede buscar los TV y Chromecast del mismo wifi y mostrar su lista nativa; al elegir
+   uno, se abre YouTube en ese TV. Después la app de YouTube del celular ya lo tiene a la
+   mano para mandarle la lista. En iPhone (Safari) no existe esta función: ahí se abre
+   directo la app de YouTube, que tiene su propio buscador de TV. */
+const YT_CAST_APP_ID = '233637DE';          // la app de YouTube en los televisores (receptor oficial)
+let castSdk = 'nocargado', castHayTV = null;
+function castDevsPintar(){
+  const box = document.getElementById('castDevs'), t = document.getElementById('castDevsTxt');
+  if(!box) return;
+  box.classList.remove('ok', 'no', 'busy');
+  if(castSdk === 'listo'){
+    if(castHayTV === true){ box.classList.add('ok'); t.textContent = 'Hay televisores disponibles en tu wifi. Toca «Buscar TV y transmitir» y elige el tuyo.'; }
+    else if(castHayTV === false){ box.classList.add('no'); t.textContent = 'No encuentro televisores en este wifi todavía. Revisa «¿No aparece tu TV?».'; }
+    else { box.classList.add('busy'); t.textContent = 'Buscando televisores en tu wifi…'; }
+  } else if(castSdk === 'cargando'){ box.classList.add('busy'); t.textContent = 'Buscando televisores en tu wifi…'; }
+  else { t.textContent = 'La lista de televisores la muestra la app de YouTube: toca «Buscar TV y transmitir» y luego el ícono de transmitir.'; }
+}
+function castCargarSdk(){
+  if(castSdk !== 'nocargado') return;
+  const esChrome = /Chrome\//.test(navigator.userAgent) && !/Edg\/|OPR\/|SamsungBrowser|; wv\)/.test(navigator.userAgent);
+  if(!esChrome || !window.isSecureContext){ castSdk = 'nodisponible'; castDevsPintar(); return; }
+  castSdk = 'cargando'; castDevsPintar();
+  window.__onGCastApiAvailable = ok => {
+    if(!ok || !window.cast || !cast.framework){ castSdk = 'nodisponible'; castDevsPintar(); return; }
+    try{
+      const ctx = cast.framework.CastContext.getInstance();
+      ctx.setOptions({ receiverApplicationId: YT_CAST_APP_ID, autoJoinPolicy: window.chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED });
+      ctx.addEventListener(cast.framework.CastContextEventType.CAST_STATE_CHANGED, e => {
+        castHayTV = e.castState !== cast.framework.CastState.NO_DEVICES_AVAILABLE;
+        castDevsPintar();
+      });
+      castSdk = 'listo';
+      castHayTV = ctx.getCastState() === cast.framework.CastState.NO_DEVICES_AVAILABLE ? false : true;
+      setTimeout(() => { if(castHayTV === false) castDevsPintar(); }, 4000);
+    }catch(e){ castSdk = 'nodisponible'; }
+    castDevsPintar();
+  };
+  const sc = document.createElement('script');
+  sc.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
+  sc.onerror = () => { castSdk = 'nodisponible'; castDevsPintar(); };
+  document.head.appendChild(sc);
+}
+// Toque en «Buscar TV y transmitir»: primero la lista de TV de Chrome (debe abrirse en el mismo
+// toque), y al elegir uno se prepara la lista y se abre la app de YouTube del celular.
+function castBuscarYTransmitir(){
+  if(castSdk === 'listo'){
+    let ctx; try{ ctx = cast.framework.CastContext.getInstance(); }catch(e){ ctx = null; }
+    if(ctx){
+      ctx.requestSession().then(() => {
+        const ses = ctx.getCurrentSession(), dev = ses && ses.getCastDevice ? ses.getCastDevice() : null;
+        showToast('📺 Conectado a ' + (dev && dev.friendlyName ? dev.friendlyName : 'tu TV') + '. YouTube se abrió en el TV; ahora te abro la lista en YouTube.', 6000);
+        transmitirTV(dev && dev.friendlyName);
+      }, err => {
+        const code = String(err && (err.code || err) || '');
+        if(/cancel/i.test(code)) return;                       // cerró la lista sin elegir
+        if(/receiver_unavailable|RECEIVER_UNAVAILABLE/i.test(code)){ castHayTV = false; castDevsPintar(); castGuia(); return; }
+        transmitirTV();                                         // otro problema: sigue por la app de YouTube
+      });
+      return;
+    }
+  }
+  transmitirTV();
+}
+function castGuia(){
+  let ov = document.getElementById('castGuideOverlay');
+  if(!ov){
+    ov = document.createElement('div'); ov.id = 'castGuideOverlay'; ov.className = 'overlay';
+    ov.innerHTML = '<div class="modal cast-guide" style="max-width:440px;max-height:88vh;overflow:auto"><h2>📺 ¿No aparece tu TV?</h2>' +
+      '<div class="modal-sub">Revisa esto en orden; casi siempre es el punto 1, 3 o 5.</div><ol>' +
+      '<li><b>Mismo wifi:</b> el celular y el TV deben estar en la MISMA red wifi (no la de invitados ni los datos del celular).</li>' +
+      '<li><b>TV listo:</b> enciende el TV y abre su app de YouTube una vez. En Smart TV activa «Chromecast integrado» o «Google Cast» en su configuración.</li>' +
+      '<li><b>Permiso del celular:</b> Ajustes del celular → Apps → YouTube (y también Chrome) → Permisos → activa <b>Dispositivos cercanos</b>. Sin ese permiso no ve los TV.</li>' +
+      '<li><b>Apaga la VPN</b> y el ahorro de batería extremo, si los tienes.</li>' +
+      '<li><b>Wifi del negocio que bloquea:</b> muchos routers de negocio no dejan que los aparatos se vean entre sí. Solución que siempre funciona: en el <b>TV</b> abre YouTube → Configuración → <b>Vincular con código de TV</b>; en el <b>celular</b> abre YouTube → tu foto → Configuración → <b>Ver en TV</b> → <b>Ingresar código de TV</b>. Queda vinculado para siempre y aparece en el ícono de transmitir aunque el wifi no lo detecte.</li>' +
+      '<li>Vuelve aquí y toca <b>Buscar TV y transmitir</b>.</li></ol>' +
+      '<div class="modal-actions"><button class="btn-primary" type="button" id="castGuideOk">Entendido</button></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#castGuideOk').onclick = () => ov.classList.remove('show');
+    ov.addEventListener('click', e => { if(e.target === ov) ov.classList.remove('show'); });
+  }
+  ov.classList.add('show');
+}
+async function transmitirTV(tvNombre){
   const b = document.getElementById('castStart');
   b.disabled = true; const txt = b.textContent; b.textContent = '⏳ Preparando la lista…';
   try{
@@ -16156,7 +16318,9 @@ async function transmitirTV(){
 function iniCast(){
   const st = document.getElementById('castStart');
   if(!st) return;
-  st.onclick = transmitirTV;
+  st.onclick = castBuscarYTransmitir;
+  document.getElementById('castHelp').onclick = castGuia;
+  castCargarSdk();
   document.getElementById('castStop').onclick = () => { SS(CAST_KEY, {}); castEstado(); showToast('Transmisión terminada. En el TV puedes detenerla desde la app de YouTube.'); };
   const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', castEstado);
   setInterval(castEstado, 15000);
