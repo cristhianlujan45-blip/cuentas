@@ -7688,6 +7688,68 @@ async function geminiText(o){
   throw lastErr;
 }
 
+// Respuesta en vivo (streaming): Gemini manda el texto por pedacitos y onDelta(textoHastaAhora)
+// se llama con cada uno, así la primera frase aparece en ~1 segundo en vez de esperar la respuesta
+// completa. Un solo intento con el modelo principal; si falla antes de escribir nada, lanza el error
+// para que quien llama use aiText (que prueba los modelos de respaldo).
+async function geminiStreamText(o, onDelta){
+  const key = getGeminiKey();
+  if(!key) throw new Error('NO_API_KEY');
+  const model = getGeminiModel();
+  const left = aiTimeLeft(o.deadline);
+  if(left < 1500) throw new OpenAIError('timeout', 'La IA tardó demasiado en responder.');
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), Math.min(o.timeoutMs || OPENAI_DEFAULT_TIMEOUT_MS, left));
+  let full = '';
+  try{
+    const res = await fetch(GEMINI_BASE + '/models/' + encodeURIComponent(model) + ':streamGenerateContent?alt=sse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify(geminiBody(o, model)),
+      signal: ctrl.signal
+    });
+    if(!res.ok) throw geminiErrorFromResponse(res.status, await res.text());
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = '';
+    while(true){
+      const { value, done } = await reader.read();
+      if(done) break;
+      buf += dec.decode(value, { stream: true });
+      let nl;
+      while((nl = buf.indexOf('\n')) >= 0){
+        const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+        if(!line.startsWith('data:')) continue;
+        let j; try{ j = JSON.parse(line.slice(5)); }catch(e){ continue; }
+        geminiExtractText(j);                              // lanza error claro si Google bloqueó la respuesta
+        const c0 = (j.candidates || [])[0], parts = (c0 && c0.content && c0.content.parts) || [];
+        const piece = parts.filter(x => x && typeof x.text === 'string' && !x.thought).map(x => x.text).join('');   // sin recortar: los espacios entre pedazos cuentan
+        if(piece){ full += piece; try{ onDelta(full); }catch(e){} }
+      }
+    }
+    aiLastModel = model;
+    return full.trim();
+  }catch(e){
+    if(full) return full.trim();                         // se cortó a la mitad: se usa lo que alcanzó a llegar
+    if(e instanceof OpenAIError) throw e;
+    if(e && e.name === 'AbortError') throw new OpenAIError('timeout', 'La IA tardó demasiado en responder.');
+    throw new OpenAIError('network', 'No hay conexión con Gemini. Detalle: ' + (e && e.message ? e.message : e));
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
+// Abre la conexión con el servidor de la IA antes de preguntar (al abrir el chat), para que
+// la primera pregunta no pierda tiempo negociando la conexión segura. No gasta cuota.
+let aiWarmAt = 0;
+function aiWarmUp(){
+  if(!hasAIKey() || Date.now() - aiWarmAt < 60000) return;
+  aiWarmAt = Date.now();
+  try{
+    if(getAIProvider() === 'openai') fetch('https://api.openai.com/v1/models/' + encodeURIComponent(getOpenAIModel()), { headers: { 'Authorization': 'Bearer ' + getOpenAIKey() } }).catch(() => {});
+    else fetch(GEMINI_BASE + '/models/' + encodeURIComponent(getGeminiModel()), { headers: { 'x-goog-api-key': getGeminiKey() } }).catch(() => {});
+  }catch(e){}
+}
+
 async function openaiText(o){
   const tools = o.web ? (o.strictWeb ? ['web_search'] : ['web_search', 'web_search_preview', null]) : [null];
   let lastErr = null;
@@ -10127,8 +10189,8 @@ function asisSales(){
 }
 // Productos que se le mandan a la IA. Con muchos productos, mandarlos todos hace
 // la pregunta pesada y la respuesta lenta: se mandan los que nombra la pregunta,
-// los que se están acabando o no tienen costo y los más vendidos (máximo 80).
-const ASIS_MAX_PRODUCTOS = 80;
+// los que se están acabando o no tienen costo y los más vendidos (máximo 40).
+const ASIS_MAX_PRODUCTOS = 40;
 function asisProductosRelevantes(q, top){
   const all = data.products || [];
   if(all.length <= ASIS_MAX_PRODUCTOS) return all;
@@ -10491,7 +10553,9 @@ function asisConfirm(i, yes){
   else asisBot('Bueno, no cambié nada. ¿Te ayudo con otra cosa?');
 }
 
-const ASIS_MAX_MS = 14000;
+const ASIS_MAX_MS = 8000;       // tope TOTAL de espera de la IA en el chat (reintentos incluidos)
+// Preguntas que piden razonar, opinar o comparar: esas sí van a la IA aunque haya respuesta local.
+const ASIS_NEEDS_AI = /\b(por que|porque|recomiend|recomienda|sugier|sugiere|sugerencia|deberia|conviene|compar|analiz|estrategia|como puedo|que hago|que me recomiendas|idea|ideas|mejorar|explica|explicame|opinas|opinion|predic|proyecc|promocion|combo)\b/;
 async function asisAsk(text){
   text = String(text || '').trim();
   if(!text || asisBusy) return;
@@ -10511,6 +10575,17 @@ async function asisAsk(text){
     if(cmd.run) setTimeout(cmd.run, 800);
     return;
   }
+  // Respuesta al instante sin IA cuando la pregunta es simple y ya se sabe la respuesta
+  // exacta con los datos del negocio (ventas, mesas, deudas, precios, stock…).
+  if(hasAIKey()){
+    const tq = normVoiceText(text);
+    if(tq.split(' ').length <= 10 && !ASIS_NEEDS_AI.test(tq)){
+      const acc = asisLocalAccion(text);
+      if(acc){ asisBot(acc.text, { actions: acc.actions }); return; }
+      const r = asisLocalMas(text) || asisLocal(text);
+      if(r){ asisBot(r); return; }
+    }
+  }
   if(!hasAIKey()){
     const acc = asisLocalAccion(text);
     if(acc){ asisBot(acc.text, { actions: acc.actions }); return; }
@@ -10521,25 +10596,47 @@ async function asisAsk(text){
   }
   asisBusy = true;
   asisRender();
-  const hist = asisMsgs.filter(m => !m.greet).slice(-8).map(m => (m.role === 'me' ? 'Persona: ' : 'Asistente: ') + m.text).join('\n');
+  const hist = asisMsgs.filter(m => !m.greet).slice(-6).map(m => (m.role === 'me' ? 'Persona: ' : 'Asistente: ') + m.text).join('\n');
   const prompt = 'Te llamas Mesi y eres el asistente con inteligencia artificial de "' + (data.businessName || 'la tienda') + '", un negocio (tienda, cafetería, bar) en Colombia, dentro de la app Mesora. Hablas con el dueño o sus empleados; muchos son personas mayores o no saben de tecnología. ' +
-    'Responde en español sencillo, cálido y CORTO (máximo 5 frases o una lista corta de hasta 8 líneas con "• "), sin palabras técnicas ni markdown (nada de **, #, tablas). Plata en pesos colombianos con formato $3.300. ' +
+    'Responde en español sencillo, cálido y CORTO (máximo 4 frases o una lista de hasta 6 líneas con "• "), sin palabras técnicas ni markdown (nada de **, #, tablas). Plata en pesos colombianos con formato $3.300. ' +
     'Usa SOLO los DATOS de abajo; nunca inventes cifras. Si falta un dato (por ejemplo el costo de un producto) dilo claro y explica dónde se pone: Productos → tocar el producto → Costo. Si la pregunta no es clara, pregunta con cariño qué necesita. ' +
     'Margen = (precio − costo) ÷ precio. Si el costo es mayor que el precio, está perdiendo plata. Un precio sugerido se redondea a los 100 pesos. ' +
     'No manejas mesas ni pedidos (eso se hace con el micrófono 🎤 de pedidos o en la pantalla de Mesas). ' +
-    'Puedes PROPONER cambios de productos en "acciones"; no se aplican hasta que la persona confirme, así que en "respuesta" di qué vas a hacer y termina preguntando "¿Lo hago?". Formatos: ' +
-    '{"tipo":"crear","nombre":"...","precio":número,"costo":número|null,"tam":"texto"|null,"stock":número|null} y ' +
+    'Puedes PROPONER cambios de productos; no se aplican hasta que la persona confirme, así que di qué vas a hacer y termina preguntando "¿Lo hago?". ' +
+    'FORMATO: primero escribe la respuesta como texto normal. Solo si propones cambios, al final agrega UNA línea que empiece con ' + ASIS_ACC_TAG + ' seguida de un arreglo JSON con objetos así: ' +
+    '{"tipo":"crear","nombre":"...","precio":número,"costo":número|null,"tam":"texto"|null,"stock":número|null} o ' +
     '{"tipo":"editar","producto":"nombre EXACTO de la lista","precio":número|null,"costo":número|null,"stock":número|null,"sumarStock":número|null}. ' +
-    'Si solo respondes una pregunta, "acciones" va vacío. Si "productos" no trae todos (ver totalProductos) y te preguntan por uno que no está, pide que lo nombren tal como aparece en Productos.\n\nDATOS: ' + JSON.stringify(asisContext(text)) +
-    '\n\nCONVERSACIÓN (lo último es lo que acaba de decir la persona):\n' + hist +
-    '\n\nDevuelve SOLO JSON válido: {"respuesta":"texto","acciones":[]}';
+    'Si "productos" no trae todos (ver totalProductos) y te preguntan por uno que no está, pide que lo nombren tal como aparece en Productos.\n\nDATOS: ' + JSON.stringify(asisContext(text)) +
+    '\n\nCONVERSACIÓN (lo último es lo que acaba de decir la persona):\n' + hist;
+  const deadline = Date.now() + ASIS_MAX_MS;
+  const o = { prompt, maxOutputTokens: 380, timeoutMs: 7500, retries: 1, deadline };
+  // Burbuja que se va llenando mientras la IA escribe (streaming).
+  let live = null;
+  const onDelta = full => {
+    const vis = asisSplitAcciones(full).texto;
+    if(!vis) return;
+    if(!live){
+      asisBusy = false;
+      live = { role: 'bot', text: vis, streaming: true };
+      asisMsgs.push(live); asisRender();
+    } else {
+      live.text = vis;
+      const els = document.querySelectorAll('#asisMsgs .asis-msg.bot');
+      const el = els[els.length - 1];
+      if(el){ el.textContent = vis; const box = document.getElementById('asisMsgs'); box.scrollTop = box.scrollHeight; }
+    }
+  };
   let reply = '', actions = [];
   try{
-    // Máximo 14 s en total (reintentos incluidos): si la IA no alcanza, se responde con lo básico sin IA.
-    const raw = await aiText({ prompt, json: true, maxOutputTokens: 450, timeoutMs: 12000, retries: 1, maxMs: ASIS_MAX_MS });
-    const j = cleanAiJsonText(raw);
-    if(j && typeof j.respuesta === 'string'){ reply = j.respuesta; actions = Array.isArray(j.acciones) ? j.acciones.filter(a => a && (a.tipo === 'crear' || a.tipo === 'editar')) : []; }
-    else reply = String(raw || '').trim();
+    let raw;
+    if(getAIProvider() === 'gemini'){
+      try{ raw = await geminiStreamText(o, onDelta); }
+      catch(e){ if(live || !(e && ['rate', 'server', 'model', 'daily', 'network', 'bad'].includes(e.kind))) throw e; raw = await aiText(o); }   // otro modelo, con el tiempo que quede
+    } else {
+      raw = await aiText(o);
+    }
+    const sp = asisSplitAcciones(raw);
+    reply = sp.texto; actions = sp.acciones;
   }catch(err){
     const local = asisLocalMas(text) || asisLocal(text);
     const lento = err && err.kind === 'timeout';
@@ -10549,7 +10646,25 @@ async function asisAsk(text){
   }finally{
     asisBusy = false;
   }
+  if(live){ const k = asisMsgs.indexOf(live); if(k >= 0) asisMsgs.splice(k, 1); }
   asisBot(reply.replace(/\*\*/g, '') || 'No te entendí bien. ¿Me lo dices de otra forma?', actions.length ? { actions } : null);
+}
+
+// Separa el texto de la respuesta de la línea de acciones propuestas (ver FORMATO del prompt).
+const ASIS_ACC_TAG = '@@ACCIONES';
+function asisSplitAcciones(raw){
+  let t = String(raw || '');
+  const j = cleanAiJsonText(t);                            // por si la IA respondió en el formato JSON viejo
+  if(j && typeof j.respuesta === 'string') return { texto: j.respuesta.trim(), acciones: Array.isArray(j.acciones) ? j.acciones.filter(a => a && (a.tipo === 'crear' || a.tipo === 'editar')) : [] };
+  const i = t.indexOf('@@');
+  let acciones = [];
+  if(i >= 0){
+    const rest = t.slice(i);
+    t = t.slice(0, i);
+    const a = rest.indexOf('['), b = rest.lastIndexOf(']');
+    if(a >= 0 && b > a){ try{ const arr = JSON.parse(rest.slice(a, b + 1)); if(Array.isArray(arr)) acciones = arr.filter(x => x && (x.tipo === 'crear' || x.tipo === 'editar')); }catch(e){} }
+  }
+  return { texto: t.replace(/```\w*/g, '').trim(), acciones };
 }
 
 // ---- Dictado: tocar 🎙️, hablar, tocar otra vez (o hacer una pausa) y se envía ----
@@ -10606,7 +10721,8 @@ function asisSaludo(){
 }
 function asisOpen(){
   document.getElementById('asisOverlay').classList.add('show');
-  asisMsgs = asisMsgs.filter(m => !m.greet);
+  aiWarmUp();
+  asisMsgs = asisMsgs.filter(m => !m.greet && !m.streaming);
   if(asisMsgs.length){
     const g = asisSaludo();
     asisMsgs.push({ role: 'bot', text: g.text, quick: g.quick, greet: true });
@@ -13916,15 +14032,16 @@ function ordenJusto(l){
 // asociada; el "intent://" de abajo le pide a Android la app de YouTube
 // Music por su nombre exacto, y si no la tiene instalada cae solo al link
 // normal de siempre.
+// Sin "browser_fallback_url": si YouTube Music no está instalada, Android abre la Play
+// Store para instalarla en vez de mandar al navegador.
+function ytOpenMusicPath(path){
+  const ua = navigator.userAgent;
+  if(/Android/i.test(ua)) location.href = 'intent://music.youtube.com/' + path + '#Intent;package=com.google.android.apps.youtube.music;scheme=https;action=android.intent.action.VIEW;end';
+  else if(/iPhone|iPad|iPod/i.test(ua)) location.href = 'youtubemusic://music.youtube.com/' + path;
+  else window.open('https://music.youtube.com/' + path, '_blank');
+}
 function ytOpenMusic(vid, song){
-  const web = vid ? ('https://music.youtube.com/watch?v=' + encodeURIComponent(vid)) : ('https://music.youtube.com/search?q=' + encodeURIComponent(song || ''));
-  if(/Android/i.test(navigator.userAgent)){
-    const path = vid ? ('watch?v=' + encodeURIComponent(vid)) : ('search?q=' + encodeURIComponent(song || ''));
-    const intent = 'intent://music.youtube.com/' + path + '#Intent;package=com.google.android.apps.youtube.music;scheme=https;S.browser_fallback_url=' + encodeURIComponent(web) + ';end';
-    window.open(intent, '_blank');
-  } else {
-    window.open(web, '_blank');
-  }
+  ytOpenMusicPath(vid ? ('watch?v=' + encodeURIComponent(vid)) : ('search?q=' + encodeURIComponent(song || '')));
 }
 function reproducir(x){
   const l=cola(),it=l.find(y=>y.id===x.id);if(it)it.done=true;
@@ -14045,7 +14162,7 @@ function iniYT(){
   $('ytCid').oninput=e=>{g('cid',e.target.value.trim());yTC=null;};
   $('ytPl').oninput=e=>{g('pl',e.target.value.trim());g('len',0);};
   $('ytKey').oninput=e=>{g('key',e.target.value.trim());};$('ytConn').onclick=()=>yConectar(false);$('mzLoad').onclick=cargarLista;$('mzOpenYT').onclick=()=>$('ytOpen').click();
-  $('ytOpen').onclick=()=>{const x=yCfg();if(!x.pl)return showToast('Todavía no hay lista: se crea con la primera canción.');window.open('https://music.youtube.com/playlist?list='+x.pl,'_blank');};
+  $('ytOpen').onclick=()=>{const x=yCfg();if(!x.pl)return showToast('Todavía no hay lista: se crea con la primera canción.');ytOpenMusicPath('playlist?list='+encodeURIComponent(x.pl));};
   // Respaldo: por si una canción no se resolvió sola al llegar (sin internet un
   // instante, o la API key se configuró después), cada minuto revisa si quedó
   // alguna pendiente y la vuelve a intentar. También reconecta Google solo:
@@ -14184,7 +14301,7 @@ async function publicarCatalogo(force){
 }
 window.vitoPublicarCatalogo = publicarCatalogo;
 // Lo que usan las fotos de la carta y la transmisión al TV (script del final).
-window.vitoMod = { LS, SS, qCfg, yCfg, yTok, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena };
+window.vitoMod = { LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena };
 function publicarCuentas(){
   if(typeof data==='undefined'||!data||!qCfg().live)return;
   try{publicarCatalogo();}catch(e){}
@@ -15951,19 +16068,48 @@ function castEstado(){
   const pend = vm().cola().filter(x => !x.done).length;
   e.textContent = '📡 Transmitiendo desde ' + new Date(c.desde).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) + (g ? ' · las canciones nuevas entran solas a la lista en vivo' : ' · sin Google: toca «Transmitir al TV» otra vez para mandar las nuevas') + (pend ? ' · ' + pend + ' por agregar' : '') + '.';
 }
-function abrirEnAppYouTube(path){
-  const web = 'https://www.youtube.com/' + path;
+// Abre la APP de YouTube (nunca el navegador). En Android se le pide la app por su
+// paquete exacto (com.google.android.youtube); si no está instalada, Android abre la
+// Play Store para instalarla. En iPhone se usa youtube:// y, si no está, el App Store.
+// El link "watch_videos" (lista sin cuenta) NO lo abre la app de YouTube — por eso antes
+// terminaba en el navegador —, así que ya no se usa: la app recibe siempre un video
+// (watch?v=) o una lista real de tu cuenta (list=).
+const YT_ANDROID_PKG = 'com.google.android.youtube';
+function ytAppUrl(path){
   const ua = navigator.userAgent;
-  if(/Android/i.test(ua)){
-    window.open('intent://www.youtube.com/' + path + '#Intent;package=com.google.android.youtube;scheme=https;S.browser_fallback_url=' + encodeURIComponent(web) + ';end', '_blank');
-  } else if(/iPhone|iPad|iPod/i.test(ua)){
-    const t = setTimeout(() => { if(!document.hidden) window.open(web, '_blank'); }, 1500);   // sin la app: se abre en la web
-    document.addEventListener('visibilitychange', () => clearTimeout(t), { once: true });
-    location.href = 'youtube://www.youtube.com/' + path;
-  } else {
-    window.open(web, '_blank');
-  }
+  if(/Android/i.test(ua)) return { url: 'intent://www.youtube.com/' + path + '#Intent;scheme=https;package=' + YT_ANDROID_PKG + ';action=android.intent.action.VIEW;end', tipo: 'android' };
+  if(/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return { url: 'youtube://www.youtube.com/' + path, tipo: 'ios' };
+  return { url: 'https://www.youtube.com/' + path, tipo: 'pc' };
 }
+function abrirEnAppYouTube(path){
+  const d = ytAppUrl(path);
+  if(d.tipo === 'pc'){ window.open(d.url, '_blank'); return; }   // en computador no hay app: se abre youtube.com
+  if(d.tipo === 'ios'){
+    const t = setTimeout(() => { if(!document.hidden) location.href = 'https://apps.apple.com/app/youtube/id544007664'; }, 2000);
+    document.addEventListener('visibilitychange', () => clearTimeout(t), { once: true });
+  }
+  location.href = d.url;                                          // cambia a la app de YouTube; esta pantalla queda abierta detrás
+}
+// Los navegadores solo dejan abrir otra app justo después de un toque. Si preparar la lista
+// tardó (buscar canciones, conectar Google), se pide un toque más con un botón grande.
+function castLanzar(path, aviso){
+  const act = navigator.userActivation;
+  if(!act || act.isActive){ abrirEnAppYouTube(path); if(aviso) showToast(aviso, 8000); return; }
+  let ov = document.getElementById('castGoOverlay');
+  if(!ov){
+    ov = document.createElement('div'); ov.id = 'castGoOverlay'; ov.className = 'overlay';
+    ov.innerHTML = '<div class="modal" style="max-width:380px;text-align:center"><h2>📺 Lista lista</h2><div class="modal-sub" id="castGoTxt"></div>' +
+      '<div class="modal-actions" style="flex-direction:column;gap:8px"><button class="btn-primary" id="castGoBtn" type="button" style="width:100%;padding:14px;font-size:16px">▶ Abrir YouTube y elegir el TV</button>' +
+      '<button class="btn-close" id="castGoNo" type="button">Cancelar</button></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#castGoNo').onclick = () => ov.classList.remove('show');
+  }
+  ov.querySelector('#castGoTxt').textContent = aviso || '';
+  ov.querySelector('#castGoBtn').onclick = () => { ov.classList.remove('show'); abrirEnAppYouTube(path); };
+  ov.classList.add('show');
+}
+const CAST_AVISO = '📺 En YouTube toca el ícono de transmitir (arriba) y elige tu televisor: YouTube busca solo los TV conectados a tu mismo wifi. Si ya estaba conectado, suena directo en el TV.';
+let castEsperaGoogle = 0;
 async function transmitirTV(){
   const b = document.getElementById('castStart');
   b.disabled = true; const txt = b.textContent; b.textContent = '⏳ Preparando la lista…';
@@ -15971,28 +16117,35 @@ async function transmitirTV(){
     // Si la reproducción dentro de la app estaba prendida, se apaga para que no suenen dos a la vez.
     if(vm().AUTO && vm().AUTO()){ const a = document.getElementById('autoPlay'); if(a){ a.checked = false; a.dispatchEvent(new Event('change')); } }
     const cfg = vm().yCfg();
+    // Con Client ID pero sin sesión de Google: se conecta primero y la transmisión sigue sola al volver.
+    if(!vm().yTok() && cfg.cid && vm().yConectar){
+      castEsperaGoogle = Date.now();
+      vm().yConectar(false);
+      showToast('Conectando con Google para armar tu lista del TV…', 4000);
+      return;
+    }
     SS(CAST_KEY, { on: true, desde: Date.now() });
     const pend = vm().ordenJusto(vm().cola());
     if(vm().yTok()){
       const pl = await vm().yLista();
       pend.forEach(x => vm().ytAgregar(x.id));
-      await vm().esperarYT();                                              // espera a que entren las pendientes
-      let first = (pend.find(x => { const it = vm().cola().find(y => y.id === x.id); return it && it.vid; }) || {}).id;
-      first = first ? vm().cola().find(y => y.id === first).vid : '';
-      abrirEnAppYouTube(first ? 'watch?v=' + encodeURIComponent(first) + '&list=' + encodeURIComponent(pl) : 'playlist?list=' + encodeURIComponent(pl));
-      showToast('📺 En YouTube toca el ícono de transmitir y elige tu TV. Las canciones nuevas se agregan solas.', 7000);
+      await vm().esperarYT();                                    // espera a que entren las pendientes
+      const f = pend.map(x => vm().cola().find(y => y.id === x.id)).find(it => it && it.vid);
+      const now = LS('vito_now', null);
+      const vid = f ? f.vid : (now && now.vid) || '';
+      castLanzar(vid ? 'watch?v=' + encodeURIComponent(vid) + '&list=' + encodeURIComponent(pl) : 'playlist?list=' + encodeURIComponent(pl),
+        CAST_AVISO + ' Las canciones que pidan las mesas se agregan solas a esta lista.');
     } else {
       if(!cfg.key){ showToast('Falta la API key de YouTube (más abajo) para buscar las canciones.', 5000); SS(CAST_KEY, {}); return; }
-      const ids = [];
-      for(const x of pend.slice(0, 50)){
+      // Sin cuenta de Google no hay lista: la app de YouTube abre la primera canción de la cola.
+      let vid = '';
+      for(const x of pend.slice(0, 5)){
         let it = vm().cola().find(y => y.id === x.id);
         if(it && !it.vid && !it.novid){ try{ const v = await vm().ySearch(it.song); const l = vm().cola(); it = l.find(y => y.id === x.id); if(it){ if(v) it.vid = v; else it.novid = true; SS('vito_cola', l); } }catch(e){} }
-        if(it && it.vid) ids.push(it.vid);
+        if(it && it.vid){ vid = it.vid; const l = vm().cola(), z = l.find(y => y.id === it.id); if(z){ z.done = true; z.cast = true; } SS('vito_cola', l); SS('vito_now', it); break; }
       }
-      if(!ids.length){ showToast('No hay canciones en cola para transmitir. Los clientes las piden con el QR de su mesa.', 5000); SS(CAST_KEY, {}); return; }
-      const l = vm().cola(); l.forEach(y => { if(ids.includes(y.vid) && !y.done){ y.done = true; y.cast = true; } }); SS('vito_cola', l);
-      abrirEnAppYouTube('watch_videos?video_ids=' + ids.join(','));
-      showToast('📺 En YouTube toca el ícono de transmitir y elige tu TV. Para mandar las nuevas, toca «Transmitir al TV» otra vez.', 7000);
+      if(!vid){ showToast('No hay canciones en cola para transmitir. Los clientes las piden con el QR de su mesa.', 5000); SS(CAST_KEY, {}); return; }
+      castLanzar('watch?v=' + encodeURIComponent(vid), CAST_AVISO + ' Para que la lista completa se arme y se actualice sola, conecta Google (más abajo) una sola vez.');
     }
   }catch(e){
     showToast('YouTube: ' + (e.message || e), 5000);
@@ -16007,6 +16160,8 @@ function iniCast(){
   document.getElementById('castStop').onclick = () => { SS(CAST_KEY, {}); castEstado(); showToast('Transmisión terminada. En el TV puedes detenerla desde la app de YouTube.'); };
   const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', castEstado);
   setInterval(castEstado, 15000);
+  // Volvió de conectar Google: sigue con la transmisión que se había pedido.
+  setInterval(() => { if(castEsperaGoogle && vm().yTok()){ castEsperaGoogle = 0; transmitirTV(); } else if(castEsperaGoogle && Date.now() - castEsperaGoogle > 120000) castEsperaGoogle = 0; }, 1000);
   castEstado();
 }
 

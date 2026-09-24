@@ -26,13 +26,15 @@ cualquier dato antes de guardar.
 
 ### Novedades
 
-- **Mesi (IA) más rápida**: cada respuesta tiene un límite de 14 segundos en
-  total (reintentos incluidos) y solo se le mandan los productos que importan
-  para la pregunta. Si la IA no alcanza, Mesi responde igual con lo básico.
+- **Mesi (IA) más rápida**: las preguntas simples (ventas, mesas, deudas,
+  precios, stock) se responden al instante sin IA; las demás se muestran en
+  vivo mientras la IA escribe (la primera frase sale en ~1 segundo) y nunca
+  se espera más de 8 segundos: si la IA no alcanza, Mesi responde con lo básico.
 - **Saludo de bienvenida** cada vez que se abre Mesi, con un resumen del día.
-- **Transmitir al TV con YouTube** (Música → 📺 Transmitir al TV): abre la app
-  de YouTube con la lista de canciones pedidas para mandarla al televisor. Con
-  Google conectado, las canciones nuevas se agregan solas a la lista en vivo.
+- **Transmitir al TV con YouTube** (Música → 📺 Transmitir al TV): abre
+  directamente la app de YouTube (nunca el navegador) con la lista de canciones
+  pedidas. Ahí el botón de transmitir busca los TV del mismo wifi. Con Google
+  conectado, las canciones nuevas se agregan solas a la lista en vivo.
 - **Fotos de productos** (Productos → Editar → 📷 Agregar foto): el fondo se
   vuelve blanco automáticamente y la foto sale en la carta de `pedido.html`.
   Las fotos se guardan en el propio dispositivo (IndexedDB).
