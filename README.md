@@ -59,6 +59,16 @@ piden las mesas, sin Google y sin transmitir. Solo se envían versiones que ya
 se comprobó que se dejan reproducir fuera de YouTube; si alguna igual falla, el
 TV avisa y el celular busca otra versión.
 
+## `puente/youtube-tv-worker.js` — canciones solas en el YouTube del TV
+
+Con **Música → YouTube del TV: canciones solas**, Mesora se conecta a la app de
+YouTube del televisor con el código «Vincular con código de TV» y le agrega
+cada canción que piden las mesas a su cola, en vivo. Usa el mismo sistema que
+los celulares al vincular un TV (no es una API pública de Google; YouTube
+podría cambiarlo). Como el navegador no deja hablar directo con youtube.com
+desde otra página, las llamadas pasan por este pequeño puente, que se publica
+gratis como Cloudflare Worker (los pasos están dentro de la app).
+
 ## Uso
 
 Subí los archivos (`index.html`, `pedido.html` y `tv.html`) a cualquier hosting estático (o abrí `index.html`

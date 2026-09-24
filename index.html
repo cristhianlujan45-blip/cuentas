@@ -1588,6 +1588,12 @@
   #tvpLink{ width:100%; box-sizing:border-box; margin:8px 0; font-weight:700; }
   #ytBox.yt-espera iframe{ visibility:hidden; }
   #ytBox.yt-espera::after{ content:'🎵 Esperando la próxima canción…'; position:absolute; inset:0; display:grid; place-items:center; border-radius:12px; background:var(--surface-2); color:var(--ink-soft); font-size:14px; font-weight:600; }
+  .lng-step{ display:flex; gap:12px; align-items:flex-start; margin:14px 0 4px; }
+  .lng-step p{ margin:3px 0 6px; font-size:13.5px; line-height:1.45; color:var(--ink-soft); }
+  .lng-step .mz-in{ width:100%; box-sizing:border-box; }
+  .lng-step a{ color:var(--cream); font-weight:700; text-decoration:underline; }
+  .lng-code{ font-weight:800; font-size:20px; letter-spacing:.1em; text-align:center; }
+  #lngCodeTpl{ display:none; }
   .cast-env{ font-size:12.5px; line-height:1.4; color:var(--ink-soft); margin:8px 0 0; }
   .cast-env.bad{ color:var(--brick); font-weight:700; }
   .cast-big{ width:100%; padding:13px; font-size:15px; margin:8px 0 4px; }
@@ -2467,6 +2473,22 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
         <div class="mz-actions"><button class="btn-primary" id="tvpCopy" type="button">📋 Copiar link del TV</button><button class="btn-ghost" id="tvpNew" type="button">Crear link nuevo</button></div>
         <div class="settings-desc">En el TV: abre el <b>Navegador web</b> (en LG se llama «Web Browser»), escribe el link de arriba y guárdalo en favoritos. Toca <b>OK</b> en el control para empezar. Deja Mesora abierta en este celular: de aquí salen las canciones.</div>
       </div>
+    </div>
+    <div class="settings-group">
+      <h2>📺 YouTube del TV: canciones solas <span class="tvp-badge">Nuevo</span></h2>
+      <div class="settings-desc">Mesora se conecta a la <b>app de YouTube de tu televisor</b> (LG, Samsung, Android TV…) con el código del TV y le va <b>agregando cada canción que piden las mesas a su cola, en vivo</b>, sin tocar nada. Suena en el TV (no en el celular) y sin bloqueos de sello. Se configura una sola vez:</div>
+      <div class="lng-step"><span class="pair-n">1</span><div><strong>Puente gratis (5 minutos, una sola vez)</strong>
+        <p>YouTube no deja que una página web hable directo con el TV; el puente le pasa los mensajes. <a href="#" id="lngHow">Ver cómo se crea</a></p>
+        <input id="lngRelay" class="mz-in" placeholder="https://mesora-tv.tu-usuario.workers.dev" autocapitalize="none" autocomplete="off" spellcheck="false">
+        <div class="mz-actions"><button class="btn-ghost" id="lngCopy" type="button">📋 Copiar código del puente</button><button class="btn-ghost" id="lngTest" type="button">Probar puente</button></div>
+      </div></div>
+      <div class="lng-step"><span class="pair-n">2</span><div style="flex:1;min-width:0"><strong>Código del TV</strong>
+        <p>En el TV: YouTube → Configuración → <b>Vincular con código de TV</b>. Escribe aquí los 12 números:</p>
+        <input id="lngCode" class="mz-in lng-code" inputmode="numeric" autocomplete="off" placeholder="000 000 000 000" maxlength="15">
+        <button class="btn-primary cast-big" id="lngGo" type="button">🔗 Conectar con el YouTube del TV</button>
+      </div></div>
+      <div class="cast-devs" id="lngBox"><span class="cast-dot"></span><span id="lngEstado">Sin conectar.</span></div>
+      <div class="mz-actions"><button class="btn-ghost" id="lngPlay" type="button" hidden>▶ Poner la cola en el TV ahora</button><button class="btn-ghost" id="lngOff" type="button" hidden>Desconectar</button></div>
     </div>
     <div class="settings-group">
       <h2>📺 Transmitir al TV</h2>
@@ -3472,6 +3494,35 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
 <div id="receiptTemplate" class="receipt-template"></div>
 
 <div class="toast" id="toast"></div>
+<script type="text/plain" id="lngWorkerSrc">/* Puente de Mesora para YouTube en el TV (Cloudflare Worker, gratis).
+   Mesora (una página web) no puede hablar directo con el sistema de YouTube que controla la
+   app del TV («Vincular con código de TV»): el navegador lo bloquea (CORS). Este puente solo
+   reenvía esas llamadas a www.youtube.com/api/lounge/… y le devuelve la respuesta a Mesora.
+   No guarda nada y no sirve para nada más que para esa dirección.
+
+   Cómo publicarlo: dash.cloudflare.com → Workers & Pages → Create → Create Worker →
+   Deploy → Edit code → borra todo, pega este archivo completo → Deploy. */
+export default {
+  async fetch(req) {
+    const cors = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, X-YouTube-LoungeId-Token',
+      'Access-Control-Max-Age': '86400'
+    };
+    if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
+    const u = new URL(req.url);
+    if (req.method !== 'POST' || !u.pathname.startsWith('/api/lounge/')) {
+      return new Response('Mesora: puente de YouTube TV funcionando ✔', { status: u.pathname === '/' ? 200 : 404, headers: { ...cors, 'Content-Type': 'text/plain; charset=utf-8' } });
+    }
+    const headers = { 'Content-Type': req.headers.get('Content-Type') || 'application/x-www-form-urlencoded' };
+    const tok = req.headers.get('X-YouTube-LoungeId-Token');
+    if (tok) headers['X-YouTube-LoungeId-Token'] = tok;
+    const r = await fetch('https://www.youtube.com' + u.pathname + u.search, { method: 'POST', headers, body: await req.text() });
+    return new Response(await r.text(), { status: r.status, headers: { ...cors, 'Content-Type': 'text/plain; charset=utf-8' } });
+  }
+};
+</script>
 
 <div class="voice-fab-wrap" id="voiceFabWrap">
   <button class="voice-fab-close" id="voiceFabCloseBtn" title="Ocultar comando por voz">✕</button>
@@ -14259,7 +14310,7 @@ async function ytUno(id){
       tvPublicar();
     }
     if(it.vid&&!it.yt&&!yTok()&&!tvOn()&&typeof castOn==='function'&&castOn()&&yCfg().cid){showToast('⚠️ Google se desconectó: «'+it.song+'» todavía no entró a la lista del TV. Toca cualquier parte de Mesora y se reconecta y la agrega.',8000);}
-    if(!it.vid||it.yt||!yTok()||tvOn())return;
+    if(!it.vid||it.yt||!yTok()||tvOn()||(typeof lngOn==='function'&&lngOn()))return;
     const pl=await yLista();
     // position:1 (no position:0) pone la canción nueva JUSTO DESPUÉS de la
     // que ya está sonando — la posición 0 de la lista es la que YouTube
@@ -16487,7 +16538,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
    la Pantalla del TV de Mesora (tv.html) y reproduce la cola en vivo: cada canción que piden las
    mesas entra sola. Los Smart TV LG/Samsung sin Chromecast no aparecen aquí (solo los ve la app
    de YouTube): para esos están los botones de YouTube Music / YouTube. */
-const MESORA_VERSION = '2026-09-24 · v10';
+const MESORA_VERSION = '2026-09-24 · v11';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
@@ -16730,6 +16781,167 @@ function iniCast(){
   castEstado();
 }
 
+/* ---------- YouTube del TV en vivo (protocolo «Vincular con código de TV») ----------
+   La app de YouTube del TV acepta controles remotos: con el código del TV se obtiene un permiso
+   (loungeToken) y se abre una sesión de control. Por esa sesión Mesora manda «setPlaylist» (la
+   primera canción) y «addVideo» (cada canción nueva): el TV las agrega a su cola y suenan solas.
+   Es el mismo sistema que usan los celulares al vincular un TV; no es una API pública de Google,
+   así que YouTube podría cambiarlo. Las llamadas pasan por el puente (Cloudflare Worker) porque
+   el navegador bloquea hablar directo con youtube.com desde otra página. */
+const LNG_KEY = 'vito_ytlounge';
+const lngCfg = () => LS(LNG_KEY, {});
+function lngOn(){ const c = lngCfg(); return !!(c.on && c.relay && c.screenId); }
+const lng = { sid: null, gs: null, rid: 1, ofs: 0, t: 0, uuid: '', ocupado: false, error: '' };
+function lngUuid(){ const c = lngCfg(); if(!c.uuid){ c.uuid = 'mesora' + Array.from(crypto.getRandomValues(new Uint8Array(10)), b => (b % 36).toString(36)).join(''); SS(LNG_KEY, c); } return c.uuid; }
+async function lngFetch(path, params, body, token){
+  const c = lngCfg();
+  if(!c.relay) throw new Error('Falta la dirección del puente (paso 1).');
+  const url = c.relay.replace(/\/+$/, '') + '/api/lounge/' + path + (params ? '?' + new URLSearchParams(params) : '');
+  const h = { 'Content-Type': 'application/x-www-form-urlencoded' };
+  if(token) h['X-YouTube-LoungeId-Token'] = token;
+  let r;
+  try{ r = await fetch(url, { method: 'POST', headers: h, body: new URLSearchParams(body || {}) }); }
+  catch(e){ throw new Error('No hay conexión con el puente. Revisa la dirección del paso 1 y el internet.'); }
+  const t = await r.text();
+  if(!r.ok){ const err = new Error('YouTube del TV respondió ' + r.status + (t ? ': ' + t.slice(0, 120) : '')); err.status = r.status; throw err; }
+  return t;
+}
+const lngExp = v => { v = Number(v) || 0; return v && v < 1e12 ? v * 1000 : v; };
+async function lngParear(code){
+  const t = await lngFetch('pairing/get_screen', null, { pairing_code: code });
+  let j; try{ j = JSON.parse(t); }catch(e){ throw new Error('El código no funcionó. Revisa los 12 números (el código del TV cambia cada vez que lo abres).'); }
+  const sc = j && j.screen;
+  if(!sc || !sc.screenId) throw new Error('El código no funcionó. Revisa los 12 números.');
+  const c = lngCfg();
+  Object.assign(c, { screenId: sc.screenId, loungeToken: sc.loungeToken, exp: lngExp(sc.expiration), nombre: sc.name || sc.screenName || 'TV', on: true });
+  SS(LNG_KEY, c);
+  lng.sid = null;
+}
+async function lngToken(){
+  const c = lngCfg();
+  if(c.loungeToken && (!c.exp || c.exp > Date.now() + 60000)) return c.loungeToken;
+  const t = await lngFetch('pairing/get_lounge_token_batch', null, { screen_ids: c.screenId });
+  const s0 = (JSON.parse(t).screens || [])[0];
+  if(!s0 || !s0.loungeToken) throw new Error('El TV ya no está vinculado. Vuelve a poner el código del TV.');
+  c.loungeToken = s0.loungeToken; c.exp = lngExp(s0.expiration); SS(LNG_KEY, c);
+  return c.loungeToken;
+}
+function lngBase(tok){ return { VER: 8, CVER: 1, device: 'REMOTE_CONTROL', id: lngUuid(), name: 'Mesora', app: 'youtube-desktop', 'mdx-version': 3, loungeIdToken: tok }; }
+async function lngBind(){
+  const tok = await lngToken();
+  lng.rid = 1; lng.ofs = 0;
+  const t = await lngFetch('bc/bind', Object.assign({ RID: lng.rid++ }, lngBase(tok)), { count: 0 }, tok);
+  const sid = (t.match(/"c"\s*,\s*"([^"]+)"/) || [])[1], gs = (t.match(/"S"\s*,\s*"([^"]+)"/) || [])[1];
+  if(!sid) throw new Error('El TV no respondió. Enciéndelo y abre la app de YouTube.');
+  lng.sid = sid; lng.gs = gs || ''; lng.t = Date.now();
+}
+async function lngCmd(sc, datos, reintento){
+  if(!lng.sid || Date.now() - lng.t > 15 * 60000) await lngBind();
+  const tok = await lngToken();
+  const body = { count: 1, ofs: lng.ofs++, req0__sc: sc };
+  Object.keys(datos || {}).forEach(k => { body['req0_' + k] = datos[k]; });
+  try{
+    await lngFetch('bc/bind', Object.assign({ SID: lng.sid, gsessionid: lng.gs, RID: lng.rid++, AID: 0 }, lngBase(tok)), body, tok);
+    lng.t = Date.now();
+  }catch(e){
+    if(!reintento && e.status && e.status >= 400 && e.status < 500){ lng.sid = null; return lngCmd(sc, datos, true); }   // sesión vencida: se abre otra
+    throw e;
+  }
+}
+// Manda al TV, en orden justo, las canciones que ya tienen video y aún no se mandaron.
+async function lngSync(forzarInicio){
+  if(!lngOn() || lng.ocupado || !vm().cola) return;
+  lng.ocupado = true;
+  try{
+    const c = lngCfg();
+    const pend = vm().ordenJusto(vm().cola()).filter(x => x.vid && !x.lng);
+    for(const x of pend){
+      const nuevaCola = forzarInicio || !c.ultimo || Date.now() - c.ultimo > 45 * 60000;   // TV sin música de Mesora hace rato: empieza una cola nueva
+      await lngCmd(nuevaCola ? 'setPlaylist' : 'addVideo', nuevaCola ? { videoId: x.vid, currentTime: 0, currentIndex: -1, audioOnly: false, listId: '' } : { videoId: x.vid });
+      forzarInicio = false;
+      c.ultimo = Date.now(); SS(LNG_KEY, Object.assign(lngCfg(), { ultimo: c.ultimo }));
+      const l = vm().cola(), it = l.find(y => y.id === x.id);
+      if(it){ it.lng = true; it.done = true; it.lngAt = Date.now(); SS('vito_cola', l); }
+      SS('vito_now', x);
+    }
+    lng.error = '';
+  }catch(e){ lng.error = e.message || String(e); }
+  finally{ lng.ocupado = false; lngEstado(); try{ vm().renderMusica(); }catch(e){} }
+}
+function lngEstado(){
+  const e = document.getElementById('lngEstado'), box = document.getElementById('lngBox'); if(!e) return;
+  const c = lngCfg();
+  box.classList.remove('ok', 'no');
+  document.getElementById('lngOff').hidden = !c.screenId;
+  document.getElementById('lngPlay').hidden = !lngOn();
+  if(!lngOn()){ e.textContent = c.relay ? 'Falta conectar el TV (paso 2).' : 'Sin conectar. Sigue los pasos 1 y 2.'; return; }
+  if(lng.error){ box.classList.add('no'); e.textContent = '⚠️ ' + lng.error; return; }
+  box.classList.add('ok');
+  const n = vm().cola ? vm().cola().filter(x => x.lng && x.lngAt > Date.now() - 36e5).length : 0;
+  e.textContent = '🟢 Conectado a «' + (c.nombre || 'TV') + '»: cada canción que pidan las mesas entra sola a la cola del YouTube del TV' + (n ? ' (' + n + ' en la última hora)' : '') + '.';
+}
+function lngGuia(){
+  let ov = document.getElementById('lngHowOverlay');
+  if(!ov){
+    ov = document.createElement('div'); ov.id = 'lngHowOverlay'; ov.className = 'overlay';
+    ov.innerHTML = '<div class="modal cast-guide" style="max-width:440px;max-height:88vh;overflow:auto"><h2>🛠️ Crear el puente (gratis, una vez)</h2>' +
+      '<div class="modal-sub">Mejor hazlo desde un computador; también sirve el celular.</div><ol>' +
+      '<li>Entra a <b>dash.cloudflare.com</b> y crea una cuenta gratis (solo correo y contraseña).</li>' +
+      '<li>En el menú: <b>Workers &amp; Pages</b> (o «Compute») → <b>Create</b> → <b>Create Worker</b>. Ponle de nombre <b>mesora-tv</b> y toca <b>Deploy</b>.</li>' +
+      '<li>Toca <b>Edit code</b>. Borra todo lo que aparece.</li>' +
+      '<li>En Mesora toca <b>📋 Copiar código del puente</b> y pégalo allá. Toca <b>Deploy</b>.</li>' +
+      '<li>Copia la dirección que te da Cloudflare (termina en <b>.workers.dev</b>) y pégala en el paso 1 de Mesora. Toca <b>Probar puente</b>: debe decir ✅.</li></ol>' +
+      '<div class="modal-actions"><button class="btn-primary" type="button" id="lngHowOk">Entendido</button></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#lngHowOk').onclick = () => ov.classList.remove('show');
+    ov.addEventListener('click', e => { if(e.target === ov) ov.classList.remove('show'); });
+  }
+  ov.classList.add('show');
+}
+function iniLounge(){
+  const relay = document.getElementById('lngRelay'); if(!relay) return;
+  relay.value = lngCfg().relay || '';
+  relay.onchange = () => { const c = lngCfg(); c.relay = relay.value.trim().replace(/\/+$/, ''); if(c.relay && !/^https:\/\//.test(c.relay)) c.relay = 'https://' + c.relay.replace(/^\w+:\/\//, ''); relay.value = c.relay; SS(LNG_KEY, c); lngEstado(); };
+  document.getElementById('lngHow').onclick = e => { e.preventDefault(); lngGuia(); };
+  document.getElementById('lngCopy').onclick = async () => {
+    const src = document.getElementById('lngWorkerSrc').textContent.trim();
+    try{ await navigator.clipboard.writeText(src); showToast('📋 Código del puente copiado. Pégalo en Cloudflare (Edit code) y toca Deploy.', 6000); }
+    catch(e){ showToast('⚠️ No se pudo copiar. Está en la carpeta «puente» del proyecto en GitHub.', 6000); }
+  };
+  document.getElementById('lngTest').onclick = async () => {
+    relay.onchange();
+    const c = lngCfg(); if(!c.relay) return showToast('⚠️ Pega primero la dirección del puente.');
+    try{ const r = await fetch(c.relay + '/'); const t = await r.text(); showToast(/Mesora/.test(t) ? '✅ El puente funciona.' : '⚠️ Esa dirección responde, pero no es el puente de Mesora. Revisa que pegaste el código completo.', 6000); }
+    catch(e){ showToast('⚠️ No responde. Revisa la dirección (termina en .workers.dev) y que tocaste Deploy.', 6000); }
+  };
+  const code = document.getElementById('lngCode');
+  code.addEventListener('input', () => { const d = code.value.replace(/\D/g, '').slice(0, 12); code.value = d.replace(/(\d{3})(?=\d)/g, '$1 '); });
+  document.getElementById('lngGo').onclick = async () => {
+    relay.onchange();
+    const d = code.value.replace(/\D/g, '');
+    if(!lngCfg().relay) return showToast('⚠️ Primero el paso 1: la dirección del puente.');
+    if(d.length !== 12) return showToast('⚠️ El código del TV tiene 12 números.');
+    const b = document.getElementById('lngGo'); b.disabled = true; b.textContent = '⏳ Conectando con el TV…';
+    try{
+      await lngParear(d);
+      await lngBind();
+      // Si Mesora también estaba mandando la música por otros caminos, se apagan para no duplicar.
+      const a = document.getElementById('autoPlay'); if(a && a.checked){ a.checked = false; a.dispatchEvent(new Event('change')); }
+      const tv = document.getElementById('tvpOn'); if(tv && tv.checked){ tv.checked = false; tv.dispatchEvent(new Event('change')); }
+      code.value = '';
+      showToast('✅ Conectado a «' + (lngCfg().nombre || 'TV') + '». Las canciones de las mesas van a entrar solas a la cola del YouTube del TV.', 8000);
+      vm().cola().forEach(x => { if(!x.vid && !x.done) vm().ytAgregar(x.id); });
+      lngSync(true);
+    }catch(e){ lng.error = e.message; showToast('⚠️ ' + e.message, 8000); }
+    finally{ b.disabled = false; b.textContent = '🔗 Conectar con el YouTube del TV'; lngEstado(); }
+  };
+  document.getElementById('lngPlay').onclick = () => lngSync(true);
+  document.getElementById('lngOff').onclick = () => { const c = lngCfg(); ['screenId', 'loungeToken', 'exp', 'nombre', 'on', 'ultimo'].forEach(k => delete c[k]); SS(LNG_KEY, c); lng.sid = null; lng.error = ''; lngEstado(); showToast('Desconectado del YouTube del TV.'); };
+  setInterval(() => { lngSync(); }, 4000);
+  const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', lngEstado);
+  lngEstado();
+}
+
 /* ---------- Autorreparación: Mesi detecta y corrige errores ----------
    Todos los errores de la app quedan registrados con un código (ver el
    <script> del <head>). Mesi aplica reparaciones seguras y probadas (nunca
@@ -16891,6 +17103,7 @@ let fotosListas = false;
   if(typeof data === 'undefined' || !data || !Array.isArray(data.products)){ setTimeout(arrancar, 300); return; }
   try{ iniFotosProductos(); }catch(e){ mesoraLogError('arranque', 'Fotos: ' + e.message, ''); }
   try{ iniCast(); }catch(e){ mesoraLogError('arranque', 'Transmisión: ' + e.message, ''); }
+  try{ iniLounge(); }catch(e){ mesoraLogError('arranque', 'YouTube del TV: ' + e.message, ''); }
   fotosCargar().then(() => { fotosListas = true; try{ renderProductos(); }catch(e){} publicarFotosCarta(); });
   setInterval(() => { try{ publicarFotosCarta(); }catch(e){} }, 5 * 60000);
   const pend = mesoraErrores().filter(x => !x.visto && x.tipo !== 'recurso' && Date.now() - x.t < 864e5);
