@@ -50,8 +50,17 @@ y llamar al mesero, sincronizado en vivo con `index.html`. Hay que subir
 ambos archivos al mismo lugar (el mismo hosting) y configurar en
 **Ajustes → Carta / QR** el link donde quedó `pedido.html`.
 
+## `tv.html` — la música en el TV
+
+Se abre en el **navegador del TV** (LG webOS, Samsung, Android TV o TV Box) con
+el link de **Música → Pantalla del TV**. El TV reproduce la cola de canciones
+en orden y en vivo: el celular (con Mesora abierta) le manda cada canción que
+piden las mesas, sin Google y sin transmitir. Solo se envían versiones que ya
+se comprobó que se dejan reproducir fuera de YouTube; si alguna igual falla, el
+TV avisa y el celular busca otra versión.
+
 ## Uso
 
-Subí los dos archivos a cualquier hosting estático (o abrí `index.html`
+Subí los archivos (`index.html`, `pedido.html` y `tv.html`) a cualquier hosting estático (o abrí `index.html`
 directo en el navegador del celular o la compu para llevar solo las cuentas,
 sin la parte de pedidos por QR). No hace falta backend ni base de datos.

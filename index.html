@@ -1584,6 +1584,8 @@
   #mesoraFixPill.show{ display:inline-flex; }
   .cast-state{ margin:8px 0 0; font-size:13px; line-height:1.4; opacity:.9; }
   #ytBox{ position:relative; }
+  .tvp-badge{ display:inline-block; vertical-align:middle; margin-left:6px; padding:2px 8px; border-radius:999px; background:var(--paid); color:#06281c; font-size:11px; font-weight:800; letter-spacing:.02em; }
+  #tvpLink{ width:100%; box-sizing:border-box; margin:8px 0; font-weight:700; }
   #ytBox.yt-espera iframe{ visibility:hidden; }
   #ytBox.yt-espera::after{ content:'🎵 Esperando la próxima canción…'; position:absolute; inset:0; display:grid; place-items:center; border-radius:12px; background:var(--surface-2); color:var(--ink-soft); font-size:14px; font-weight:600; }
   .cast-app{ display:flex; gap:6px; margin:10px 0 4px; padding:4px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line); }
@@ -2449,6 +2451,16 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
         <button class="btn-ghost" id="mzClear" type="button">Vaciar cola</button>
       </div>
       <div id="mzList"></div>
+    </div>
+    <div class="settings-group">
+      <h2>📺 Pantalla del TV <span class="tvp-badge">Recomendado</span></h2>
+      <div class="settings-desc">El TV se vuelve el reproductor: abre un link en el <b>navegador del TV</b> (LG, Samsung, Android TV o TV Box) y suena la cola en orden, en vivo. Cada canción que piden las mesas entra sola, sin Google y sin transmitir. Solo se ponen versiones que ya se comprobó que se dejan reproducir.</div>
+      <div class="settings-row"><div class="settings-row-text"><strong>Usar el TV como reproductor</strong><span id="tvpEstado"></span></div><label class="switch"><input type="checkbox" id="tvpOn"><span class="switch-slider"></span></label></div>
+      <div id="tvpBox" hidden>
+        <input id="tvpLink" class="mz-in" readonly onclick="this.select()">
+        <div class="mz-actions"><button class="btn-primary" id="tvpCopy" type="button">📋 Copiar link del TV</button><button class="btn-ghost" id="tvpNew" type="button">Crear link nuevo</button></div>
+        <div class="settings-desc">En el TV: abre el <b>Navegador web</b> (en LG se llama «Web Browser»), escribe el link de arriba y guárdalo en favoritos. Toca <b>OK</b> en el control para empezar. Deja Mesora abierta en este celular: de aquí salen las canciones.</div>
+      </div>
     </div>
     <div class="settings-group">
       <h2>📺 Transmitir al TV con YouTube</h2>
@@ -14115,6 +14127,7 @@ function agregarCancion(mesa,song){
   // sin esperar a que alguien toque "Cargar en mi lista" (antes solo pasaba con
   // ese botón, así que las canciones nuevas se quedaban esperando en silencio).
   try{ if(typeof ytAgregar === 'function') ytAgregar(it.id); }catch(e){}
+  try{ tvPublicar(); }catch(e){}
   return{msg:'🎵 '+tableLabel(mesa)+': '+song};
 }
 window.vitoAddSong=(mesa,song)=>{const r=agregarCancion(mesa,song);try{renderMusica();}catch(e){}return r.msg;};
@@ -14187,27 +14200,55 @@ async function yLista(){
   c.pl=j.id;c.len=0;SS('vito_yt',c);$('ytPl').value=c.pl;return c.pl;
 }
 function ytAgregar(id){cadena=cadena.then(()=>ytUno(id)).catch(()=>{});}
-// videoEmbeddable/videoSyndicated: solo videos que el sello (ej. WMG) deja reproducir fuera de
-// youtube.com; así el reproductor de la app no se queda en «El vídeo no está disponible».
-// excluir: ids ya probados que igual salieron bloqueados (se busca otra versión de la canción).
-async function ySearch(q,excluir){
-  const c=yCfg(),u='search?part=snippet&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&maxResults=6&q='+encodeURIComponent(q);let j;
+// Solo versiones que se pueden poner en un reproductor fuera de youtube.com:
+// 1) la búsqueda pide videos "embeddable" y "syndicated";
+// 2) se revisa cada candidato con la API (público, se deja insertar, sin +18, no bloqueado en
+//    Colombia) y se dejan al final los canales oficiales de sellos que suelen bloquear (VEVO,
+//    Warner/WMG, "- Topic");
+// 3) los que igual fallaron alguna vez en el reproductor quedan en una lista negra y no se
+//    vuelven a elegir. excluir: ids ya probados para esta canción.
+const YT_BAD_KEY='vito_yt_bad', YT_REGION=((navigator.language||'').split('-')[1]||'CO').toUpperCase();
+const ytBad=()=>LS(YT_BAD_KEY,[]);
+function ytMarcarBad(v){ if(!v)return; const b=ytBad(); if(!b.includes(v)){ b.push(v); SS(YT_BAD_KEY,b.slice(-400)); } }
+const SELLO_RE=/vevo|\s-\stopic$|warner|wmg|atlantic|elektra|parlophone|reprise|rhino|asylum|nonesuch|sire records/i;
+async function yGet(u){
+  const c=yCfg();let j;
   if(c.key){const r=await fetch('https://www.googleapis.com/youtube/v3/'+u+'&key='+encodeURIComponent(c.key));j=await r.json();if(!r.ok)throw new Error((j.error&&j.error.message)||('Error '+r.status));}
   else if(yTok())j=await yApi(u);
   else return undefined;
-  const ids=(j.items||[]).map(x=>x&&x.id&&x.id.videoId).filter(Boolean);
-  return ids.find(v=>!(excluir||[]).includes(v))||null;
+  return j;
+}
+async function ySearch(q,excluir){
+  const j=await yGet('search?part=snippet&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&maxResults=10&q='+encodeURIComponent(q));
+  if(j===undefined)return undefined;
+  const no=new Set([...(excluir||[]),...ytBad()]);
+  let cands=(j.items||[]).filter(x=>x&&x.id&&x.id.videoId&&!no.has(x.id.videoId)).map(x=>({v:x.id.videoId,canal:(x.snippet&&x.snippet.channelTitle)||''}));
+  if(!cands.length)return null;
+  try{
+    const d=await yGet('videos?part=status,contentDetails&id='+cands.map(x=>x.v).join(','));
+    const ok={};
+    ((d&&d.items)||[]).forEach(v=>{
+      const st=v.status||{},cd=v.contentDetails||{},rr=cd.regionRestriction||{};
+      const bloqReg=(rr.blocked&&rr.blocked.includes(YT_REGION))||(rr.allowed&&!rr.allowed.includes(YT_REGION));
+      const edad=cd.contentRating&&cd.contentRating.ytRating==='ytAgeRestricted';
+      ok[v.id]=st.embeddable!==false&&st.privacyStatus==='public'&&!bloqReg&&!edad;
+    });
+    if(d&&d.items)cands=cands.filter(x=>ok[x.v]);
+  }catch(e){}
+  cands.sort((a,b)=>SELLO_RE.test(a.canal)-SELLO_RE.test(b.canal));
+  return cands.length?cands[0].v:null;
 }
 async function ytUno(id){
   try{
     let l=cola(),it=l.find(x=>x.id===id);if(!it||it.done)return;
     if(!it.vid&&!it.novid){
-      const v=await ySearch(it.song);
+      const v=await ySearch(it.song,it.probados);
       l=cola();it=l.find(x=>x.id===id);if(!it||v===undefined)return;
-      if(v)it.vid=v;else{it.novid=true;it.yt='no';showToast('No encontré en YouTube: '+it.song);}
+      if(v){it.vid=v;it.ok=false;}else{it.novid=true;it.yt='no';showToast('⚠️ No encontré una versión de «'+it.song+'» que se pueda reproducir aquí.');}
       SS('vito_cola',l);
+      tvPublicar();
     }
-    if(!it.vid||it.yt||!yTok())return;
+    if(!it.vid||it.yt||!yTok()||tvOn())return;
     const pl=await yLista();
     // position:1 (no position:0) pone la canción nueva JUSTO DESPUÉS de la
     // que ya está sonando — la posición 0 de la lista es la que YouTube
@@ -14289,15 +14330,15 @@ function iniYT(){
 const AUTO=()=>!!LS('vito_auto_play',{}).on;
 let yPl=null,yListo=false,sonando=false,cargadoEn=0;
 function cargarAPI(){
-  if(window.YT&&YT.Player){crearPlayer();return;}
+  if(window.YT&&YT.Player){if(AUTO())crearPlayer();crearTest();return;}
   if($('ytApi'))return;
-  window.onYouTubeIframeAPIReady=crearPlayer;
+  window.onYouTubeIframeAPIReady=()=>{if(AUTO())crearPlayer();crearTest();};
   const t=document.createElement('script');t.id='ytApi';t.src='https://www.youtube.com/iframe_api';document.head.appendChild(t);
 }
 function crearPlayer(){
   if(yPl)return;
   yPl=new YT.Player('ytPlayer',{width:'100%',height:'200',playerVars:{playsinline:1,rel:0},events:{
-    onReady:()=>{yListo=true;siguienteAuto();},
+    onReady:()=>{yListo=true;crearTest();siguienteAuto();},
     onStateChange:e=>{if(e.data===1)cargadoEn=0;if(e.data===0){sonando=false;if(!ordenJusto(cola()).some(y=>y.vid))ytMostrar(false);siguienteAuto();}},
     onError:()=>{reemplazarBloqueada();}}});
 }
@@ -14311,6 +14352,7 @@ async function reemplazarBloqueada(){
   try{
     const now=LS('vito_now',null);
     if(now&&now.song){
+      ytMarcarBad(now.vid);
       const probados=(now.probados||[]).concat(now.vid?[now.vid]:[]);
       if(probados.length<=3){
         const qs=[now.song,now.song+' audio',now.song+' letra'];
@@ -14331,6 +14373,49 @@ async function reemplazarBloqueada(){
     siguienteAuto();
   }finally{ reemplazando=false; }
 }
+// Verificación ANTES de sonar: un segundo reproductor, invisible y en silencio, prueba cada
+// canción de la cola apenas llega. Si YouTube dice que no se puede reproducir aquí, se busca
+// otra versión (hasta 5) y la mala queda en la lista negra; así al reproductor solo llegan
+// versiones que ya se comprobó que suenan.
+let yTest=null,yTestListo=false,verificando=null;
+function crearTest(){
+  if(yTest||!window.YT||!YT.Player)return;
+  let d=$('ytTest');
+  if(!d){d=document.createElement('div');d.id='ytTest';d.setAttribute('aria-hidden','true');
+    d.style.cssText='position:fixed;left:0;bottom:0;width:4px;height:4px;opacity:.01;pointer-events:none;overflow:hidden;z-index:-1';
+    const i=document.createElement('div');i.id='ytTestIn';d.appendChild(i);document.body.appendChild(d);}
+  yTest=new YT.Player('ytTestIn',{width:'200',height:'113',playerVars:{playsinline:1,mute:1,controls:0},events:{
+    onReady:()=>{yTestListo=true;try{yTest.mute();}catch(e){}},
+    onStateChange:e=>{if(verificando&&e.data===1)verificando.fin(true);},
+    onError:()=>{if(verificando)verificando.fin(false);}}});
+}
+function probarVideo(v){
+  return new Promise(res=>{
+    if(!yTestListo){res(true);return;}                      // sin probador: el reproductor principal igual cambia de versión si falla
+    let t=null;
+    verificando={fin:ok=>{clearTimeout(t);verificando=null;try{yTest.stopVideo();}catch(e){}res(ok);}};
+    t=setTimeout(()=>verificando&&verificando.fin(true),9000);   // no respondió: se da por buena
+    try{yTest.mute();yTest.loadVideoById(v);}catch(e){verificando.fin(true);}
+  });
+}
+let verifCorriendo=false;
+async function verificarCola(){
+  if(verifCorriendo||!(AUTO()||tvOn()))return;
+  const x=ordenJusto(cola()).find(y=>y.vid&&!y.ok);
+  if(!x)return;
+  verifCorriendo=true;
+  try{
+    if(!yTestListo){cargarAPI();return;}                 // el probador todavía está cargando
+    const ok=await probarVideo(x.vid);
+    const l=cola(),it=l.find(y=>y.id===x.id);if(!it)return;
+    if(ok){it.ok=true;SS('vito_cola',l);tvPublicar();renderMusica();return;}
+    ytMarcarBad(it.vid);
+    it.probados=(it.probados||[]).concat(it.vid);it.vid=null;it.ok=false;
+    if(it.probados.length>=5){it.novid=true;it.sinVersion=true;SS('vito_cola',l);showToast('⚠️ «'+it.song+'» no tiene ninguna versión que se deje reproducir aquí; la salto.');renderMusica();return;}
+    SS('vito_cola',l);
+    ytUno(it.id);
+  }finally{verifCorriendo=false;}
+}
 // Tapa el reproductor cuando no hay nada sonando (así no queda el aviso de error de YouTube).
 function ytMostrar(si){
   const b=$('ytBox');if(!b)return;
@@ -14338,7 +14423,9 @@ function ytMostrar(si){
 }
 function siguienteAuto(){
   if(!AUTO()||!yListo||sonando)return;
-  const x=ordenJusto(cola()).find(y=>y.vid);if(!x)return;
+  if(tvOn())return;                                   // el TV es el reproductor
+  const o=ordenJusto(cola()).filter(y=>y.vid);
+  const x=o.find(y=>y.ok||!yTestListo);if(!x)return;  // solo versiones ya comprobadas
   const l=cola(),it=l.find(y=>y.id===x.id);if(it)it.done=true;
   SS('vito_cola',l);SS('vito_now',x);sonando=true;cargadoEn=Date.now();ytMostrar(true);yPl.loadVideoById(x.vid);renderMusica();
 }
@@ -14363,8 +14450,83 @@ function iniAutoPlay(){
     if(e.target.checked)cargarAPI();else{sonando=false;cargadoEn=0;if(yPl&&yPl.pauseVideo)yPl.pauseVideo();}
     yEstado();
   };
-  if(AUTO())cargarAPI();
-  setInterval(()=>{siguienteAuto();vigilarAtascado();},3000);
+  if(AUTO()||tvOn())cargarAPI();
+  setInterval(()=>{siguienteAuto();vigilarAtascado();verificarCola();},3000);
+}
+
+/* ---------- Pantalla del TV: el propio TV es el reproductor ----------
+   En el navegador del TV (LG webOS, Samsung, Android TV, TV Box) se abre tv.html con un
+   código. El celular le manda la cola por ntfy (canal "mesoratv"+código) y el TV la
+   reproduce en orden, en vivo: cada canción que piden las mesas entra sola, sin Google, sin
+   transmitir y sin tocar nada. El TV le avisa al celular qué está sonando y si una versión
+   no se deja reproducir (se busca otra). */
+const TVP_KEY='vito_tvpant';
+const tvCfg=()=>{const c=LS(TVP_KEY,{});if(!c.code){c.code=Array.from(crypto.getRandomValues(new Uint8Array(6)),b=>'abcdefghjkmnpqrstuvwxyz23456789'[b%31]).join('');SS(TVP_KEY,c);}return c;};
+function tvOn(){return !!LS(TVP_KEY,{}).on;}
+const tvTopic=()=>'mesoratv'+tvCfg().code;
+function tvUrl(){
+  const base=location.protocol==='file:'?'':location.origin+location.pathname.replace(/[^/]*$/,'');
+  return base?base+'tv.html#'+tvCfg().code:'';
+}
+let tvHash='',tvHashT=0,tvES=null,tvVisto=0,tvSonando='';
+function tvPublicar(force){
+  if(!tvOn())return;
+  const q=ordenJusto(cola()).filter(x=>x.vid&&!x.sinVersion&&(x.ok||!yTestListo)).slice(0,15)
+    .map(x=>({i:x.id,v:x.vid,s:String(x.song).slice(0,60),m:String(tableLabel(x.mesa)).slice(0,20)}));
+  const msg={q,b:String(data&&data.businessName||'').slice(0,40)};
+  const s=JSON.stringify(msg);
+  if(!force&&s===tvHash&&Date.now()-tvHashT<5*6e4)return;
+  tvHash=s;tvHashT=Date.now();
+  fetch('https://ntfy.sh/'+tvTopic(),{method:'POST',body:JSON.stringify(Object.assign(msg,{t:Date.now()}))}).catch(()=>{tvHash='';});
+}
+function tvEscuchar(){
+  if(tvES){try{tvES.close();}catch(e){}tvES=null;}
+  if(!tvOn())return;
+  try{tvES=new EventSource('https://ntfy.sh/'+tvTopic()+'r/sse?since=1m');}catch(e){return;}
+  tvES.onmessage=ev=>{
+    let m;try{m=JSON.parse(JSON.parse(ev.data).message);}catch(e){return;}
+    if(!m)return;
+    tvVisto=Date.now();
+    if(m.p){                                               // empezó a sonar en el TV
+      const l=cola(),it=l.find(y=>y.id===m.p);
+      if(it&&!it.done){it.done=true;it.tvAt=Date.now();SS('vito_cola',l);SS('vito_now',it);}
+      tvSonando=it?it.song:tvSonando;renderMusica();tvPublicar();
+    }
+    if(m.b){                                               // esa versión no se dejó reproducir en el TV
+      ytMarcarBad(m.v);
+      const l=cola(),it=l.find(y=>y.id===m.b);
+      if(it&&it.vid===m.v){it.probados=(it.probados||[]).concat(m.v);it.vid=null;it.ok=false;SS('vito_cola',l);ytAgregar(it.id);}
+      tvPublicar(true);
+    }
+    if(m.s!==undefined)tvSonando=m.s||'';
+    tvEstado();
+  };
+}
+function tvEstado(){
+  const e=$('tvpEstado');if(!e)return;
+  if(!tvOn()){e.textContent='⚪ Apagado.';return;}
+  const vivo=Date.now()-tvVisto<75000;
+  e.textContent=vivo?('🟢 El TV está conectado'+(tvSonando?' · sonando: '+tvSonando:'')+'.'):'🟠 Esperando que abras el link en el navegador del TV…';
+}
+function iniTVPantalla(){
+  const sw=$('tvpOn');if(!sw)return;
+  const pintar=()=>{const u=tvUrl();$('tvpLink').value=u||'Abre Mesora desde su dirección https (no como archivo) para tener el link del TV.';$('tvpBox').hidden=!tvOn();tvEstado();};
+  sw.checked=tvOn();
+  sw.onchange=e=>{
+    const c=tvCfg();c.on=e.target.checked;SS(TVP_KEY,c);
+    if(c.on){
+      // Si la app estaba sonando aquí o transmitiendo, se apaga para que no suenen dos a la vez.
+      const a=$('autoPlay');if(a&&a.checked){a.checked=false;a.dispatchEvent(new Event('change'));}
+      cargarAPI();ordenJusto(cola()).forEach(x=>{if(!x.vid)ytAgregar(x.id);});
+    }
+    tvEscuchar();tvPublicar(true);pintar();
+  };
+  $('tvpCopy').onclick=()=>{const u=tvUrl();if(!u)return showToast('⚠️ Abre Mesora desde su dirección https para tener el link del TV.');
+    (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>showToast('📋 Link del TV copiado.'),()=>{$('tvpLink').select();showToast('Copia el link a mano.');});};
+  $('tvpNew').onclick=()=>{if(!confirm('¿Crear un link nuevo para el TV? El link anterior dejará de funcionar.'))return;const c=LS(TVP_KEY,{});delete c.code;SS(TVP_KEY,c);tvCfg();tvEscuchar();tvPublicar(true);pintar();};
+  pintar();tvEscuchar();tvPublicar(true);
+  setInterval(()=>{tvPublicar();tvEstado();},20000);
+  document.querySelector('nav button[data-view="musica"]').addEventListener('click',pintar);
 }
 
 /* ---------- TV Box: link del reproductor ---------- */
@@ -14437,7 +14599,7 @@ async function publicarCatalogo(force){
 }
 window.vitoPublicarCatalogo = publicarCatalogo;
 // Lo que usan las fotos de la carta y la transmisión al TV (script del final).
-window.vitoMod = { LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena };
+window.vitoMod = { tvOn, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena };
 function publicarCuentas(){
   if(typeof data==='undefined'||!data||!qCfg().live)return;
   try{publicarCatalogo();}catch(e){}
@@ -14491,7 +14653,7 @@ function iniReloj(){
 }
 
 /* ---------- Arranque ---------- */
-aplicarTipo();iniTipo();iniAjustesCats();iniAuto();iniHist();iniMusica();iniYT();iniAutoPlay();iniReloj();
+aplicarTipo();iniTipo();iniAjustesCats();iniAuto();iniHist();iniMusica();iniYT();iniAutoPlay();iniTVPantalla();iniReloj();
 const w=setInterval(()=>{if(typeof data!=='undefined'&&data){clearInterval(w);iniQR();renderMusica();mejorarHist();if(typeof i18nRefreshDynamic==='function')i18nRefreshDynamic();setTimeout(publicarCuentas,4000);}},400);
 })();
 

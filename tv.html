@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mesora · Música en el TV</title>
+<style>
+  /* Pantalla del TV: se abre en el navegador del televisor (LG webOS, Samsung, Android TV,
+     TV Box) con tv.html#código. Reproduce la cola de canciones que le manda Mesora desde
+     el celular por ntfy. Código sencillo a propósito: los navegadores de los TV son viejos. */
+  :root{ --bg:#0b0a12; --card:#16151f; --line:#2a2838; --ink:#f4f2fb; --soft:#a19dba; --acc:#8b5cf6; --ok:#34d399; --bad:#fb7185; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif; overflow:hidden; }
+  .wrap{ display:flex; height:100%; gap:3vw; padding:4vh 4vw; }
+  .main{ flex:1 1 68%; display:flex; flex-direction:column; min-width:0; }
+  .side{ flex:0 0 28%; display:flex; flex-direction:column; min-width:0; }
+  .top{ display:flex; align-items:baseline; justify-content:space-between; gap:2vw; margin-bottom:2vh; }
+  .biz{ font-size:3.2vh; font-weight:800; }
+  .hint{ font-size:2.2vh; color:var(--soft); }
+  .player{ position:relative; width:100%; flex:1; min-height:0; border-radius:2vh; overflow:hidden; background:#000; border:1px solid var(--line); }
+  #yt, .player iframe{ position:absolute; top:0; left:0; width:100%; height:100%; }
+  .idle{ position:absolute; top:0; left:0; right:0; bottom:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2vh; background:var(--card); text-align:center; padding:4vh; }
+  .idle b{ font-size:4vh; }
+  .idle span{ font-size:2.4vh; color:var(--soft); max-width:70%; line-height:1.4; }
+  .now{ margin-top:2.2vh; }
+  .now small{ font-size:2vh; color:var(--acc); font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+  .now div{ font-size:4.2vh; font-weight:800; margin-top:.6vh; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .now em{ font-style:normal; font-size:2.4vh; color:var(--soft); }
+  h2{ font-size:2.4vh; color:var(--soft); text-transform:uppercase; letter-spacing:.08em; margin:0 0 1.6vh; }
+  ol{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1.2vh; overflow:hidden; }
+  li{ background:var(--card); border:1px solid var(--line); border-radius:1.6vh; padding:1.6vh 1.8vh; }
+  li b{ display:block; font-size:2.5vh; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  li span{ font-size:2vh; color:var(--soft); }
+  .empty{ color:var(--soft); font-size:2.3vh; }
+  .state{ margin-top:auto; padding-top:2vh; font-size:1.9vh; color:var(--soft); }
+  .dot{ display:inline-block; width:1.3vh; height:1.3vh; border-radius:50%; background:var(--soft); margin-right:.8vh; vertical-align:middle; }
+  .dot.ok{ background:var(--ok); } .dot.bad{ background:var(--bad); }
+  #start{ position:fixed; top:0; left:0; right:0; bottom:0; z-index:9; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3vh; background:rgba(11,10,18,.94); text-align:center; }
+  #start button{ font-size:4vh; font-weight:800; padding:2.4vh 6vh; border-radius:2vh; border:0; background:var(--acc); color:#fff; cursor:pointer; }
+  #start button:focus{ outline:.6vh solid #fff; outline-offset:.6vh; }
+  #start p{ font-size:2.4vh; color:var(--soft); margin:0; max-width:70%; line-height:1.4; }
+  #err{ font-size:3vh; color:var(--bad); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="main">
+    <div class="top"><div class="biz" id="biz">Música</div><div class="hint">🎵 Pide tu canción con el QR de tu mesa</div></div>
+    <div class="player"><div id="yt"></div><div class="idle" id="idle"><b>🎵 Esperando canciones…</b><span>Cuando una mesa pida una canción, empieza a sonar aquí sola.</span></div></div>
+    <div class="now" id="now" style="display:none"><small>Sonando</small><div id="nowSong"></div><em id="nowMesa"></em></div>
+  </div>
+  <div class="side">
+    <h2>Siguen</h2>
+    <ol id="next"></ol>
+    <div class="state"><span class="dot" id="dot"></span><span id="state">Conectando con Mesora…</span></div>
+  </div>
+</div>
+<div id="start">
+  <div style="font-size:8vh">📺🎵</div>
+  <button id="go" type="button" autofocus>▶ Empezar música</button>
+  <p>Toca OK en el control. Deja esta página abierta: las canciones que pidan las mesas suenan aquí solas.</p>
+  <div id="err"></div>
+</div>
+<script>
+(function(){
+  var code = (location.hash || '').replace(/[^a-z0-9]/gi, '');
+  var TOPIC = 'mesoratv' + code;
+  var $ = function(id){ return document.getElementById(id); };
+  if(!code){ $('err').textContent = 'Falta el código del link. Copia de nuevo el link desde Mesora → Música → Pantalla del TV.'; $('go').style.display = 'none'; return; }
+
+  var cola = [], tocadas = {}, actual = null, player = null, listo = false, empezado = false, cargadoEn = 0, ultimoMsg = 0;
+  try{ tocadas = JSON.parse(localStorage.getItem('tv_tocadas_' + code) || '{}') || {}; }catch(e){ tocadas = {}; }
+  function guardarTocadas(){
+    var ks = Object.keys(tocadas); if(ks.length > 300){ ks.sort(function(a, b){ return tocadas[a] - tocadas[b]; }).slice(0, ks.length - 300).forEach(function(k){ delete tocadas[k]; }); }
+    try{ localStorage.setItem('tv_tocadas_' + code, JSON.stringify(tocadas)); }catch(e){}
+  }
+  function avisar(obj){                       // respuesta al celular (qué suena, versión mala, "sigo vivo")
+    try{ var x = new XMLHttpRequest(); x.open('POST', 'https://ntfy.sh/' + TOPIC + 'r'); x.send(JSON.stringify(obj)); }catch(e){}
+  }
+  function esc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+  function pendientes(){ return cola.filter(function(x){ return !tocadas[x.i] && (!actual || x.i !== actual.i); }); }
+  function pintar(){
+    var p = pendientes();
+    $('next').innerHTML = p.length ? p.slice(0, 6).map(function(x){ return '<li><b>' + esc(x.s) + '</b><span>' + esc(x.m) + '</span></li>'; }).join('') : '<li class="empty">No hay más canciones en cola.</li>';
+    $('now').style.display = actual ? '' : 'none';
+    $('idle').style.display = actual ? 'none' : '';
+    if(actual){ $('nowSong').textContent = actual.s; $('nowMesa').textContent = actual.m; }
+    var vivo = Date.now() - ultimoMsg < 6 * 60000;
+    $('dot').className = 'dot ' + (vivo ? 'ok' : 'bad');
+    $('state').textContent = vivo ? 'Conectado con Mesora' : 'Sin noticias del celular: deja Mesora abierta en la sección Música.';
+  }
+  function siguiente(){
+    if(!listo || !empezado) return;
+    var p = pendientes();
+    if(!p.length){ actual = null; pintar(); return; }
+    actual = p[0];
+    tocadas[actual.i] = Date.now(); guardarTocadas();
+    cargadoEn = Date.now();
+    try{ player.loadVideoById(actual.v); }catch(e){}
+    avisar({ p: actual.i, s: actual.s });
+    pintar();
+  }
+  function mala(){                              // esta versión no se deja reproducir: avisa y sigue
+    if(!actual) return;
+    avisar({ b: actual.i, v: actual.v });
+    actual = null; cargadoEn = 0;
+    siguiente();
+  }
+  function crearPlayer(){
+    player = new YT.Player('yt', { width: '100%', height: '100%', playerVars: { autoplay: 1, playsinline: 1, rel: 0, controls: 0, modestbranding: 1 }, events: {
+      onReady: function(){ listo = true; siguiente(); },
+      onStateChange: function(e){ if(e.data === 1) cargadoEn = 0; if(e.data === 0){ actual = null; siguiente(); } },
+      onError: function(){ mala(); }
+    } });
+  }
+  // Si una canción "cargada" no arranca en 12 s (bloqueo que no avisa), se da por mala.
+  setInterval(function(){
+    if(actual && cargadoEn && Date.now() - cargadoEn > 12000){
+      var st = -1; try{ st = player.getPlayerState(); }catch(e){}
+      if(st !== 1 && st !== 3) mala();
+    }
+    if(!actual) siguiente();
+    pintar();
+  }, 3000);
+  setInterval(function(){ avisar({ s: actual ? actual.s : '' }); }, 45000);   // "sigo vivo"
+
+  function recibir(txt){
+    var m; try{ m = JSON.parse(txt); }catch(e){ return; }
+    if(!m || !m.q) return;
+    ultimoMsg = Date.now();
+    cola = m.q;
+    if(m.b) $('biz').textContent = m.b;
+    if(!actual) siguiente(); else pintar();
+  }
+  // Canal en vivo (ntfy). Si el navegador del TV no soporta EventSource, se consulta cada 5 s.
+  var desde = '10m';
+  function sondear(){
+    var x = new XMLHttpRequest();
+    x.open('GET', 'https://ntfy.sh/' + TOPIC + '/json?poll=1&since=' + desde);
+    x.onload = function(){
+      var ls = String(x.responseText || '').split('\n'), ult = null;
+      for(var i = 0; i < ls.length; i++){ try{ var j = JSON.parse(ls[i]); if(j.event === 'message'){ ult = j; } }catch(e){} }
+      if(ult){ desde = ult.id; recibir(ult.message); }
+    };
+    x.send();
+  }
+  function conectar(){
+    if(window.EventSource){
+      var es = new EventSource('https://ntfy.sh/' + TOPIC + '/sse?since=10m');
+      es.onmessage = function(ev){ try{ recibir(JSON.parse(ev.data).message); }catch(e){} };
+      es.onerror = function(){ try{ es.close(); }catch(e){} setTimeout(conectar, 5000); };
+    } else {
+      sondear(); setInterval(sondear, 5000);
+    }
+  }
+  conectar();
+
+  $('go').onclick = function(){
+    empezado = true;
+    $('start').style.display = 'none';
+    if(window.YT && YT.Player){ if(!player) crearPlayer(); else siguiente(); }
+  };
+  document.addEventListener('keydown', function(e){ if($('start').style.display !== 'none' && (e.keyCode === 13 || e.keyCode === 415)) $('go').click(); });
+  window.onYouTubeIframeAPIReady = function(){ if(empezado && !player) crearPlayer(); };
+  var s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
+  pintar();
+})();
+</script>
+</body>
+</html>
