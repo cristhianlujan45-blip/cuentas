@@ -12737,6 +12737,26 @@ setInterval(()=>{if(document.visibilityState==='visible')sondear();},20000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')despertar();});
 window.addEventListener('online',despertar);
 window.addEventListener('pageshow',despertar);
+
+/* ---------- Pantalla siempre encendida (no se corta la recepción de pedidos/canciones) ----------
+   Si el celular bloquea la pantalla solo (por el tiempo de espera de
+   Android), Chrome termina pausando esta pestaña y se dejan de recibir
+   pedidos y canciones hasta que alguien la vuelva a abrir. Con el celular
+   dedicado a esta app, el Wake Lock evita que la pantalla se apague sola
+   mientras esta pestaña esté al frente, así que la recepción sigue viva.
+   No hace nada si cambiás a OTRA app (eso Android lo maneja aparte y
+   ninguna página puede evitarlo), pero cubre el caso más común: el
+   celular se queda quieto en esta pantalla y se bloquea por inactividad. */
+let wakeLock=null;
+async function pedirWakeLock(){
+  try{
+    if(!('wakeLock' in navigator))return;
+    wakeLock=await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release',()=>{wakeLock=null;});
+  }catch(e){wakeLock=null;}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!wakeLock)pedirWakeLock();});
+pedirWakeLock();
 function procesar(txt){
   const m=/^(PEDIDO|CANCION|CUENTA)\s+MESA\s*(\d+)\s*:?\s*([\s\S]*)$/i.exec(txt.trim());if(!m)return;
   const tp=m[1].toUpperCase(),id=parseInt(m[2],10),cuerpo=m[3].trim().replace(/\s+/g,' ');
