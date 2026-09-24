@@ -12850,7 +12850,7 @@ let yTC=null,cadena=Promise.resolve();
 function yEstado(){
   const e=$('ytEstado'),c=yCfg();
   const n=cola().filter(x=>!x.done&&!x.yt&&!x.vid).length,p=n?' ('+n+' canciones sin buscar)':'';
-  if(e)e.textContent=(c.key?'🟢 Búsqueda lista (API key)':'⚪ Sin API key')+' · '+(yTok()?'🟢 Google conectado: se copian solas a tu lista de YouTube Music':(c.cid?'🟠 Google desconectado: toca «Conectar con Google» para la lista de YouTube Music':'⚪ Lista de YouTube Music sin configurar'))+p+'.';
+  if(e)e.textContent=(c.key?'🟢 Búsqueda lista (API key)':'⚪ Sin API key')+' · '+(yTok()?'🟢 Google conectado: se copian solas a tu lista de YouTube Music':(c.cid?(c.on?'🟠 Google desconectado: reconectando sola (si no vuelve en un minuto, toca «Conectar con Google»)':'🟠 Google desconectado: toca «Conectar con Google» para la lista de YouTube Music'):'⚪ Lista de YouTube Music sin configurar'))+p+'.';
   const a=$('autoEstado');if(a)a.textContent=AUTO()?((c.key||yTok())?'🟢 Activo: suena solo y las nuevas entran solas.':'🟠 Falta la API key para buscar las canciones.'):'⚪ Apagado.';
 }
 async function yApi(path,opt){
@@ -12936,8 +12936,20 @@ function iniYT(){
   $('ytOpen').onclick=()=>{const x=yCfg();if(!x.pl)return showToast('Todavía no hay lista: se crea con la primera canción.');window.open('https://music.youtube.com/playlist?list='+x.pl,'_blank');};
   // Respaldo: por si una canción no se resolvió sola al llegar (sin internet un
   // instante, o la API key se configuró después), cada minuto revisa si quedó
-  // alguna pendiente y la vuelve a intentar.
-  setInterval(()=>{ yEstado(); const c=yCfg(); if(c.key||yTok()) ordenJusto(cola().filter(x=>!x.yt&&!x.novid)).forEach(x=>ytAgregar(x.id)); },60000);
+  // alguna pendiente y la vuelve a intentar. También reconecta Google solo:
+  // el token de Google dura ~1h y antes había que tocar "Conectar con
+  // Google" de nuevo a mano; ahora, si ya se conectó una vez (c.on) y el
+  // token se venció, se pide uno nuevo en silencio (sin mostrar ventana ni
+  // aviso) cada vez que este chequeo corre. Si el navegador no deja
+  // reconectar sola (ej. sesión de Google cerrada), no pasa nada — sigue
+  // funcionando todo lo demás y el próximo intento es en 1 minuto.
+  setInterval(()=>{
+    yEstado();
+    const c=yCfg();
+    if(c.cid&&c.on&&!yTok())yConectar(true);
+    if(c.key||yTok())ordenJusto(cola().filter(x=>!x.yt&&!x.novid)).forEach(x=>ytAgregar(x.id));
+  },60000);
+  { const c=yCfg(); if(c.cid&&c.on&&!yTok())yConectar(true); } // reconecta sola apenas abrís la app, sin esperar el primer minuto
   yEstado();
 }
 
