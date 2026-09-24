@@ -9902,7 +9902,7 @@ document.getElementById('invoiceApplyBtn').addEventListener('click', () => {
       }
       p.cost = it.cost;
       p.stock = (p.stock || 0) + it.qty;
-      if(it.newPrice > 0) p.price = it.newPrice;
+      if(it.newPrice > 0){ p.price = it.newPrice; sincronizarProductoEnMesas(p); }
       updated++;
       purchaseItems.push({ productId: p.id, name: p.name, qty: it.qty, cost: it.cost });
     } else {
@@ -10201,7 +10201,7 @@ document.getElementById('priceApplyBtn').addEventListener('click', () => {
   let msgName;
   if(p){
     p.cost = cost;
-    if(pcDraft.newPrice > 0) p.price = pcDraft.newPrice;
+    if(pcDraft.newPrice > 0){ p.price = pcDraft.newPrice; sincronizarProductoEnMesas(p); }
     msgName = p.name;
   } else {
     const name = (pcDraft.name || '').trim();
@@ -11150,7 +11150,7 @@ function asisApply(actions){
       const p = data.products.find(x => x.name === a.producto) || data.products.find(x => normVoiceText(x.name) === normVoiceText(a.producto || '')) || findProductByVoiceAlias(a.producto || '');
       if(!p){ done.push('No encontré "' + a.producto + '".'); return; }
       const c = [];
-      if(Number(a.precio) > 0){ p.price = Math.round(a.precio); c.push('precio ' + fmt(p.price)); }
+      if(Number(a.precio) > 0){ p.price = Math.round(a.precio); c.push('precio ' + fmt(p.price)); const nm = sincronizarProductoEnMesas(p); if(nm) c.push('actualizado en ' + nm + (nm === 1 ? ' mesa abierta' : ' mesas abiertas')); }
       if(Number(a.costo) > 0){ p.cost = Math.round(a.costo); c.push('costo ' + fmt(p.cost)); }
       if(a.stock != null && a.stock !== '' && !isNaN(a.stock)){ p.stock = Math.max(0, Math.floor(a.stock)); c.push('stock ' + p.stock); }
       if(Number(a.sumarStock) > 0){ p.stock = (p.stock || 0) + Math.floor(a.sumarStock); c.push('ahora hay ' + p.stock); }
@@ -12083,9 +12083,36 @@ function closeEditProductModal(){
   editingProductId = null;
 }
 
+// Cuando se cambia el nombre, el precio o el tamaño de un producto, también se actualiza en las
+// mesas abiertas (cada mesa guarda una copia del producto al agregarlo). Las cuentas ya cerradas
+// (historial y facturas) NO cambian. Los productos viejos sin enlace se reconocen por su nombre anterior.
+function sincronizarProductoEnMesas(p, nombreAnterior){
+  if(!p || !data || !data.tables) return 0;
+  const viejo = String(nombreAnterior || '').trim().toLowerCase();
+  let mesas = 0;
+  Object.keys(data.tables).forEach(k => {
+    const t = data.tables[k]; let cambio = false;
+    (t.items || []).forEach(it => {
+      const es = it.productId ? it.productId === p.id : (viejo && String(it.name || '').trim().toLowerCase() === viejo);
+      if(!es) return;
+      if(it.name !== p.name || it.price !== p.price || (it.size || '') !== (p.size || '')){
+        it.name = p.name; it.price = p.price; it.size = p.size || ''; if(!it.productId) it.productId = p.id; cambio = true;
+      }
+    });
+    if(cambio) mesas++;
+  });
+  if(mesas){
+    try{ renderMesas(); }catch(e){}
+    try{ if(currentTable != null){ renderModalItems(); renderPeople(); } }catch(e){}
+  }
+  return mesas;
+}
+function avisoMesasActualizadas(n){ return n ? ' Actualizado también en ' + (n === 1 ? '1 mesa abierta' : n + ' mesas abiertas') + '.' : ''; }
+
 function saveEditedProduct(){
   const p = data.products.find(x=>x.id === editingProductId);
   if(!p) return;
+  const nombreAntes = p.name;
   const name = document.getElementById('editProdName').value.trim();
   const price = parseFloat(document.getElementById('editProdPrice').value);
   const size = document.getElementById('editProdSize').value.trim();
@@ -12105,10 +12132,11 @@ function saveEditedProduct(){
   p.minStock = invNum(document.getElementById('editProdMin').value);
   p.cost = invNum(document.getElementById('editProdCost').value);
   if(typeof prodFotoModalGuardar === 'function') prodFotoModalGuardar(p);
+  const nMesas = sincronizarProductoEnMesas(p, nombreAntes);
   saveData();
   closeEditProductModal();
   renderProductos();
-  showToast('Producto actualizado.');
+  showToast('✅ Producto actualizado.' + avisoMesasActualizadas(nMesas), nMesas ? 4500 : undefined);
 }
 
 document.getElementById('editProdCancelBtn').addEventListener('click', closeEditProductModal);
@@ -17217,7 +17245,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
    la Pantalla del TV de Mesora (tv.html) y reproduce la cola en vivo: cada canción que piden las
    mesas entra sola. Los Smart TV LG/Samsung sin Chromecast no aparecen aquí (solo los ve la app
    de YouTube): para esos están los botones de YouTube Music / YouTube. */
-const MESORA_VERSION = '2026-09-24 · v17';
+const MESORA_VERSION = '2026-09-24 · v18';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
