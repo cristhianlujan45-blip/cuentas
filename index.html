@@ -2840,6 +2840,8 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
     <div class="settings-group" hidden data-cat="pedidos">
       <h2>QR de las mesas (permanentes)</h2>
       <div class="settings-desc">Imprímelos una sola vez. El QR de cada mesa no cambia mientras no cambies el link, el WhatsApp ni el número de mesa.</div>
+      <div class="lic-plan" id="qrFijoEstado"></div>
+      <div class="mz-actions" style="margin-bottom:8px"><button class="btn-primary" id="qrFijoBtn" type="button">📌 Fijar mis QR impresos</button></div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
         <input id="qrUrl" class="mz-in" placeholder="Link donde subiste pedido.html" autocapitalize="none" autocomplete="off">
         <input id="qrWa" class="mz-in" placeholder="WhatsApp de respaldo con indicativo (573001234567)" inputmode="numeric">
@@ -14284,11 +14286,100 @@ function iniHist(){
 }
 
 /* ---------- QR permanentes + canal en vivo ---------- */
+// QR impresos FIJOS: el canal (c), el link, el WhatsApp y el código de cada mesa (v) que ya están
+// impresos en las mesas se guardan también DENTRO de los datos del negocio (data.qrFijo), que viajan
+// en los respaldos y transferencias. Si este celular perdiera su configuración, se recuperan de ahí
+// en vez de inventar un canal nuevo (que dejaría inservibles los QR pegados en las mesas).
+const qrFijoDe=()=>(typeof data!=='undefined'&&data&&data.qrFijo&&data.qrFijo.topic)?data.qrFijo:null;
 const qCfg=()=>{
   const c=Object.assign({url:'',wa:'',topic:'',live:true},LS('vito_qr',{}));
-  if(!c.topic){c.topic='vito'+Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>(b%36).toString(36)).join('');SS('vito_qr',c);}
+  if(!c.topic){
+    const f=qrFijoDe();
+    if(f){c.topic=f.topic;if(!c.url)c.url=f.url||'';if(!c.wa)c.wa=f.wa||'';c.v=Object.assign({},f.v||{},c.v||{});c.fijo=true;}
+    else c.topic='vito'+Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>(b%36).toString(36)).join('');
+    SS('vito_qr',c);
+  }
   return c;
 };
+function qrFijoSync(){
+  const c=LS('vito_qr',{});
+  if(!c.fijo||!c.topic||typeof data==='undefined'||!data)return;
+  const f={topic:c.topic,url:c.url||'',wa:c.wa||'',v:Object.assign({},c.v||{})};
+  if(JSON.stringify(f)===JSON.stringify(data.qrFijo||null))return;
+  data.qrFijo=f;saveData();
+}
+// Restaura los QR impresos desde sus links (uno o varios): ?mesa=N&w=…&c=CANAL&v=CODIGO
+function qrFijoDesdeLinks(texto){
+  const urls=String(texto||'').match(/https?:\/\/[^\s"'<>]+/g)||[];
+  const res={c:'',url:'',wa:'',v:{},n:0,err:''};
+  urls.forEach(u=>{
+    let x;try{x=new URL(u);}catch(e){return;}
+    const q=x.searchParams,c=(q.get('c')||'').replace(/[^\w]/g,''),m=parseInt(q.get('mesa'),10),v=(q.get('v')||'').replace(/[^\w]/g,'');
+    if(!c)return;
+    if(res.c&&res.c!==c){res.err='Los links son de canales distintos ('+res.c+' y '+c+'): usa los QR de un mismo negocio.';return;}
+    res.c=c;res.url=x.origin+x.pathname;res.wa=(q.get('w')||'').replace(/\D/g,'')||res.wa;
+    if(m&&v){res.v[m]=v;res.n++;}
+  });
+  return res;
+}
+function qrFijoAplicar(r){
+  const c=qCfg();
+  c.topic=r.c;if(r.url)c.url=r.url;if(r.wa)c.wa=r.wa;c.v=Object.assign({},c.v||{},r.v);c.fijo=true;
+  SS('vito_qr',c);qrFijoSync();
+  try{$('qrUrl').value=c.url;$('qrWa').value=c.wa;}catch(e){}
+  try{conectar();}catch(e){}
+  try{publicarCatalogo(true);}catch(e){}
+  qrFijoEstado();
+}
+function qrFijoEstado(){
+  const e=$('qrFijoEstado');if(!e)return;
+  const c=qCfg(),n=Object.keys(c.v||{}).length;
+  e.innerHTML=c.fijo
+    ?'📌 <b>QR impresos fijos.</b> Canal <b>'+esc(c.topic)+'</b> · '+n+(n===1?' mesa guardada':' mesas guardadas')+' · link <b>'+esc(c.url||'—')+'</b>. Los QR pegados en las mesas siguen sirviendo aunque cambies de celular: esto va en tus respaldos. Si reimprimes, salen idénticos.'
+    :'¿Ya tienes QR impresos en las mesas? Tócalo en «Fijar mis QR impresos» para que nunca cambien.';
+}
+function qrFijoDialogo(){
+  let ov=$('qrFijoOverlay');
+  if(!ov){
+    ov=document.createElement('div');ov.id='qrFijoOverlay';ov.className='overlay';
+    ov.innerHTML='<div class="modal" style="max-width:460px"><h2>📌 Fijar mis QR impresos</h2>'+
+      '<div class="modal-sub">Pega aquí los links de tus QR impresos (uno o todos: al escanear un QR con la cámara, copia el link). Mesora usará exactamente ese canal, ese link y esos códigos, así los QR de las mesas nunca cambian.</div>'+
+      '<textarea id="qrFijoTxt" class="mz-in" style="width:100%;min-height:120px;box-sizing:border-box;font-size:12.5px;margin-top:8px" placeholder="https://…/?mesa=1&w=…&c=…&v=…"></textarea>'+
+      '<div class="modal-sub" id="qrFijoMsg" style="margin-top:6px"></div>'+
+      '<div class="modal-actions"><button class="btn-close" type="button" id="qrFijoNo">Cancelar</button><button class="btn-primary" type="button" id="qrFijoOk">Fijar</button></div></div>';
+    document.body.appendChild(ov);
+    $('qrFijoNo').onclick=()=>ov.classList.remove('show');
+    $('qrFijoOk').onclick=async()=>{
+      const r=qrFijoDesdeLinks($('qrFijoTxt').value);
+      if(r.err){$('qrFijoMsg').textContent='⚠️ '+r.err;return;}
+      if(!r.c){$('qrFijoMsg').textContent='⚠️ No encontré ningún link de QR de Mesora (deben tener «c=» y «mesa=»).';return;}
+      const cur=LS('vito_qr',{});
+      if(cur.topic&&cur.topic!==r.c){
+        const ok=await showConfirm({title:'¿Cambiar al canal de tus QR impresos?',message:'Este celular usa el canal '+cur.topic+' y tus QR usan '+r.c+'. Se va a usar el de los QR (los pedidos por QR y la app de meseros quedan con ese). Si tenías la app ntfy suscrita al canal viejo, suscríbela al nuevo.',confirmText:'Sí, usar el de mis QR',icon:'📌'});
+        if(!ok)return;
+      }
+      qrFijoAplicar(r);ov.classList.remove('show');
+      showToast('📌 Listo: QR fijados ('+r.n+(r.n===1?' mesa':' mesas')+'). Los QR de las mesas no cambian.',7000);
+    };
+  }
+  $('qrFijoTxt').value='';$('qrFijoMsg').textContent='';
+  ov.classList.add('show');
+}
+// Link de restauración: index.html#qrfijo=<datos> (lo arma el soporte a partir de los QR impresos).
+async function qrFijoDesdeHash(){
+  const m=/[#&]qrfijo=([A-Za-z0-9_-]+)/.exec(location.hash);if(!m)return;
+  try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+  let o;try{let b=m[1].replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';o=JSON.parse(decodeURIComponent(escape(atob(b))));}catch(e){showToast('⚠️ Ese link de QR está incompleto.');return;}
+  if(!o||!o.c){showToast('⚠️ Ese link de QR no es válido.');return;}
+  const r={c:String(o.c).replace(/[^\w]/g,''),url:o.url||'',wa:String(o.wa||'').replace(/\D/g,''),v:o.v||{},n:Object.keys(o.v||{}).length};
+  const cur=LS('vito_qr',{});
+  if(cur.topic&&cur.topic!==r.c){
+    const ok=await showConfirm({title:'¿Fijar tus QR impresos?',message:'Mesora va a usar el canal de tus QR impresos ('+r.c+') con '+r.n+' mesas, para que los QR pegados en las mesas sigan sirviendo siempre.',confirmText:'Sí, fijar',icon:'📌'});
+    if(!ok)return;
+  }
+  qrFijoAplicar(r);
+  showToast('📌 QR impresos fijados: '+r.n+' mesas. Los QR de las mesas no cambian.',7000);
+}
 const linkMesa=(c,id)=>c.url.split('?')[0].trim()+'?mesa='+id+(c.wa?'&w='+c.wa:'')+'&c='+c.topic+'&v='+vTopic(id)+((data.nequiOn&&data.nequiNumber)?'&nq='+data.nequiNumber+(data.nequiName?'&nqn='+encodeURIComponent(data.nequiName):''):'');
 function pintarQR(el){
   const c=qCfg();el.textContent='';
@@ -14494,6 +14585,10 @@ function iniQR(){
     };
   }
   $('qrGen').onclick=()=>pintarQR($('qrGrid'));
+  $('qrFijoBtn').onclick=qrFijoDialogo;
+  $('qrUrl').addEventListener('change',()=>{const f=qrFijoDe();if(f&&f.url&&$('qrUrl').value.trim()!==f.url)showToast('⚠️ Tus QR impresos apuntan a '+f.url+'. Los impresos siguen sirviendo, pero los QR nuevos que imprimas saldrán distintos.',9000);});
+  qrFijoSync();qrFijoEstado();qrFijoDesdeHash();
+  window.addEventListener('hashchange',qrFijoDesdeHash);
   $('qrPrintBtn').onclick=imprimirQR;
   $('catPubBtn').onclick=()=>{catEstado('Publicando…');publicarCatalogo(true);};
   conectar();
@@ -14937,7 +15032,11 @@ function iniTV(){
 /* ---------- Cuenta en vivo para el cliente (la ve desde el QR de su mesa) ---------- */
 function vTopic(id){
   const c=qCfg();c.v=c.v||{};
-  if(!c.v[id]){c.v[id]='vb'+Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>(b%36).toString(36)).join('');SS('vito_qr',c);}
+  if(!c.v[id]){
+    const f=qrFijoDe();
+    c.v[id]=(f&&f.v&&f.v[id])||('vb'+Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>(b%36).toString(36)).join(''));
+    SS('vito_qr',c);qrFijoSync();
+  }
   return c.v[id];
 }
 const pubHash={};let pubT=null;
@@ -14993,7 +15092,7 @@ async function publicarCatalogo(force){
 }
 window.vitoPublicarCatalogo = publicarCatalogo;
 // Lo que usan las fotos de la carta y la transmisión al TV (script del final).
-window.vitoMod = { mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena };
+window.vitoMod = { linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena };
 function publicarCuentas(){
   if(typeof data==='undefined'||!data||!qCfg().live)return;
   try{publicarCatalogo();}catch(e){}
@@ -16865,7 +16964,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
    la Pantalla del TV de Mesora (tv.html) y reproduce la cola en vivo: cada canción que piden las
    mesas entra sola. Los Smart TV LG/Samsung sin Chromecast no aparecen aquí (solo los ve la app
    de YouTube): para esos están los botones de YouTube Music / YouTube. */
-const MESORA_VERSION = '2026-09-24 · v13';
+const MESORA_VERSION = '2026-09-24 · v14';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
