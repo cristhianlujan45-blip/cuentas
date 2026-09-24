@@ -1588,6 +1588,24 @@
   #tvpLink{ width:100%; box-sizing:border-box; margin:8px 0; font-weight:700; }
   #ytBox.yt-espera iframe{ visibility:hidden; }
   #ytBox.yt-espera::after{ content:'🎵 Esperando la próxima canción…'; position:absolute; inset:0; display:grid; place-items:center; border-radius:12px; background:var(--surface-2); color:var(--ink-soft); font-size:14px; font-weight:600; }
+  .acc-users{ display:flex; flex-direction:column; gap:6px; margin:8px 0; }
+  .acc-user{ display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line); font-size:14px; }
+  .acc-user b{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+  .acc-user .rol{ font-size:12px; font-weight:800; padding:3px 9px; border-radius:999px; background:color-mix(in srgb, var(--amber) 22%, transparent); color:var(--cream); }
+  .acc-user .rol.mesero{ background:color-mix(in srgb, var(--paid) 20%, transparent); color:var(--paid); }
+  .acc-user button{ padding:6px 10px; font-size:12.5px; }
+  .acc-role{ padding:10px; background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:8px; }
+  .auth-users{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:2px 0 4px; }
+  .auth-users button{ padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); font:600 13.5px var(--font-main); cursor:pointer; }
+  .auth-users button.on{ border-color:var(--amber); background:color-mix(in srgb, var(--amber) 20%, transparent); }
+  .auth-users small{ opacity:.7; font-weight:500; }
+  /* Modo mesero (usuario con rol Mesero en este equipo): solo lo del servicio */
+  body.modo-mesero nav button[data-view="productos"], body.modo-mesero nav button[data-view="inventario"], body.modo-mesero nav button[data-view="estadisticas"],
+  body.modo-mesero nav button[data-view="historial"], body.modo-mesero nav button[data-view="ajustes"], body.modo-mesero .more-tile[data-go="estadisticas"],
+  body.modo-mesero .more-tile[data-go="historial"], body.modo-mesero .more-tile[data-go="ajustes"], body.modo-mesero .more-tile[data-go="ia"],
+  body.modo-mesero #asisFab, body.modo-mesero #voiceFabAI, body.modo-mesero #mesoraFixPill{ display:none !important; }
+  .mesero-chip{ display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 6px 0 12px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font:700 13px var(--font-main); }
+  .mesero-chip button{ height:30px; padding:0 10px; border-radius:999px; border:1px solid var(--line); background:var(--surface-2); color:var(--brick); font:700 12px var(--font-main); cursor:pointer; }
   .lic-plan{ margin:8px 0 10px; padding:10px 12px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line); font-size:13.5px; line-height:1.45; }
   .lic-plan b{ color:var(--cream); }
   .lic-code{ font:800 22px/1.2 var(--font-main); letter-spacing:.12em; color:var(--cream); text-align:center; margin:6px 0; user-select:all; }
@@ -2582,6 +2600,18 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
+    <div class="settings-group" hidden data-cat="pedidos">
+      <h2>🧑‍🍳 App de meseros</h2>
+      <div class="settings-desc">Cada mesero usa la app en <b>su propio celular</b>: ve las mesas, anota pedidos tocando los productos o por voz (los mismos comandos clásicos), crea mesas y pide la misma ronda. Los pedidos llegan directo a este celular, sin confirmar. Este celular debe quedar con Mesora abierta (igual que para los pedidos por QR).</div>
+      <div class="settings-row"><div class="settings-row-text"><strong>Activar app de meseros</strong><span id="mesEstado"></span></div><label class="switch"><input type="checkbox" id="mesOn"><span class="switch-slider"></span></label></div>
+      <div id="mesBox" hidden>
+        <input id="mesLink" class="mz-in" readonly onclick="this.select()" style="width:100%;box-sizing:border-box;margin:8px 0;font-weight:700">
+        <div class="mz-actions"><button class="btn-primary" id="mesCopy" type="button">📋 Copiar link</button><button class="btn-ghost" id="mesWa" type="button">💬 Enviar por WhatsApp</button><button class="btn-ghost" id="mesNew" type="button">Crear link nuevo</button></div>
+        <div class="settings-desc">Mándale este link a cada mesero y que lo abra en Chrome → menú ⋮ → «Agregar a la pantalla principal». Con «Crear link nuevo» el link anterior deja de funcionar (por ejemplo, si un mesero ya no trabaja contigo).</div>
+        <div id="mesVistos" class="settings-desc"></div>
+      </div>
+    </div>
+
     <div class="settings-group" hidden data-cat="negocio">
       <h2>Cuenta y negocio</h2>
       <div class="settings-desc">Sesión iniciada como <strong id="accUserLabel"></strong>. Sirve para tiendas, cafeterías, restaurantes y bares.</div>
@@ -2590,10 +2620,12 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
         <select id="accType" class="acc-inline" style="padding:10px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px"></select>
       </div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch">
-        <div class="settings-row-text"><strong>Agregar usuario</strong><span>Para un mesero o cajero que también deba entrar.</span></div>
+        <div class="settings-row-text"><strong>👥 Usuarios</strong><span><b>Administrador</b>: ve y maneja todo. <b>Mesero</b>: solo mesas, pedidos, cocina y música (no ve ventas, costos, inventario ni ajustes).</span></div>
+        <div id="accUsersList" class="acc-users"></div>
         <div class="acc-inline">
           <input id="accNewUser" placeholder="Usuario" autocapitalize="none" autocomplete="off">
-          <input id="accNewPass" type="password" placeholder="Contraseña" autocomplete="new-password">
+          <input id="accNewPass" type="password" placeholder="Contraseña (mín. 6)" autocomplete="new-password">
+          <select id="accNewRole" class="acc-role"><option value="staff">Mesero</option><option value="admin">Administrador</option></select>
           <button class="btn-warn" id="accAddBtn" type="button">Agregar</button>
         </div>
       </div>
@@ -13053,6 +13085,68 @@ let authUser = null;
 // agreguen después (Ajustes → Agregar usuario) quedan como 'staff'. Solo el
 // admin puede borrar TODO o crear otros usuarios — así una cuenta de mesero
 // no puede, sin querer o a propósito, borrar el negocio completo.
+// Lista de usuarios en Ajustes → Cuenta: rol, cambiar rol, nueva contraseña y quitar (solo el admin).
+function accUsuariosPintar(){
+  const box = document.getElementById('accUsersList'); if(!box) return;
+  const us = authUsers(), admin = authIsAdmin(), nAdmins = us.filter(u => u.role === 'admin').length;
+  box.innerHTML = '';
+  us.forEach(u => {
+    const row = document.createElement('div'); row.className = 'acc-user';
+    const esAdmin = u.role === 'admin';
+    row.innerHTML = '<span>' + (esAdmin ? '👑' : '🧑‍🍳') + '</span><b></b><span class="rol' + (esAdmin ? '' : ' mesero') + '">' + (esAdmin ? 'Administrador' : 'Mesero') + '</span>';
+    row.querySelector('b').textContent = u.user + (u.user === authUser ? ' (tú)' : '');
+    if(admin){
+      const bRol = document.createElement('button'); bRol.type = 'button'; bRol.className = 'btn-ghost'; bRol.textContent = esAdmin ? 'Hacer mesero' : 'Hacer admin';
+      bRol.onclick = () => {
+        if(esAdmin && nAdmins <= 1){ showToast('⚠️ Debe quedar al menos un administrador.'); return; }
+        const l = authUsers(), x = l.find(y => y.user === u.user); if(!x) return;
+        x.role = esAdmin ? 'staff' : 'admin'; localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(l));
+        showToast('✅ ' + u.user + ' ahora es ' + (x.role === 'admin' ? 'Administrador' : 'Mesero') + '.');
+        if(u.user === authUser) location.reload(); else accUsuariosPintar();
+      };
+      const bPw = document.createElement('button'); bPw.type = 'button'; bPw.className = 'btn-ghost'; bPw.textContent = '🔑';
+      bPw.title = 'Poner contraseña nueva';
+      bPw.onclick = async () => {
+        const np = prompt('Contraseña nueva para ' + u.user + ' (mínimo 6):'); if(np == null) return;
+        if(np.length < 6){ showToast('⚠️ La contraseña debe tener al menos 6 caracteres.'); return; }
+        const l = authUsers(), x = l.find(y => y.user === u.user); if(!x) return;
+        x.salt = Math.random().toString(36).slice(2) + Date.now().toString(36); x.hash = await authHash(np, x.salt);
+        localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(l)); showToast('✅ Contraseña de ' + u.user + ' cambiada.');
+      };
+      row.append(bRol, bPw);
+      if(u.user !== authUser){
+        const bDel = document.createElement('button'); bDel.type = 'button'; bDel.className = 'btn-ghost'; bDel.textContent = 'Quitar';
+        bDel.onclick = async () => {
+          if(esAdmin && nAdmins <= 1){ showToast('⚠️ Debe quedar al menos un administrador.'); return; }
+          const ok = await showConfirm({ title: '¿Quitar a ' + u.user + '?', message: 'Ya no podrá entrar a Mesora en este equipo.', confirmText: 'Sí, quitar', icon: '👤' });
+          if(!ok) return;
+          localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(authUsers().filter(y => y.user !== u.user)));
+          showToast('Usuario quitado: ' + u.user); accUsuariosPintar();
+        };
+        row.appendChild(bDel);
+      }
+    }
+    box.appendChild(row);
+  });
+}
+// Modo mesero: con un usuario de rol Mesero se ve solo lo del servicio.
+function aplicarModoMesero(){
+  const mesero = !!authUser && !authIsAdmin();
+  document.body.classList.toggle('modo-mesero', mesero);
+  let chip = document.getElementById('meseroChip');
+  if(mesero){
+    if(!chip){
+      chip = document.createElement('div'); chip.id = 'meseroChip'; chip.className = 'mesero-chip';
+      chip.innerHTML = '<span></span><button type="button">Salir</button>';
+      chip.querySelector('button').onclick = () => { localStorage.removeItem(AUTH_SESSION_KEY); location.reload(); };
+      const row = document.getElementById('topActionsRow') || document.getElementById('topActions');
+      if(row) row.appendChild(chip);
+    }
+    chip.querySelector('span').textContent = '🧑‍🍳 ' + authUser;
+    const act = document.querySelector('nav button.active');
+    if(act && /^(productos|inventario|estadisticas|historial|ajustes)$/.test(act.dataset.view)){ const b = document.querySelector('nav button[data-view="mesas"]'); if(b) b.click(); }
+  } else if(chip) chip.remove();
+}
 function authIsAdmin(){
   const u = authUsers().find(x => x.user === authUser);
   return !u || u.role === 'admin';   // sin usuarios (dato viejo antes de roles) se trata como admin
@@ -13172,6 +13266,7 @@ async function enterApp(user, setup){
   }
   wireAccountUI();
   wireSedesUI();
+  aplicarModoMesero();
   maybeShowTutorial();
   maybeShowLowStockAlert();
 }
@@ -13246,6 +13341,19 @@ function showAuth(firstRun){
   ov.hidden = false;
   const af = document.getElementById('authForm'), rf = document.getElementById('recForm'), g = i => document.getElementById(i);
   g('authForgot').hidden = firstRun;
+  // Usuarios de este equipo: se tocan para no tener que escribir el nombre.
+  let chips = document.getElementById('authUsers');
+  if(!chips){ chips = document.createElement('div'); chips.id = 'authUsers'; chips.className = 'auth-users'; g('authUser').closest('label').before(chips); }
+  const us = firstRun ? [] : authUsers();
+  chips.innerHTML = '';
+  chips.hidden = !us.length;
+  us.forEach(u => {
+    const b = document.createElement('button'); b.type = 'button';
+    b.innerHTML = (u.role === 'admin' ? '👑 ' : '🧑‍🍳 ') + '<span></span> <small>' + (u.role === 'admin' ? 'Admin' : 'Mesero') + '</small>';
+    b.querySelector('span').textContent = u.user;
+    b.onclick = () => { g('authUser').value = u.user; chips.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); g('authPass').focus(); };
+    chips.appendChild(b);
+  });
   g('authForgot').onclick = () => { af.hidden = true; rf.hidden = false; g('recUser').value = g('authUser').value; };
   g('recBack').onclick = () => { rf.hidden = true; af.hidden = false; };
   // Se ve desde el inicio (crear cuenta o iniciar sesión): si el celular quedó
@@ -13302,10 +13410,12 @@ function wireAccountUI(){
   if(addUserRow) addUserRow.hidden = !authIsAdmin();
   document.getElementById('accAddBtn').onclick = async () => {
     if(!authIsAdmin()){ showToast('🔒 Solo el usuario administrador puede agregar cuentas nuevas.'); return; }
-    const u = document.getElementById('accNewUser'), p = document.getElementById('accNewPass');
-    const msg = await authAddUser(u.value, p.value, 'staff');
+    const u = document.getElementById('accNewUser'), p = document.getElementById('accNewPass'), r = document.getElementById('accNewRole');
+    const rol = r && r.value === 'admin' ? 'admin' : 'staff';
+    const msg = await authAddUser(u.value, p.value, rol);
     if(msg){ showToast(msg); return; }
-    showToast('Usuario agregado: ' + u.value.trim().toLowerCase()); u.value = ''; p.value = '';
+    showToast('✅ Usuario agregado: ' + u.value.trim().toLowerCase() + ' (' + (rol === 'admin' ? 'Administrador' : 'Mesero') + ')'); u.value = ''; p.value = '';
+    accUsuariosPintar();
   };
   const waState = () => { const u = authUsers().find(x => x.user === authUser); document.getElementById('accWaState').textContent = u && u.wa ? '✅ Activa · WhatsApp terminado en ' + u.wa.tail : 'Sin configurar: genera un código y guárdalo en tu WhatsApp.'; };
   waState();
@@ -13316,6 +13426,7 @@ function wireAccountUI(){
     document.getElementById('accWaNum').value = ''; waState();
   };
   document.getElementById('accLogoutBtn').onclick = () => { localStorage.removeItem(AUTH_SESSION_KEY); location.reload(); };
+  accUsuariosPintar();
   const ai = document.getElementById('voiceAiToggle');
   ai.checked = voiceAiOn();
   ai.onchange = () => { localStorage.setItem(VOICE_AI_KEY, ai.checked ? '1' : '0'); voiceAIBtnSync(); };
@@ -14212,7 +14323,57 @@ function recibir(m){
   if(m.time&&m.time>esTime)esTime=m.time;
   const v=LS('vito_vistos',[]);if(v.includes(m.id))return;
   v.push(m.id);SS('vito_vistos',v.slice(-1000));
+  if(m.topic&&m.topic===mTopic()){try{procesarMesero(String(m.message||'').slice(0,1500));}catch(e){console.error(e);}return;}
   try{procesar(String(m.message||'').slice(0,300));}catch(e){console.error(e);}
+}
+/* ---------- App de meseros (mesero.html) ----------
+   Cada mesero usa la app en SU celular. Manda los pedidos por un canal privado de ntfy
+   (topic + 'm' + código secreto) que los clientes no conocen; aquí se aplican directo, sin
+   confirmar, con el mismo entendedor de la voz clásica (así sirven todos los comandos: "mesa 2
+   dos águilas", "misma ronda para la mesa 3", "crea la mesa Juan con dos póker"…). Este celular
+   le responde qué pasó y le publica el estado de las mesas (canal + 's'). */
+const MKEY='vito_meseros';
+const mCfg=()=>{const c=LS(MKEY,{});if(!c.code){c.code=Array.from(crypto.getRandomValues(new Uint8Array(8)),b=>'abcdefghjkmnpqrstuvwxyz23456789'[b%31]).join('');SS(MKEY,c);}return c;};
+const mTopic=()=>qCfg().topic+'m'+mCfg().code;
+function mUrl(){const base=location.protocol==='file:'?'':location.origin+location.pathname.replace(/[^/]*$/,'');return base?base+'mesero.html#'+qCfg().topic+'.'+mCfg().code:'';}
+function mVistos(nombre){const c=mCfg();c.vistos=c.vistos||{};if(nombre){c.vistos[String(nombre).slice(0,30)]=Date.now();SS(MKEY,c);}return c.vistos;}
+let mPubT=null,mHash='';
+function mEstado(){
+  const tabs=Object.keys(data.tables).map(Number).sort((a,b)=>a-b).map(id=>{
+    const t=data.tables[id],its=(t.items||[]);
+    return{i:id,n:String(tableLabel(id)).slice(0,24),t:Math.round(tableBalance(id)),it:its.slice(0,10).map(x=>[String(x.name).slice(0,24),x.qty])};
+  });
+  const m={e:1,b:String(data.businessName||'').slice(0,40),m:tabs,t:Date.now()};
+  // ntfy acepta ~4 KB por mensaje: si no cabe, se quitan los detalles de las mesas más grandes.
+  let s=JSON.stringify(m);
+  for(let k=tabs.length-1;s.length>3800&&k>=0;k--){tabs[k].it=tabs[k].it.slice(0,2);s=JSON.stringify(m);}
+  for(let k=tabs.length-1;s.length>3800&&k>=0;k--){tabs[k].it=[];s=JSON.stringify(m);}
+  return s;
+}
+function mPublicar(force){
+  const c=mCfg();if(!c.on||!qCfg().live)return;
+  const s=mEstado(),h=s.replace(/"t":\d+/,'');
+  if(!force&&h===mHash)return;
+  mHash=h;
+  fetch('https://ntfy.sh/'+mTopic()+'s',{method:'POST',body:s}).catch(()=>{mHash='';});
+}
+async function procesarMesero(txt){
+  let o;try{o=JSON.parse(txt);}catch(e){return;}
+  if(!o||o.e)return;                                    // mensajes de estado propios
+  const quien=String(o.mesero||'Mesero').slice(0,30);
+  mVistos(quien);
+  if(o.k==='hola'){mPublicar(true);return;}
+  if(o.k!=='voz'||!o.texto)return;
+  const texto=String(o.texto).slice(0,400);
+  // Se captura lo que la app avisaría (para devolvérselo al mesero) y no se habla en voz alta aquí.
+  const capt=[],oT=showToast,oV=speakVoice;
+  showToast=(msg,ms)=>{capt.push(String(msg));oT('🧑‍🍳 '+quien+': '+msg,ms);};
+  speakVoice=()=>{};
+  try{await handleVoiceTranscript(texto);}catch(e){capt.push('⚠️ '+(e.message||e));}
+  finally{showToast=oT;speakVoice=oV;}
+  const r={r:o.id,ok:capt.length?capt:['✅ Listo.'],t:Date.now()};
+  try{await fetch('https://ntfy.sh/'+mTopic()+'s',{method:'POST',body:JSON.stringify(r)});}catch(e){}
+  mPublicar(true);
 }
 function esProgramar(){
   esRetry++;clearTimeout(esTimer);
@@ -14223,7 +14384,8 @@ function conectar(){
   if(es){es.close();es=null;}
   if(!c.live){estado('off');return;}
   // Al reconectar se pide solo lo que llegó desde el último mensaje (no las 12 h otra vez)
-  try{es=new EventSource('https://ntfy.sh/'+c.topic+'/sse?since='+(esTime||'12h'));}catch(e){estado('err');esProgramar();return;}
+  const tops=c.topic+(mCfg().on?','+mTopic():'');
+  try{es=new EventSource('https://ntfy.sh/'+tops+'/sse?since='+(esTime||'12h'));}catch(e){estado('err');esProgramar();return;}
   const mine=es;esTouch();
   es.onopen=()=>{esTouch();esRetry=0;estado('on');};
   es.onerror=()=>{
@@ -14239,7 +14401,7 @@ async function sondear(){
   const c=qCfg();if(!c.live||esPolling||!esOn)return;esPolling=true;
   try{
     const ctrl=new AbortController(),tmo=setTimeout(()=>ctrl.abort(),8000);
-    const r=await fetch('https://ntfy.sh/'+c.topic+'/json?poll=1&since='+(esTime||Math.floor(Date.now()/1000)-1800),{signal:ctrl.signal,cache:'no-store'});
+    const r=await fetch('https://ntfy.sh/'+c.topic+(mCfg().on?','+mTopic():'')+'/json?poll=1&since='+(esTime||Math.floor(Date.now()/1000)-1800),{signal:ctrl.signal,cache:'no-store'});
     clearTimeout(tmo);
     if(!r.ok)return;
     (await r.text()).split('\n').forEach(l=>{if(!l.trim())return;try{recibir(JSON.parse(l));}catch(e){}});
@@ -14831,7 +14993,7 @@ async function publicarCatalogo(force){
 }
 window.vitoPublicarCatalogo = publicarCatalogo;
 // Lo que usan las fotos de la carta y la transmisión al TV (script del final).
-window.vitoMod = { tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena };
+window.vitoMod = { mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena };
 function publicarCuentas(){
   if(typeof data==='undefined'||!data||!qCfg().live)return;
   try{publicarCatalogo();}catch(e){}
@@ -14844,8 +15006,9 @@ function publicarCuentas(){
   });
 }
 const _saveData=saveData;
-saveData=async function(){const r=await _saveData.apply(this,arguments);clearTimeout(pubT);pubT=setTimeout(publicarCuentas,2500);return r;};
+saveData=async function(){const r=await _saveData.apply(this,arguments);clearTimeout(pubT);pubT=setTimeout(()=>{publicarCuentas();try{mPublicar();}catch(e){}},2500);return r;};
 setInterval(publicarCuentas,60000);
+setInterval(()=>{try{mPublicar();}catch(e){}},60000);
 
 /* ---------- Mesas ocupadas: el texto se adapta al color del fondo ---------- */
 function contrasteMesas(){
@@ -16702,7 +16865,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
    la Pantalla del TV de Mesora (tv.html) y reproduce la cola en vivo: cada canción que piden las
    mesas entra sola. Los Smart TV LG/Samsung sin Chromecast no aparecen aquí (solo los ve la app
    de YouTube): para esos están los botones de YouTube Music / YouTube. */
-const MESORA_VERSION = '2026-09-24 · v12';
+const MESORA_VERSION = '2026-09-24 · v13';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
@@ -17200,6 +17363,32 @@ function iniLounge(){
   lngEstado();
 }
 
+/* ---------- Ajustes → App de meseros ---------- */
+function iniMeseros(){
+  const sw = document.getElementById('mesOn'); if(!sw || !vm().mCfg) return;
+  const pintar = () => {
+    const c = vm().mCfg(), on = !!c.on;
+    sw.checked = on;
+    document.getElementById('mesBox').hidden = !on;
+    document.getElementById('mesLink').value = vm().mUrl() || 'Abre Mesora desde su dirección https para tener el link de meseros.';
+    const live = vm().qCfg().live;
+    document.getElementById('mesEstado').textContent = !on ? 'Apagada.' : live ? '🟢 Activa: los pedidos de los meseros llegan a este celular.' : '🟠 Activa, pero los pedidos en vivo están apagados (Ajustes → Pedidos, QR y caja): enciéndelos para recibirlos.';
+    const v = vm().mVistos(), ks = Object.keys(v).sort((a, b) => v[b] - v[a]);
+    document.getElementById('mesVistos').innerHTML = ks.length ? '<b>Meseros conectados:</b> ' + ks.map(k => { const min = Math.round((Date.now() - v[k]) / 60000); return invEsc(k) + ' (' + (min < 2 ? 'ahora' : min < 60 ? 'hace ' + min + ' min' : new Date(v[k]).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })) + ')'; }).join(' · ') : 'Todavía no se ha conectado ningún mesero.';
+  };
+  sw.onchange = () => { const c = vm().mCfg(); c.on = sw.checked; SS('vito_meseros', c); vm().reconectarPedidos(); if(c.on) vm().mPublicar(true); pintar(); };
+  document.getElementById('mesCopy').onclick = () => { const u = vm().mUrl(); if(!u) return; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(() => showToast('📋 Link de meseros copiado.'), () => { document.getElementById('mesLink').select(); showToast('Copia el link a mano.'); }); };
+  document.getElementById('mesWa').onclick = () => { const u = vm().mUrl(); if(!u) return; window.open('https://wa.me/?text=' + encodeURIComponent('🧑‍🍳 App de meseros de ' + ((data && data.businessName) || 'Mesora') + ': ábrela en Chrome y agrégala a tu pantalla principal.\n' + u), '_blank'); };
+  document.getElementById('mesNew').onclick = async () => {
+    const ok = await showConfirm({ title: '¿Crear un link nuevo?', message: 'El link anterior deja de funcionar: tendrás que mandarles el nuevo a los meseros.', confirmText: 'Sí, crear', icon: '🔗' });
+    if(!ok) return;
+    const c = vm().mCfg(); delete c.code; c.vistos = {}; SS('vito_meseros', c); vm().mCfg(); vm().reconectarPedidos(); vm().mPublicar(true); pintar();
+    showToast('🔗 Link nuevo creado. Mándaselo a tus meseros.');
+  };
+  pintar();
+  setInterval(pintar, 30000);
+}
+
 /* ---------- Autorreparación: Mesi detecta y corrige errores ----------
    Todos los errores de la app quedan registrados con un código (ver el
    <script> del <head>). Mesi aplica reparaciones seguras y probadas (nunca
@@ -17362,6 +17551,8 @@ let fotosListas = false;
   try{ iniFotosProductos(); }catch(e){ mesoraLogError('arranque', 'Fotos: ' + e.message, ''); }
   try{ iniCast(); }catch(e){ mesoraLogError('arranque', 'Transmisión: ' + e.message, ''); }
   try{ iniLounge(); }catch(e){ mesoraLogError('arranque', 'YouTube del TV: ' + e.message, ''); }
+  try{ iniMeseros(); }catch(e){ mesoraLogError('arranque', 'Meseros: ' + e.message, ''); }
+  try{ aplicarModoMesero(); }catch(e){}
   licCargar().then(licDesdeLink).catch(e => mesoraLogError('arranque', 'Licencia: ' + e.message, ''));
   window.addEventListener('hashchange', () => { licDesdeLink(); });   // link abierto con Mesora ya abierta
   fotosCargar().then(() => { fotosListas = true; try{ renderProductos(); }catch(e){} publicarFotosCarta(); });

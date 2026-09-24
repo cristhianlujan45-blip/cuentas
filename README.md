@@ -69,8 +69,25 @@ podría cambiarlo). Como el navegador no deja hablar directo con youtube.com
 desde otra página, las llamadas pasan por este pequeño puente, que se publica
 gratis como Cloudflare Worker (los pasos están dentro de la app).
 
+## `mesero.html` — la app de los meseros
+
+Cada mesero la abre en su propio celular con el link de **Ajustes → Pedidos,
+QR y caja → App de meseros**. Ve las mesas y lo que lleva cada una, anota
+pedidos tocando los productos o dictando (los mismos comandos de la voz
+clásica), pide la misma ronda y crea mesas con nombre. Los pedidos llegan
+directo al celular principal (con Mesora abierta) por un canal privado que
+los clientes no conocen. En el mismo equipo del negocio, un usuario con rol
+**Mesero** entra en modo mesero: solo mesas, cocina y música.
+
+## `licencias.html` — códigos para sedes adicionales
+
+La sede principal va incluida; cada sede adicional se activa con un código
+que crea el dueño de Mesora en `licencias.html` con su llave privada (que
+**no** está en este repositorio). El cliente lo abre como link
+(`index.html#licencia=…`) y la app comprueba la firma con la llave pública.
+
 ## Uso
 
-Subí los archivos (`index.html`, `pedido.html` y `tv.html`) a cualquier hosting estático (o abrí `index.html`
+Subí los archivos (`index.html`, `pedido.html`, `mesero.html`, `tv.html` y `licencias.html`) a cualquier hosting estático (o abrí `index.html`
 directo en el navegador del celular o la compu para llevar solo las cuentas,
 sin la parte de pedidos por QR). No hace falta backend ni base de datos.

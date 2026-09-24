@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f0f16">
+<title>Mesora Meseros</title>
+<link rel="preconnect" href="https://ntfy.sh">
+<style>
+  /* App de meseros: cada mesero la usa en SU celular. Recibe el estado de las mesas y la carta
+     del celular principal (Mesora, index.html) y le manda los pedidos por un canal privado de
+     ntfy. El celular principal los aplica con el mismo entendedor de la voz clásica. */
+  :root{ --bg:#0f0f16; --card:#17171f; --card2:#1e1e29; --line:#2a2a38; --ink:#f2f1f7; --soft:#9a97ad; --acc:#7c3aed; --acc2:#c4b5fd; --ok:#34d399; --bad:#fb7185; --font:-apple-system,'Segoe UI',Roboto,sans-serif; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 var(--font); min-height:100vh; }
+  button{ font:inherit; color:inherit; cursor:pointer; }
+  header{ position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:10px; padding:calc(12px + env(safe-area-inset-top)) 16px 12px; background:var(--bg); border-bottom:1px solid var(--line); }
+  header .biz{ flex:1; min-width:0; }
+  header .biz b{ display:block; font-size:17px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  header .biz small{ color:var(--soft); font-size:12.5px; display:flex; align-items:center; gap:6px; }
+  .dot{ width:8px; height:8px; border-radius:50%; background:var(--soft); display:inline-block; }
+  .dot.ok{ background:var(--ok); } .dot.bad{ background:var(--bad); }
+  .chip{ height:34px; padding:0 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); font-size:13px; font-weight:700; }
+  main{ max-width:900px; margin:0 auto; padding:14px 16px 120px; }
+  .acts{ display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  .acts button{ flex:1; min-width:140px; height:44px; border-radius:12px; border:1px solid var(--line); background:var(--card); font-weight:700; }
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+  .mesa{ text-align:left; padding:14px; border-radius:16px; border:1px solid var(--line); background:var(--card); min-height:92px; display:flex; flex-direction:column; gap:4px; }
+  .mesa b{ font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mesa .tot{ font-size:19px; font-weight:800; color:var(--acc2); }
+  .mesa .vac{ color:var(--soft); font-size:13px; }
+  .mesa.abierta{ border-color:color-mix(in srgb, var(--acc) 60%, var(--line)); background:color-mix(in srgb, var(--acc) 12%, var(--card)); }
+  .empty{ color:var(--soft); text-align:center; padding:40px 10px; }
+  .sheet{ position:fixed; inset:0; z-index:20; background:var(--bg); display:flex; flex-direction:column; }
+  .sheet[hidden]{ display:none; }
+  .sheet-h{ display:flex; align-items:center; gap:10px; padding:calc(12px + env(safe-area-inset-top)) 16px 10px; border-bottom:1px solid var(--line); }
+  .sheet-h b{ flex:1; font-size:18px; }
+  .sheet-b{ flex:1; overflow:auto; padding:12px 16px 170px; max-width:900px; width:100%; margin:0 auto; }
+  .lleva{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px 12px; margin-bottom:12px; font-size:14px; }
+  .lleva h3{ margin:0 0 6px; font-size:12.5px; color:var(--soft); text-transform:uppercase; letter-spacing:.05em; }
+  .cats{ display:flex; gap:8px; overflow-x:auto; padding-bottom:8px; scrollbar-width:none; }
+  .cats button{ flex:none; height:36px; padding:0 14px; border-radius:999px; border:1px solid var(--line); background:var(--card); font-weight:700; font-size:13.5px; }
+  .cats button.on{ background:var(--acc); border-color:var(--acc); color:#fff; }
+  input.buscar{ width:100%; height:44px; padding:0 14px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit; margin-bottom:10px; }
+  .prods{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+  .prod{ display:flex; flex-direction:column; gap:6px; padding:10px 12px; border-radius:14px; border:1px solid var(--line); background:var(--card); }
+  .prod .n{ font-weight:700; font-size:14px; line-height:1.25; }
+  .prod .p{ color:var(--soft); font-size:12.5px; }
+  .prod .qty{ display:flex; align-items:center; justify-content:space-between; }
+  .prod .qty button{ width:40px; height:40px; border-radius:12px; border:1px solid var(--line); background:var(--card2); font-size:20px; font-weight:800; }
+  .prod .qty span{ font-size:18px; font-weight:800; min-width:28px; text-align:center; }
+  .prod.sel{ border-color:var(--acc); }
+  .prod.ag{ opacity:.45; }
+  .bar{ position:fixed; left:0; right:0; bottom:0; z-index:25; padding:10px 16px calc(12px + env(safe-area-inset-bottom)); background:linear-gradient(transparent, var(--bg) 22%); display:flex; gap:8px; max-width:900px; margin:0 auto; }
+  .bar button{ height:52px; border-radius:14px; border:1px solid var(--line); background:var(--card); font-weight:800; font-size:15px; }
+  .bar .send{ flex:1; background:var(--acc); border-color:var(--acc); color:#fff; }
+  .bar .send:disabled{ opacity:.5; }
+  .bar .mic{ width:52px; font-size:20px; }
+  .bar .mic.on{ background:var(--bad); border-color:var(--bad); color:#fff; animation:pulse 1.1s infinite; }
+  @keyframes pulse{ 50%{ box-shadow:0 0 0 10px transparent; } 0%{ box-shadow:0 0 0 0 rgba(251,113,133,.6); } }
+  .fab{ position:fixed; right:16px; bottom:calc(20px + env(safe-area-inset-bottom)); width:64px; height:64px; border-radius:50%; border:0; background:var(--acc); color:#fff; font-size:26px; box-shadow:0 10px 26px rgba(0,0,0,.4); z-index:6; }
+  .fab.on{ background:var(--bad); animation:pulse 1.1s infinite; }
+  .toast{ position:fixed; left:50%; bottom:calc(96px + env(safe-area-inset-bottom)); transform:translate(-50%,12px); width:max-content; max-width:calc(100vw - 32px); padding:12px 16px; border-radius:14px; background:var(--card2); border:1px solid var(--line); box-shadow:0 12px 30px rgba(0,0,0,.4); font-size:14px; opacity:0; pointer-events:none; transition:.2s; z-index:40; white-space:pre-line; }
+  .toast.show{ opacity:1; transform:translate(-50%,0); }
+  .setup{ max-width:420px; margin:12vh auto 0; padding:0 20px; text-align:center; }
+  .setup h1{ font-size:24px; margin:10px 0 6px; }
+  .setup p{ color:var(--soft); }
+  .setup input{ width:100%; height:50px; padding:0 14px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit; font-size:17px; text-align:center; margin:14px 0 10px; }
+  .setup button{ width:100%; height:50px; border-radius:12px; border:0; background:var(--acc); color:#fff; font-weight:800; font-size:16px; }
+  .hint{ color:var(--soft); font-size:13px; text-align:center; margin:4px 0 12px; }
+</style>
+</head>
+<body>
+<div id="setup" class="setup" hidden></div>
+<div id="app" hidden>
+  <header>
+    <div class="biz"><b id="biz">Mesora</b><small><span class="dot" id="dot"></span><span id="estado">Conectando…</span></small></div>
+    <button class="chip" id="yo" type="button"></button>
+  </header>
+  <main>
+    <div class="acts"><button type="button" id="nueva">➕ Nueva mesa</button><button type="button" id="ayuda">❓ Comandos de voz</button></div>
+    <div class="hint">Toca una mesa para anotar, o el 🎤 para dictar (ej: «mesa 2, dos águilas y tres póker»).</div>
+    <div class="grid" id="mesas"><div class="empty">Esperando las mesas del celular principal…</div></div>
+  </main>
+  <button class="fab" id="fab" type="button" aria-label="Dictar un pedido">🎤</button>
+</div>
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-h"><button class="chip" id="atras" type="button">← Mesas</button><b id="sTit">Mesa</b></div>
+  <div class="sheet-b">
+    <div class="lleva" id="lleva"></div>
+    <input class="buscar" id="q" type="search" placeholder="Buscar producto…" autocomplete="off">
+    <div class="cats" id="cats"></div>
+    <div class="prods" id="prods"></div>
+  </div>
+  <div class="bar">
+    <button class="mic" id="sMic" type="button" aria-label="Dictar para esta mesa">🎤</button>
+    <button type="button" id="ronda">🔁 Misma ronda</button>
+    <button class="send" id="enviar" type="button" disabled>Enviar pedido</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  function esc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+  var fmt = function(n){ return '$' + Math.round(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
+  var tt = null;
+  function toast(t, ms){ var e = $('toast'); e.textContent = t; e.classList.add('show'); clearTimeout(tt); tt = setTimeout(function(){ e.classList.remove('show'); }, ms || 3200); }
+
+  // Link: mesero.html#<canal>.<código>. Se guarda para cuando la abran desde el ícono.
+  var h = (location.hash || '').replace(/^#/, '');
+  if(/^[a-z0-9]+\.[a-z0-9]+$/i.test(h)){ try{ localStorage.setItem('mes_link', h); }catch(e){} }
+  var link = h && /^[a-z0-9]+\.[a-z0-9]+$/i.test(h) ? h : (localStorage.getItem('mes_link') || '');
+  if(!link){
+    $('setup').hidden = false;
+    $('setup').innerHTML = '<div style="font-size:54px">🧑‍🍳</div><h1>App de meseros</h1><p>Pídele al administrador el link de meseros (Mesora → Ajustes → Pedidos, QR y caja → App de meseros) y ábrelo aquí.</p>';
+    return;
+  }
+  var CANAL = link.split('.')[0], COD = link.split('.')[1];
+  var T_MES = CANAL + 'm' + COD, T_EST = T_MES + 's', T_CAT = CANAL + 'k';
+  var yo = localStorage.getItem('mes_nombre') || '';
+  var estado = null, cat = [], ultimoEstado = 0, pendientes = {};
+
+  function pedirNombre(){
+    $('app').hidden = true; $('setup').hidden = false;
+    $('setup').innerHTML = '<div style="font-size:54px">🧑‍🍳</div><h1>¿Cómo te llamas?</h1><p>Tu nombre sale junto a cada pedido que mandes.</p><input id="nom" maxlength="24" autocomplete="name" placeholder="Ej: Carlos"><button type="button" id="nomOk">Empezar</button>';
+    $('nom').value = yo;
+    $('nomOk').onclick = function(){ var n = $('nom').value.trim(); if(!n) return; yo = n; localStorage.setItem('mes_nombre', n); $('setup').hidden = true; iniciar(); };
+    $('nom').onkeydown = function(e){ if(e.key === 'Enter') $('nomOk').click(); };
+    setTimeout(function(){ $('nom').focus(); }, 50);
+  }
+
+  function enviar(texto){
+    var id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    pendientes[id] = { at: Date.now(), texto: texto };
+    toast('📤 Enviando: ' + texto);
+    fetch('https://ntfy.sh/' + T_MES, { method: 'POST', body: JSON.stringify({ k: 'voz', texto: texto, mesero: yo, id: id }) })
+      .catch(function(){ delete pendientes[id]; toast('⚠️ Sin internet: no se envió. Intenta de nuevo.', 5000); });
+    setTimeout(function(){ if(pendientes[id]){ delete pendientes[id]; toast('⚠️ El celular principal no respondió. Revisa que Mesora esté abierta allá (y con internet). Tu pedido llegará cuando se abra.', 7000); } }, 15000);
+  }
+
+  function recibir(txt){
+    var m; try{ m = JSON.parse(txt); }catch(e){ return; }
+    if(!m) return;
+    if(m.r && pendientes[m.r]){ delete pendientes[m.r]; toast((m.ok || []).join('\n') || '✅ Listo.', 5000); if(navigator.vibrate) navigator.vibrate(60); return; }
+    if(m.e && m.m){ if(m.t && m.t < ultimoEstado) return; ultimoEstado = m.t || Date.now(); estado = m; pintarMesas(); pintarSheet(); }
+  }
+  function conectar(){
+    var es;
+    try{ es = new EventSource('https://ntfy.sh/' + T_EST + '/sse?since=2h'); }catch(e){ return; }
+    es.onopen = function(){ $('dot').className = 'dot ok'; pintarEstado(); };
+    es.onmessage = function(ev){ try{ recibir(JSON.parse(ev.data).message); }catch(e){} };
+    es.onerror = function(){ $('dot').className = 'dot bad'; $('estado').textContent = 'Reconectando…'; if(es.readyState === 2){ setTimeout(conectar, 4000); } };
+  }
+  function pintarEstado(){
+    if(!estado){ $('estado').textContent = 'Esperando al celular principal…'; return; }
+    var min = Math.round((Date.now() - ultimoEstado) / 60000);
+    $('estado').textContent = 'Conectado' + (min > 5 ? ' · última noticia hace ' + min + ' min' : '');
+  }
+  function cargarCarta(){
+    fetch('https://ntfy.sh/' + T_CAT + '/json?poll=1&since=4h').then(function(r){ return r.text(); }).then(function(t){
+      var ls = t.trim().split('\n'), last = null;
+      ls.forEach(function(l){ try{ var j = JSON.parse(l); if(j.event === 'message') last = j; }catch(e){} });
+      if(last){ var c = JSON.parse(last.message); cat = c.p || []; try{ localStorage.setItem('mes_carta', JSON.stringify(cat)); }catch(e){} if(c.n && !estado) $('biz').textContent = c.n; pintarProds(); }
+    }).catch(function(){});
+    try{ if(!cat.length) cat = JSON.parse(localStorage.getItem('mes_carta') || '[]'); }catch(e){}
+  }
+
+  function pintarMesas(){
+    if(!estado) return;
+    $('biz').textContent = estado.b || 'Mesora';
+    pintarEstado();
+    var g = $('mesas'); g.innerHTML = '';
+    estado.m.forEach(function(x){
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'mesa' + (x.t > 0 || (x.it && x.it.length) ? ' abierta' : '');
+      b.innerHTML = '<b>' + esc(x.n) + '</b>' + (x.t > 0 ? '<span class="tot">' + fmt(x.t) + '</span><span class="vac">' + (x.it || []).reduce(function(a, y){ return a + (y[1] || 0); }, 0) + ' productos</span>' : '<span class="vac">Libre</span>');
+      b.onclick = function(){ abrirMesa(x.i); };
+      g.appendChild(b);
+    });
+  }
+
+  // ---- Hoja de una mesa: tocar productos (+/−) y enviar ----
+  var mesaAct = null, carrito = {}, catAct = '';
+  function abrirMesa(id){ mesaAct = id; carrito = {}; $('q').value = ''; $('sheet').hidden = false; pintarSheet(); pintarProds(); }
+  function cerrarMesa(){ mesaAct = null; $('sheet').hidden = true; }
+  $('atras').onclick = cerrarMesa;
+  function mesaInfo(){ return estado && estado.m.filter(function(x){ return x.i === mesaAct; })[0]; }
+  function pintarSheet(){
+    if(mesaAct == null) return;
+    var x = mesaInfo();
+    $('sTit').textContent = x ? x.n : 'Mesa ' + mesaAct;
+    $('lleva').innerHTML = '<h3>Lleva' + (x && x.t > 0 ? ' · ' + fmt(x.t) : '') + '</h3>' + (x && x.it && x.it.length ? x.it.map(function(y){ return y[1] + ' × ' + esc(y[0]); }).join('<br>') : '<span style="color:var(--soft)">Nada todavía.</span>');
+    var n = Object.keys(carrito).reduce(function(a, k){ return a + carrito[k]; }, 0);
+    $('enviar').disabled = !n; $('enviar').textContent = n ? 'Enviar ' + n + (n === 1 ? ' producto' : ' productos') : 'Enviar pedido';
+  }
+  function pintarProds(){
+    if(mesaAct == null) return;
+    var cats = []; cat.forEach(function(p){ var c = p[2] || 'Otros'; if(cats.indexOf(c) < 0) cats.push(c); });
+    if(catAct && cats.indexOf(catAct) < 0) catAct = '';
+    $('cats').innerHTML = ''; ['Todo'].concat(cats).forEach(function(c){
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = c; b.className = (c === 'Todo' ? !catAct : catAct === c) ? 'on' : '';
+      b.onclick = function(){ catAct = c === 'Todo' ? '' : c; pintarProds(); }; $('cats').appendChild(b);
+    });
+    var q = $('q').value.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    var lista = cat.filter(function(p){ return (!catAct || (p[2] || 'Otros') === catAct) && (!q || String(p[0]).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').indexOf(q) >= 0); });
+    var box = $('prods'); box.innerHTML = '';
+    if(!cat.length){ box.innerHTML = '<div class="empty">La carta todavía no llegó. En el celular principal: Ajustes → Pedidos, QR y caja → publicar la carta.</div>'; return; }
+    lista.forEach(function(p){
+      var k = p[0], n = carrito[k] || 0;
+      var d = document.createElement('div'); d.className = 'prod' + (n ? ' sel' : '') + (p[3] == 2 ? ' ag' : '');
+      d.innerHTML = '<span class="n">' + esc(k) + '</span><span class="p">' + fmt(p[1]) + (p[3] == 2 ? ' · agotado' : '') + '</span><div class="qty"><button type="button">−</button><span>' + n + '</span><button type="button">+</button></div>';
+      var bs = d.querySelectorAll('button');
+      bs[0].onclick = function(){ if(carrito[k]){ carrito[k]--; if(!carrito[k]) delete carrito[k]; } pintarProds(); pintarSheet(); };
+      bs[1].onclick = function(){ carrito[k] = (carrito[k] || 0) + 1; if(navigator.vibrate) navigator.vibrate(15); pintarProds(); pintarSheet(); };
+      box.appendChild(d);
+    });
+  }
+  $('q').oninput = pintarProds;
+  $('enviar').onclick = function(){
+    var partes = Object.keys(carrito).map(function(k){ return carrito[k] + ' ' + k; });
+    if(!partes.length || mesaAct == null) return;
+    enviar('mesa ' + mesaAct + ', ' + partes.join(', '));
+    carrito = {}; pintarProds(); pintarSheet();
+  };
+  $('ronda').onclick = function(){ if(mesaAct != null) enviar('misma ronda para la mesa ' + mesaAct); };
+  $('nueva').onclick = function(){
+    var n = prompt('Nombre de la mesa nueva (ej: Juan, Terraza 2). Deja vacío para una mesa con número:');
+    if(n === null) return;
+    enviar(n.trim() ? 'crea la mesa ' + n.trim() : 'agrega una mesa');
+  };
+  $('ayuda').onclick = function(){
+    alert('Comandos de voz (toca 🎤):\n\n• mesa 2, dos águilas y tres póker\n• misma ronda para la mesa 3\n• la misma ronda de la mesa 2 para la mesa 5\n• agrégame una mesa a nombre de Juan con dos póker\n• quita una póker de la mesa 2\n• la mesa 4 son tres águilas (corrige la cantidad)\n• cuenta de la mesa 2\n• deshacer');
+  };
+  $('yo').onclick = pedirNombre;
+
+  // ---- Dictado (voz clásica: el texto lo entiende el celular principal) ----
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition, rec = null, oyendo = false, btnAct = null;
+  function dictar(btn, prefijoMesa){
+    if(!SR){ toast('⚠️ Este navegador no deja dictar. Usa Chrome.'); return; }
+    if(oyendo && rec){ try{ rec.stop(); }catch(e){} return; }
+    rec = new SR(); rec.lang = 'es-CO'; rec.interimResults = false; rec.continuous = false;
+    var texto = '';
+    rec.onresult = function(e){ for(var i = 0; i < e.results.length; i++) if(e.results[i].isFinal) texto += e.results[i][0].transcript + ' '; };
+    rec.onerror = function(e){ if(e.error === 'not-allowed') toast('⚠️ Permite el micrófono para esta página.'); };
+    rec.onend = function(){
+      oyendo = false; btn.classList.remove('on');
+      texto = texto.trim(); if(!texto) return;
+      if(prefijoMesa != null && !/\bmesa\b/i.test(texto)) texto = 'mesa ' + prefijoMesa + ', ' + texto;
+      enviar(texto);
+    };
+    oyendo = true; btn.classList.add('on'); toast('🎤 Te escucho…');
+    try{ rec.start(); }catch(e){ oyendo = false; btn.classList.remove('on'); }
+  }
+  $('fab').onclick = function(){ dictar($('fab'), null); };
+  $('sMic').onclick = function(){ dictar($('sMic'), mesaAct); };
+
+  function iniciar(){
+    $('app').hidden = false;
+    $('yo').textContent = '🧑‍🍳 ' + yo;
+    conectar(); cargarCarta();
+    // Saluda al celular principal (así sabe quién está conectado y publica las mesas).
+    fetch('https://ntfy.sh/' + T_MES, { method: 'POST', body: JSON.stringify({ k: 'hola', mesero: yo }) }).catch(function(){});
+    setInterval(cargarCarta, 10 * 60000);
+    setInterval(pintarEstado, 30000);
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden){ fetch('https://ntfy.sh/' + T_MES, { method: 'POST', body: JSON.stringify({ k: 'hola', mesero: yo }) }).catch(function(){}); } });
+  }
+  if(!yo) pedirNombre(); else iniciar();
+})();
+</script>
+</body>
+</html>
