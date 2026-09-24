@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Mesora · Licencias</title>
+<style>
+  /* Herramienta del DUEÑO de Mesora: crea los códigos de activación de sedes adicionales.
+     Necesita la llave privada (archivo LLAVE-PRIVADA-MESORA-NO-COMPARTIR.json), que NO está en
+     GitHub: sin ella esta página no puede crear códigos. */
+  :root{ --bg:#0f0f16; --card:#17171f; --card2:#1e1e29; --line:#2a2a38; --ink:#f2f1f7; --soft:#9a97ad; --acc:#7c3aed; --acc2:#c4b5fd; --ok:#34d399; --bad:#fb7185; }
+  @media (prefers-color-scheme: light){ :root{ --bg:#f5f4fa; --card:#fff; --card2:#f0eef8; --line:#dcd8ea; --ink:#1b1830; --soft:#6a6585; --acc2:#5b21b6; } }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 -apple-system,'Segoe UI',Roboto,sans-serif; }
+  main{ max-width:560px; margin:0 auto; padding:24px 16px 60px; }
+  h1{ font-size:24px; margin:0 0 4px; }
+  .sub{ color:var(--soft); margin:0 0 20px; }
+  section{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:14px; }
+  h2{ font-size:16px; margin:0 0 10px; }
+  label{ display:block; font-size:13px; color:var(--soft); margin:10px 0 4px; }
+  input, select, textarea{ width:100%; padding:11px 12px; border-radius:10px; border:1px solid var(--line); background:var(--card2); color:var(--ink); font:inherit; }
+  textarea{ min-height:70px; font-family:ui-monospace,monospace; font-size:12px; }
+  button{ padding:11px 14px; border-radius:10px; border:1px solid var(--line); background:var(--card2); color:var(--ink); font:600 14px inherit; cursor:pointer; }
+  button.primary{ background:var(--acc); border-color:var(--acc); color:#fff; width:100%; padding:13px; font-size:15px; margin-top:14px; }
+  .row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .row button{ flex:1; }
+  .state{ font-size:13.5px; margin-top:8px; }
+  .ok{ color:var(--ok); } .bad{ color:var(--bad); }
+  .out{ word-break:break-all; font-family:ui-monospace,monospace; font-size:12px; background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:10px; margin-top:10px; }
+  .hist div{ padding:8px 0; border-top:1px solid var(--line); font-size:13px; }
+  .hist div:first-child{ border-top:0; }
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🔑 Licencias de Mesora</h1>
+  <p class="sub">Crea el código de activación de las sedes adicionales de un cliente después de que pague. Solo funciona con tu llave privada.</p>
+
+  <section>
+    <h2>1. Tu llave privada</h2>
+    <div class="state" id="keyState">Sin cargar.</div>
+    <label for="keyFile">Abre el archivo <b>LLAVE-PRIVADA-MESORA-NO-COMPARTIR.json</b></label>
+    <input type="file" id="keyFile" accept=".json,application/json">
+    <label><input type="checkbox" id="keyRemember" style="width:auto;margin-right:6px">Recordarla en este equipo (solo si es tu celular o computador personal)</label>
+    <div class="row"><button type="button" id="keyForget">Olvidar la llave de este equipo</button></div>
+  </section>
+
+  <section>
+    <h2>2. Datos del cliente</h2>
+    <label for="equipo">Código del equipo del cliente (lo ve en Ajustes → Sedes, o te llega por WhatsApp)</label>
+    <input id="equipo" placeholder="ABCD-1234" autocapitalize="characters" autocomplete="off">
+    <div class="grid">
+      <div><label for="sedes">Sedes adicionales</label><input id="sedes" type="number" min="1" max="50" value="1"></div>
+      <div><label for="vig">Vigencia</label><select id="vig"><option value="0">Sin vencimiento</option><option value="1">1 mes</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">1 año</option></select></div>
+    </div>
+    <label for="cliente">Nombre del cliente (para tu registro)</label>
+    <input id="cliente" placeholder="Ej: Bar La 70 · Carlos">
+    <label for="wa">WhatsApp del cliente (opcional, para enviarle el link)</label>
+    <input id="wa" inputmode="tel" placeholder="3001234567">
+    <label for="base">Dirección de Mesora</label>
+    <input id="base" autocomplete="off">
+    <button class="primary" type="button" id="gen">Crear código de activación</button>
+    <div id="res" hidden>
+      <div class="state ok" id="resTxt"></div>
+      <div class="out" id="resLink"></div>
+      <div class="row"><button type="button" id="copyLink">📋 Copiar link</button><button type="button" id="copyCode">📋 Copiar solo el código</button><button type="button" id="sendWa">💬 Enviar por WhatsApp</button></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Códigos creados en este equipo</h2>
+    <div class="hist" id="hist"><div style="color:var(--soft)">Todavía ninguno.</div></div>
+  </section>
+</main>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var KEY_LS = 'mesora-lic-llave', HIST_LS = 'mesora-lic-hist';
+  var privKey = null, ultimo = null;
+  $('base').value = location.origin + location.pathname.replace(/[^/]*$/, '') + 'index.html';
+  function b64u(bytes){ var s = ''; bytes = new Uint8Array(bytes); for(var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  async function cargarJwk(jwk, recordar){
+    try{
+      if(!jwk || jwk.kty !== 'EC' || !jwk.d) throw new Error('Ese archivo no es la llave privada de Mesora.');
+      var clean = { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y, d: jwk.d };
+      privKey = await crypto.subtle.importKey('jwk', clean, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+      if(recordar){ try{ localStorage.setItem(KEY_LS, JSON.stringify(clean)); }catch(e){} }
+      $('keyState').innerHTML = '<span class="ok">✅ Llave cargada.</span>';
+    }catch(e){ privKey = null; $('keyState').innerHTML = '<span class="bad">⚠️ ' + (e.message || 'No se pudo leer la llave.') + '</span>'; }
+  }
+  $('keyFile').onchange = function(){
+    var f = this.files[0]; if(!f) return;
+    f.text().then(function(t){ var j; try{ j = JSON.parse(t); }catch(e){ j = null; } cargarJwk(j, $('keyRemember').checked); });
+  };
+  $('keyForget').onclick = function(){ try{ localStorage.removeItem(KEY_LS); }catch(e){} privKey = null; $('keyState').textContent = 'Llave olvidada en este equipo.'; };
+  try{ var guardada = localStorage.getItem(KEY_LS); if(guardada){ $('keyRemember').checked = true; cargarJwk(JSON.parse(guardada), false); } }catch(e){}
+
+  $('gen').onclick = async function(){
+    if(!privKey){ alert('Primero carga tu llave privada (paso 1).'); return; }
+    var eq = $('equipo').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if(eq.length !== 8){ alert('El código del equipo tiene 8 letras/números (ej. ABCD-1234).'); return; }
+    eq = eq.slice(0, 4) + '-' + eq.slice(4);
+    var s = Math.max(1, Math.min(50, parseInt($('sedes').value, 10) || 1)), meses = parseInt($('vig').value, 10) || 0;
+    var p = { d: eq, s: s, t: Date.now() };
+    if(meses){ var v = new Date(); v.setMonth(v.getMonth() + meses); p.v = v.getTime(); }
+    if($('cliente').value.trim()) p.n = $('cliente').value.trim().slice(0, 40);
+    var payload = b64u(new TextEncoder().encode(JSON.stringify(p)));
+    var sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privKey, new TextEncoder().encode(payload));
+    var code = payload + '.' + b64u(sig);
+    var link = $('base').value.trim().replace(/#.*$/, '') + '#licencia=' + code;
+    ultimo = { code: code, link: link, p: p };
+    $('res').hidden = false;
+    $('resTxt').textContent = '✅ ' + s + ' sede(s) adicional(es) para el equipo ' + eq + (p.v ? ' · vence el ' + new Date(p.v).toLocaleDateString('es-CO') : ' · sin vencimiento') + '. El cliente solo tiene que abrir el link en el celular donde usa Mesora.';
+    $('resLink').textContent = link;
+    var h = []; try{ h = JSON.parse(localStorage.getItem(HIST_LS) || '[]'); }catch(e){}
+    h.unshift({ at: Date.now(), eq: eq, s: s, v: p.v || 0, n: p.n || '' }); try{ localStorage.setItem(HIST_LS, JSON.stringify(h.slice(0, 200))); }catch(e){}
+    pintarHist();
+  };
+  function copiar(t){ (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function(){ alert('Copiado.'); }, function(){ prompt('Copia esto:', t); }); }
+  $('copyLink').onclick = function(){ if(ultimo) copiar(ultimo.link); };
+  $('copyCode').onclick = function(){ if(ultimo) copiar(ultimo.code); };
+  $('sendWa').onclick = function(){
+    if(!ultimo) return;
+    var n = $('wa').value.replace(/\D/g, ''); if(n.length === 10) n = '57' + n;
+    var txt = '¡Gracias por tu pago! 🎉 Abre este link en el celular donde usas Mesora para activar tus sedes:\n' + ultimo.link;
+    window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(txt), '_blank');
+  };
+  function pintarHist(){
+    var h = []; try{ h = JSON.parse(localStorage.getItem(HIST_LS) || '[]'); }catch(e){}
+    if(!h.length) return;
+    $('hist').innerHTML = h.map(function(x){ return '<div><b>' + x.eq + '</b> · ' + x.s + ' sede(s)' + (x.v ? ' · vence ' + new Date(x.v).toLocaleDateString('es-CO') : '') + (x.n ? ' · ' + x.n.replace(/</g, '&lt;') : '') + '<br><span style="color:var(--soft)">' + new Date(x.at).toLocaleString('es-CO') + '</span></div>'; }).join('');
+  }
+  pintarHist();
+})();
+</script>
+</body>
+</html>

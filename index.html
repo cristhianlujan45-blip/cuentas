@@ -1588,6 +1588,9 @@
   #tvpLink{ width:100%; box-sizing:border-box; margin:8px 0; font-weight:700; }
   #ytBox.yt-espera iframe{ visibility:hidden; }
   #ytBox.yt-espera::after{ content:'🎵 Esperando la próxima canción…'; position:absolute; inset:0; display:grid; place-items:center; border-radius:12px; background:var(--surface-2); color:var(--ink-soft); font-size:14px; font-weight:600; }
+  .lic-plan{ margin:8px 0 10px; padding:10px 12px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line); font-size:13.5px; line-height:1.45; }
+  .lic-plan b{ color:var(--cream); }
+  .lic-code{ font:800 22px/1.2 var(--font-main); letter-spacing:.12em; color:var(--cream); text-align:center; margin:6px 0; user-select:all; }
   .lng-step{ display:flex; gap:12px; align-items:flex-start; margin:14px 0 4px; }
   .lng-step p{ margin:3px 0 6px; font-size:13.5px; line-height:1.45; color:var(--ink-soft); }
   .lng-step .mz-in{ width:100%; box-sizing:border-box; }
@@ -2674,6 +2677,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
     <div class="settings-group" hidden data-cat="negocio">
       <h2>🏢 Sedes o negocios</h2>
       <div class="settings-desc">Si manejas más de un negocio o más de un local (por ejemplo la tienda y la cervecería), cada uno lleva sus propias mesas, productos, inventario y ventas por separado, pero desde la misma cuenta.</div>
+      <div class="lic-plan" id="licPlan"></div>
       <div id="sedesList" class="fav-chips"></div>
       <div class="mz-actions">
         <input type="text" id="sedeNameInput" class="mz-in" placeholder="Nombre del nuevo negocio o sede">
@@ -3875,6 +3879,7 @@ async function switchToSede(sede){
   showToast('🏢 Cambiaste a ' + sede.name + '.');
 }
 function renderSedesUI(){
+  try{ if(typeof licPintar === 'function') licPintar(); }catch(e){}
   const box = document.getElementById('sedesList');
   if(!box) return;
   const list = sedesList();
@@ -3893,6 +3898,8 @@ function wireSedesUI(){
   if(addBtn && input) addBtn.addEventListener('click', async () => {
     const name = input.value.trim();
     if(!name){ showToast('Escribe el nombre de la sede o negocio.'); return; }
+    // Sedes adicionales: se pagan. Sin un código de activación válido, se muestra cómo pagar.
+    if(typeof licPuedeAgregarSede === 'function' && !licPuedeAgregarSede()){ licPaywall(name); return; }
     const sede = await addSede(name);
     input.value = '';
     renderSedesUI();
@@ -16938,6 +16945,100 @@ function iniCast(){
   castEstado();
 }
 
+/* ---------- Sedes adicionales: se pagan (código de activación firmado) ----------
+   La sede principal va incluida. Cada sede adicional se activa con un código que genera el dueño
+   de Mesora en licencias.html con SU llave privada (que nunca está en la app ni en GitHub). La app
+   solo tiene la llave pública: con ella comprueba que el código es auténtico, que es para ESTE
+   equipo y que no ha vencido. Nadie puede fabricar un código válido sin la llave privada. */
+const LIC_PUB = {"kty": "EC", "crv": "P-256", "x": "6tWjt1Nt7nzGlVijod0J1_6lSJtXJwEMQ84hG-Jgeko", "y": "zi6sTkXAddYp0frD8QP97PjvoWKASu42ATu3EAe2XrE"};
+const LIC_KEY = 'mesora-licencia', EQUIPO_KEY = 'mesora-equipo';
+const SEDES_INCLUIDAS = 1;                         // la sede principal
+const SEDE_PRECIO_TEXTO = '';                      // ej. '$30.000 al mes por sede' (vacío = "consulta el precio")
+let licExtra = 0, licInfo = null;
+function codigoEquipo(){
+  let c = ''; try{ c = localStorage.getItem(EQUIPO_KEY) || ''; }catch(e){}
+  if(!c){
+    const a = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    c = Array.from(crypto.getRandomValues(new Uint8Array(8)), b => a[b % a.length]).join('');
+    c = c.slice(0, 4) + '-' + c.slice(4);
+    try{ localStorage.setItem(EQUIPO_KEY, c); }catch(e){}
+  }
+  return c;
+}
+const licB64 = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while(s.length % 4) s += '='; return Uint8Array.from(atob(s), ch => ch.charCodeAt(0)); };
+async function licVerificar(texto){
+  const m = String(texto || '').replace(/\s+/g, '').match(/([A-Za-z0-9_-]{10,})\.([A-Za-z0-9_-]{40,})/);
+  if(!m) return { error: 'formato' };
+  try{
+    const key = await crypto.subtle.importKey('jwk', LIC_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, licB64(m[2]), new TextEncoder().encode(m[1]));
+    if(!ok) return { error: 'firma' };
+    const p = JSON.parse(new TextDecoder().decode(licB64(m[1])));
+    if(p.d !== codigoEquipo()) return { error: 'equipo', p };
+    if(p.v && p.v < Date.now()) return { error: 'vencida', p };
+    return { p, raw: m[1] + '.' + m[2] };
+  }catch(e){ return { error: 'formato' }; }
+}
+async function licCargar(){
+  let raw = ''; try{ raw = localStorage.getItem(LIC_KEY) || ''; }catch(e){}
+  licExtra = 0; licInfo = null;
+  if(raw){ const r = await licVerificar(raw); if(r.p && !r.error){ licExtra = Math.max(0, r.p.s | 0); licInfo = r.p; } }
+  licPintar();
+}
+function licPuedeAgregarSede(){ return sedesList().length < SEDES_INCLUIDAS + licExtra; }
+function licPintar(){
+  const box = document.getElementById('licPlan'); if(!box) return;
+  const usadas = sedesList().length, total = SEDES_INCLUIDAS + licExtra;
+  box.innerHTML = '<b>Tu plan:</b> ' + total + (total === 1 ? ' sede' : ' sedes') + ' (' + SEDES_INCLUIDAS + ' incluida' + (licExtra ? ' + ' + licExtra + ' pagada' + (licExtra > 1 ? 's' : '') : '') + ') · usas ' + usadas + '.' +
+    (licInfo && licInfo.v ? ' Vence el ' + new Date(licInfo.v).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }) + '.' : '') +
+    '<br>Código de este equipo: <b>' + codigoEquipo() + '</b> · <a href="#" id="licOpen" style="color:var(--cream);font-weight:700">Activar más sedes</a>';
+  const a = document.getElementById('licOpen'); if(a) a.onclick = e => { e.preventDefault(); licPaywall(''); };
+}
+async function licActivar(texto, silencioso){
+  const r = await licVerificar(texto);
+  if(r.error){
+    const why = { formato: 'Ese código no está completo. Cópialo o ábrelo desde el link tal como te llegó.', firma: 'Ese código no es válido.', equipo: 'Ese código es para otro equipo (' + (r.p && r.p.d) + '). Este equipo es ' + codigoEquipo() + '.', vencida: 'Ese código ya venció.' }[r.error];
+    if(!silencioso) showToast('⚠️ ' + why, 8000);
+    return false;
+  }
+  try{ localStorage.setItem(LIC_KEY, r.raw); }catch(e){}
+  await licCargar();
+  showToast('✅ Activado: ahora puedes tener ' + (SEDES_INCLUIDAS + licExtra) + ' sedes.', 7000);
+  return true;
+}
+function licPaywall(nombreSede){
+  let ov = document.getElementById('licOverlay');
+  if(!ov){
+    ov = document.createElement('div'); ov.id = 'licOverlay'; ov.className = 'overlay';
+    ov.innerHTML = '<div class="modal" style="max-width:420px;text-align:center"><h2>🏢 Agregar otra sede</h2>' +
+      '<div class="modal-sub" id="licTxt"></div>' +
+      '<div class="modal-sub" style="margin-top:10px">Código de este equipo:</div><div class="lic-code" id="licEquipo"></div>' +
+      '<div class="modal-actions" style="flex-direction:column;gap:8px">' +
+        '<button class="btn-primary" id="licWa" type="button" style="width:100%;padding:13px;font-size:15px">💬 Pedir activación por WhatsApp</button>' +
+        '<input id="licInput" class="mz-in" placeholder="¿Ya pagaste? Pega aquí tu código de activación" autocomplete="off" autocapitalize="none" spellcheck="false" style="width:100%;box-sizing:border-box">' +
+        '<button class="btn-ghost" id="licGo" type="button" style="width:100%">✅ Activar</button>' +
+        '<button class="btn-close" id="licNo" type="button">Cerrar</button></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#licNo').onclick = () => ov.classList.remove('show');
+    ov.querySelector('#licGo').onclick = async () => { if(await licActivar(ov.querySelector('#licInput').value)){ ov.classList.remove('show'); renderSedesUI(); } };
+  }
+  const total = SEDES_INCLUIDAS + licExtra;
+  ov.querySelector('#licTxt').innerHTML = 'Tu plan incluye <b>' + total + (total === 1 ? ' sede' : ' sedes') + '</b> y ya las estás usando. Cada sede adicional tiene un costo' + (SEDE_PRECIO_TEXTO ? ': <b>' + SEDE_PRECIO_TEXTO + '</b>' : '') + '. Escríbenos para pagar y te enviamos el código de activación; al abrirlo, la sede queda activa en este equipo.';
+  ov.querySelector('#licEquipo').textContent = codigoEquipo();
+  ov.querySelector('#licWa').onclick = () => {
+    const msg = 'Hola, quiero activar ' + (total + 1 - SEDES_INCLUIDAS) + ' sede(s) adicional(es) en Mesora.\nNegocio: ' + ((data && data.businessName) || '') + (nombreSede ? '\nNueva sede: ' + nombreSede : '') + '\nCódigo del equipo: ' + codigoEquipo();
+    window.open('https://wa.me/' + SUPPORT_WA_NUMBER + '?text=' + encodeURIComponent(msg), '_blank');
+  };
+  ov.classList.add('show');
+}
+// Link de activación: index.html#licencia=CODIGO (lo manda el dueño de Mesora por WhatsApp).
+async function licDesdeLink(){
+  const m = /[#&]licencia=([A-Za-z0-9_.-]+)/.exec(location.hash);
+  if(!m) return;
+  try{ history.replaceState(null, '', location.pathname + location.search); }catch(e){}
+  await licActivar(m[1]);
+}
+
 /* ---------- YouTube del TV en vivo (protocolo «Vincular con código de TV») ----------
    La app de YouTube del TV acepta controles remotos: con el código del TV se obtiene un permiso
    (loungeToken) y se abre una sesión de control. Por esa sesión Mesora manda «setPlaylist» (la
@@ -17261,6 +17362,8 @@ let fotosListas = false;
   try{ iniFotosProductos(); }catch(e){ mesoraLogError('arranque', 'Fotos: ' + e.message, ''); }
   try{ iniCast(); }catch(e){ mesoraLogError('arranque', 'Transmisión: ' + e.message, ''); }
   try{ iniLounge(); }catch(e){ mesoraLogError('arranque', 'YouTube del TV: ' + e.message, ''); }
+  licCargar().then(licDesdeLink).catch(e => mesoraLogError('arranque', 'Licencia: ' + e.message, ''));
+  window.addEventListener('hashchange', () => { licDesdeLink(); });   // link abierto con Mesora ya abierta
   fotosCargar().then(() => { fotosListas = true; try{ renderProductos(); }catch(e){} publicarFotosCarta(); });
   setInterval(() => { try{ publicarFotosCarta(); }catch(e){} }, 5 * 60000);
   const pend = mesoraErrores().filter(x => !x.visto && x.tipo !== 'recurso' && Date.now() - x.t < 864e5);
