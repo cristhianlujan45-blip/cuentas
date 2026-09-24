@@ -86,7 +86,7 @@
   <button class="fab" id="fab" type="button" aria-label="Dictar un pedido">🎤</button>
 </div>
 <div class="sheet" id="sheet" hidden>
-  <div class="sheet-h"><button class="chip" id="atras" type="button">← Mesas</button><b id="sTit">Mesa</b></div>
+  <div class="sheet-h"><button class="chip" id="atras" type="button">← Mesas</button><b id="sTit">Mesa</b><button class="chip" id="cambiar" type="button">🔀 Cambiar de mesa</button></div>
   <div class="sheet-b">
     <div class="lleva" id="lleva"></div>
     <input class="buscar" id="q" type="search" placeholder="Buscar producto…" autocomplete="off">
@@ -224,13 +224,25 @@
     carrito = {}; pintarProds(); pintarSheet();
   };
   $('ronda').onclick = function(){ if(mesaAct != null) enviar('misma ronda para la mesa ' + mesaAct); };
+  // Cambiar de mesa: pasa toda la cuenta a otra mesa (si está ocupada, se juntan).
+  $('cambiar').onclick = function(){
+    if(mesaAct == null) return;
+    var x = mesaInfo();
+    if(!x || !(x.t > 0 || (x.it && x.it.length))){ toast('Esta mesa no tiene nada para pasar.'); return; }
+    var otras = estado.m.filter(function(y){ return y.i !== mesaAct; }).map(function(y){ return y.i + ' = ' + y.n + (y.t > 0 ? ' (' + fmt(y.t) + ', se juntan)' : ' (libre)'); }).join('\n');
+    var d = prompt('¿A cuál mesa pasas la cuenta de ' + x.n + '? Escribe el número o el nombre:\n\n' + otras);
+    if(d === null || !d.trim()) return;
+    d = d.trim();
+    enviar('pasa la mesa ' + mesaAct + ' a la mesa ' + d);
+    cerrarMesa();
+  };
   $('nueva').onclick = function(){
     var n = prompt('Nombre de la mesa nueva (ej: Juan, Terraza 2). Deja vacío para una mesa con número:');
     if(n === null) return;
     enviar(n.trim() ? 'crea la mesa ' + n.trim() : 'agrega una mesa');
   };
   $('ayuda').onclick = function(){
-    alert('Comandos de voz (toca 🎤):\n\n• mesa 2, dos águilas y tres póker\n• misma ronda para la mesa 3\n• la misma ronda de la mesa 2 para la mesa 5\n• agrégame una mesa a nombre de Juan con dos póker\n• quita una póker de la mesa 2\n• la mesa 4 son tres águilas (corrige la cantidad)\n• cuenta de la mesa 2\n• deshacer');
+    alert('Comandos de voz (toca 🎤):\n\n• mesa 2, dos águilas y tres póker\n• misma ronda para la mesa 3\n• la misma ronda de la mesa 2 para la mesa 5\n• agrégame una mesa a nombre de Juan con dos póker\n• quita una póker de la mesa 2\n• la mesa 4 son tres águilas (corrige la cantidad)\n• pasa la mesa 3 a la 5 (cambio de mesa)\n• junta la mesa 1 con la 4\n• cuenta de la mesa 2\n• deshacer');
   };
   $('yo').onclick = pedirNombre;
 

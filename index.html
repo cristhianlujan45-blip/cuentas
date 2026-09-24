@@ -1634,6 +1634,24 @@
   .ct-mov .vl{ font-weight:800; white-space:nowrap; }
   .ct-mov .vl.in{ color:var(--paid); } .ct-mov .vl.out{ color:var(--brick); }
   .ct-mov button{ padding:4px 8px; font-size:12px; }
+  /* ---------- Cambiar de mesa ---------- */
+  .mov-btn{ width:auto !important; padding:0 12px !important; font-size:13px !important; font-weight:700; white-space:nowrap; margin-left:auto; }
+  .mov-modo{ display:flex; gap:6px; margin:10px 0; }
+  .mov-modo button{ flex:1; height:40px; border-radius:10px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); font:700 13.5px var(--font-main); cursor:pointer; }
+  .mov-modo button.on{ border-color:var(--amber); background:color-mix(in srgb, var(--amber) 22%, transparent); }
+  .mov-lineas{ display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
+  .mov-li{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; border-radius:10px; background:var(--surface-2); font-size:14px; }
+  .mov-li small{ color:var(--ink-soft); }
+  .mov-q{ display:flex; align-items:center; gap:8px; }
+  .mov-q button{ width:34px; height:34px; border-radius:9px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font-size:18px; font-weight:800; cursor:pointer; }
+  .mov-q b{ min-width:20px; text-align:center; }
+  .mov-sub{ font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin:10px 0 6px; }
+  .mov-mesas{ display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; }
+  .mov-mesas button{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); font:inherit; text-align:left; cursor:pointer; }
+  .mov-mesas button b{ font-size:14px; }
+  .mov-mesas button small{ font-size:12px; color:var(--ink-soft); }
+  .mov-mesas button.oc small{ color:var(--brick-soft); }
+  .mov-mesas button.on{ border-color:var(--amber); background:color-mix(in srgb, var(--amber) 22%, transparent); }
   .acc-users{ display:flex; flex-direction:column; gap:6px; margin:8px 0; }
   .acc-user{ display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line); font-size:14px; }
   .acc-user b{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
@@ -3268,6 +3286,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
     <div class="modal-title-row">
       <h2 id="modalTitle">Mesa 1</h2>
       <button class="rename-table-btn" id="renameTableBtn" title="Renombrar mesa">✏️</button>
+      <button class="rename-table-btn mov-btn" id="moveTableBtn" title="Cambiar de mesa" type="button">🔀 Cambiar de mesa</button>
     </div>
     <div class="modal-sub" id="modalSub">Cuenta abierta</div>
 
@@ -5105,6 +5124,13 @@ function pushVoiceUndoSnapshot(tableId){
 function undoLastVoiceOrder(){
   if(!voiceUndoStack.length) return null;
   const snap = voiceUndoStack.pop();
+  if(snap.mov){                           // cambio de mesa: vuelven las dos mesas como estaban
+    snap.tablas.forEach(x => { data.tables[x.id] = x.t; });
+    saveData();
+    if(currentTable != null && snap.tablas.some(x => x.id === currentTable)){ try{ renderModalItems(); renderPeople(); }catch(e){} }
+    renderMesas();
+    return snap.tablas[0].id;
+  }
   const t = data.tables[snap.tableId];
   if(!t) return null;
   try{                                   // el stock vuelve a lo que había antes del pedido deshecho
@@ -5413,6 +5439,7 @@ function isVoiceHelpCommand(rawText){
 const VOICE_AYUDA = [
   ['Pedidos', ['mesa 1, cinco águilas', 'dos póker y una Heineken para la mesa 3', 'agregar Heineken mesa 5', 'misma ronda para la mesa 2']],
   ['Crear mesas', ['agrégame una mesa a nombre de Juan y agrégale dos cervezas y una póker', 'crea la mesa Carolina con tres Club Colombia', 'nueva mesa para don Pedro', 'agrega una mesa', 'agrega hasta la mesa 10']],
+  ['Cambiar de mesa', ['pasa la mesa 3 a la 5', 'junta la mesa 1 con la 4 (se juntan las cuentas)', 'cambia la mesa Juan a la 2']],
   ['Corregir', ['quita una póker de la mesa 2', 'la mesa 4 son tres águilas (corrige la cantidad)', 'deshacer', 'quitar mesa 3']],
   ['Cuentas', ['cuenta de la mesa 2', 'total de todas las mesas', 'cuánto llevo vendido', 'cuál fue mi último pedido']],
   ['Abrir', ['mesa 4 (abre esa mesa)', 'mesa Juan']]
@@ -5432,6 +5459,138 @@ function voiceAyuda(){
   }
   ov.classList.add('show');
   speakVoice('Estos son los comandos de voz.');
+}
+
+/* ---------- Cambiar de mesa ----------
+   Pasa toda la cuenta (o solo algunos productos) de una mesa a otra: libre, ocupada (se juntan
+   las cuentas) o una mesa nueva. Se mueven también las personas, los abonos y el nombre de la
+   mesa. No toca el inventario (los productos ya estaban vendidos). Se puede deshacer. */
+function moverMesa(origen, destino, lineas){
+  const o = data.tables[origen];
+  if(!o || !(o.items || []).length) return { error: 'La ' + tableLabel(origen) + ' no tiene nada para pasar.' };
+  if(origen === destino) return { error: 'Es la misma mesa.' };
+  if(!data.tables[destino]){
+    data.tables[destino] = { items: [], people: [] };
+    data.tableCount = Math.max(data.tableCount || 0, destino);
+  }
+  const d = data.tables[destino];
+  d.items = d.items || []; d.people = d.people || []; d.payments = d.payments || [];
+  const estabaOcupada = d.items.length > 0;
+  const lblO = tableLabel(origen), lblD = tableLabel(destino);   // nombres antes de mover (el nombre viaja con la cuenta)
+  // Para "deshacer": copia de las dos mesas como estaban.
+  voiceUndoStack.push({ mov: true, tableId: destino, tablas: [{ id: origen, t: JSON.parse(JSON.stringify(o)) }, { id: destino, t: JSON.parse(JSON.stringify(d)) }] });
+  if(voiceUndoStack.length > 15) voiceUndoStack.shift();
+  // Personas: se reutiliza la de igual nombre en la mesa destino; si no, se copia con id nuevo.
+  const mapaPersonas = {};
+  const personaDestino = pid => {
+    if(pid == null) return null;
+    if(mapaPersonas[pid] !== undefined) return mapaPersonas[pid];
+    const p = (o.people || []).find(x => x.id === pid);
+    if(!p){ mapaPersonas[pid] = null; return null; }
+    const igual = d.people.find(x => String(x.name).trim().toLowerCase() === String(p.name).trim().toLowerCase());
+    if(igual){ mapaPersonas[pid] = igual.id; return igual.id; }
+    const nueva = Object.assign({}, p, { id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) });
+    d.people.push(nueva); mapaPersonas[pid] = nueva.id; return nueva.id;
+  };
+  const agregar = (it, qty) => {
+    const pid = personaDestino(it.personId);
+    const ex = d.items.find(x => x.productId && x.productId === it.productId && (x.personId || null) === pid && x.price === it.price);
+    if(ex){ ex.qty += qty; ex.history = (ex.history || []).concat(it.history || []).slice(-30); }
+    else d.items.push(Object.assign({}, it, { qty, personId: pid, history: (it.history || []).slice() }));
+  };
+  let movidas = 0;
+  const todo = !lineas;
+  if(todo){
+    o.items.forEach(it => { agregar(it, it.qty); movidas += it.qty; });
+    o.items = [];
+    (o.payments || []).forEach(p => d.payments.push(Object.assign({}, p, { personId: p.personId != null ? personaDestino(p.personId) : p.personId })));
+    o.payments = []; o.people = [];
+    if(!estabaOcupada && o.name && !d.name){ d.name = o.name; o.name = null; }
+    if(o.ultimaRonda && !d.ultimaRonda) d.ultimaRonda = o.ultimaRonda;
+    delete o.ultimaRonda;
+  } else {
+    Object.keys(lineas).map(Number).sort((a, b) => b - a).forEach(i => {
+      const it = o.items[i], n = Math.min(lineas[i], it ? it.qty : 0);
+      if(!it || !(n > 0)) return;
+      agregar(it, n); movidas += n;
+      if(n >= it.qty) o.items.splice(i, 1); else it.qty -= n;
+    });
+    // Personas que se quedaron sin productos en la mesa de origen: se quitan de ahí.
+    o.people = (o.people || []).filter(p => o.items.some(it => it.personId === p.id) || (o.payments || []).some(x => x.personId === p.id));
+  }
+  saveData();
+  try{ renderMesas(); }catch(e){}
+  return { movidas, todo, juntada: estabaOcupada, origen, destino, lblO, lblD };
+}
+function movMensaje(r){
+  return (r.todo ? 'Pasé la cuenta de ' : 'Pasé ' + r.movidas + (r.movidas === 1 ? ' producto' : ' productos') + ' de ') + r.lblO + (r.juntada ? ' y la junté con ' : ' a ') + r.lblD + '.';
+}
+// Resuelve "3", "tres", "Juan" o "la mesa de Juan" a un número de mesa.
+function movMesaDe(txt){
+  const w = String(txt || '').trim();
+  if(!w) return null;
+  if(/^\d+$/.test(w)) return parseInt(w, 10);
+  if(NUM_WORDS_VOICE[w]) return NUM_WORDS_VOICE[w];
+  const n = w.replace(/^(la|el|de|del|mesa)\s+/g, '').trim();
+  const id = Object.keys(data.tables).map(Number).find(k => { const nm = data.tables[k] && data.tables[k].name; return nm && normVoiceText(nm) === n; });
+  return id || null;
+}
+// Voz: "pasa la mesa 3 a la 5", "cambia la mesa 2 para la mesa 6", "junta la mesa 1 con la 4",
+// "mueve la mesa de Juan a la 2", "la mesa 3 se pasó a la 7".
+function voiceCambiarMesa(rawText){
+  const t = normVoiceText(rawText);
+  if(!/\b(pasa|pasar|pasame|pasala|paso|pasaron|cambia|cambiar|cambiame|cambiala|mueve|mover|muevela|muevame|traslada|trasladar|lleva|llevar|junta|juntar|juntame|une|unir|unela)\b/.test(t)) return false;
+  const m = t.match(/\bmesa\s+(?:de\s+|del\s+)?([a-z0-9]+(?:\s+[a-z]+)?)\s+(?:(?:se\s+)?(?:paso|pasaron|cambio|movio)\s+)?(?:a|para|hacia|con|en)\s+(?:la\s+)?(?:mesa\s+)?(?:de\s+)?([a-z0-9]+(?:\s+[a-z]+)?)\s*$/);
+  if(!m) return false;
+  // El nombre puede tener dos palabras ("ana maria"); se prueba primero con las dos y luego con una.
+  const pick = s => movMesaDe(s) || movMesaDe(s.split(' ')[0]);
+  const o = pick(m[1]), d = pick(m[2]);
+  if(!o || !d){ return false; }
+  if(!data.tables[o]){ const msg = 'No encontré la ' + (typeof o === 'number' ? 'mesa ' + o : o) + '.'; showToast('⚠️ ' + msg); speakVoice(msg); return true; }
+  const r = moverMesa(o, d);
+  if(r.error){ showToast('⚠️ ' + r.error); speakVoice(r.error); return true; }
+  const msg = movMensaje(r);
+  showToast('🔀 ' + msg + ' Di "deshacer" si te equivocaste.', 6000); speakVoice(msg);
+  return true;
+}
+// Ventana: elegir qué se pasa y a cuál mesa.
+function abrirCambioMesa(origen){
+  const o = data.tables[origen];
+  if(!o || !(o.items || []).length){ showToast('Esta mesa no tiene nada para pasar.'); return; }
+  let ov = document.getElementById('movOverlay');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'movOverlay'; ov.className = 'overlay'; document.body.appendChild(ov); ov.addEventListener('click', e => { if(e.target === ov) ov.classList.remove('show'); }); }
+  let modo = 'todo', destino = null;
+  const sel = {};
+  const pintar = () => {
+    const ids = Object.keys(data.tables).map(Number).filter(k => k !== origen).sort((a, b) => a - b);
+    const lineas = o.items.map((it, i) => '<div class="mov-li"><span>' + invEsc(it.name) + ' <small>×' + it.qty + '</small></span><div class="mov-q"><button type="button" data-i="' + i + '" data-d="-1">−</button><b>' + (sel[i] || 0) + '</b><button type="button" data-i="' + i + '" data-d="1">+</button></div></div>').join('');
+    ov.innerHTML = '<div class="modal" style="max-width:460px;max-height:90vh;overflow:auto"><h2>🔀 Cambiar de mesa</h2><div class="modal-sub">Desde ' + invEsc(tableLabel(origen)) + ' (' + fmt(tableTotal(origen)) + ')</div>' +
+      '<div class="mov-modo"><button type="button" data-m="todo" class="' + (modo === 'todo' ? 'on' : '') + '">Toda la cuenta</button><button type="button" data-m="parte" class="' + (modo === 'parte' ? 'on' : '') + '">Solo algunos productos</button></div>' +
+      (modo === 'parte' ? '<div class="mov-lineas">' + lineas + '</div>' : '') +
+      '<div class="mov-sub">¿A cuál mesa?</div><div class="mov-mesas">' +
+      ids.map(k => { const tt = data.tables[k], oc = (tt.items || []).length; return '<button type="button" data-k="' + k + '" class="' + (destino === k ? 'on ' : '') + (oc ? 'oc' : '') + '"><b>' + invEsc(tableLabel(k)) + '</b><small>' + (oc ? fmt(tableTotal(k)) + ' · se juntan' : 'Libre') + '</small></button>'; }).join('') +
+      '<button type="button" data-k="nueva" class="' + (destino === 'nueva' ? 'on' : '') + '"><b>➕ Mesa nueva</b><small>Mesa ' + (Math.max(0, ...Object.keys(data.tables).map(Number)) + 1) + '</small></button></div>' +
+      '<div class="modal-actions"><button class="btn-close" type="button" data-x="1">Cancelar</button><button class="btn-primary" type="button" data-ok="1">Pasar</button></div></div>';
+    ov.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { modo = b.dataset.m; pintar(); });
+    ov.querySelectorAll('.mov-q button').forEach(b => b.onclick = () => { const i = +b.dataset.i; sel[i] = Math.max(0, Math.min(o.items[i].qty, (sel[i] || 0) + (+b.dataset.d))); pintar(); });
+    ov.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { destino = b.dataset.k === 'nueva' ? 'nueva' : +b.dataset.k; pintar(); });
+    ov.querySelector('[data-x]').onclick = () => ov.classList.remove('show');
+    ov.querySelector('[data-ok]').onclick = () => {
+      if(destino == null){ showToast('⚠️ Elige a cuál mesa.'); return; }
+      const lineasSel = modo === 'parte' ? Object.fromEntries(Object.entries(sel).filter(([, v]) => v > 0)) : null;
+      if(lineasSel && !Object.keys(lineasSel).length){ showToast('⚠️ Elige qué productos pasar (con +).'); return; }
+      const dest = destino === 'nueva' ? Math.max(0, ...Object.keys(data.tables).map(Number)) + 1 : destino;
+      const r = moverMesa(origen, dest, lineasSel);
+      if(r.error){ showToast('⚠️ ' + r.error); return; }
+      ov.classList.remove('show');
+      try{ openTableModal(dest); }catch(e){}
+      showToast('🔀 ' + movMensaje(r) + ' (toca aquí para deshacer)', 7000);
+      const tt = document.getElementById('toast');
+      tt.onclick = () => { tt.classList.remove('show'); const id = undoLastVoiceOrder(); if(id){ showToast('↩️ Listo, lo devolví como estaba.'); try{ openTableModal(origen); }catch(e){} } };
+    };
+  };
+  pintar();
+  ov.classList.add('show');
 }
 
 // ---- Crear una mesa con nombre (y pedido) por voz ----
@@ -5576,6 +5735,7 @@ function handleSimpleVoiceCommands(rawText){
     pendingTableRemoval = null;
   }
 
+  if(voiceCambiarMesa(rawText)) return true;
   if(voiceCrearMesaConNombre(rawText)) return true;
   if(voiceTableManagement(rawText)) return true;
 
@@ -6759,6 +6919,7 @@ function saveTableRename(){
 }
 
 document.getElementById('renameTableBtn').addEventListener('click', openRenameModal);
+document.getElementById('moveTableBtn').addEventListener('click', () => { if(currentTable != null) abrirCambioMesa(currentTable); });
 document.getElementById('renameCancelBtn').addEventListener('click', closeRenameModal);
 document.getElementById('renameSaveBtn').addEventListener('click', saveTableRename);
 renameTableInput.addEventListener('keydown', (e)=>{
@@ -17049,7 +17210,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
    la Pantalla del TV de Mesora (tv.html) y reproduce la cola en vivo: cada canción que piden las
    mesas entra sola. Los Smart TV LG/Samsung sin Chromecast no aparecen aquí (solo los ve la app
    de YouTube): para esos están los botones de YouTube Music / YouTube. */
-const MESORA_VERSION = '2026-09-24 · v15';
+const MESORA_VERSION = '2026-09-24 · v16';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
