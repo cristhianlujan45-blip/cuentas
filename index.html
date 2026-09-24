@@ -1621,6 +1621,10 @@
   #topActions .vito-campana svg,#topActions .vito-campana-badge{pointer-events:none}
   #topActions .vito-campana-badge{top:-5px;right:-5px;min-width:19px;height:19px;font-size:11px}
   @media (max-width:420px){ .top-pill span{display:none} .top-pill{width:40px;padding:0;justify-content:center} }
+  .live-clock{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;height:40px;padding:0 4px;line-height:1.15;flex-shrink:0}
+  .live-clock .lc-time{font-variant-numeric:tabular-nums;font-weight:800;font-size:17px;letter-spacing:.01em;color:var(--ink)}
+  .live-clock .lc-date{font-size:10.5px;font-weight:600;letter-spacing:.03em;text-transform:capitalize;color:var(--ink-soft)}
+  @media (max-width:420px){ .live-clock .lc-date{display:none} }
 
   /* ---- Asistente IA ---- */
   #asisOverlay{z-index:85;padding:0;align-items:flex-end}
@@ -2005,6 +2009,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
         <div class="brand-sub">Control de cuentas por mesa</div>
       </div>
       <div class="top-actions" id="topActions">
+        <div class="live-clock" id="liveClock"><span class="lc-time" id="lcTime">--:--</span><span class="lc-date" id="lcDate">—</span></div>
         <button type="button" class="top-pill" id="asisFab" title="Asistente: pregúntale lo que necesites"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M11 2.5l1.9 5.2 5.3 1.9-5.3 1.9L11 16.8l-1.9-5.3-5.3-1.9 5.3-1.9z"/><path d="M18.5 14l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9z" opacity=".7"/></svg><span>Asistente</span></button>
       </div>
     </div>
@@ -13122,8 +13127,21 @@ function contrasteMesas(){
 new MutationObserver(contrasteMesas).observe(document.documentElement,{attributes:true,attributeFilter:['style']});
 contrasteMesas();
 
+/* ---------- Reloj en vivo del encabezado ---------- */
+function iniReloj(){
+  const t=$('lcTime'),d=$('lcDate');
+  if(!t||!d)return;
+  function tick(){
+    const n=new Date();
+    t.textContent=n.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+    d.textContent=n.toLocaleDateString('es-CO',{weekday:'short',day:'numeric',month:'short'});
+  }
+  tick();
+  setInterval(tick,15000);
+}
+
 /* ---------- Arranque ---------- */
-aplicarTipo();iniTipo();iniAuto();iniHist();iniMusica();iniYT();iniAutoPlay();
+aplicarTipo();iniTipo();iniAuto();iniHist();iniMusica();iniYT();iniAutoPlay();iniReloj();
 const w=setInterval(()=>{if(typeof data!=='undefined'&&data){clearInterval(w);iniQR();renderMusica();mejorarHist();if(typeof i18nRefreshDynamic==='function')i18nRefreshDynamic();setTimeout(publicarCuentas,4000);}},400);
 })();
 
