@@ -1652,6 +1652,10 @@
   .mov-mesas button small{ font-size:12px; color:var(--ink-soft); }
   .mov-mesas button.oc small{ color:var(--brick-soft); }
   .mov-mesas button.on{ border-color:var(--amber); background:color-mix(in srgb, var(--amber) 22%, transparent); }
+  .yt-recon{ display:flex; align-items:center; gap:10px; margin:0 0 12px; padding:12px 14px; border-radius:14px; border:1px solid color-mix(in srgb, var(--brick) 50%, var(--line)); background:color-mix(in srgb, var(--brick) 10%, var(--surface)); font-size:13.5px; line-height:1.4; }
+  .yt-recon[hidden]{ display:none; }
+  .yt-recon span{ flex:1; }
+  .yt-recon button{ flex:none; padding:9px 14px; }
   .acc-users{ display:flex; flex-direction:column; gap:6px; margin:8px 0; }
   .acc-user{ display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line); font-size:14px; }
   .acc-user b{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
@@ -14914,7 +14918,7 @@ let yTC=null,cadena=Promise.resolve();
 function yEstado(){
   const e=$('ytEstado'),c=yCfg();
   const n=cola().filter(x=>!x.done&&!x.yt&&!x.vid).length,p=n?' ('+n+' canciones sin buscar)':'';
-  if(e)e.textContent=(c.key?'🟢 Búsqueda lista (API key)':'⚪ Sin API key')+' · '+(yTok()?'🟢 Google conectado: se copian solas a tu lista de YouTube Music':(c.cid?(c.on?'🟠 Google desconectado: reconectando sola (si no vuelve en un minuto, toca «Conectar con Google»)':'🟠 Google desconectado: toca «Conectar con Google» para la lista de YouTube Music'):'⚪ Lista de YouTube Music sin configurar'))+p+'.';
+  if(e)e.textContent=(c.key?'🟢 Búsqueda lista (API key)':'⚪ Sin API key')+' · '+(yTok()?'🟢 Google conectado: se copian solas a tu lista de YouTube Music':(c.cid?(c.on?'🟠 Google desconectado (la conexión dura 1 hora): toca «Reconectar» arriba o «Conectar con Google»':'🟠 Google desconectado: toca «Conectar con Google» para la lista de YouTube Music'):'⚪ Lista de YouTube Music sin configurar'))+p+'.';
   const a=$('autoEstado');if(a)a.textContent=AUTO()?((c.key||yTok())?'🟢 Activo: suena solo y las nuevas entran solas.':'🟠 Falta la API key para buscar las canciones.'):'⚪ Apagado.';
 }
 async function yApi(path,opt){
@@ -14976,7 +14980,7 @@ async function ytUno(id){
       SS('vito_cola',l);
       tvPublicar();
     }
-    if(it.vid&&!it.yt&&!yTok()&&!tvOn()&&typeof castOn==='function'&&castOn()&&yCfg().cid){showToast('⚠️ Google se desconectó: «'+it.song+'» todavía no entró a la lista del TV. Toca cualquier parte de Mesora y se reconecta y la agrega.',8000);}
+    if(it.vid&&!it.yt&&!yTok()&&!tvOn()&&typeof castOn==='function'&&castOn()&&yCfg().cid){showToast('⚠️ Google se desconectó: «'+it.song+'» todavía no entró a la lista del TV. Ve a Música y toca «Reconectar»: la agrego enseguida.',8000);}
     if(!it.vid||it.yt||!yTok()||tvOn()||(typeof lngOn==='function'&&lngOn()))return;
     const pl=await yLista();
     // position:1 (no position:0) pone la canción nueva JUSTO DESPUÉS de la
@@ -15024,9 +15028,9 @@ function yConectar(silencio){
     return;
   }
   yTC=yTC||google.accounts.oauth2.initTokenClient({client_id:c.cid,scope:'https://www.googleapis.com/auth/youtube',callback:r=>{
-    if(r.error){if(!yTC.silencio)showToast('Google: '+r.error);return;}
+    if(r.error){if(!yTC.silencio)showToast('Google: '+r.error);yAvisoReconectar();return;}
     try{localStorage.setItem('vito_ytok',JSON.stringify({t:r.access_token,exp:Date.now()+(r.expires_in-120)*1000}));}catch(e){sessionStorage.setItem('vito_ytok',JSON.stringify({t:r.access_token,exp:Date.now()+(r.expires_in-120)*1000}));}
-    const x=yCfg();x.on=true;SS('vito_yt',x);yEstado();yPendientes();}});
+    const x=yCfg();x.on=true;SS('vito_yt',x);yEstado();yAvisoReconectar();yPendientes();}});
   yTC.silencio=!!silencio;
   yTC.requestAccessToken({prompt:silencio?'none':''});
 }
@@ -15039,26 +15043,29 @@ function iniYT(){
   $('ytOpen').onclick=()=>{const x=yCfg();if(!x.pl)return showToast('Todavía no hay lista: se crea con la primera canción.');ytOpenMusicPath('playlist?list='+encodeURIComponent(x.pl));};
   // Respaldo: por si una canción no se resolvió sola al llegar (sin internet un
   // instante, o la API key se configuró después), cada minuto revisa si quedó
-  // alguna pendiente y la vuelve a intentar. También reconecta Google solo:
-  // el token de Google dura ~1h y antes había que tocar "Conectar con
-  // Google" de nuevo a mano; ahora, si ya se conectó una vez (c.on) y el
-  // token se venció, se pide uno nuevo en silencio (sin mostrar ventana ni
-  // aviso) cada vez que este chequeo corre. Si el navegador no deja
-  // reconectar sola (ej. sesión de Google cerrada), no pasa nada — sigue
-  // funcionando todo lo demás y el próximo intento es en 1 minuto.
+  // alguna pendiente y la vuelve a intentar.
+  // IMPORTANTE: la conexión con Google (dura ~1 h) NUNCA se renueva sola. Renovarla abre la
+  // ventanita de Google, y en el celular eso sale como una pestaña en blanco con Google cada
+  // vez que se abre o recarga la app. Solo se renueva cuando la persona toca «Reconectar».
   setInterval(()=>{
-    yEstado();
+    yEstado();yAvisoReconectar();
     const c=yCfg();
-    if(c.cid&&c.on&&!yTok())yConectar(true);
     if(c.key||yTok())ordenJusto(cola().filter(x=>!x.yt&&!x.novid)).forEach(x=>ytAgregar(x.id));
   },60000);
-  { const c=yCfg(); if(c.cid&&c.on&&!yTok())yConectar(true); } // reconecta sola apenas abrís la app, sin esperar el primer minuto
-  // El permiso de Google dura ~1 hora y el celular NO deja renovarlo sin un toque (bloquea la
-  // ventanita de Google). Por eso se renueva con el primer toque en cualquier parte de Mesora
-  // después de vencer: la ventanita se abre y se cierra sola, sin pedir nada.
-  let yReconT=0;
-  document.addEventListener('pointerdown',()=>{const c=yCfg();if(c.cid&&c.on&&!yTok()&&Date.now()-yReconT>20000){yReconT=Date.now();yConectar(true);}},true);
+  yAvisoReconectar();
   yEstado();
+}
+// Aviso con botón (en Música) cuando la conexión con Google se venció.
+function yAvisoReconectar(){
+  let b=$('ytRecon');const c=yCfg(),falta=!!(c.cid&&c.on&&!yTok());
+  if(!b){
+    const sec=$('view-musica');if(!sec)return;
+    b=document.createElement('div');b.id='ytRecon';b.className='yt-recon';
+    b.innerHTML='<span>🟠 Se venció la conexión con Google (dura 1 hora): las canciones nuevas no entran a tu lista de YouTube.</span><button type="button" class="btn-primary">Reconectar</button>';
+    b.querySelector('button').onclick=()=>yConectar(false);
+    sec.insertBefore(b,sec.firstChild);
+  }
+  b.hidden=!falta;
 }
 
 /* ---------- Reproductor automático dentro de la app ---------- */
@@ -17210,7 +17217,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
    la Pantalla del TV de Mesora (tv.html) y reproduce la cola en vivo: cada canción que piden las
    mesas entra sola. Los Smart TV LG/Samsung sin Chromecast no aparecen aquí (solo los ve la app
    de YouTube): para esos están los botones de YouTube Music / YouTube. */
-const MESORA_VERSION = '2026-09-24 · v16';
+const MESORA_VERSION = '2026-09-24 · v17';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
@@ -17997,7 +18004,7 @@ function mesoraReparar(opts){
     try{ setGeminiModel(''); setOpenAIModel(''); hecho.push('Volví al modelo de IA de fábrica (el que tenías ya no existe).'); }catch(e){}
   }
   // 5) YouTube: sesión vencida
-  try{ const t = JSON.parse(localStorage.getItem('vito_ytok') || sessionStorage.getItem('vito_ytok') || 'null'); if(t && !(t.exp > Date.now())){ localStorage.removeItem('vito_ytok'); sessionStorage.removeItem('vito_ytok'); hecho.push('Borré la conexión vencida con YouTube; se renueva sola con tu próximo toque.'); } }catch(e){ try{ localStorage.removeItem('vito_ytok'); sessionStorage.removeItem('vito_ytok'); }catch(x){} }
+  try{ const t = JSON.parse(localStorage.getItem('vito_ytok') || sessionStorage.getItem('vito_ytok') || 'null'); if(t && !(t.exp > Date.now())){ localStorage.removeItem('vito_ytok'); sessionStorage.removeItem('vito_ytok'); hecho.push('Borré la conexión vencida con YouTube; reconéctala en Música → «Reconectar».'); } }catch(e){ try{ localStorage.removeItem('vito_ytok'); sessionStorage.removeItem('vito_ytok'); }catch(x){} }
   // 6) Volver a dibujar las pantallas
   try{ renderAll(); }catch(e){ mesoraLogError('reparar', 'Al redibujar: ' + e.message, 'renderAll'); hecho.push('⚠️ Una pantalla sigue fallando al dibujarse; recarga la app.'); }
   return hecho;
