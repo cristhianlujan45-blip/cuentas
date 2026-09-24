@@ -2470,15 +2470,15 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
     </div>
     <div class="settings-group">
       <h2>📺 Transmitir al TV</h2>
-      <div class="settings-desc"><b>📡 Buscar Chromecast / Google TV</b> muestra los dispositivos que reciben transmisión en tu wifi; al elegir uno, la música de las mesas suena ahí en vivo. <b>▶ YouTube Music / ▶ YouTube</b> abren la app instalada (no el navegador) con la lista; ahí el ícono de transmitir muestra todos tus dispositivos (YouTube on TV, Smart TV LG/Samsung…). Con Google conectado (más abajo), las canciones que pidan las mesas se agregan solas a esa lista en tiempo real, sin volver a tocar nada.</div>
+      <div class="settings-desc">Los Smart TV (LG webOS, Samsung…) y «YouTube on TV» solo los encuentra la <b>app de YouTube</b>: por eso los botones de abajo abren YouTube Music o YouTube directo en tu celular, no el navegador. Con Google conectado (más abajo), las canciones que pidan las mesas se agregan solas a esa lista en tiempo real, sin volver a tocar nada.</div>
       <div class="cast-env" id="castEnv"></div>
-      <div class="cast-devs" id="castDevs"><span class="cast-dot"></span><span id="castDevsTxt">Revisando si hay Chromecast / Google TV en tu wifi…</span></div>
-      <button class="btn-primary cast-big" id="castPres" type="button">📡 Buscar Chromecast / Google TV / Android TV</button>
-      <div class="cast-or">o abre la app de YouTube instalada en este celular, con la lista puesta:</div>
+      <div class="cast-or">Abre la app instalada en este celular con la lista puesta. Ahí toca el ícono de transmitir y elige tu TV (LG, Samsung, «YouTube on TV»…):</div>
       <div class="cast-apps">
         <button class="btn-primary" id="castOpenMusic" type="button">▶ YouTube Music</button>
         <button class="btn-primary" id="castOpenYT" type="button">▶ YouTube</button>
       </div>
+      <div class="cast-devs" id="castDevs" hidden><span class="cast-dot"></span><span id="castDevsTxt"></span></div>
+      <button class="btn-ghost cast-big" id="castPres" type="button">📡 Solo si tienes Chromecast o Google TV: buscarlo</button>
       <div class="mz-actions">
         <button class="btn-ghost" id="castPair" type="button">🔗 Vincular con código de TV</button>
         <button class="btn-ghost" id="castHelp" type="button">¿No aparece tu TV?</button>
@@ -16453,7 +16453,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
    la Pantalla del TV de Mesora (tv.html) y reproduce la cola en vivo: cada canción que piden las
    mesas entra sola. Los Smart TV LG/Samsung sin Chromecast no aparecen aquí (solo los ve la app
    de YouTube): para esos están los botones de YouTube Music / YouTube. */
-const MESORA_VERSION = '2026-09-24 · v8';
+const MESORA_VERSION = '2026-09-24 · v9';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
@@ -16469,10 +16469,11 @@ function castDevsPintar(){
   const box = document.getElementById('castDevs'), t = document.getElementById('castDevsTxt');
   if(!box) return;
   box.classList.remove('ok', 'no', 'busy');
+  box.hidden = !((presConn && presConn.state === 'connected') || presDisp === true);
   if(presConn && presConn.state === 'connected'){ box.classList.add('ok'); t.textContent = '📡 Transmitiendo a tu dispositivo: la música de las mesas suena allá en vivo.'; return; }
   if(!presSoportado()){ t.textContent = 'Este navegador no busca Chromecast/Google TV. Usa Chrome, o los botones de YouTube de abajo.'; return; }
-  if(presDisp === true){ box.classList.add('ok'); t.textContent = 'Hay dispositivos que reciben transmisión en tu wifi. Toca «Buscar» y elige el tuyo.'; }
-  else if(presDisp === false){ box.classList.add('no'); t.textContent = 'Chrome no ve Chromecast/Google TV en este wifi. Si tu TV es LG/Samsung sin Chromecast, usa los botones de YouTube de abajo.'; }
+  if(presDisp === true){ box.classList.add('ok'); t.textContent = 'Hay un Chromecast / Google TV en tu wifi: toca «buscarlo» y elígelo.'; }
+  else if(presDisp === false){ box.classList.add('no'); t.textContent = 'No hay Chromecast / Google TV en este wifi.'; }
   else { t.textContent = 'Toca «Buscar» para ver los Chromecast / Google TV / Android TV de tu wifi.'; }
 }
 function presVigilar(){
@@ -16483,6 +16484,24 @@ function presVigilar(){
     navigator.presentation.defaultRequest = req;          // también aparece en el menú «Transmitir» de Chrome
     req.getAvailability().then(av => { presDisp = av.value; av.onchange = () => { presDisp = av.value; castDevsPintar(); }; castDevsPintar(); }).catch(() => { presDisp = null; castDevsPintar(); });
   }catch(e){}
+}
+// No hay Chromecast: su TV es un Smart TV (LG/Samsung) que solo ve la app de YouTube.
+function castSinChromecast(){
+  let ov = document.getElementById('castNoCcOverlay');
+  if(!ov){
+    ov = document.createElement('div'); ov.id = 'castNoCcOverlay'; ov.className = 'overlay';
+    ov.innerHTML = '<div class="modal" style="max-width:400px;text-align:center"><h2>📺 Tu TV se abre con YouTube</h2>' +
+      '<div class="modal-sub">En tu wifi no hay Chromecast. Tu TV (LG, Samsung o «YouTube on TV») lo encuentra la app de YouTube: ábrela y toca el ícono de transmitir.</div>' +
+      '<div class="modal-actions" style="flex-direction:column;gap:8px">' +
+      '<button class="btn-primary" id="ccMusic" type="button" style="width:100%;padding:13px;font-size:15px">▶ Abrir YouTube Music</button>' +
+      '<button class="btn-primary" id="ccYT" type="button" style="width:100%;padding:13px;font-size:15px">▶ Abrir YouTube</button>' +
+      '<button class="btn-close" id="ccNo" type="button">Cerrar</button></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#ccMusic').onclick = () => { ov.classList.remove('show'); SS(CAST_APP_KEY, { app: 'music' }); castAbrirApp(); };
+    ov.querySelector('#ccYT').onclick = () => { ov.classList.remove('show'); SS(CAST_APP_KEY, { app: 'yt' }); castAbrirApp(); };
+    ov.querySelector('#ccNo').onclick = () => ov.classList.remove('show');
+  }
+  ov.classList.add('show');
 }
 function presBuscar(){
   const env = castEntorno();
@@ -16504,7 +16523,7 @@ function presBuscar(){
   }).catch(e => {
     const n = e && e.name;
     if(n === 'NotAllowedError' || n === 'AbortError') return;           // cerró la lista sin elegir
-    if(n === 'NotFoundError'){ presDisp = false; castDevsPintar(); showToast('⚠️ Chrome no encontró Chromecast / Google TV en este wifi. Para Smart TV LG/Samsung usa los botones de YouTube.', 8000); return; }
+    if(n === 'NotFoundError'){ presDisp = false; castDevsPintar(); castSinChromecast(); return; }
     showToast('⚠️ ' + (e && e.message ? e.message : 'No se pudo transmitir.'), 6000);
   });
 }
