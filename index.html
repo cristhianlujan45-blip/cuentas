@@ -12882,12 +12882,17 @@ async function ytUno(id){
     }
     if(!it.vid||it.yt||!yTok())return;
     const pl=await yLista();
-    // position:0 pone la canción nueva AL PRINCIPIO de la lista (la próxima
-    // en sonar cuando termine la actual), no al final como quedaba antes —
-    // así no hay que esperar a que se reproduzcan todas las demás. Esto NO
-    // toca lo que ya está sonando: solo reordena lo que sigue.
-    await yApi('playlistItems?part=snippet',{method:'POST',body:JSON.stringify({snippet:{playlistId:pl,position:0,resourceId:{kind:'youtube#video',videoId:it.vid}}})});
-    l=cola();it=l.find(x=>x.id===id);if(it){it.yt=true;it.done=true;it.ytAt=Date.now();SS('vito_cola',l);}
+    // position:1 (no position:0) pone la canción nueva JUSTO DESPUÉS de la
+    // que ya está sonando — la posición 0 de la lista es la que YouTube
+    // Music tiene cargada como actual, así que insertar ahí la empuja a la
+    // posición 1 y hace que "la próxima" termine siendo la MISMA canción
+    // que ya sonó (se repite) en vez de la nueva. Insertando en 1 la actual
+    // queda intacta en 0 y la nueva pedida sí queda como la siguiente real.
+    // Si llegan varias seguidas mientras suena una sola canción, cada una
+    // nueva vuelve a tomar la posición 1, así que la última pedida es la
+    // que queda más próxima a sonar.
+    const r=await yApi('playlistItems?part=snippet',{method:'POST',body:JSON.stringify({snippet:{playlistId:pl,position:1,resourceId:{kind:'youtube#video',videoId:it.vid}}})});
+    l=cola();it=l.find(x=>x.id===id);if(it){it.yt=true;it.done=true;it.ytAt=Date.now();it.ytItemId=r&&r.id;SS('vito_cola',l);}
     const c=yCfg();c.len++;SS('vito_yt',c);
   }catch(e){showToast('YouTube: '+e.message);}
   yEstado();
@@ -12938,7 +12943,7 @@ function iniYT(){
 
 /* ---------- Reproductor automático dentro de la app ---------- */
 const AUTO=()=>!!LS('vito_auto_play',{}).on;
-let yPl=null,yListo=false,sonando=false;
+let yPl=null,yListo=false,sonando=false,cargadoEn=0;
 function cargarAPI(){
   if(window.YT&&YT.Player){crearPlayer();return;}
   if($('ytApi'))return;
@@ -12949,24 +12954,40 @@ function crearPlayer(){
   if(yPl)return;
   yPl=new YT.Player('ytPlayer',{width:'100%',height:'200',playerVars:{playsinline:1,rel:0},events:{
     onReady:()=>{yListo=true;siguienteAuto();},
-    onStateChange:e=>{if(e.data===0){sonando=false;siguienteAuto();}},
-    onError:()=>{sonando=false;showToast('Esa canción no se puede reproducir aquí; paso a la siguiente.');siguienteAuto();}}});
+    onStateChange:e=>{if(e.data===1)cargadoEn=0;if(e.data===0){sonando=false;siguienteAuto();}},
+    onError:()=>{sonando=false;cargadoEn=0;showToast('Esa canción no se puede reproducir aquí; paso a la siguiente.');siguienteAuto();}}});
 }
 function siguienteAuto(){
   if(!AUTO()||!yListo||sonando)return;
   const x=ordenJusto(cola()).find(y=>y.vid);if(!x)return;
   const l=cola(),it=l.find(y=>y.id===x.id);if(it)it.done=true;
-  SS('vito_cola',l);SS('vito_now',x);sonando=true;yPl.loadVideoById(x.vid);renderMusica();
+  SS('vito_cola',l);SS('vito_now',x);sonando=true;cargadoEn=Date.now();yPl.loadVideoById(x.vid);renderMusica();
+}
+// Algunos videos bloqueados por el sello discográfico (ej. WMG) muestran su
+// propio aviso de "vídeo no disponible" DENTRO del reproductor sin avisarle
+// a la app — el evento onError no siempre llega (pasa sobre todo con las
+// cookies de terceros bloqueadas, cada vez más común en los celulares). Si
+// una canción "cargada" no arranca a sonar en 7 segundos, se da por
+// trabada/bloqueada y se pasa sola a la siguiente, en vez de quedarse
+// pegada mostrando el aviso de YouTube para siempre.
+function vigilarAtascado(){
+  if(!sonando||!cargadoEn||!yPl||!yPl.getPlayerState)return;
+  if(Date.now()-cargadoEn<7000)return;
+  const st=yPl.getPlayerState();
+  if(st===1||st===3)return; // 1=reproduciendo, 3=cargando/buffering: va bien, solo tarda
+  sonando=false;cargadoEn=0;
+  showToast('Esa canción no cargó (bloqueada o con error); paso a la siguiente.');
+  siguienteAuto();
 }
 function iniAutoPlay(){
   $('autoPlay').checked=AUTO();$('ytBox').hidden=!AUTO();
   $('autoPlay').onchange=e=>{
     SS('vito_auto_play',{on:e.target.checked});$('ytBox').hidden=!e.target.checked;
-    if(e.target.checked)cargarAPI();else{sonando=false;if(yPl&&yPl.pauseVideo)yPl.pauseVideo();}
+    if(e.target.checked)cargarAPI();else{sonando=false;cargadoEn=0;if(yPl&&yPl.pauseVideo)yPl.pauseVideo();}
     yEstado();
   };
   if(AUTO())cargarAPI();
-  setInterval(siguienteAuto,3000);
+  setInterval(()=>{siguienteAuto();vigilarAtascado();},3000);
 }
 
 /* ---------- TV Box: link del reproductor ---------- */
