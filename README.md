@@ -1,67 +1,38 @@
-# Cuentas de mesa + Márgenes de precios (100% offline)
+# Mesora — Cuentas de mesa, pedidos por QR y márgenes de precio (offline)
 
-App de una sola página (`index.html`) para llevar mesas, pedidos por QR y el
-inventario de un negocio tipo bar/tienda ("Cuentas de mesa"), con una
-calculadora de **costo, margen y precio de venta por unidad** que funciona
-completamente **sin internet**.
+Dos páginas independientes, sin backend ni instalación: cada una es un solo
+archivo HTML que corre entero en el navegador (los datos quedan en
+`localStorage` del propio dispositivo).
 
-## Qué hace la parte de márgenes
+## `index.html` — la app del negocio (dueño/mesero)
 
-En la pestaña **Inventario → 💰 Costos y márgenes** aparece, para cada
-producto con costo cargado, una tabla con:
+Mesas, productos, pedidos por QR, inventario, estadísticas, carta pública y
+una calculadora de costo/margen/precio de venta por unidad en
+**Inventario → Costos y márgenes**.
 
-- **Costo por unidad**
-- **Margen %** (editable por producto; 30% por defecto)
-- **Precio sugerido** para lograr ese margen (redondeado a $100)
-- **Precio de venta actual** y el margen real que deja
-- **Utilidad por unidad**
-- Un botón **Usar** para aplicar el precio sugerido, y otro para aplicarlo a
-  todos los productos con costo de una vez.
+El costo de cada producto se puede cargar escaneando una **factura de
+proveedor** o una **etiqueta de precio**, de dos formas:
 
-Los totales de "costo en inventario" y "utilidad potencial" también se
-calculan solos a partir del stock cargado.
+- **Con IA** (necesita internet): identifica productos, cantidades y precios
+  automáticamente, incluso en facturas con nombres abreviados o en clave.
+- **Sin internet**: lee el texto de la foto o del PDF con un motor de OCR
+  ([Tesseract.js](https://github.com/naptha/tesseract.js)) y un lector de PDF
+  ([pdf.js](https://mozilla.github.io/pdf.js/)) embebidos en el propio
+  archivo — funciona sin conexión, incluso abriendo `index.html` directo
+  desde el disco.
 
-## Cómo se carga el costo, sin internet
+En ambos casos siempre se abre una pantalla de revisión para corregir
+cualquier dato antes de guardar.
 
-Dos botones en Inventario dejan tomar una foto (factura de un proveedor, o
-la etiqueta de precio de un producto) y **reconocen el texto en el propio
-celular**, sin mandar nada a internet:
+## `pedido.html` — la página que ve el cliente
 
-- **🧾 Escanear factura de proveedor (sin internet)**: separa cada renglón en
-  producto, cantidad y costo por unidad (si detecta que se compró por caja o
-  paquete —p. ej. "x12", "x24 uds"— calcula el costo de la unidad individual,
-  no de la caja), lo compara contra el catálogo existente y sugiere un precio
-  de venta.
-- **🏷️ Escanear precio y margen (sin internet)**: identifica el producto y el
-  precio visible en una foto de una etiqueta o del propio producto.
-
-Siempre se abre una pantalla de revisión donde se puede corregir cualquier
-dato (o agregar un producto a mano con **+ Agregar producto**) antes de
-guardar — el reconocimiento es una ayuda, no reemplaza la revisión.
-
-Si el texto no alcanza a separarse solo y hay una API key de IA (Gemini u
-OpenAI) configurada en ⚙️ Configurar IA, la app intenta un segundo paso en
-línea como respaldo — pero **nunca es necesario** para que la función sirva.
-
-## Cómo funciona el reconocimiento offline
-
-El motor de OCR ([Tesseract.js](https://github.com/naptha/tesseract.js), con
-el idioma español) y el lector de PDF ([pdf.js](https://mozilla.github.io/pdf.js/))
-vienen embebidos en `lib/`:
-
-- `lib/tesseract.min.js` / `lib/ocr-offline-data.js` — motor de lectura de
-  texto y datos del idioma español, empaquetados como un solo bloque para que
-  funcionen incluso abriendo `index.html` directo desde el disco (`file://`).
-- `lib/pdf.min.js` / `lib/pdf-worker-data.js` — lectura de PDFs.
-
-No hace falta conexión para usarlos: una vez que tengas estos archivos en tu
-celular o computador, la app entera funciona sin internet (el resto de
-funciones que sí lo necesitan —IA opcional, QR en vivo, música— siguen
-disponibles solo cuando hay conexión, pero no son necesarias para el cálculo
-de costos y márgenes).
+Se abre al escanear el QR de la mesa. Muestra la carta, deja armar el pedido
+y llamar al mesero, sincronizado en vivo con `index.html`. Hay que subir
+ambos archivos al mismo lugar (el mismo hosting) y configurar en
+**Ajustes → Carta / QR** el link donde quedó `pedido.html`.
 
 ## Uso
 
-Abre `index.html` en el navegador (o publícalo en cualquier hosting
-estático). Todos los datos (productos, mesas, historial) se guardan en el
-propio dispositivo (`localStorage`).
+Subí los dos archivos a cualquier hosting estático (o abrí `index.html`
+directo en el navegador del celular o la compu para llevar solo las cuentas,
+sin la parte de pedidos por QR). No hace falta backend ni base de datos.

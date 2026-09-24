@@ -1,0 +1,1247 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<meta name="theme-color" content="#120d0a">
+<title>Mi mesa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#120d0a; --card:#1c1611; --card2:#251c14;
+  --line:rgba(217,169,79,.24); --line2:rgba(243,233,216,.10);
+  --ink:#f3e9d8; --ink2:rgba(243,233,216,.68);
+  --gold:#d9a94f; --gold-hi:#f2cf86; --gold-lo:#a86f1c;
+  --serif:"Cormorant Garamond",Georgia,"Times New Roman",serif;
+  --sans:Manrope,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html{background:var(--bg)}
+body{
+  margin:0;min-height:100vh;color:var(--ink);font:400 16px/1.45 var(--sans);
+  background:
+    radial-gradient(120% 55% at 50% -8%,rgba(217,169,79,.22),transparent 62%),
+    radial-gradient(80% 40% at 100% 100%,rgba(168,111,28,.14),transparent 60%),
+    var(--bg);
+  background-attachment:fixed;
+}
+button{font-family:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--gold-hi);outline-offset:2px}
+.wrap{max-width:480px;margin:0 auto;padding:calc(22px + env(safe-area-inset-top)) 18px calc(40px + env(safe-area-inset-bottom))}
+
+/* Encabezado */
+.orn{display:flex;align-items:center;justify-content:center;gap:12px;color:var(--gold)}
+.orn i{display:block;height:1px;width:64px;background:linear-gradient(90deg,transparent,var(--gold))}
+.orn i:last-child{transform:scaleX(-1)}
+.orn svg{width:10px;height:10px;fill:currentColor}
+h1{
+  margin:10px 0 4px;text-align:center;font:600 44px/1 var(--serif);letter-spacing:.02em;
+  background:linear-gradient(180deg,var(--gold-hi),var(--gold) 55%,var(--gold-lo));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.sub{margin:0 0 4px;text-align:center;color:var(--ink2);font-size:14.5px}
+.bizname{margin:0 0 6px;text-align:center;font:700 13px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+
+.order-info-bar{margin:0 0 10px;padding:10px 14px;border-radius:14px;background:var(--card);border:1px solid var(--line);text-align:center}
+.order-message{margin:0 0 6px;color:var(--ink);font:600 14px var(--sans);line-height:1.35}
+.order-status-row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+.order-clock{font:700 15px/1 var(--sans);color:var(--ink2);letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.order-openbadge{font:700 12px var(--sans);padding:3px 10px;border-radius:999px;letter-spacing:.03em}
+.order-openbadge.is-open{color:#0d9a4e;background:rgba(13,154,78,.14)}
+.order-openbadge.is-closed{color:#d92d20;background:rgba(217,45,32,.14)}
+.order-extrainfo{margin:6px 0 0;color:var(--ink2);font-size:12.5px;line-height:1.4}
+
+/* Pestañas */
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border-radius:18px;background:var(--card);border:1px solid var(--line);margin-top:14px}
+.t{
+  display:flex;align-items:center;justify-content:center;gap:7px;padding:12px 4px;border:0;border-radius:14px;
+  background:none;color:var(--ink2);font:600 14px var(--sans);transition:background .2s,color .2s,box-shadow .2s;
+}
+.t svg{width:18px;height:18px;flex:none}
+.t.on{
+  color:#1a1108;background:linear-gradient(180deg,var(--gold-hi),var(--gold-lo));
+  box-shadow:0 6px 18px rgba(201,138,43,.32),inset 0 1px 0 rgba(255,255,255,.35);
+}
+
+/* Contenido */
+.panel{margin-top:18px}
+.h2{display:block;margin:0 0 2px;font:600 25px/1.15 var(--serif);color:var(--ink)}
+.hint{margin:0 0 12px;color:var(--ink2);font-size:14px}
+.sec{margin-top:16px}
+.in{
+  width:100%;font:inherit;font-size:17px;padding:14px 16px;border-radius:14px;
+  border:1px solid var(--line);background:var(--card);color:var(--ink);outline:none;
+}
+.in::placeholder{color:rgba(243,233,216,.38)}
+.in:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(217,169,79,.18)}
+.field{display:flex;gap:8px}
+.field .in{flex:1;min-width:0}
+.add{
+  flex:none;width:54px;border-radius:14px;border:1px solid var(--gold);background:transparent;color:var(--gold-hi);
+  display:grid;place-items:center;
+}
+.add svg{width:22px;height:22px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round}
+
+/* Repetir ronda */
+.ronda{
+  display:flex;align-items:center;gap:14px;width:100%;margin-bottom:16px;padding:14px 16px;text-align:left;
+  border-radius:20px;border:1px solid rgba(217,169,79,.55);color:var(--ink);
+  background:linear-gradient(135deg,rgba(217,169,79,.18),rgba(217,169,79,.04)),var(--card);
+  box-shadow:0 10px 30px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06);
+  transition:transform .12s;
+}
+.ronda:active{transform:scale(.985)}
+.ronda .ic{
+  flex:none;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;color:#1a1108;
+  background:linear-gradient(180deg,#f4d18a,#c98a2b);
+}
+.ronda .ic svg{width:22px;height:22px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ronda .rt{min-width:0}
+.ronda strong{display:block;font:700 22px/1.1 var(--serif)}
+.ronda .rd{display:block;margin-top:3px;font-size:13.5px;color:var(--ink2);overflow-wrap:anywhere}
+
+/* Sugerencias */
+.sug{margin-top:8px;border:1px solid var(--line);border-radius:16px;background:var(--card2);overflow:hidden;box-shadow:0 12px 28px rgba(0,0,0,.4)}
+.row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:14px 16px;min-height:50px;
+  border:0;border-top:1px solid var(--line2);background:none;color:var(--ink);font:500 16px var(--sans);text-align:left;
+}
+.row:first-child{border-top:0}
+.row.top{background:rgba(217,169,79,.10)}
+.row b{color:var(--gold-hi);font-weight:700}
+.row.free{color:var(--ink2);font-size:14.5px}
+.tag{flex:none;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--gold-hi);font-size:12px;font-weight:600}
+
+/* Vista previa de YouTube */
+.ytprev{margin-top:8px;border:1px solid var(--line);border-radius:16px;background:var(--card2);overflow:hidden;box-shadow:0 12px 28px rgba(0,0,0,.4)}
+.ytrow{
+  display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;min-height:56px;
+  border:0;border-top:1px solid var(--line2);background:none;color:var(--ink);font:500 14.5px var(--sans);text-align:left;
+}
+.ytrow:first-child{border-top:0}
+.ytrow img{flex:none;width:56px;height:42px;border-radius:8px;object-fit:cover;background:var(--card)}
+.ytrow .ytnm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.ytrow .ytch{flex:none;color:var(--ink2);font-size:12px}
+.ytmsg{padding:12px 16px;color:var(--ink2);font-size:13.5px}
+
+/* Fichas rápidas */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{
+  display:inline-flex;align-items:center;gap:9px;padding:10px 14px;border-radius:999px;
+  border:1px solid var(--line);background:linear-gradient(180deg,var(--card2),var(--card));color:var(--ink);font:600 14px var(--sans);
+}
+.chip b{color:var(--gold-hi);font-size:18px;line-height:1;font-weight:600}
+.chip:active{transform:scale(.97)}
+
+/* Pedido armado */
+.lst{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:2px 14px}
+.ln{display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line2);animation:entra .18s ease-out}
+.ln:first-child{border-top:0}
+.ln .nm{flex:1;min-width:0;font-weight:600;overflow-wrap:anywhere}
+.step{display:flex;align-items:center;flex:none;border:1px solid var(--line);border-radius:999px;background:var(--card2)}
+.step button{width:38px;height:38px;border:0;border-radius:50%;background:none;color:var(--gold-hi);font-size:20px;line-height:1}
+.step button:disabled{opacity:.3}
+.step output{min-width:26px;text-align:center;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+.x{flex:none;width:34px;height:34px;border:0;border-radius:50%;background:none;color:var(--ink2);font-size:22px;line-height:1}
+.vacio{padding:22px 16px;text-align:center;border:1px dashed var(--line);border-radius:20px;color:var(--ink2);font-size:14.5px}
+@keyframes entra{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* Canciones */
+.cupos{display:flex;gap:6px;margin-top:14px}
+.cupos i{flex:1;height:6px;border-radius:3px;background:var(--line2)}
+.cupos i.on{background:linear-gradient(90deg,var(--gold-lo),var(--gold-hi))}
+
+/* Cuenta */
+.cuenta{margin-bottom:14px;padding:16px 18px;border-radius:20px;background:var(--card);border:1px solid var(--line)}
+.l{display:flex;align-items:baseline;gap:8px;padding:6px 0;font-size:16px;font-variant-numeric:tabular-nums}
+.l .fill{flex:1;min-width:12px;border-bottom:1px dotted rgba(243,233,216,.28);transform:translateY(-4px)}
+.l.tt{margin-top:8px;padding-top:12px;border-top:1px solid var(--line);font-weight:700}
+.l.g{font:700 28px/1.2 var(--serif);color:var(--gold-hi)}
+.cuenta small{display:block;margin-top:8px;color:var(--ink2)}
+
+/* Pago con Nequi */
+.nequi-box{margin-bottom:14px;padding:16px 18px;border-radius:20px;background:var(--card);border:1px solid #6a3ea1}
+.nequi-h{font:700 16px var(--sans);color:#c9a6ff;margin-bottom:8px}
+.nequi-num{font:700 26px/1.2 var(--serif);letter-spacing:.02em}
+.nequi-name{color:var(--ink2);font-size:13px;margin-top:2px}
+.nequi-monto{margin-top:10px;font:700 20px/1.2 var(--serif);color:var(--gold-hi)}
+.nequi-instr{margin:10px 0 12px;color:var(--ink2);font-size:13.5px;line-height:1.5}
+.nequi-actions{display:flex;flex-wrap:wrap;gap:8px}
+.nequi-btn{flex:1;min-width:140px;padding:12px 10px;border-radius:12px;border:1px solid #6a3ea1;background:transparent;color:var(--ink);font:600 14px var(--sans);cursor:pointer}
+.nequi-btn-ok{background:#6a3ea1;color:#fff;border-color:#6a3ea1}
+.nequi-ok{margin:10px 0 0;color:var(--gold-hi);font-size:14px}
+
+/* Botón de enviar: pegado al campo, siempre a la vista */
+.envio{margin:14px 0 4px}
+#m{min-height:22px;margin:10px 0 0;text-align:center;font-size:15px}
+#m.ok{color:var(--gold-hi)}
+#m.err{color:#f0a08f}
+.cta{
+  width:100%;padding:18px;border:1px solid rgba(255,236,190,.55);border-radius:16px;color:#1a1108;font:700 18px var(--sans);
+  background:linear-gradient(180deg,var(--gold-hi),var(--gold) 55%,var(--gold-lo));
+  box-shadow:0 10px 28px rgba(201,138,43,.38),inset 0 1px 0 rgba(255,255,255,.45);
+  transition:transform .12s,opacity .2s;
+}
+.cta.lista{animation:brilla 2.4s ease-in-out infinite}
+@keyframes brilla{0%,100%{box-shadow:0 10px 28px rgba(201,138,43,.38),inset 0 1px 0 rgba(255,255,255,.45)}50%{box-shadow:0 10px 36px rgba(242,207,134,.7),inset 0 1px 0 rgba(255,255,255,.45)}}
+.cta:active{transform:scale(.985)}
+.cta:disabled{opacity:.55}
+.wa{width:100%;margin-top:10px;padding:13px;border-radius:14px;border:1px solid var(--line);background:none;color:var(--ink);font:500 14.5px var(--sans)}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+/* Franja de promociones: siempre visible arriba de la carta, no escondida en un acordeón */
+.promo-strip{margin:2px 0 16px;padding:14px 14px 8px;border-radius:18px;border:1px solid rgba(217,169,79,.55);background:linear-gradient(135deg,rgba(217,169,79,.20),rgba(217,169,79,.03)),var(--card2)}
+.promo-strip h3{margin:0 0 8px;font:700 17px var(--serif);color:var(--gold-hi)}
+.promo-strip .cardgrid{margin-bottom:6px}
+
+/* Pestañas de categoría: chips horizontales que se deslizan, en vez de acordeón de texto */
+.cat-tabs{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.cat-tabs::-webkit-scrollbar{display:none}
+.cat-tab{flex:none;display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink2);font:600 13.5px var(--sans);white-space:nowrap}
+.cat-tab.on{background:linear-gradient(180deg,var(--gold-hi),var(--gold-lo));color:#1a1108;border-color:transparent;box-shadow:0 6px 16px rgba(201,138,43,.3)}
+
+/* Tarjetas de producto en cuadrícula: más visuales y fáciles de tocar que una lista de texto */
+.cardgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:360px){.cardgrid{grid-template-columns:1fr}}
+.pcard{position:relative;display:flex;flex-direction:column;gap:5px;padding:14px 12px;border-radius:16px;border:1px solid var(--line);background:var(--card);text-align:left;min-height:88px}
+.pcard .pic{font-size:24px;line-height:1}
+.pcard .pn{font:600 14.5px/1.25 var(--sans);overflow-wrap:anywhere;padding-right:26px}
+.pcard .pp{font-size:13.5px;color:var(--gold-hi);font-weight:700}
+.pcard .plo{color:var(--gold-hi);font-size:11.5px;font-weight:600}
+.pcard .pagot{color:var(--ink2);font-size:11.5px;font-weight:600}
+.pcard.ag{opacity:.5}
+.pcard .padd{position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--gold-hi);font:700 19px var(--sans);display:grid;place-items:center}
+.pcard.ag .padd{display:none}
+.pcard .pqb{position:absolute;top:-8px;left:-8px;min-width:26px;height:26px;padding:0 7px;box-sizing:border-box;border-radius:999px;background:var(--gold-hi);color:#1a1207;font:700 13px var(--sans);align-items:center;justify-content:center;display:none;box-shadow:0 4px 10px rgba(0,0,0,.35)}
+.pcard .pqb.show{display:inline-flex}
+.pcard .pqb.pop{animation:qbPop .22s ease}
+@keyframes qbPop{from{transform:scale(1.4)}to{transform:none}}
+.catbtn{display:flex;align-items:center;gap:12px;width:100%;margin-top:16px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.catbtn .ic{font-size:26px}.catbtn .rt{flex:1;display:flex;flex-direction:column}.catbtn strong{font:600 19px/1.2 var(--serif)}.catbtn .rd{font-size:13px;color:var(--ink2)}.catbtn .go{color:var(--gold);font-size:24px}
+.carta{position:fixed;inset:0;z-index:50;background:var(--bg);overflow:auto;padding:16px 16px 96px}
+/* Encabezado + buscador pegados arriba: siempre a la vista aunque se haga scroll por la carta */
+.carta-head{position:sticky;top:0;z-index:6;margin:-16px -16px 10px;padding:16px 16px 10px;background:var(--bg)}
+.carta .top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.carta .x{background:none;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:8px 12px;font:inherit;cursor:pointer}
+.carta .back{position:fixed;left:16px;right:16px;bottom:16px;width:auto}
+@keyframes vIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes fxFall{to{transform:translateY(112vh)}}@keyframes fxSway{from{margin-left:-14px}to{margin-left:14px}}
+button{transition:transform .12s ease,filter .15s ease,background-color .2s ease,border-color .2s ease}
+button:active{transform:scale(.97)}button:hover{filter:brightness(1.1)}
+#fxLayer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:3}
+#fxLayer span{position:absolute;top:-30px;opacity:.55;animation:fxFall linear infinite,fxSway ease-in-out infinite alternate}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}#fxLayer{display:none}}
+.pcard{animation:vIn .25s ease both}
+.prefs{display:flex;justify-content:center;align-items:center;gap:8px;margin:10px 0 0;flex-wrap:wrap}
+.lang{display:block;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font:inherit;font-size:13px}
+.curNote{margin:6px 0 0;text-align:center;font-size:12px;color:var(--ink2)}
+.prefBtn{display:block;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer}
+.prefBtn[aria-pressed="true"]{background:var(--gold);color:#1a1108;border-color:var(--gold);font-weight:700}
+
+/* ---------- Modo fácil: letra y botones más grandes, sin animaciones.
+   Pensado para gente mayor o pantallas táctiles; no cambia el diseño
+   original, solo se activa con el botón "Letra grande". ---------- */
+body.easy-mode{zoom:1.2}
+body.easy-mode *,body.easy-mode *::before,body.easy-mode *::after{animation:none!important;transition:none!important}
+body.easy-mode #fxLayer{display:none!important}
+body.easy-mode button,body.easy-mode input,body.easy-mode select{min-height:48px}
+body.easy-mode .t{min-height:56px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="bizname" id="bizName" hidden></p>
+  <div class="orn" aria-hidden="true"><i></i><svg viewBox="0 0 10 10"><path d="M5 0l5 5-5 5-5-5z"/></svg><i></i></div>
+  <h1 id="t">Mesa</h1>
+  <p class="sub" id="sub">Pide desde tu mesa, nosotros te lo llevamos.</p>
+  <div class="order-info-bar" id="orderInfoBar" hidden>
+    <p class="order-message" id="orderMessageEl" hidden></p>
+    <div class="order-status-row">
+      <span class="order-clock" id="orderClockEl"></span>
+      <span class="order-openbadge" id="orderOpenBadge" hidden></span>
+    </div>
+    <p class="order-extrainfo" id="orderExtraInfoEl" hidden></p>
+  </div>
+  <div class="prefs">
+    <select class="lang" id="lang" aria-label="Language / Idioma">
+      <option value="es">🌐 Español</option>
+      <option value="en">🌐 English</option>
+      <option value="pt">🌐 Português</option>
+      <option value="fr">🌐 Français</option>
+      <option value="zh">🌐 中文</option>
+      <option value="hi">🌐 हिन्दी</option>
+    </select>
+    <select class="lang" id="curr" aria-label="Currency">
+      <option value="COP">💱 COP</option>
+      <option value="USD">💱 USD</option>
+      <option value="EUR">💱 EUR</option>
+      <option value="MXN">💱 MXN</option>
+      <option value="BRL">💱 BRL</option>
+      <option value="GBP">💱 GBP</option>
+      <option value="ARS">💱 ARS</option>
+      <option value="PEN">💱 PEN</option>
+      <option value="CLP">💱 CLP</option>
+    </select>
+    <button class="prefBtn" id="easyBtn" type="button" aria-pressed="false"></button>
+  </div>
+  <p class="curNote" id="curNote" hidden></p>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Opciones de la mesa">
+  <button class="t on" id="tp" role="tab" aria-selected="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h9v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4z"/><path d="M15 8h2.5a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H15"/><path d="M9 8v8M12 8v8"/></svg><span id="tpTxt">Pedido</span>
+  </button>
+  <button class="t" id="tc" role="tab" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg><span id="tcTxt">Canción</span>
+  </button>
+  <button class="t" id="tq" role="tab" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/><path d="M9 8h6M9 12h6"/></svg><span id="tqTxt">Mi cuenta</span>
+  </button>
+</nav>
+
+<main>
+  <!-- PEDIDO -->
+  <section id="vp" class="panel">
+    <button class="ronda" id="ronda" type="button" hidden>
+      <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg></span>
+      <span class="rt"><strong id="rondaLbl">Repetir la misma ronda</strong><span class="rd" id="rondaTxt"></span></span>
+    </button>
+
+    <label class="h2" for="p" id="pLabel">¿Qué vas a pedir?</label>
+    <p class="hint" id="pHint">Escribe y te sugerimos. Ej: <i>2 águilas</i></p>
+    <div class="field">
+      <input id="p" class="in" type="text" autocomplete="off" autocorrect="off" autocapitalize="sentences" enterkeyhint="done" placeholder="Ej: 2 águilas">
+      <button class="add" id="add" type="button" aria-label="Agregar al pedido"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+    </div>
+    <div class="sug" id="sug" hidden></div>
+
+    <button class="catbtn" id="catBtn" type="button" hidden>
+      <span class="ic" id="catIc">📖</span>
+      <span class="rt"><strong id="catBtnT">Ver la carta</strong><span class="rd" id="catBtnS"></span></span>
+      <span class="go" aria-hidden="true">›</span>
+    </button>
+    <div class="carta" id="carta" hidden>
+      <div class="carta-head">
+        <div class="top"><h2 class="h2" id="catT">Carta</h2><button class="x" id="catX" type="button">Cerrar</button></div>
+        <input id="cq" class="in" type="search" autocomplete="off" placeholder="Buscar…">
+      </div>
+      <div id="cat"></div>
+      <button class="cta back" id="catBack" type="button">Volver a mi pedido</button>
+    </div>
+
+    <div class="envio" id="envio">
+      <button class="cta" id="b" type="button">Enviar pedido</button>
+      <p id="m" role="status" aria-live="polite"></p>
+      <button class="wa" id="wa" type="button" style="display:none">¿No llegó? Enviar por WhatsApp</button>
+    </div>
+
+    <div class="sec" id="chipsSec" hidden>
+      <p class="hint" id="chipsT">Ya en tu mesa</p>
+      <div class="chips" id="chips"></div>
+    </div>
+
+    <div class="sec">
+      <h2 class="h2" id="tuPedidoLbl">Tu pedido</h2>
+      <div id="lines"></div>
+    </div>
+  </section>
+
+  <!-- CANCIÓN -->
+  <section id="vc" class="panel" hidden>
+    <h2 class="h2" id="pideCancionLbl">Pide tu canción</h2>
+    <p class="hint" id="hintCancionEl">Escribe la canción y el artista. Puedes pedir hasta 10; cada cupo se libera a los 15 minutos. Suenan por turnos entre todas las mesas.</p>
+    <input id="s" class="in" type="text" autocomplete="off" placeholder="Ej: Bad Bunny - Titi Me Preguntó">
+    <div class="sug" id="sugC" hidden></div>
+    <div class="ytprev" id="ytPrev" hidden></div>
+    <div class="cupos" id="cupos" aria-hidden="true"></div>
+  </section>
+
+  <!-- CUENTA -->
+  <section id="vq" class="panel" hidden>
+    <h2 class="h2" id="tuCuentaLbl">Tu cuenta</h2>
+    <div class="cuenta" id="cs">Cargando tu cuenta…</div>
+    <div class="nequi-box" id="nequiBox" hidden>
+      <div class="nequi-h" id="nequiH">💜 Paga con Nequi</div>
+      <div class="nequi-num" id="nequiNum"></div>
+      <div class="nequi-name" id="nequiName" hidden></div>
+      <div class="nequi-monto" id="nequiMonto"></div>
+      <p class="nequi-instr" id="nequiInstr"></p>
+      <div class="nequi-actions">
+        <button type="button" class="nequi-btn" id="nequiCopyBtn">📋 Copiar número</button>
+        <button type="button" class="nequi-btn nequi-btn-ok" id="nequiPaidBtn">✅ Ya pagué por Nequi</button>
+      </div>
+      <p class="nequi-ok" id="nequiOkMsg" hidden></p>
+    </div>
+    <p class="hint" id="hintCuentaEl">¿Ya quieres pagar? Pide la cuenta y te la llevamos a la mesa.</p>
+    <input id="n" class="in" type="text" autocomplete="off" placeholder="Nota opcional (ej. pago con tarjeta)">
+  </section>
+</main>
+
+</div>
+
+<script>
+const P=new URLSearchParams(location.search),
+  mesa=(P.get('mesa')||'').replace(/\D/g,''),
+  wa=(P.get('w')||'').replace(/\D/g,''),
+  c=(P.get('c')||'').replace(/[^\w]/g,''),
+  v=(P.get('v')||'').replace(/[^\w]/g,''),
+  nq=(P.get('nq')||'').replace(/\D/g,'').slice(0,10),
+  nqn=(P.get('nqn')||'').slice(0,60);
+const MAX=10,V=15*6e4,K='canc_'+mesa,KR='rondas_'+mesa,KH='hist_'+mesa,VIDA_RONDA=12*36e5;
+const $=i=>document.getElementById(i);
+const jget=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
+const jset=(k,x)=>{try{localStorage.setItem(k,JSON.stringify(x))}catch(e){}};
+const recientes=()=>jget(K,[]).filter(x=>Date.now()-x<V),usadas=()=>recientes().length;
+let modo='p',ultimo='',es=null,snap=null,lineas=[];
+
+function h(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+
+/* ---------- Idiomas (es, en, pt, fr, zh, hi) ---------- */
+const LANGS=['es','en','pt','fr','zh','hi'];
+const DICT_SRC={
+  subtitle:["Pide desde tu mesa, nosotros te lo llevamos.","Order from your table, we’ll bring it to you.","Peça pela sua mesa, a gente leva até você.","Commandez depuis votre table, on vous l’apporte.","在您的桌上点单，我们为您送上。","अपनी मेज़ से ऑर्डर करें, हम आपके पास लाएँगे।"],
+  mesaLabel:["Mesa {n}","Table {n}","Mesa {n}","Table {n}","{n}号桌","मेज़ {n}"],
+  tabPedido:["Pedido","Order","Pedido","Commande","订单","ऑर्डर"],
+  tabCancion:["Canción","Song","Canção","Chanson","点歌","गाना"],
+  tabCuenta:["Mi cuenta","My bill","Minha conta","Mon addition","我的账单","मेरा बिल"],
+  repetirRonda:["Repetir la misma ronda","Repeat the same round","Repetir a mesma rodada","Répéter la même tournée","重复上一轮","वही राउंड दोहराएँ"],
+  queVasAPedir:["¿Qué vas a pedir?","What would you like?","O que você vai pedir?","Que souhaitez-vous commander ?","您想点什么？","आप क्या ऑर्डर करेंगे?"],
+  escribeSugerimos:["Escribe y te sugerimos. Ej:","Type and we’ll suggest. E.g.:","Escreva e sugerimos. Ex.:","Écrivez, on vous suggère. Ex. :","输入即可获得建议。例如：","लिखें, हम सुझाव देंगे। जैसे:"],
+  ejemploPedido:["2 águilas","2 beers","2 cervejas","2 bières","2瓶啤酒","2 बीयर"],
+  ejemploPedidoPlaceholder:["Ej: 2 águilas","E.g. 2 beers","Ex.: 2 cervejas","Ex. : 2 bières","例如：2瓶啤酒","जैसे: 2 बीयर"],
+  addAria:["Agregar al pedido","Add to order","Adicionar ao pedido","Ajouter à la commande","添加到订单","ऑर्डर में जोड़ें"],
+  tituloMenu:["🍽️ Menú","🍽️ Menu","🍽️ Cardápio","🍽️ Menu","🍽️ 菜单","🍽️ मेन्यू"],
+  tituloCarta:["📖 Carta","📖 Menu","📖 Cardápio","📖 Carte","📖 菜单","📖 मेन्यू"],
+  verMenu:["Ver el menú","View the menu","Ver o cardápio","Voir le menu","查看菜单","मेन्यू देखें"],
+  verCarta:["Ver la carta","View the menu","Ver a carta","Voir la carte","查看菜单","मेन्यू देखें"],
+  catAunNoDisp:["Aún no disponible","Not available yet","Ainda não disponível","Pas encore disponible","暂未提供","अभी उपलब्ध नहीं"],
+  catCount:["{n} productos · toca para ver y agregar","{n} items · tap to view and add","{n} produtos · toque para ver e adicionar","{n} produits · touchez pour voir et ajouter","{n} 件商品 · 点击查看并添加","{n} उत्पाद · देखने और जोड़ने के लिए टैप करें"],
+  cerrar:["Cerrar","Close","Fechar","Fermer","关闭","बंद करें"],
+  volverPedido:["Volver a mi pedido","Back to my order","Voltar ao meu pedido","Retour à ma commande","返回我的订单","मेरे ऑर्डर पर वापस"],
+  buscarMenu:["Buscar en el menú…","Search the menu…","Buscar no cardápio…","Rechercher dans le menu…","搜索菜单…","मेन्यू में खोजें…"],
+  buscarCarta:["Buscar en la carta…","Search the menu…","Buscar na carta…","Rechercher dans la carte…","搜索菜单…","मेन्यू में खोजें…"],
+  sinCoincidencias:["Nada coincide con «{q}».","Nothing matches “{q}”.","Nada corresponde a “{q}”.","Rien ne correspond à « {q} ».","没有与“{q}”匹配的内容。","“{q}” से कुछ मेल नहीं खाता।"],
+  sinPublicarCarta:["El local todavía no publicó su carta. Escribe en tu pedido lo que quieres.","The place hasn’t published its menu yet. Write what you want in your order.","O local ainda não publicou a carta. Escreva no seu pedido o que você quer.","L’établissement n’a pas encore publié sa carte. Écrivez ce que vous voulez dans votre commande.","商家还未发布菜单。请在订单中写下您想要的内容。","दुकान ने अभी अपना मेन्यू प्रकाशित नहीं किया। अपने ऑर्डर में लिखें कि आप क्या चाहते हैं।"],
+  sinPublicarMenu:["El local todavía no publicó su menú. Escribe en tu pedido lo que quieres.","The place hasn’t published its menu yet. Write what you want in your order.","O local ainda não publicou o cardápio. Escreva no seu pedido o que você quer.","L’établissement n’a pas encore publié son menu. Écrivez ce que vous voulez dans votre commande.","商家还未发布菜单。请在订单中写下您想要的内容。","दुकान ने अभी अपना मेन्यू प्रकाशित नहीं किया। अपने ऑर्डर में लिखें कि आप क्या चाहते हैं।"],
+  agotado:["Agotado","Sold out","Esgotado","Épuisé","已售罄","खत्म"],
+  ultimasUnidades:["Últimas unidades","Few left","Últimas unidades","Dernières unités","仅剩少量","सीमित स्टॉक"],
+  promoTitulo:["🎁 Promociones","🎁 Promotions","🎁 Promoções","🎁 Promotions","🎁 促销","🎁 प्रमोशन"],
+  promoAhorra:["🎁 Ahorra {n}%","🎁 Save {n}%","🎁 Economize {n}%","🎁 Économisez {n}%","🎁 省{n}%","🎁 {n}% बचाएं"],
+  enviarPedido:["Enviar pedido","Send order","Enviar pedido","Envoyer la commande","提交订单","ऑर्डर भेजें"],
+  producto:["producto","item","produto","produit","件","उत्पाद"],
+  productos:["productos","items","produtos","produits","件","उत्पाद"],
+  pedirCuenta:["Pedir la cuenta","Ask for the bill","Pedir a conta","Demander l’addition","请求账单","बिल माँगें"],
+  pedirCancion:["Pedir canción","Request song","Pedir música","Demander une chanson","点歌","गाना माँगें"],
+  modoFacil:["Letra grande","Large text","Letra grande","Grand texte","大字体","बड़ा टेक्स्ट"],
+  qrIncompleto:["Este QR está incompleto.","This QR is incomplete.","Este QR está incompleto.","Ce QR est incomplet.","此二维码不完整。","यह QR अधूरा है।"],
+  escribeAlgo:["Escribe algo primero.","Write something first.","Escreva algo primeiro.","Écrivez quelque chose d’abord.","请先输入内容。","पहले कुछ लिखें।"],
+  cancionLimite:["Ya pediste {max} canciones. Podrás pedir otra en {min} min.","You’ve already requested {max} songs. You can request another in {min} min.","Você já pediu {max} músicas. Poderá pedir outra em {min} min.","Vous avez déjà demandé {max} chansons. Vous pourrez en redemander une dans {min} min.","您已点了{max}首歌。{min}分钟后可再点一首。","आपने पहले ही {max} गाने माँगे हैं। {min} मिनट में और माँग सकते हैं।"],
+  pedidoLargo:["Tu pedido es muy largo. Envíalo en dos rondas.","Your order is too long. Send it in two rounds.","Seu pedido é muito longo. Envie em duas rodadas.","Votre commande est trop longue. Envoyez-la en deux fois.","您的订单太长，请分两次发送。","आपका ऑर्डर बहुत लंबा है। इसे दो राउंड में भेजें।"],
+  enviadoOk:["✅ Enviado, ya lo recibió el local.","✅ Sent, the place received it.","✅ Enviado, o local já recebeu.","✅ Envoyé, l’établissement l’a reçu.","✅ 已发送，商家已收到。","✅ भेजा गया, दुकान को मिल गया।"],
+  cancionesLlevas:[" Llevas {u} de {max} canciones."," You’ve used {u} of {max} songs."," Você já pediu {u} de {max} músicas."," Vous avez utilisé {u} chansons sur {max}."," 您已点{u}/{max}首歌。"," आपने {max} में से {u} गाने माँगे हैं।"],
+  noEnviadoWa:["No se pudo enviar. Usa el botón de WhatsApp.","Couldn’t send. Use the WhatsApp button.","Não foi possível enviar. Use o botão do WhatsApp.","Échec de l’envoi. Utilisez le bouton WhatsApp.","发送失败，请使用WhatsApp按钮。","भेजा नहीं जा सका। WhatsApp बटन का उपयोग करें।"],
+  noEnviadoMesero:["No se pudo enviar. Avísale al mesero.","Couldn’t send. Let the waiter know.","Não foi possível enviar. Avise o garçom.","Échec de l’envoi. Prévenez le serveur.","发送失败，请告知服务员。","भेजा नहीं जा सका। वेटर को बताएँ।"],
+  rondaCargada:["Ronda cargada. Revisa y toca «Enviar pedido».","Round loaded. Check it and tap “Send order”.","Rodada carregada. Confira e toque em “Enviar pedido”.","Tournée chargée. Vérifiez et touchez « Envoyer la commande ».","已加载上一轮，请检查后点击“提交订单”。","राउंड लोड हुआ। जाँचें और «ऑर्डर भेजें» दबाएँ।"],
+  waTxt:["¿No llegó? Enviar por WhatsApp","Didn’t arrive? Send via WhatsApp","Não chegou? Enviar por WhatsApp","Pas reçu ? Envoyer par WhatsApp","没收到？通过WhatsApp发送","नहीं पहुँचा? WhatsApp से भेजें"],
+  tuPedido:["Tu pedido","Your order","Seu pedido","Votre commande","您的订单","आपका ऑर्डर"],
+  vacioLineas:["Todavía no has agregado nada. Escribe arriba o toca una sugerencia.","Nothing added yet. Type above or tap a suggestion.","Você ainda não adicionou nada. Escreva acima ou toque numa sugestão.","Rien d’ajouté. Écrivez ci-dessus ou touchez une suggestion.","还没有添加任何内容。请在上方输入或点选建议。","अभी कुछ नहीं जोड़ा। ऊपर लिखें या सुझाव पर टैप करें।"],
+  quitarUno:["Quitar uno de {n}","Remove one {n}","Remover um de {n}","Retirer un de {n}","移除一份{n}","{n} में से एक हटाएँ"],
+  agregarUnoMas:["Agregar uno más de {n}","Add one more {n}","Adicionar mais um de {n}","Ajouter un {n} de plus","再添加一份{n}","{n} में से एक और जोड़ें"],
+  quitarProducto:["Quitar {n}","Remove {n}","Remover {n}","Retirer {n}","移除{n}","{n} हटाएँ"],
+  pideCancion:["Pide tu canción","Request your song","Peça sua música","Demandez votre chanson","点一首歌","अपना गाना चुनें"],
+  hintCancion:["Escribe artista y canción; así suena más rápido. Puedes pedir hasta 10; cada cupo se libera a los 15 minutos. Suenan por turnos entre todas las mesas.","Type the artist and song; it plays faster that way. You can request up to 10; each slot frees up after 15 minutes. Songs play in turns between all tables.","Escreva o artista e a música; assim toca mais rápido. Você pode pedir até 10; cada vaga libera após 15 minutos. Tocam por turnos entre todas as mesas.","Écrivez l’artiste et la chanson ; elle passera plus vite. Vous pouvez en demander jusqu’à 10 ; chaque créneau se libère après 15 minutes. Elles passent à tour de rôle entre toutes les tables.","请输入艺人和歌曲名，这样播放更快。最多可点10首；每个名额15分钟后释放。各桌轮流播放。","कलाकार और गाना लिखें; इससे जल्दी बजेगा। आप 10 तक माँग सकते हैं; हर स्लॉट 15 मिनट बाद खाली होता है। सभी मेज़ों के बीच बारी-बारी बजते हैं।"],
+  ejemploCancion:["Ej: Bad Bunny - Titi Me Preguntó","E.g. Bad Bunny - Titi Me Preguntó","Ex.: Bad Bunny - Titi Me Preguntó","Ex. : Bad Bunny - Titi Me Preguntó","例如：Bad Bunny - Titi Me Preguntó","जैसे: Bad Bunny - Titi Me Preguntó"],
+  cancionesEstado:["Llevas {u} de {max} canciones. Cada cupo se libera a los 15 minutos.","You’ve used {u} of {max} songs. Each slot frees up after 15 minutes.","Você já pediu {u} de {max} músicas. Cada vaga libera após 15 minutos.","Vous avez utilisé {u} chansons sur {max}. Chaque créneau se libère après 15 minutes.","您已点{u}/{max}首歌。每个名额15分钟后释放。","आपने {max} में से {u} गाने माँगे हैं। हर स्लॉट 15 मिनट बाद खाली होता है।"],
+  tuCuenta:["Tu cuenta","Your bill","Sua conta","Votre addition","您的账单","आपका बिल"],
+  cargandoCuenta:["Cargando tu cuenta…","Loading your bill…","Carregando sua conta…","Chargement de l’addition…","正在加载账单…","आपका बिल लोड हो रहा है…"],
+  hintCuenta:["¿Ya quieres pagar? Pide la cuenta y te la llevamos a la mesa.","Ready to pay? Ask for the bill and we’ll bring it to your table.","Já quer pagar? Peça a conta e levamos até a sua mesa.","Prêt à payer ? Demandez l’addition, on l’apporte à votre table.","想结账吗？请求账单，我们送到您的桌上。","भुगतान करना चाहते हैं? बिल माँगें, हम मेज़ पर ले आएँगे।"],
+  notaPlaceholder:["Nota opcional (ej. pago con tarjeta)","Optional note (e.g. paying by card)","Nota opcional (ex.: pagamento no cartão)","Note facultative (ex. paiement par carte)","备注（可选，例如：刷卡支付）","वैकल्पिक नोट (जैसे: कार्ड से भुगतान)"],
+  cuentaSinConsumo:["Tu mesa no tiene consumo todavía.","Your table has no orders yet.","Sua mesa ainda não tem consumo.","Votre table n’a encore rien consommé.","您的桌子还没有消费记录。","आपकी मेज़ पर अभी कोई खपत नहीं है।"],
+  cuentaSinVivo:["Este QR no muestra la cuenta en vivo. Toca «Pedir la cuenta».","This QR doesn’t show the live bill. Tap “Ask for the bill”.","Este QR não mostra a conta ao vivo. Toque em “Pedir a conta”.","Ce QR n’affiche pas l’addition en direct. Touchez « Demander l’addition ».","此二维码不显示实时账单。请点击“请求账单”。","यह QR लाइव बिल नहीं दिखाता। «बिल माँगें» दबाएँ।"],
+  consumo:["Consumo","Ordered","Consumo","Consommation","消费","खपत"],
+  pagado:["Pagado","Paid","Pago","Payé","已付","भुगतान हुआ"],
+  porPagar:["Por pagar","To pay","A pagar","À payer","待付","बकाया"],
+  pagarNequi:["💜 Paga con Nequi","💜 Pay with Nequi","💜 Pague com Nequi","💜 Payez avec Nequi","💜 用 Nequi 支付","💜 Nequi से भुगतान करें"],
+  aNombreDe:["A nombre de","Account holder","Em nome de","Au nom de","户名","खाता धारक"],
+  nequiInstr:["Abre tu app Nequi → Enviar → pega este número → escribe el valor exacto → envía.","Open your Nequi app → Send → paste this number → enter the exact amount → send.","Abra o app Nequi → Enviar → cole este número → digite o valor exato → envie.","Ouvrez l’appli Nequi → Envoyer → collez ce numéro → indiquez le montant exact → envoyez.","打开你的 Nequi 应用 → 发送 → 粘贴此号码 → 输入准确金额 → 发送。","अपना Nequi ऐप खोलें → भेजें → यह नंबर पेस्ट करें → सही राशि लिखें → भेजें।"],
+  copiarNumero:["📋 Copiar número","📋 Copy number","📋 Copiar número","📋 Copier le numéro","📋 复制号码","📋 नंबर कॉपी करें"],
+  numeroCopiado:["📋 Número copiado","📋 Number copied","📋 Número copiado","📋 Numéro copié","📋 号码已复制","📋 नंबर कॉपी हुआ"],
+  yaPagueNequi:["✅ Ya pagué por Nequi","✅ I already paid with Nequi","✅ Já paguei pelo Nequi","✅ J’ai déjà payé avec Nequi","✅ 我已用 Nequi 付款","✅ मैंने Nequi से भुगतान कर दिया"],
+  avisoNequiEnviado:["✅ Le avisamos a la mesa que pagaste por Nequi.","✅ We told the staff you paid with Nequi.","✅ Avisamos à equipe que você pagou pelo Nequi.","✅ Nous avons prévenu l’équipe que vous avez payé avec Nequi.","✅ 已通知店员你用 Nequi 付款了。","✅ हमने स्टाफ़ को बता दिया कि आपने Nequi से भुगतान किया।"],
+  actualizado:["Actualizado {hora}","Updated {hora}","Atualizado {hora}","Mis à jour à {hora}","更新于{hora}","अपडेट किया गया {hora}"],
+  pedisteAntes:["Pediste antes","Ordered before","Pedido antes","Déjà commandé","您之前点过","पहले ऑर्डर किया"],
+  yaEnTuMesa:["Ya en tu mesa","Already at your table","Já na sua mesa","Déjà à votre table","已在您桌上","पहले से आपकी मेज़ पर"],
+  deLaCarta:["De la carta","From the menu","Da carta","De la carte","菜单中","मेन्यू से"],
+  delMenu:["Del menú","From the menu","Do cardápio","Du menu","菜单中","मेन्यू से"],
+  agregarTalComoLoEscribiste:["Agregar “{q}” tal como lo escribiste","Add “{q}” as you typed it","Adicionar “{q}” como você digitou","Ajouter « {q} » tel quel","按输入添加“{q}”","“{q}” को वैसे ही जोड़ें जैसे आपने लिखा"],
+  haceUnMomento:["hace un momento","just now","agora mesmo","à l’instant","刚刚","अभी अभी"],
+  haceMin:["hace {m} min","{m} min ago","há {m} min","il y a {m} min","{m}分钟前","{m} मिनट पहले"],
+  haceHoras:["hace {h} h","{h} h ago","há {h} h","il y a {h} h","{h}小时前","{h} घंटे पहले"],
+  monedaLabel:["Moneda","Currency","Moeda","Devise","货币","मुद्रा"],
+  tasaNota:["Conversión referencial. El cobro es en pesos colombianos (COP).","Reference conversion only. Charges are in Colombian pesos (COP).","Conversão apenas referencial. A cobrança é em pesos colombianos (COP).","Conversion indicative uniquement. Le paiement se fait en pesos colombiens (COP).","仅供参考的换算。实际收费以哥伦比亚比索（COP）计。","यह केवल संदर्भ हेतु रूपांतरण है। भुगतान कोलंबियाई पेसो (COP) में होगा।"],
+  abiertoAhora:["Abierto ahora","Open now","Aberto agora","Ouvert maintenant","营业中","अभी खुला है"],
+  cerradoAhora:["Cerrado ahora","Closed now","Fechado agora","Fermé maintenant","已打烊","अभी बंद है"]
+};
+const DICT={};
+Object.keys(DICT_SRC).forEach(k=>{DICT[k]={};LANGS.forEach((l,i)=>{DICT[k][l]=DICT_SRC[k][i];});});
+const LANG_KEY='pm-lang';
+let LANG=(()=>{ try{ const s=localStorage.getItem(LANG_KEY); if(s) return s; const l=(navigator.language||'es').slice(0,2).toLowerCase(); return LANGS.includes(l)?l:'es'; }catch(e){ return 'es'; } })();
+function t(key,vars){
+  let s=(DICT[key]&&(DICT[key][LANG]!=null?DICT[key][LANG]:DICT[key].es))||key;
+  if(vars) Object.keys(vars).forEach(k=>{ s=s.split('{'+k+'}').join(vars[k]); });
+  return s;
+}
+
+/* ---------- Modo fácil: letra/botones grandes, sin animaciones ---------- */
+const EASY_KEY='pm-easy';
+let EASY=(()=>{ try{ return localStorage.getItem(EASY_KEY)==='1'; }catch(e){ return false; } })();
+function applyEasyMode(){
+  document.body.classList.toggle('easy-mode',EASY);
+  const b=$('easyBtn');
+  if(!b) return;
+  b.setAttribute('aria-pressed',String(EASY));
+  b.textContent=(EASY?'✅ ':'🔎 ')+t('modoFacil');
+}
+function setEasyMode(on){
+  EASY=on; try{ localStorage.setItem(EASY_KEY,on?'1':'0'); }catch(e){}
+  applyEasyMode();
+}
+
+/* ---------- Monedas ---------- */
+const CUR_KEY='pm-cur',RATES_KEY='pm-rates';
+const CUR_META={
+  COP:{sym:'$',dec:0,locale:'es-CO'}, USD:{sym:'US$',dec:2,locale:'en-US'}, EUR:{sym:'€',dec:2,locale:'de-DE'},
+  MXN:{sym:'MX$',dec:2,locale:'es-MX'}, BRL:{sym:'R$',dec:2,locale:'pt-BR'}, GBP:{sym:'£',dec:2,locale:'en-GB'},
+  ARS:{sym:'AR$',dec:2,locale:'es-AR'}, PEN:{sym:'S/',dec:2,locale:'es-PE'}, CLP:{sym:'CL$',dec:0,locale:'es-CL'}
+};
+const RATES_FALLBACK={COP:1,USD:.000316,EUR:.000275,MXN:.005421,BRL:.00162,GBP:.000236,ARS:.477739,PEN:.001068,CLP:.30322};
+let CUR=(()=>{ try{ return localStorage.getItem(CUR_KEY)||'COP'; }catch(e){ return 'COP'; } })();
+let RATES=(()=>{ try{ const c=JSON.parse(localStorage.getItem(RATES_KEY)||'null'); if(c&&c.t&&Date.now()-c.t<12*36e5&&c.r) return c.r; }catch(e){} return Object.assign({},RATES_FALLBACK); })();
+async function actualizarTasas(){
+  try{
+    const ctrl=new AbortController(),tmo=setTimeout(()=>ctrl.abort(),6000);
+    const r=await fetch('https://open.er-api.com/v6/latest/COP',{signal:ctrl.signal});
+    clearTimeout(tmo);
+    const j=await r.json();
+    if(j&&j.result==='success'&&j.rates){
+      RATES=Object.assign({},j.rates,{COP:1});
+      try{localStorage.setItem(RATES_KEY,JSON.stringify({t:Date.now(),r:RATES}))}catch(e){}
+      if(CUR!=='COP') refrescarVista();
+    }
+  }catch(e){ /* seguimos con la tasa guardada o la aproximada */ }
+}
+function fmCop(n){ return '$'+Math.round(n).toLocaleString('es-CO'); }
+function fm(n){
+  if(CUR==='COP'||!RATES[CUR]) return fmCop(n);
+  const meta=CUR_META[CUR]||CUR_META.COP,val=n*RATES[CUR];
+  return meta.sym+val.toLocaleString(meta.locale,{minimumFractionDigits:meta.dec,maximumFractionDigits:meta.dec})+' (≈ '+fmCop(n)+')';
+}
+function updateCurNote(){
+  const e=$('curNote');
+  if(CUR==='COP'){ e.hidden=true; return; }
+  e.hidden=false; e.textContent=t('tasaNota');
+}
+
+function msg(txt,cl){ $('m').textContent=txt; $('m').className=cl||''; }
+let lastMsg=null;
+function setMsg(builder,cl){ lastMsg={builder,cl}; msg(builder(),cl); }
+function clearMsg(){ lastMsg=null; msg('',''); }
+
+$('t').textContent=t('mesaLabel',{n:mesa||'?'});
+document.title=t('mesaLabel',{n:mesa||'?'});
+
+/* ---------- Texto predictivo ---------- */
+const NUM={un:1,uno:1,una:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12};
+const norm=s=>String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+const sing=s=>s.length>3?s.replace(/s$/,''):s;
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+
+/* Productos que ya conocemos de esta mesa: los que están en su cuenta y los que pidió antes desde este celular */
+function candidatos(){
+  const m=new Map();
+  if(snap&&Array.isArray(snap.i))snap.i.forEach(x=>{const n=String(x[0]).slice(0,60),k=norm(n);if(k&&!m.has(k))m.set(k,{n:n,k:k,src:'mesa',c:+x[1]||0})});
+  const hs=jget(KH,{});
+  Object.keys(hs).forEach(k=>{if(!m.has(k))m.set(k,{n:hs[k].n,k:k,src:'antes',c:hs[k].c||0})});
+  if(cat&&Array.isArray(cat.p))cat.p.forEach(x=>{const k=norm(x[0]);if(k&&x[3]!==2&&!m.has(k))m.set(k,{n:String(x[0]).slice(0,60),k:k,src:'cat',c:0})});
+  return Array.from(m.values());
+}
+function puntaje(nk,qk){
+  const qs=sing(qk),ts=qs!==qk?[qk,qs]:[qk];
+  let best={s:0,len:0};
+  ts.forEach(term=>{
+    let s=0;
+    if(nk.startsWith(term))s=3;
+    else if(nk.split(' ').some(w=>w.startsWith(term)))s=2;
+    else if(term.length>=3&&nk.includes(term))s=1;
+    if(s>best.s)best={s:s,len:term.length};
+  });
+  return best;
+}
+function sugerencias(rest){
+  const qk=norm(rest);if(!qk)return[];
+  const out=[];
+  candidatos().forEach(x=>{const r=puntaje(x.k,qk);if(r.s)out.push(Object.assign({},x,{score:r.s,len:r.s==3?r.len:0}))});
+  out.sort((a,b)=>b.score-a.score||(a.src=='mesa'?0:1)-(b.src=='mesa'?0:1)||b.c-a.c||a.n.length-b.n.length);
+  return out.slice(0,5);
+}
+/* "2 águilas", "2x águila", "dos águilas" → cantidad + producto */
+function interpretar(txt){
+  txt=String(txt).trim();
+  let cant=1,rest=txt,m;
+  if((m=/^(\d{1,2})(?:\s*[x×]\s*|\s+)(.+)$/i.exec(txt))){cant=+m[1];rest=m[2]}
+  else if((m=/^(\d{1,2})$/.exec(txt))){cant=+m[1];rest=''}
+  else if((m=/^(un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+(.+)$/i.exec(txt))){
+    const nk=norm(txt);
+    if(!candidatos().some(x=>x.k.startsWith(nk))){cant=NUM[m[1].toLowerCase()];rest=m[2]}
+  }
+  return{q:Math.min(Math.max(cant,1),50),rest:rest.trim()};
+}
+function agregar(cant,nombre){
+  const k=norm(nombre);if(!k)return;
+  const l=lineas.find(x=>x.k===k);
+  if(l)l.q=Math.min(50,l.q+cant);else lineas.push({k:k,q:Math.min(50,cant),n:nombre});
+  pintarLineas();
+}
+function agregarTexto(txt){
+  let n=0;
+  String(txt).split(/[,;\n]+/).forEach(pz=>{
+    const r=interpretar(pz);if(!r.rest)return;
+    const nk=norm(r.rest),s=sugerencias(r.rest)[0];
+    const nombre=(s&&(s.k===nk||s.k.startsWith(sing(nk))))?s.n:cap(r.rest.slice(0,60));
+    agregar(r.q,nombre);n++;
+  });
+  return n;
+}
+function pintarSug(){
+  const box=$('sug');box.textContent='';
+  const r=interpretar($('p').value);
+  if(!r.rest){box.hidden=true;return}
+  const lista=sugerencias(r.rest);
+  lista.forEach((s,i)=>{
+    const b=h('button','row'+(i==0?' top':''));b.type='button';
+    const nm=h('span','nm');
+    if(s.len>0){nm.appendChild(h('b',null,s.n.slice(0,s.len)));nm.appendChild(document.createTextNode(s.n.slice(s.len)))}
+    else nm.textContent=s.n;
+    b.appendChild(nm);
+    b.appendChild(h('span','tag',s.src=='mesa'?t('yaEnTuMesa'):s.src=='cat'?(catT()==='Menú'?t('delMenu'):t('deLaCarta')):t('pedisteAntes')));
+    b.onmousedown=e=>e.preventDefault();
+    b.onclick=()=>{agregar(interpretar($('p').value).q,s.n);$('p').value='';pintarSug();$('p').focus()};
+    box.appendChild(b);
+  });
+  if(r.rest.length>=2&&(!lista.length||lista[0].score<3)){
+    const f=h('button','row free',t('agregarTalComoLoEscribiste',{q:r.rest}));f.type='button';
+    f.onmousedown=e=>e.preventDefault();
+    f.onclick=()=>{agregarTexto($('p').value);$('p').value='';pintarSug();$('p').focus()};
+    box.appendChild(f);
+  }
+  box.hidden=!box.children.length;
+}
+function entrar(){
+  const txt=$('p').value;if(!txt.trim())return;
+  if(agregarTexto(txt)){$('p').value='';pintarSug()}
+}
+$('p').addEventListener('input',pintarSug);
+$('p').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();entrar()}});
+$('add').onclick=()=>{entrar();$('p').focus()};
+
+/* ---------- Texto predictivo para canciones: lo que ya pediste antes desde este celular ---------- */
+const KCH='cancHist_'+mesa;
+function cancionHist(){ return jget(KCH,{}); }
+function aprenderCancion(nombre){
+  const k=norm(nombre); if(!k) return;
+  const hs=cancionHist(); const e=hs[k];
+  hs[k]={n:nombre.slice(0,120),c:(e?e.c:0)+1};
+  const o={}; Object.keys(hs).sort((a,b)=>hs[b].c-hs[a].c).slice(0,20).forEach(k2=>o[k2]=hs[k2]);
+  jset(KCH,o);
+}
+function sugerenciasCancion(q){
+  const qk=norm(q); if(!qk) return [];
+  const hs=cancionHist(),out=[];
+  Object.keys(hs).forEach(k=>{ const r=puntaje(k,qk); if(r.s) out.push({n:hs[k].n,k,score:r.s,len:r.s==3?r.len:0,c:hs[k].c}); });
+  out.sort((a,b)=>b.score-a.score||b.c-a.c||a.n.length-b.n.length);
+  return out.slice(0,5);
+}
+function pintarSugC(){
+  const box=$('sugC'); if(!box) return; box.textContent='';
+  const q=$('s').value;
+  const lista=sugerenciasCancion(q);
+  lista.forEach((s,i)=>{
+    const b=h('button','row'+(i==0?' top':''));b.type='button';
+    const nm=h('span','nm');
+    if(s.len>0){nm.appendChild(h('b',null,s.n.slice(0,s.len)));nm.appendChild(document.createTextNode(s.n.slice(s.len)))}
+    else nm.textContent=s.n;
+    b.appendChild(nm);
+    b.appendChild(h('span','tag',t('pedisteAntes')));
+    b.onmousedown=e=>e.preventDefault();
+    b.onclick=()=>{$('s').value=s.n;pintarSugC();$('s').focus()};
+    box.appendChild(b);
+  });
+  box.hidden=!box.children.length;
+}
+$('s').addEventListener('input',pintarSugC);
+$('s').addEventListener('focus',()=>{ if(!$('s').value.trim()){ const box=$('sugC'); if(box){ box.hidden=true; } } });
+
+/* ---------- Vista previa de YouTube: ver la canción antes de pedirla (no la agrega, solo confirma) ---------- */
+const YT_KEY='AIzaSyCQ_IKzsP2TEPc7jiIfV3prwc6VYvgq1xY';
+let ytTimer=null, ytSeq=0;
+function ytPintarMsg(msg){
+  const box=$('ytPrev'); if(!box) return;
+  box.textContent='';
+  box.appendChild(h('div','ytmsg',msg));
+  box.hidden=false;
+}
+async function ytBuscar(q){
+  const box=$('ytPrev'); if(!box) return;
+  const myId=++ytSeq;
+  ytPintarMsg('Buscando en YouTube…');
+  try{
+    const url='https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=4&q='+encodeURIComponent(q)+'&key='+YT_KEY;
+    const r=await fetch(url);
+    if(myId!==ytSeq) return;
+    if(!r.ok){ box.hidden=true; return; }
+    const j=await r.json();
+    if(myId!==ytSeq) return;
+    const items=(j.items||[]).filter(it=>it.id&&it.id.videoId);
+    if(!items.length){ ytPintarMsg('No encontramos esa canción en YouTube.'); return; }
+    box.textContent='';
+    items.forEach(it=>{
+      const sn=it.snippet||{};
+      const thumb=(sn.thumbnails&&(sn.thumbnails.default||sn.thumbnails.medium)||{}).url||'';
+      const b=h('button','ytrow');b.type='button';
+      if(thumb){ const im=document.createElement('img'); im.src=thumb; im.alt=''; b.appendChild(im); }
+      const info=h('span','ytnm');
+      const nm=h('span',null,sn.title||''); nm.style.display='block';
+      const ch=h('span','ytch',sn.channelTitle||'');
+      info.appendChild(nm); info.appendChild(ch);
+      b.appendChild(info);
+      b.onmousedown=e=>e.preventDefault();
+      b.onclick=()=>{
+        $('s').value=(sn.title||q).replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
+        box.hidden=true;
+        if($('sugC'))$('sugC').hidden=true;
+        $('s').focus();
+      };
+      box.appendChild(b);
+    });
+    box.hidden=false;
+  }catch(err){
+    if(myId!==ytSeq) return;
+    box.hidden=true;
+  }
+}
+$('s').addEventListener('input',()=>{
+  const q=$('s').value.trim();
+  clearTimeout(ytTimer);
+  if(q.length<4){ if($('ytPrev'))$('ytPrev').hidden=true; return; }
+  ytTimer=setTimeout(()=>ytBuscar(q),600);
+});
+$('s').addEventListener('blur',()=>{ setTimeout(()=>{ if($('ytPrev'))$('ytPrev').hidden=true; },150); });
+
+/* Fichas: lo que ya hay en la mesa, o lo que se pidió antes desde este celular */
+function pintarChips(){
+  const box=$('chips');box.textContent='';
+  let lista=[],titulo=t('yaEnTuMesa');
+  if(snap&&Array.isArray(snap.i)&&snap.i.length){
+    lista=snap.i.slice().sort((a,b)=>(+b[1]||0)-(+a[1]||0)).slice(0,6).map(x=>String(x[0]).slice(0,60));
+  }else{
+    const hs=jget(KH,{});
+    lista=Object.keys(hs).sort((a,b)=>hs[b].c-hs[a].c).slice(0,6).map(k=>hs[k].n);
+    titulo=t('pedisteAntes');
+  }
+  $('chipsSec').hidden=!lista.length;$('chipsT').textContent=titulo;
+  lista.forEach(n=>{
+    const b=h('button','chip');b.type='button';
+    b.appendChild(h('span',null,n));b.appendChild(h('b',null,'+'));
+    b.onclick=()=>{const r=interpretar($('p').value);agregar(r.rest?1:r.q,n);if(!r.rest){$('p').value='';pintarSug()}};
+    box.appendChild(b);
+  });
+}
+function aprender(l){
+  const hs=jget(KH,{});
+  l.forEach(x=>{const e=hs[x.k];hs[x.k]={n:x.n,c:(e?e.c:0)+1}});
+  const o={};
+  Object.keys(hs).sort((a,b)=>hs[b].c-hs[a].c).slice(0,30).forEach(k=>o[k]=hs[k]);
+  jset(KH,o);
+}
+
+/* ---------- Pedido armado ---------- */
+function rotulo(){
+  const b=$('b');
+  let u=0;
+  if(modo=='q')b.textContent=t('pedirCuenta');
+  else if(modo=='c')b.textContent=t('pedirCancion');
+  else{u=lineas.reduce((a,l)=>a+l.q,0);b.textContent=u?t('enviarPedido')+' · '+u+' '+(u==1?t('producto'):t('productos')):t('enviarPedido')}
+  b.classList.toggle('lista',u>0);
+}
+/* El botón de enviar va justo debajo del campo de cada pestaña, para que se vea aunque esté el teclado abierto */
+function colocarEnvio(){
+  const e=$('envio'),ref=modo=='p'?$('sug'):modo=='c'?$('sugC'):null;
+  if(ref)ref.parentNode.insertBefore(e,ref.nextSibling);else $('vq').appendChild(e);
+}
+function pintarLineas(){
+  const box=$('lines');box.textContent='';
+  if(!lineas.length){
+    box.appendChild(h('div','vacio',t('vacioLineas')));
+  }else{
+    const w=h('div','lst');
+    lineas.forEach(l=>{
+      const r=h('div','ln');
+      const nm=h('span','nm',l.n);
+      const st=h('div','step');
+      const mn=h('button',null,'−');mn.type='button';mn.disabled=l.q<=1;mn.setAttribute('aria-label',t('quitarUno',{n:l.n}));
+      mn.onclick=()=>{l.q=Math.max(1,l.q-1);pintarLineas()};
+      const o=h('output',null,String(l.q));
+      const ms=h('button',null,'+');ms.type='button';ms.setAttribute('aria-label',t('agregarUnoMas',{n:l.n}));
+      ms.onclick=()=>{l.q=Math.min(50,l.q+1);pintarLineas()};
+      st.appendChild(mn);st.appendChild(o);st.appendChild(ms);
+      const x=h('button','x','×');x.type='button';x.setAttribute('aria-label',t('quitarProducto',{n:l.n}));
+      x.onclick=()=>{lineas=lineas.filter(y=>y!==l);pintarLineas()};
+      r.appendChild(nm);r.appendChild(st);r.appendChild(x);
+      w.appendChild(r);
+    });
+    box.appendChild(w);
+  }
+  rotulo();
+  if(typeof pintarBadgesCat==='function')pintarBadgesCat();
+}
+
+/* ---------- Repetir la misma ronda ---------- */
+const rondas=()=>jget(KR,[]).filter(r=>r&&Array.isArray(r.l)&&r.l.length&&Date.now()-r.t<VIDA_RONDA);
+function hace(ts){
+  const m=Math.floor((Date.now()-ts)/6e4);
+  return m<1?t('haceUnMomento'):m<60?t('haceMin',{m:m}):t('haceHoras',{h:Math.floor(m/60)});
+}
+function guardarRonda(l){const r=jget(KR,[]);r.unshift({t:Date.now(),l:l});jset(KR,r.slice(0,5))}
+function pintarRonda(){
+  const r=rondas()[0];
+  if(!r){$('ronda').hidden=true;return}
+  $('rondaTxt').textContent=r.l.map(x=>x.q+' '+x.n).join(' · ')+' · '+hace(r.t);
+  $('ronda').hidden=false;
+}
+$('ronda').onclick=()=>{
+  const r=rondas()[0];if(!r)return;
+  lineas=r.l.map(x=>({k:x.k,q:x.q,n:x.n}));
+  pintarLineas();
+  setMsg(()=>t('rondaCargada'),'ok');
+  try{$('lines').scrollIntoView({behavior:'smooth',block:'center'})}catch(e){}
+};
+
+/* ---------- Pestañas ---------- */
+function info(){
+  if(modo=='c'){pintarCupos();setMsg(()=>t('cancionesEstado',{u:usadas(),max:MAX}),'')}
+}
+function pintarCupos(){
+  const b=$('cupos');b.textContent='';
+  const u=usadas();
+  for(let i=0;i<MAX;i++)b.appendChild(h('i',i<u?'on':''));
+}
+function set(x){
+  modo=x;colocarEnvio();
+  ['p','c','q'].forEach(k=>{
+    const on=k==x;
+    $('v'+k).hidden=!on;
+    $('t'+k).className='t'+(on?' on':'');
+    $('t'+k).setAttribute('aria-selected',on?'true':'false');
+  });
+  $('wa').style.display='none';
+  clearMsg();rotulo();info();
+}
+$('tp').onclick=()=>set('p');$('tc').onclick=()=>set('c');$('tq').onclick=()=>set('q');
+
+/* ---------- Cuenta en vivo (también alimenta las sugerencias) ---------- */
+function fila(a,b,cl){
+  const r=h('div','l'+(cl?' '+cl:''));
+  r.appendChild(h('span',null,a));r.appendChild(h('i','fill'));r.appendChild(h('span',null,b));
+  $('cs').appendChild(r);
+}
+/* Caja de pago con Nequi: la publica el local (número guardado en Ajustes →
+   Pasarela de pago) y solo se ve si hay saldo pendiente por pagar. No cobra
+   sola — el cliente transfiere desde su propia app Nequi y avisa con el
+   botón; el local confirma el pago cuando lo vea llegar. */
+function pintarNequi(d){
+  const box=$('nequiBox');
+  if(!box)return;
+  const saldo=(d&&d.s>0)?d.s:0;
+  if(!nq||saldo<=0){box.hidden=true;return}
+  box.hidden=false;
+  $('nequiNum').textContent=nq;
+  if(nqn){$('nequiName').hidden=false;$('nequiName').textContent=t('aNombreDe')+': '+nqn}
+  else $('nequiName').hidden=true;
+  $('nequiMonto').textContent=fm(saldo);
+  $('nequiOkMsg').hidden=true;
+  $('nequiPaidBtn').disabled=false;
+}
+function pintar(d){
+  pintarNequi(d);
+  $('cs').textContent='';
+  if(!d.i||!d.i.length){$('cs').textContent=t('cuentaSinConsumo');return}
+  d.i.forEach(x=>fila(x[1]+' × '+x[0],fm(x[1]*x[2])));
+  fila(t('consumo'),fm(d.c),'tt');fila(t('pagado'),fm(d.p));fila(t('porPagar'),fm(d.s),'g');
+  const u=h('small',null,t('actualizado',{hora:new Date(d.t).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}));
+  $('cs').appendChild(u);
+}
+function conectar(){
+  if(es)return;
+  if(!v){$('cs').textContent=t('cuentaSinVivo');return}
+  try{es=new EventSource('https://ntfy.sh/'+v+'/sse?since=12h')}catch(e){return}
+  es.onmessage=ev=>{try{
+    const m=JSON.parse(ev.data);
+    if(m.event==='message'){snap=JSON.parse(m.message);pintar(snap);pintarChips();pintarSug()}
+  }catch(e){}};
+  es.onopen=()=>{if($('cs').textContent==t('cargandoCuenta'))$('cs').textContent=t('cuentaSinConsumo')};
+}
+
+/* ---------- Envío ---------- */
+const wam=()=>{location.href='https://wa.me/'+wa+'?text='+encodeURIComponent(ultimo)};
+$('wa').onclick=wam;
+
+/* ---------- Pago con Nequi (manual: el cliente transfiere y avisa) ---------- */
+$('nequiCopyBtn').onclick=async()=>{
+  const b=$('nequiCopyBtn'),orig=b.textContent;
+  try{
+    if(navigator.clipboard)await navigator.clipboard.writeText(nq);
+    else{const ta=document.createElement('textarea');ta.value=nq;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove()}
+    b.textContent=t('numeroCopiado');
+  }catch(e){}
+  setTimeout(()=>{b.textContent=orig},1800);
+};
+$('nequiPaidBtn').onclick=async()=>{
+  if(!mesa)return;
+  const monto=$('nequiMonto').textContent,btn=$('nequiPaidBtn');
+  const msg='CUENTA MESA '+mesa+': 💜 Cliente dice que YA PAGÓ '+monto+' por Nequi';
+  btn.disabled=true;
+  if(c){
+    try{
+      const r=await fetch('https://ntfy.sh/'+c,{method:'POST',body:msg});
+      if(r.ok){$('nequiOkMsg').hidden=false;$('nequiOkMsg').textContent=t('avisoNequiEnviado');return}
+    }catch(e){}
+  }
+  btn.disabled=false;
+  if(wa)location.href='https://wa.me/'+wa+'?text='+encodeURIComponent(msg);
+};
+$('b').onclick=async()=>{
+  if(!mesa||(!c&&!wa))return setMsg(()=>t('qrIncompleto'),'err');
+  let txt='',env=null;
+  if(modo=='p'){
+    if($('p').value.trim()){agregarTexto($('p').value);$('p').value='';pintarSug()}
+    env=lineas.map(l=>({k:l.k,q:l.q,n:l.n}));
+    txt=env.map(l=>l.q+' '+l.n).join(', ');
+  }else if(modo=='c')txt=$('s').value.replace(/\s+/g,' ').trim();
+  else txt=$('n').value.replace(/\s+/g,' ').trim();
+  if(!txt&&modo!='q')return setMsg(()=>t('escribeAlgo'),'err');
+  if(modo=='c'&&usadas()>=MAX)return setMsg(()=>t('cancionLimite',{max:MAX,min:Math.ceil((Math.min(...recientes())+V-Date.now())/6e4)}),'err');
+  const tipo={p:'PEDIDO',c:'CANCION',q:'CUENTA'}[modo];
+  ultimo=tipo+' MESA '+mesa+(txt?': '+txt:'');
+  if(c){
+    if(ultimo.length>300)return setMsg(()=>t('pedidoLargo'),'err');
+    $('b').disabled=true;
+    try{
+      const r=await fetch('https://ntfy.sh/'+c,{method:'POST',body:ultimo});
+      if(r.ok){
+        if(modo=='c'){const a=recientes();a.push(Date.now());jset(K,a);aprenderCancion(txt);if($('sugC'))$('sugC').hidden=true;if($('ytPrev'))$('ytPrev').hidden=true}
+        if(modo=='p'){guardarRonda(env);aprender(env);lineas=[];pintarLineas();pintarRonda();pintarChips()}
+        $('s').value=$('n').value='';
+        $('b').disabled=false;
+        if(modo=='c')pintarCupos();
+        setMsg(()=>t('enviadoOk')+(modo=='c'?t('cancionesLlevas',{u:usadas(),max:MAX}):''),'ok');
+        return;
+      }
+    }catch(e){}
+    $('b').disabled=false;
+    if(wa){setMsg(()=>t('noEnviadoWa'),'err');$('wa').style.display='block';return}
+    return setMsg(()=>t('noEnviadoMesero'),'err');
+  }
+  if(modo=='p'){guardarRonda(env);aprender(env)}
+  if(modo=='c')aprenderCancion(txt);
+  wam();
+};
+
+/* ---------- Menú / carta (lo publica la app del local) ---------- */
+let cat=jget('cat_'+c,null);
+let catTab=null;                                  // categoría elegida en las pestañas (null = la primera disponible)
+const PROMO_CAT_NAME='Promociones y combos';
+const catT=()=>{const y=cat&&cat.y;return (y==='restaurante'||y==='cafeteria')?'Menú':'Carta'};
+const catIcon=()=>{const y=cat&&cat.y;return (y==='restaurante'||y==='cafeteria')?'🍽️':y==='cerveceria'?'🍻':'📖'};
+const nrm=s=>String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+/* Icono por categoría: solo con el nombre, sin depender de datos nuevos que el local tenga que publicar */
+function iconoDeCategoria(nombre){
+  const n=nrm(nombre||'');
+  if(n===nrm(PROMO_CAT_NAME))return '🎁';
+  if(/cerve|beer|birra|chela/.test(n))return '🍺';
+  if(/cigarr|tabaco/.test(n))return '🚬';
+  if(/aguardient|whisky|whiskey|\bron\b|vodka|tequila|licor|trago/.test(n))return '🥃';
+  if(/vino/.test(n))return '🍷';
+  if(/gaseosa|soda|refresco|jugo|malta|energizante/.test(n))return '🥤';
+  if(/agua/.test(n))return '💧';
+  if(/caf[eé]|tinto/.test(n))return '☕';
+  if(/postre|dulce|torta/.test(n))return '🍰';
+  if(/papa|snack|pasaboca|picada|hamburgues|pizza|perro|comida|plato/.test(n))return '🍟';
+  return '🍽️';
+}
+function pcardHtml(x){
+  const r=h('div','pcard'+(x[3]==2?' ag':''));
+  r.dataset.k=norm(x[0]);
+  const qb=h('span','pqb');r.appendChild(qb);      // cuántas unidades de este producto ya lleva el cliente
+  r.appendChild(h('span','pic',iconoDeCategoria(x[2])));
+  r.appendChild(h('span','pn',x[0]));
+  if(x[3]==2){
+    r.appendChild(h('span','pagot',t('agotado')));
+  } else {
+    r.appendChild(h('span','pp',fm(x[1])));
+    if(x[4])r.appendChild(h('span','plo',t('promoAhorra',{n:x[4]})));
+    else if(x[3]==1)r.appendChild(h('span','plo',t('ultimasUnidades')));
+  }
+  if(x[3]!=2){
+    const b=h('button','padd','+');b.type='button';b.setAttribute('aria-label',t('addAria')+': '+x[0]);
+    b.onclick=()=>{agregar(1,x[0])};r.appendChild(b);
+  }
+  return r;
+}
+function pintarBizName(){
+  const el=$('bizName');if(!el)return;
+  const nombre=cat&&cat.n?String(cat.n).trim():'';
+  el.textContent=nombre;el.hidden=!nombre;
+}
+/* ---------- Mensaje, info extra, reloj y "abierto/cerrado" (los pone el
+   local en Ajustes → Personalizar la página de pedidos, llegan con la carta
+   por el mismo canal en vivo de ntfy, ver cargarCat()) ---------- */
+function isOpenNow(oh,ch){
+  if(!oh||!ch)return null;
+  const now=new Date(),cur=now.getHours()*60+now.getMinutes();
+  const [oH,oM]=oh.split(':').map(Number),[cH,cM]=ch.split(':').map(Number);
+  if(isNaN(oH)||isNaN(cH))return null;
+  const openMin=oH*60+(oM||0),closeMin=cH*60+(cM||0);
+  if(openMin===closeMin)return true;                    // mismo valor: abierto 24h
+  if(openMin<closeMin)return cur>=openMin&&cur<closeMin;
+  return cur>=openMin||cur<closeMin;                     // cruza medianoche (ej. 4pm a 2am)
+}
+function fmtHora12(hhmm){
+  if(!hhmm)return'';
+  const[h,m]=hhmm.split(':').map(Number);if(isNaN(h))return'';
+  const ampm=h>=12?'p. m.':'a. m.',h12=((h+11)%12)+1;
+  return h12+(m?':'+String(m).padStart(2,'0'):'')+' '+ampm;
+}
+function pintarInfoBar(){
+  const bar=$('orderInfoBar');if(!bar)return;
+  const msg=cat&&cat.msg?String(cat.msg).trim():'';
+  const info=cat&&cat.info?String(cat.info).trim():'';
+  const oh=cat&&cat.oh?cat.oh:'',ch=cat&&cat.ch?cat.ch:'';
+  const hn=cat&&cat.hn?String(cat.hn).trim():'';
+  const msgEl=$('orderMessageEl');if(msgEl){msgEl.textContent=msg;msgEl.hidden=!msg;}
+  const infoEl=$('orderExtraInfoEl');if(infoEl){
+    const hourLine=(oh&&ch)?(fmtHora12(oh)+' – '+fmtHora12(ch)+(hn?' · '+hn:'')):hn;
+    infoEl.textContent=[info,hourLine].filter(Boolean).join(' · ');
+    infoEl.hidden=!(info||hourLine);
+  }
+  const badge=$('orderOpenBadge');
+  if(badge){
+    const open=isOpenNow(oh,ch);
+    if(open===null){badge.hidden=true;}
+    else{
+      badge.hidden=false;
+      badge.textContent=open?('🟢 '+t('abiertoAhora')):('🔴 '+t('cerradoAhora'));
+      badge.className='order-openbadge '+(open?'is-open':'is-closed');
+    }
+  }
+  bar.hidden=!(msg||info||(oh&&ch));
+}
+function tickOrderClock(){
+  const el=$('orderClockEl');if(!el)return;
+  el.textContent=new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+tickOrderClock();
+setInterval(tickOrderClock,1000);
+function pintarCat(fin){
+  pintarBizName();
+  pintarInfoBar();
+  const box=$('cat');box.textContent='';
+  const ps=cat&&Array.isArray(cat.p)?cat.p:[],esMenu=catT()==='Menú';
+  $('catT').textContent=t(esMenu?'tituloMenu':'tituloCarta');
+  $('catIc').textContent=catIcon();
+  $('catBtnT').textContent=t(esMenu?'verMenu':'verCarta');
+  $('catBtnS').textContent=ps.length?t('catCount',{n:ps.length}):t('catAunNoDisp');
+  $('cq').placeholder=t(esMenu?'buscarMenu':'buscarCarta');
+  $('catBtn').hidden=!fin&&!ps.length;
+  if(!ps.length){box.appendChild(h('p','hint',t(esMenu?'sinPublicarMenu':'sinPublicarCarta')));return}
+  const qraw=$('cq').value.trim(),q=nrm(qraw),buscando=!!q;
+  const list=buscando?ps.filter(x=>nrm(x[0]+' '+(x[2]||'')).includes(q)):ps;
+  if(!list.length){box.appendChild(h('p','hint',t('sinCoincidencias',{q:qraw})));return}
+
+  // Los agotados no interrumpen la lectura: se mantiene el orden de venta,
+  // pero se van al final de su categoría en vez de quedar en su posición original.
+  const alFinalLosAgotados=arr=>arr.slice().sort((a,b)=>(a[3]==2)-(b[3]==2));
+
+  // Promociones: franja fija arriba, siempre visible (no escondida en una pestaña)
+  const promos=alFinalLosAgotados(list.filter(x=>(x[2]||'Otros')===PROMO_CAT_NAME));
+  if(promos.length){
+    const strip=h('div','promo-strip');
+    strip.appendChild(h('h3',null,t('promoTitulo')));
+    const g=h('div','cardgrid');promos.forEach(x=>g.appendChild(pcardHtml(x)));
+    strip.appendChild(g);
+    box.appendChild(strip);
+  }
+
+  const resto=list.filter(x=>(x[2]||'Otros')!==PROMO_CAT_NAME);
+  if(!resto.length){pintarBadgesCat();return}
+
+  if(buscando){
+    // Buscando: se muestran los resultados de todas las categorías juntos, sin pestañas
+    const g=h('div','cardgrid');alFinalLosAgotados(resto).forEach(x=>g.appendChild(pcardHtml(x)));
+    box.appendChild(g);
+    pintarBadgesCat();
+    return;
+  }
+
+  const g={},order=[];
+  resto.forEach(x=>{const k=x[2]||'Otros';if(!g[k]){g[k]=[];order.push(k)}g[k].push(x)});
+  const keys=order.slice().sort((a,b)=>(a==='Otros')-(b==='Otros'));
+  if(!keys.includes(catTab))catTab=keys[0]||null;
+
+  const tabs=h('div','cat-tabs');
+  keys.forEach(k=>{
+    const b=h('button','cat-tab'+(k===catTab?' on':''));b.type='button';
+    b.textContent=iconoDeCategoria(k)+' '+k;
+    b.onclick=()=>{catTab=k;pintarCat(fin)};
+    tabs.appendChild(b);
+  });
+  box.appendChild(tabs);
+
+  const grid=h('div','cardgrid');
+  alFinalLosAgotados(g[catTab]||[]).forEach(x=>grid.appendChild(pcardHtml(x)));
+  box.appendChild(grid);
+  pintarBadgesCat();
+}
+/* Muestra en cada producto de la carta cuántas unidades llevas en tu pedido */
+function pintarBadgesCat(){
+  const box=$('cat');if(!box)return;
+  box.querySelectorAll('.pcard[data-k]').forEach(r=>{
+    const b=r.querySelector('.pqb');if(!b)return;
+    const l=lineas.find(x=>x.k===r.dataset.k),q=l?l.q:0,primera=b.dataset.q===undefined,prev=+b.dataset.q||0;
+    b.classList.toggle('show',!!q);b.dataset.q=q;b.textContent=q?'×'+q:'';
+    if(q&&!primera&&q!==prev){b.classList.remove('pop');void b.offsetWidth;b.classList.add('pop');}
+  });
+}
+function abrirCarta(){pintarCat(true);$('carta').hidden=false;$('carta').scrollTop=0;document.body.style.overflow='hidden'}
+function cerrarCarta(){$('carta').hidden=true;document.body.style.overflow=''}
+$('catBtn').onclick=abrirCarta;$('catX').onclick=cerrarCarta;$('catBack').onclick=cerrarCarta;$('cq').oninput=()=>pintarCat(true);
+async function cargarCat(){
+  pintarCat();if(!c){pintarCat(true);return}
+  try{
+    const ctrl=new AbortController(),tmo=setTimeout(()=>ctrl.abort(),6000);
+    const r=await fetch('https://ntfy.sh/'+c+'k/json?poll=1&since=4h',{signal:ctrl.signal});
+    clearTimeout(tmo);
+    const ls=(await r.text()).trim().split('\n').filter(Boolean);
+    for(let i=ls.length-1;i>=0;i--){const m=JSON.parse(ls[i]);if(m.event==='message'){cat=JSON.parse(m.message);jset('cat_'+c,cat);applyTh(cat.th);break}}
+  }catch(e){}
+  pintarCat(true);pintarSug();
+}
+
+/* ---------- Efectos de temporada (nieve, murciélagos, corazones, velitas…) ---------- */
+const FX_SETS = {
+  navidad: ['❄️', '❄', '✨', '🎄'],
+  halloween: ['🦇', '🎃', '👻', '🕸️'],
+  sanvalentin: ['💘', '❤️', '💕', '✨'],
+  velitas: ['🕯️', '✨', '💛', '🌟']
+};
+function fxSet(kind){
+  let L = document.getElementById('fxLayer');
+  const E = FX_SETS[kind];
+  if(!E){ if(L) L.remove(); return; }
+  if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if(!L){ L = document.createElement('div'); L.id = 'fxLayer'; L.setAttribute('aria-hidden', 'true'); document.body.appendChild(L); }
+  L.innerHTML = '';
+  for(let i = 0; i < 18; i++){ const s = document.createElement('span'); s.textContent = E[i % 4];
+    s.style.cssText = 'left:' + (Math.random() * 100) + 'vw;font-size:' + (12 + Math.random() * 14) + 'px;animation-duration:' + (9 + Math.random() * 10) + 's,' + (3 + Math.random() * 3) + 's;animation-delay:' + (-Math.random() * 14) + 's,0s'; L.appendChild(s); }
+}
+
+/* ---------- Temática (la elige el local en Ajustes → Apariencia de su app;
+   llega por el canal en vivo de ntfy junto con la carta, ver cargarCat()) ---------- */
+const TH = {
+  apple: { '--bg':'#f2f2f7', '--card':'#ffffff', '--card2':'#e9e9ef', '--line':'rgba(10,132,255,.28)', '--line2':'rgba(28,28,30,.08)', '--ink':'#1c1c1e', '--ink2':'rgba(28,28,30,.62)', '--gold':'#0a84ff', '--gold-hi':'#5ac8fa', '--gold-lo':'#0060df' },
+  navidad: { '--bg':'#0b1a12', '--card':'#10281b', '--card2':'#16351f', '--line':'rgba(244,197,66,.28)', '--line2':'rgba(246,239,224,.10)', '--ink':'#f6efe0', '--ink2':'rgba(246,239,224,.7)', '--gold':'#f4c542', '--gold-hi':'#ffe08a', '--gold-lo':'#c99a1b' },
+  halloween: { '--bg':'#0d0713', '--card':'#170c24', '--card2':'#221233', '--line':'rgba(255,138,31,.30)', '--line2':'rgba(245,233,255,.10)', '--ink':'#f5e9ff', '--ink2':'rgba(245,233,255,.7)', '--gold':'#ff8a1f', '--gold-hi':'#ffb15c', '--gold-lo':'#c96208' },
+  sanvalentin: { '--bg':'#1a0a12', '--card':'#241019', '--card2':'#2e1420', '--line':'rgba(255,77,109,.30)', '--line2':'rgba(255,234,240,.10)', '--ink':'#ffeaf0', '--ink2':'rgba(255,234,240,.7)', '--gold':'#ff4d6d', '--gold-hi':'#ff8fa8', '--gold-lo':'#c9203f' },
+  velitas: { '--bg':'#140d08', '--card':'#1e140c', '--card2':'#281a0e', '--line':'rgba(255,167,38,.28)', '--line2':'rgba(255,243,214,.10)', '--ink':'#fff3d6', '--ink2':'rgba(255,243,214,.7)', '--gold':'#ffa726', '--gold-hi':'#ffcc80', '--gold-lo':'#e08a1a' },
+  cafe: { '--bg':'#f5eee2', '--card':'#ffffff', '--card2':'#efe3d0', '--line':'rgba(179,112,47,.26)', '--line2':'rgba(61,47,34,.08)', '--ink':'#3d2f22', '--ink2':'rgba(61,47,34,.62)', '--gold':'#b3702f', '--gold-hi':'#d9975a', '--gold-lo':'#8f5824' },
+  nocturno: { '--bg':'#10151c', '--card':'#171f29', '--card2':'#1d2733', '--line':'rgba(79,163,201,.28)', '--line2':'rgba(221,227,234,.10)', '--ink':'#dde3ea', '--ink2':'rgba(221,227,234,.7)', '--gold':'#4fa3c9', '--gold-hi':'#7fc4d6', '--gold-lo':'#3a7fa0' },
+  claro: { '--bg':'#f7f7f5', '--card':'#ffffff', '--card2':'#f1f2f4', '--line':'rgba(255,122,26,.26)', '--line2':'rgba(22,24,29,.08)', '--ink':'#16181d', '--ink2':'rgba(22,24,29,.62)', '--gold':'#ff7a1a', '--gold-hi':'#ffab6b', '--gold-lo':'#d95f00' },
+  vito: { '--bg':'#1b1208', '--card':'#241a0f', '--card2':'#2d2213', '--line':'rgba(242,167,27,.28)', '--line2':'rgba(255,243,224,.10)', '--ink':'#fff3e0', '--ink2':'rgba(255,243,224,.7)', '--gold':'#f2a71b', '--gold-hi':'#ffcf6b', '--gold-lo':'#c9860f' },
+  moderno: { '--bg':'#0d1512', '--card':'#122019', '--card2':'#16281f', '--line':'rgba(45,212,191,.28)', '--line2':'rgba(234,255,243,.10)', '--ink':'#eafff3', '--ink2':'rgba(234,255,243,.7)', '--gold':'#2dd4bf', '--gold-hi':'#7ee7c9', '--gold-lo':'#199e8f' }
+};
+function applyTh(th){
+  const r = document.documentElement.style, all = TH.navidad;
+  Object.keys(all).forEach(k => r.removeProperty(k));
+  if(TH[th]) Object.entries(TH[th]).forEach(([k, v]) => r.setProperty(k, v));
+  fxSet(th);
+}
+
+/* ---------- Aplicar idioma: textos fijos + repintar todo lo dinámico ---------- */
+function applyLangStatic(){
+  document.documentElement.lang=LANG;
+  $('sub').textContent=t('subtitle');
+  $('tpTxt').textContent=t('tabPedido');
+  $('tcTxt').textContent=t('tabCancion');
+  $('tqTxt').textContent=t('tabCuenta');
+  $('rondaLbl').textContent=t('repetirRonda');
+  $('pLabel').textContent=t('queVasAPedir');
+  $('pHint').innerHTML='';
+  $('pHint').appendChild(document.createTextNode(t('escribeSugerimos')+' '));
+  const ie=document.createElement('i');ie.textContent=t('ejemploPedido');$('pHint').appendChild(ie);
+  $('p').placeholder=t('ejemploPedidoPlaceholder');
+  $('add').setAttribute('aria-label',t('addAria'));
+  $('catX').textContent=t('cerrar');
+  $('catBack').textContent=t('volverPedido');
+  $('wa').textContent=t('waTxt');
+  $('tuPedidoLbl').textContent=t('tuPedido');
+  $('pideCancionLbl').textContent=t('pideCancion');
+  $('hintCancionEl').textContent=t('hintCancion');
+  $('s').placeholder=t('ejemploCancion');
+  $('tuCuentaLbl').textContent=t('tuCuenta');
+  $('hintCuentaEl').textContent=t('hintCuenta');
+  $('n').placeholder=t('notaPlaceholder');
+  $('nequiH').textContent=t('pagarNequi');
+  $('nequiInstr').textContent=t('nequiInstr');
+  $('nequiCopyBtn').textContent=t('copiarNumero');
+  $('nequiPaidBtn').textContent=t('yaPagueNequi');
+  $('curr').setAttribute('aria-label',t('monedaLabel'));
+  applyEasyMode();
+  updateCurNote();
+}
+function refrescarVista(){
+  $('t').textContent=t('mesaLabel',{n:mesa||'?'});
+  document.title=t('mesaLabel',{n:mesa||'?'});
+  pintarLineas();pintarRonda();pintarChips();pintarSug();
+  if(modo=='c')info();
+  pintarCat(!$('carta').hidden);
+  if(snap)pintar(snap);else if(!v)$('cs').textContent=t('cuentaSinVivo');else if($('cs').textContent&&$('cs').textContent!==t('cargandoCuenta'))$('cs').textContent=t('cuentaSinConsumo');
+  if(lastMsg)msg(lastMsg.builder(),lastMsg.cl);
+  updateCurNote();
+}
+function setLang(l){
+  LANG=l;try{localStorage.setItem(LANG_KEY,l)}catch(e){}
+  applyLangStatic();refrescarVista();
+}
+function setCur(c2){
+  CUR=c2;try{localStorage.setItem(CUR_KEY,c2)}catch(e){}
+  refrescarVista();
+}
+
+/* ---------- Inicio ---------- */
+applyLangStatic();
+$('lang').value=LANG;$('lang').onchange=e=>setLang(e.target.value);
+$('curr').value=CUR;$('curr').onchange=e=>setCur(e.target.value);
+$('easyBtn').onclick=()=>setEasyMode(!EASY);
+applyEasyMode();
+pintarLineas();pintarRonda();pintarChips();cargarCat();
+$('cs').textContent=v?t('cargandoCuenta'):t('cuentaSinVivo');
+applyTh(cat && cat.th);
+conectar();
+actualizarTasas();
+</script>
+</body>
+</html>
