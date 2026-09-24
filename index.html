@@ -120,33 +120,102 @@
     color: var(--cream-soft);
     margin-top: 2px;
   }
-  nav{
+  /* ---------- Navegación: barra con íconos ----------
+     En pantallas anchas va arriba en una sola fila; en el celular pasa abajo
+     (donde llega el pulgar), con las 4 secciones más usadas y "Más" para el
+     resto — como las apps que la gente ya sabe usar. */
+  .tabbar{
+    flex: 1 1 100%;
     display:flex;
-    flex-wrap: wrap;
     gap: 4px;
     background: var(--surface);
-    padding: 4px;
-    border-radius: 10px;
+    padding: 5px;
+    border-radius: 16px;
     border: 1px solid var(--line);
   }
-  nav button{
+  nav{ display:flex; flex:1; gap:4px; min-width:0; }
+  nav button, .nav-more{
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    display:flex;
+    flex-direction: column;
+    align-items:center;
+    justify-content:center;
+    gap: 4px;
     font-family: var(--font-main);
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .01em;
     background: transparent;
     border: none;
-    color: var(--cream-soft);
-    padding: 9px 16px;
-    border-radius: 7px;
+    color: var(--ink-soft);
+    padding: 8px 4px 7px;
+    border-radius: 12px;
     cursor: pointer;
-    transition: background .15s ease, color .15s ease;
+    transition: background .18s ease, color .18s ease;
   }
-  nav button.active{
-    background: var(--amber);
-    color: #1b1208;
-    box-shadow: 0 3px 10px rgba(207,139,52,0.35);
+  .nav-ic{ width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+  .nav-lbl{ max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  nav button.active, .nav-more.active{
+    background: color-mix(in srgb, var(--amber) 18%, transparent);
+    color: var(--cream);
   }
-  nav button:not(.active):hover{ color: var(--cream); }
+  nav button.active .nav-ic, .nav-more.active .nav-ic{ color: var(--amber); stroke-width:2.1; }
+  nav button:not(.active):hover, .nav-more:not(.active):hover{ color: var(--ink); background: color-mix(in srgb, var(--ink) 5%, transparent); }
+  .nav-more{ display:none; }
+  .nav-badge:empty{ display:none; }
+  .nav-badge{
+    position:absolute; top:3px; left:calc(50% + 6px);
+    min-width:17px; height:17px; padding:0 5px; border-radius:999px;
+    background: var(--brick); color:#fff; font-size:10.5px; font-weight:800;
+    display:flex; align-items:center; justify-content:center; line-height:1;
+    box-shadow: 0 0 0 2px var(--surface);
+  }
+  @media (max-width: 760px){
+    .tabbar{
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+      border-radius: 20px 20px 0 0; border-width: 1px 0 0;
+      padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+      background: color-mix(in srgb, var(--surface) 88%, transparent);
+      backdrop-filter: blur(16px) saturate(1.3); -webkit-backdrop-filter: blur(16px) saturate(1.3);
+      box-shadow: 0 -8px 30px rgba(0,0,0,.28);
+    }
+    nav .nav-extra{ display:none; }
+    .tabbar > nav{ flex: 4 1 0; }
+    .nav-more{ display:flex; flex: 1 1 0; }
+    nav button, .nav-more{ font-size: 11px; padding: 7px 2px 6px; }
+    header{ padding-bottom: 14px; margin-bottom: 16px; }
+    .wrap{ padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+    .toast{ bottom: calc(88px + env(safe-area-inset-bottom)) !important; }
+    body .voice-fab-wrap{ bottom: calc(84px + env(safe-area-inset-bottom)); }
+    body .voice-fab-tab{ bottom: calc(92px + env(safe-area-inset-bottom)); }
+  }
+  /* Hoja "Más": mosaicos grandes, fáciles de tocar */
+  #navMoreSheet{ align-items:flex-end; padding:0; z-index:75; }
+  .more-panel{
+    width:100%; max-width:560px; background:var(--paper); color:var(--ink);
+    border-radius:22px 22px 0 0; border:1px solid var(--line); border-bottom:0;
+    padding:10px 16px calc(18px + env(safe-area-inset-bottom));
+    box-shadow:0 -14px 40px rgba(0,0,0,.35);
+    animation: asisUp .24s cubic-bezier(.22,1,.36,1);
+  }
+  .more-grip{ width:40px; height:4px; border-radius:4px; background:var(--line); margin:0 auto 12px; }
+  .more-title{ font-weight:800; font-size:16px; margin:0 2px 12px; }
+  .more-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; }
+  .more-tile{
+    display:flex; flex-direction:column; align-items:flex-start; gap:3px; text-align:left;
+    padding:14px; border-radius:16px; border:1px solid var(--line); background:var(--surface);
+    color:var(--ink); font:inherit; cursor:pointer;
+  }
+  .more-tile:hover{ border-color: var(--amber-deep); }
+  .more-tile.active{ border-color: var(--amber); background: color-mix(in srgb, var(--amber) 12%, var(--surface)); }
+  .more-tile strong{ font-size:15px; }
+  .more-tile small{ font-size:12px; color:var(--ink-soft); }
+  .more-ic{ font-size:24px; line-height:1; margin-bottom:4px; display:flex; }
+  .more-ic-mesi{ width:30px; height:30px; }
+  .more-tile-ia{ border-color: color-mix(in srgb, var(--amber) 45%, var(--line)); }
+  @media (min-width: 600px){ #navMoreSheet{ align-items:center; padding:20px; } .more-panel{ border-radius:22px; border-bottom:1px solid var(--line); } .more-grid{ grid-template-columns:repeat(3, 1fr); } }
 
   section{ display:none; }
   section.active{ display:block; }
@@ -189,62 +258,75 @@
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 16px;
   }
+  /* Tarjetas de mesa: libre = tarjeta sobria con punto verde; ocupada =
+     tarjeta rellena con el color del tema, para distinguirlas de un vistazo. */
   .ticket{
     position:relative;
-    background: var(--paper);
+    display:flex;
+    flex-direction:column;
+    min-height: 112px;
+    background: var(--surface);
     color: var(--ink);
-    border-radius: 3px 3px 0 0;
-    padding: 16px 14px 18px;
+    border-radius: 18px;
+    padding: 14px 14px 13px;
     cursor: pointer;
     text-align: left;
-    border: none;
+    border: 1px solid var(--line);
     font-family: inherit;
-    box-shadow: 0 6px 14px rgba(0,0,0,0.28);
-    transition: transform .15s ease, box-shadow .15s ease;
+    box-shadow: none;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
   }
-  .ticket:hover{ transform: translateY(-3px); box-shadow: 0 10px 22px rgba(0,0,0,0.35); }
-  .ticket::after{
-    content:"";
-    position:absolute;
-    left:0; right:0; bottom:-9px;
-    height: 10px;
-    background:
-      linear-gradient(-45deg, var(--paper) 6px, transparent 0),
-      linear-gradient(45deg, var(--paper) 6px, transparent 0);
-    background-size: 14px 14px;
-    background-repeat: repeat-x;
-    background-position: bottom;
-  }
-  .ticket.open{ background: var(--cream); border-left: 4px solid var(--amber); }
-  .ticket.open::after{
-    background:
-      linear-gradient(-45deg, var(--cream) 6px, transparent 0),
-      linear-gradient(45deg, var(--cream) 6px, transparent 0);
-    background-size: 14px 14px;
-    background-repeat: repeat-x;
-    background-position: bottom;
+  .ticket:hover{ transform: translateY(-2px); border-color: color-mix(in srgb, var(--amber) 45%, var(--line)); }
+  .ticket::after{ display:none; }
+  .ticket.open{
+    background: var(--cream);
+    border-color: var(--cream);
+    box-shadow: 0 10px 26px color-mix(in srgb, var(--amber) 28%, transparent);
   }
   .ticket .num{
+    display:flex;
+    align-items:center;
+    gap: 7px;
     font-family: var(--font-main);
-    font-weight:700;
-    font-size: 13px;
+    font-weight:800;
+    font-size: 12.5px;
     text-transform: uppercase;
-    letter-spacing: .03em;
+    letter-spacing: .05em;
     color: var(--ink-soft);
+  }
+  .ticket .num::before{
+    content:"";
+    width:8px; height:8px; border-radius:50%; flex-shrink:0;
+    background: var(--paid);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--paid) 22%, transparent);
+  }
+  .ticket.open .num::before{
+    background: var(--amber-deep);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--amber-deep) 28%, transparent);
   }
   .ticket .status{
     font-family: var(--font-main);
-    font-size: 20px;
-    font-weight: 600;
-    margin-top: 10px;
+    font-size: 23px;
+    font-weight: 800;
+    letter-spacing: -.01em;
+    margin-top: auto;
+    padding-top: 12px;
     color: var(--ink);
   }
-  .ticket .status.empty{ color: var(--ink-soft); font-size: 14px; font-weight:500; }
+  .ticket .status.empty{ color: var(--ink-soft); font-size: 15px; font-weight:600; }
   .ticket .items-count{
     font-size: 12px;
     color: var(--ink-soft);
-    margin-top: 4px;
+    margin-top: 3px;
   }
+  /* Resumen arriba de las mesas */
+  .mesas-summary{ display:grid; grid-template-columns: 1fr 1fr 1.4fr; gap:10px; margin-bottom:16px; }
+  .ms-item{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:11px 13px; display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .ms-item b{ font-size:20px; font-weight:800; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ms-item span{ font-size:12px; color:var(--ink-soft); font-weight:600; }
+  .ms-item.ms-free b{ color: var(--paid); }
+  .ms-item.ms-open b{ color: var(--cream); }
+  .config-row[hidden]{ display:none; }
 
   /* Vista mapa del local */
   .view-toggle-btn.active{
@@ -1676,8 +1758,8 @@
   .asis-typing i{width:7px;height:7px;border-radius:50%;background:var(--ink-soft);animation:asisDot 1.1s infinite ease-in-out}
   .asis-typing i:nth-child(2){animation-delay:.15s} .asis-typing i:nth-child(3){animation-delay:.3s}
   @keyframes asisDot{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
-  .asis-suggest{display:flex;flex-direction:column;gap:8px;margin-top:4px}
-  .asis-suggest button{align-self:flex-start;text-align:left;font:inherit;font-size:15px;padding:10px 14px;border-radius:14px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+  .asis-suggest{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 0 36px}
+  .asis-suggest button{text-align:left;font:inherit;font-size:14.5px;padding:9px 13px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
   .asis-suggest button:hover{border-color:var(--amber-deep)}
   .asis-newchat{align-self:center;font:inherit;font-size:12.5px;color:var(--ink-soft);background:none;border:0;padding:2px 8px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
   .asis-input{display:flex;gap:8px;padding:10px 12px calc(12px + env(safe-area-inset-bottom));align-items:flex-end;flex-shrink:0}
@@ -1687,6 +1769,49 @@
   .asis-go:active{transform:scale(.92)}
   .asis-go.rec{background:#e5484d;color:#fff;animation:asisPulse 1.2s infinite}
   @keyframes asisPulse{0%{box-shadow:0 0 0 0 rgba(229,72,77,.5)}70%{box-shadow:0 0 0 14px rgba(229,72,77,0)}100%{box-shadow:0 0 0 0 rgba(229,72,77,0)}}
+
+  /* ---------- Mesi: el avatar de la IA ----------
+     Un personaje sencillo (SVG) que toma los colores del diseño elegido.
+     Parpadea en reposo, mira hacia arriba cuando está pensando, se le
+     prende la antena en rojo cuando escucha y mueve la boca cuando habla. */
+  .mesi-wrap{display:inline-flex;width:28px;height:28px;flex-shrink:0;font-style:normal;line-height:0}
+  .mesi{width:100%;height:100%;display:block;overflow:visible}
+  .mesi-head{fill:var(--amber)}
+  .mesi-shine{fill:#fff;opacity:.22}
+  .mesi-face{fill:#12101c}
+  .mesi-eyes ellipse{fill:#eef9ff}
+  .mesi-mouth{fill:none;stroke:#eef9ff;stroke-width:2.4;stroke-linecap:round}
+  .mesi-mouth-o{fill:#eef9ff;opacity:0}
+  .mesi-cheek{fill:var(--brick);opacity:.5}
+  .mesi-ant-l{stroke:var(--amber);stroke-width:3;stroke-linecap:round}
+  .mesi-ant{fill:var(--cream)}
+  .mesi-eyes,.mesi-mouth-o,.mesi-ant{transform-box:fill-box;transform-origin:center}
+  .mesi-eyes{animation:mesiBlink 4.6s infinite}
+  .mesi-wrap.float{animation:mesiFloat 3.2s ease-in-out infinite}
+  .mesi-wrap.thinking .mesi-eyes{animation:mesiLook 1.3s ease-in-out infinite}
+  .mesi-wrap.thinking .mesi-ant{animation:mesiAnt .9s ease-in-out infinite}
+  .mesi-wrap.listening .mesi-ant{fill:#ff5a6e;animation:mesiAnt .6s ease-in-out infinite}
+  .mesi-wrap.listening .mesi-mouth,.mesi-wrap.talking .mesi-mouth{opacity:0}
+  .mesi-wrap.listening .mesi-mouth-o{opacity:1}
+  .mesi-wrap.talking .mesi-mouth-o{opacity:1;animation:mesiTalk .26s ease-in-out infinite alternate}
+  @keyframes mesiBlink{0%,93%,100%{transform:scaleY(1)}96%{transform:scaleY(.12)}}
+  @keyframes mesiLook{0%,100%{transform:translate(0,0)}35%{transform:translate(1.5px,-2.5px)}70%{transform:translate(-1.5px,-2.5px)}}
+  @keyframes mesiAnt{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.35);opacity:.75}}
+  @keyframes mesiTalk{from{transform:scaleY(.35)}to{transform:scaleY(1.15)}}
+  @keyframes mesiFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+  #asisFab{padding:0 13px 0 6px;gap:6px}
+  #asisFab .mesi-wrap{width:30px;height:30px}
+  @media (max-width:420px){ #asisFab{width:auto;padding:0 11px 0 5px} #asisFab span{display:inline} }
+  .asis-avatar .mesi-wrap{width:34px;height:34px}
+  .asis-avatar{background:transparent;border:0}
+  .asis-ia-tag{display:inline-block;vertical-align:middle;margin-left:6px;font-size:11px;font-weight:800;letter-spacing:.04em;padding:2px 7px;border-radius:999px;background:color-mix(in srgb,var(--amber) 22%,transparent);color:var(--cream)}
+  .asis-row{display:flex;align-items:flex-end;gap:8px;align-self:flex-start;max-width:92%}
+  .asis-row .asis-msg,.asis-row .asis-typing{max-width:none;align-self:auto;min-width:0}
+  .asis-row-av{width:28px;height:28px;margin-bottom:2px}
+  .asis-hero{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 0 4px;text-align:center}
+  .asis-hero .mesi-wrap{width:74px;height:74px}
+  .asis-hero strong{font-size:18px}
+  .asis-hero small{font-size:13px;color:var(--ink-soft)}
 
   /* ---- Micrófono de pedidos: un solo botón, más discreto ---- */
   .voice-fab{width:54px;height:54px;border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.28)}
@@ -1839,7 +1964,6 @@
 .inv-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;margin:8px 0;border:1px solid rgba(128,128,128,.35);border-radius:10px}
 .inv-row small{display:block;opacity:.75;margin-top:2px}
 .inv-btns{display:flex;gap:6px;flex-wrap:wrap}
-#invBadge:not(:empty){background:#ff5a5a;color:#fff;border-radius:999px;padding:0 6px;font-size:11px}
 .margin-table-wrap{overflow-x:auto;margin:8px 0 4px}
 .margin-table{border-collapse:collapse;width:100%;min-width:520px;font-size:13px}
 .margin-table th,.margin-table td{padding:8px 10px;text-align:left;white-space:nowrap;border-bottom:1px solid rgba(128,128,128,.25)}
@@ -1973,18 +2097,18 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
 #splashScreen{
   position:fixed; inset:0; z-index:99999;
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
-  background:radial-gradient(circle at 50% 42%, #17251c 0%, #060a07 75%);
+  background:radial-gradient(circle at 50% 42%, #221a3d 0%, #0b0a12 75%);
   animation:splashOut .45s ease 1.55s forwards;
 }
 #splashScreen.splash-hide{display:none}
-.splash-logo{display:flex; font-family:'Poppins',sans-serif; font-size:clamp(38px,11vw,64px); font-weight:800; letter-spacing:.5px}
+.splash-logo{display:flex; font-family:'Manrope','Poppins',sans-serif; font-size:clamp(38px,11vw,64px); font-weight:800; letter-spacing:-.01em}
 .splash-logo span{
   display:inline-block;
-  background:linear-gradient(180deg,#c9ffd9 0%,#3ecb5e 55%,#0d9e2f 100%);
+  background:linear-gradient(180deg,#f3efff 0%,#c4b5fd 50%,#8b5cf6 100%);
   -webkit-background-clip:text; background-clip:text; color:transparent;
   opacity:0; transform:translateY(16px) scale(.85);
   animation:splashLetter .5s cubic-bezier(.2,.9,.25,1) forwards;
-  text-shadow:0 0 22px rgba(62,203,94,.35);
+  text-shadow:0 0 26px rgba(139,92,246,.4);
 }
 .splash-logo span:nth-child(1){animation-delay:.00s}
 .splash-logo span:nth-child(2){animation-delay:.09s}
@@ -1992,8 +2116,8 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
 .splash-logo span:nth-child(4){animation-delay:.27s}
 .splash-logo span:nth-child(5){animation-delay:.36s}
 .splash-logo span:nth-child(6){animation-delay:.45s}
-.splash-bar{width:0; height:3px; border-radius:3px; background:linear-gradient(90deg,#0d9e2f,#3ecb5e,#c9ffd9); animation:splashBar .5s ease .58s forwards}
-.splash-tag{font-family:'Poppins',sans-serif; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#8fae95; opacity:0; animation:splashTag .5s ease .75s forwards}
+.splash-bar{width:0; height:3px; border-radius:3px; background:linear-gradient(90deg,#6d28d9,#a78bfa,#f3efff); animation:splashBar .5s ease .58s forwards}
+.splash-tag{font-family:'Manrope','Poppins',sans-serif; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#a59cc4; opacity:0; animation:splashTag .5s ease .75s forwards}
 @keyframes splashLetter{to{opacity:1; transform:translateY(0) scale(1)}}
 @keyframes splashBar{to{width:120px}}
 @keyframes splashTag{to{opacity:.85}}
@@ -2037,25 +2161,29 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       <div class="top-actions" id="topActions">
         <div class="live-clock" id="liveClock"><span class="lc-time" id="lcTime">--:--</span><span class="lc-date" id="lcDate">—</span></div>
         <div class="top-actions-row" id="topActionsRow">
-          <button type="button" class="top-pill" id="asisFab" title="Asistente IA: pregúntale lo que necesites sobre tu negocio"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M11 2.5l1.9 5.2 5.3 1.9-5.3 1.9L11 16.8l-1.9-5.3-5.3-1.9 5.3-1.9z"/><path d="M18.5 14l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9z" opacity=".7"/></svg><span>IA</span></button>
+          <button type="button" class="top-pill" id="asisFab" title="Mesi, tu asistente IA: pregúntale lo que necesites sobre tu negocio"><i class="mesi-wrap" data-mesi="live"></i><span>IA</span></button>
         </div>
       </div>
     </div>
-    <nav>
-      <button class="active" data-view="mesas">Mesas</button>
-      <button data-view="cocina">🍳 Cocina <span id="kdsBadge"></span></button>
-      <button data-view="productos">Productos</button>
-      <button data-view="inventario">Inventario <span id="invBadge"></span></button>
-      <button data-view="estadisticas">📊 Estadísticas</button>
-      <button data-view="carta" id="cartaTab">📖 Carta</button>
-      <button data-view="historial">Historial</button>
-      <button data-view="musica">🎵 Música</button>
-      <button data-view="ajustes">⚙️ Ajustes</button>
-    </nav>
+    <div class="tabbar" id="tabbar">
+      <nav>
+        <button class="active" data-view="mesas"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="4" rx="1.5"/><path d="M6 11v8M18 11v8M9 15h6"/></svg><span class="nav-lbl">Mesas</span></button>
+        <button data-view="cocina"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11h16v2a7 7 0 0 1-7 7h-2a7 7 0 0 1-7-7z"/><path d="M2 11h20M9 7.5c0-1.5 1-2 1-3.5M14 7.5c0-1.5 1-2 1-3.5"/></svg><span class="nav-lbl">Cocina</span><span id="kdsBadge" class="nav-badge"></span></button>
+        <button data-view="productos"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2.5h4V6l2 3v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V9l2-3z"/><path d="M8 12.5h8M8 17h8"/></svg><span class="nav-lbl">Productos</span></button>
+        <button data-view="inventario"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg><span class="nav-lbl">Inventario</span><span id="invBadge" class="nav-badge"></span></button>
+        <button data-view="estadisticas" class="nav-extra"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M6.5 16v-5M11.5 16V6M16.5 16V9"/></svg><span class="nav-lbl">Estadísticas</span></button>
+        <button data-view="carta" id="cartaTab" class="nav-extra"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4.5h6a3 3 0 0 1 3 3V20a2.5 2.5 0 0 0-2.5-2.5H3z"/><path d="M21 4.5h-6a3 3 0 0 0-3 3V20a2.5 2.5 0 0 1 2.5-2.5H21z"/></svg><span class="nav-lbl">Carta</span></button>
+        <button data-view="historial" class="nav-extra"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5M12 7.5V12l3 2"/></svg><span class="nav-lbl">Historial</span></button>
+        <button data-view="musica" class="nav-extra"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><span class="nav-lbl">Música</span></button>
+        <button data-view="ajustes" class="nav-extra"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span class="nav-lbl">Ajustes</span></button>
+      </nav>
+      <button type="button" class="nav-more" id="navMoreBtn" aria-haspopup="dialog"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="3.5"/></svg><span class="nav-lbl">Más</span></button>
+    </div>
   </header>
 
   <section id="view-mesas" class="active">
-    <div class="config-row">
+    <div class="mesas-summary" id="mesasSummary"></div>
+    <div class="config-row" id="tableCountRow" hidden>
       <span>Número de mesas:</span>
       <input type="number" id="tableCountInput" min="1" max="60" value="4">
       <button class="btn-ghost" id="applyTableCount">Aplicar</button>
@@ -2066,6 +2194,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       <button class="btn-ghost" id="generalBillBtn" title="Cuenta general de todas las mesas (también por voz: «cuenta general»)">🧾 Cuenta general</button>
       <button class="btn-ghost" id="quickSaleBtn" title="Vender de una vez en mostrador, sin abrir una mesa">⚡ Venta rápida</button>
       <button class="btn-ghost" id="domicilioBtn" title="Facturar un pedido a domicilio" hidden>🛵 Domicilio</button>
+      <button class="btn-ghost" id="tableCountToggle" title="Cambiar cuántas mesas tiene tu local">🪑 Número de mesas</button>
     </div>
     <div class="floor-plan-controls" id="floorPlanControls">
       <button class="btn-ghost" id="toggleLayoutEditBtn">✋ Ubicar mesas (arrastrar)</button>
@@ -2690,6 +2819,21 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
   </section>
 </div>
 
+<div class="overlay" id="navMoreSheet">
+  <div class="more-panel" role="dialog" aria-label="Más secciones">
+    <div class="more-grip"></div>
+    <div class="more-title">Más secciones</div>
+    <div class="more-grid">
+      <button type="button" class="more-tile" data-go="estadisticas"><span class="more-ic">📊</span><strong>Estadísticas</strong><small>Ventas y ganancias</small></button>
+      <button type="button" class="more-tile" data-go="carta"><span class="more-ic" id="moreCartaIc">📖</span><strong id="moreCartaLbl">Carta</strong><small>Lo que ven tus clientes</small></button>
+      <button type="button" class="more-tile" data-go="historial"><span class="more-ic">🧾</span><strong>Historial</strong><small>Cuentas cerradas y fiados</small></button>
+      <button type="button" class="more-tile" data-go="musica"><span class="more-ic">🎵</span><strong>Música</strong><small>Canciones que piden</small></button>
+      <button type="button" class="more-tile" data-go="ajustes"><span class="more-ic">⚙️</span><strong>Ajustes</strong><small>Configura tu negocio</small></button>
+      <button type="button" class="more-tile more-tile-ia" data-go="ia"><span class="more-ic more-ic-mesi"><i class="mesi-wrap" data-mesi="static" style="width:30px;height:30px"></i></span><strong>Mesi (IA)</strong><small>Pregúntale lo que sea</small></button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="tutorialOverlay">
   <div class="modal tutorial-modal">
     <div class="tutorial-top">
@@ -3176,8 +3320,8 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
 <div class="overlay" id="asisOverlay">
   <div class="asis-panel" role="dialog" aria-label="Asistente">
     <div class="asis-head">
-      <div class="asis-avatar"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M11 2.5l1.9 5.2 5.3 1.9-5.3 1.9L11 16.8l-1.9-5.3-5.3-1.9 5.3-1.9z"/><path d="M18.5 14l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9z" opacity=".7"/></svg></div>
-      <div class="asis-titles"><h2>Asistente</h2><small id="asisStatus">Escríbele o háblale</small></div>
+      <div class="asis-avatar"><i class="mesi-wrap float" data-mesi="live"></i></div>
+      <div class="asis-titles"><h2>Mesi<span class="asis-ia-tag">IA</span></h2><small id="asisStatus">Escríbele o háblale</small></div>
       <button type="button" class="asis-icon" id="asisSpeakBtn" title="Leer las respuestas en voz alta"></button>
       <button type="button" class="asis-icon" id="asisCloseBtn" title="Cerrar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
@@ -4277,15 +4421,18 @@ function levenshteinVoice(a, b){
   }
   return prev[n];
 }
+const VOICE_VARIANT_WORDS = ['light', 'laig', 'liviana', 'cero', '0', 'alcohol', 'litro', 'grande', 'zero', 'mini'];
 function findProductByVoiceAlias(q){
   const qNorm = normVoiceText(q);
   if(!qNorm) return null;
   const qStem = stemVoiceText(qNorm);
+  const qWords = new Set(qStem.split(' '));
   let best = null, bestScore = 0;
   data.products.forEach(p=>{
     const aliases = voiceAliasTermsForProduct(p);
     aliases.forEach(alias=>{
       const aStem = stemVoiceText(alias);
+      const aWords = new Set(aStem.split(' '));
       let score = 0;
       if(aStem === qStem) score = 120;
       else if(aStem.startsWith(qStem) || qStem.startsWith(aStem)) score = 92;
@@ -4304,6 +4451,9 @@ function findProductByVoiceAlias(q){
         });
         if(sim >= 0.72) score = 60 + sim * 20;
       }
+      // "Águila" a secas es la normal: si la persona no dijo "light", "cero",
+      // "litro"…, las versiones con esa palabra pierden frente a la básica.
+      if(score > 0 && score < 120 && VOICE_VARIANT_WORDS.some(v => aWords.has(v) && !qWords.has(v))) score -= 5;
       score -= Math.abs(aStem.length - qStem.length) * 0.01;
       if(score > bestScore){ bestScore = score; best = p; }
     });
@@ -5384,9 +5534,13 @@ loadVoiceFabPref();
 loadMicEnabledPref();
 
 /* ---------- Botón flotante: arrastrar por toda la pantalla ---------- */
+function bottomBarHeight(){
+  const tb = document.getElementById('tabbar');
+  return (tb && getComputedStyle(tb).position === 'fixed') ? tb.offsetHeight + 8 : 0;
+}
 function clampFabPosition(left, top){
   const maxLeft = Math.max(window.innerWidth - voiceFabWrap.offsetWidth, 0);
-  const maxTop = Math.max(window.innerHeight - voiceFabWrap.offsetHeight, 0);
+  const maxTop = Math.max(window.innerHeight - voiceFabWrap.offsetHeight - bottomBarHeight(), 0);
   return {
     left: Math.min(Math.max(left, 0), maxLeft),
     top: Math.min(Math.max(top, 0), maxTop)
@@ -5482,6 +5636,39 @@ document.querySelectorAll('nav button').forEach(btn=>{
   });
 });
 
+/* ---------- Menú "Más" (celular) y estado de la barra de abajo ---------- */
+const navMoreSheet = document.getElementById('navMoreSheet');
+let navCurrentView = 'mesas';
+function syncNavMore(){
+  const active = document.querySelector('nav button.active');
+  const view = active ? active.dataset.view : '';
+  document.getElementById('navMoreBtn').classList.toggle('active', !!(active && active.classList.contains('nav-extra')));
+  navMoreSheet.querySelectorAll('.more-tile[data-go]').forEach(t => t.classList.toggle('active', t.dataset.go === view));
+}
+document.querySelectorAll('nav button').forEach(btn => btn.addEventListener('click', () => {
+  const view = btn.dataset.view;
+  // Con la barra abajo se puede cambiar de sección estando a mitad de página:
+  // la nueva sección arranca desde arriba, y Ajustes vuelve a su menú de categorías.
+  if(view !== navCurrentView){
+    window.scrollTo({ top: 0 });
+    if(view === 'ajustes' && typeof volverACategoriasAjustes === 'function') volverACategoriasAjustes();
+  }
+  navCurrentView = view;
+  navMoreSheet.classList.remove('show');
+  syncNavMore();
+}));
+document.getElementById('navMoreBtn').addEventListener('click', () => { syncNavMore(); navMoreSheet.classList.add('show'); });
+navMoreSheet.addEventListener('click', e => {
+  if(e.target === navMoreSheet){ navMoreSheet.classList.remove('show'); return; }
+  const tile = e.target.closest('.more-tile[data-go]');
+  if(!tile) return;
+  navMoreSheet.classList.remove('show');
+  if(tile.dataset.go === 'ia'){ document.getElementById('asisFab').click(); return; }
+  const b = document.querySelector('nav button[data-view="' + tile.dataset.go + '"]');
+  if(b) b.click();
+});
+document.addEventListener('keydown', e => { if(e.key === 'Escape') navMoreSheet.classList.remove('show'); });
+
 /* ---------- Business name ---------- */
 const brandInput = document.getElementById('brandName');
 brandInput.addEventListener('blur', ()=>{
@@ -5491,6 +5678,12 @@ brandInput.addEventListener('blur', ()=>{
 });
 
 /* ---------- Table count ---------- */
+// Se configura una sola vez, así que queda escondido detrás de un botón.
+document.getElementById('tableCountToggle').addEventListener('click', ()=>{
+  const row = document.getElementById('tableCountRow');
+  row.hidden = !row.hidden;
+  if(!row.hidden) document.getElementById('tableCountInput').focus();
+});
 document.getElementById('applyTableCount').addEventListener('click', ()=>{
   const n = parseInt(document.getElementById('tableCountInput').value, 10);
   if(!n || n < 1) return;
@@ -5560,7 +5753,7 @@ function renderCocina(){
   const badge = document.getElementById('kdsBadge');
   if(badge){
     const openCount = tIds.filter(id => ack[id] !== kdsSig(id)).length + pend.length;
-    badge.textContent = openCount ? ' (' + openCount + ')' : '';
+    badge.textContent = openCount ? String(openCount) : '';
   }
 }
 const kdsTicketsEl = document.getElementById('kdsTickets');
@@ -5658,8 +5851,22 @@ setTimeout(renderCocina, 1200);
 })();
 
 /* ---------- Render: Mesas ---------- */
+function renderMesasSummary(){
+  const el = document.getElementById('mesasSummary');
+  if(!el) return;
+  const ids = Object.keys(data.tables).map(Number);
+  const abiertas = ids.filter(id => (data.tables[id].items || []).length);
+  const porCobrar = abiertas.reduce((s, id) => s + tableBalance(id), 0);
+  const libres = ids.length - abiertas.length;
+  const tr = s => { try{ return i18nPut(s); }catch(e){ return s; } };
+  el.innerHTML =
+    '<div class="ms-item ms-free"><b>' + libres + '</b><span>' + tr(libres === 1 ? 'libre' : 'libres') + '</span></div>' +
+    '<div class="ms-item ms-open"><b>' + abiertas.length + '</b><span>' + tr(abiertas.length === 1 ? 'abierta' : 'abiertas') + '</span></div>' +
+    '<div class="ms-item"><b>' + fmt(porCobrar) + '</b><span>' + tr('por cobrar') + '</span></div>';
+}
 function renderMesas(){
   document.getElementById('tableCountInput').value = data.tableCount;
+  renderMesasSummary();
   if(data.tableViewMode === 'map'){
     renderFloorPlan();
   } else {
@@ -5681,7 +5888,8 @@ function renderMesasList(){
     card.className = 'ticket' + (isOpen ? ' open' : '');
     let subLine = 'Sin cuenta abierta';
     if(isOpen){
-      subLine = t.items.length + (t.items.length===1?' producto':' productos');
+      const units = t.items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
+      subLine = units + (units===1?' producto':' productos');
       if(paid > 0) subLine += ' · abonado ' + fmt(paid);
     }
     card.innerHTML = `
@@ -7875,6 +8083,24 @@ const I18N_T = [
 ["⚙️ Ajustes", "⚙️ Settings", "⚙️ 设置", "⚙️ सेटिंग्स", "⚙️ Réglages", "⚙️ Configurações"],
 ["📊 Estadísticas", "📊 Statistics", "📊 统计", "📊 आँकड़े", "📊 Statistiques", "📊 Estatísticas"],
 ["📖 Carta", "📖 Menu", "📖 酒水单", "📖 मेन्यू", "📖 Carte", "📖 Cardápio"],
+["Cocina", "Kitchen", "厨房", "रसोई", "Cuisine", "Cozinha"],
+["libre", "free", "空闲", "खाली", "libre", "livre"],
+["libres", "free", "空闲", "खाली", "libres", "livres"],
+["abierta", "open", "使用中", "खुली", "ouverte", "aberta"],
+["abiertas", "open", "使用中", "खुली", "ouvertes", "abertas"],
+["por cobrar", "to collect", "待收款", "वसूली बाकी", "à encaisser", "a receber"],
+["🪑 Número de mesas", "🪑 Number of tables", "🪑 桌台数量", "🪑 मेज़ों की संख्या", "🪑 Nombre de tables", "🪑 Número de mesas"],
+["Estadísticas", "Statistics", "统计", "आँकड़े", "Statistiques", "Estatísticas"],
+["Música", "Music", "音乐", "संगीत", "Musique", "Música"],
+["Ajustes", "Settings", "设置", "सेटिंग्स", "Réglages", "Configurações"],
+["Más", "More", "更多", "और", "Plus", "Mais"],
+["Más secciones", "More sections", "更多栏目", "और अनुभाग", "Plus de sections", "Mais seções"],
+["Ventas y ganancias", "Sales and profit", "销售与利润", "बिक्री और मुनाफ़ा", "Ventes et bénéfices", "Vendas e lucro"],
+["Lo que ven tus clientes", "What your customers see", "顾客看到的内容", "आपके ग्राहक क्या देखते हैं", "Ce que voient vos clients", "O que seus clientes veem"],
+["Cuentas cerradas y fiados", "Closed bills and tabs", "已结账单和赊账", "बंद बिल और उधार", "Additions fermées et crédits", "Contas fechadas e fiados"],
+["Canciones que piden", "Song requests", "点歌", "गानों की फ़रमाइश", "Chansons demandées", "Músicas pedidas"],
+["Configura tu negocio", "Set up your business", "设置你的店铺", "अपना व्यवसाय सेट करें", "Configurez votre commerce", "Configure seu negócio"],
+["Pregúntale lo que sea", "Ask it anything", "随便问", "कुछ भी पूछें", "Demandez-lui tout", "Pergunte qualquer coisa"],
 ["🍻 Carta", "🍻 Menu", "🍻 酒水单", "🍻 मेन्यू", "🍻 Carte", "🍻 Cardápio"],
 ["🍽️ Menú", "🍽️ Menu", "🍽️ 菜单", "🍽️ मेन्यू", "🍽️ Menu", "🍽️ Cardápio"],
 ["Menú", "Menu", "菜单", "मेन्यू", "Menu", "Cardápio"],
@@ -8263,7 +8489,13 @@ document.getElementById('stPer').addEventListener('click', e => { const b = e.ta
 /* ---------- Carta: menú / carta / catálogo según el tipo de local ---------- */
 const cartaTerm = () => { const t = data.businessType; return (t === 'restaurante' || t === 'cafeteria') ? 'Menú' : 'Carta'; };
 const cartaIcon = () => { const t = data.businessType; return (t === 'restaurante' || t === 'cafeteria') ? '🍽️' : t === 'cerveceria' ? '🍻' : '📖'; };
-function cartaLabel(){ const b = document.getElementById('cartaTab'); if(b) b.textContent = i18nPut(cartaIcon() + ' ' + cartaTerm()); }
+function cartaLabel(){
+  const b = document.getElementById('cartaTab'), l = b && b.querySelector('.nav-lbl');
+  if(l) l.textContent = i18nPut(cartaTerm()); else if(b) b.textContent = i18nPut(cartaIcon() + ' ' + cartaTerm());
+  const ml = document.getElementById('moreCartaLbl'), mi = document.getElementById('moreCartaIc');
+  if(ml) ml.textContent = i18nPut(cartaTerm());
+  if(mi) mi.textContent = cartaIcon();
+}
 const cartaNrm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 function cartaData(q){                          // [[categoría, [productos]]] en el orden de tus categorías
   const g = {}, names = {}; data.categories.forEach(k => names[k.id] = k.name);
@@ -9602,6 +9834,43 @@ try{ asisMsgs = JSON.parse(localStorage.getItem(ASIS_STORE) || '[]') || []; }cat
 if(!Array.isArray(asisMsgs)) asisMsgs = [];
 let asisBusy = false, asisRec = null, asisRecOn = false, asisRecText = '';
 
+// ---- Mesi: avatar de la IA ----
+const MESI_SVG = '<svg class="mesi" viewBox="0 0 64 64" aria-hidden="true">' +
+  '<line class="mesi-ant-l" x1="32" y1="7" x2="32" y2="14"/><circle class="mesi-ant" cx="32" cy="6" r="4"/>' +
+  '<rect class="mesi-head" x="7" y="13" width="50" height="45" rx="20"/>' +
+  '<ellipse class="mesi-shine" cx="22" cy="20" rx="9" ry="3.6"/>' +
+  '<rect class="mesi-face" x="13.5" y="24" width="37" height="25" rx="12.5"/>' +
+  '<g class="mesi-eyes"><ellipse cx="25" cy="34.5" rx="3.6" ry="4.6"/><ellipse cx="39" cy="34.5" rx="3.6" ry="4.6"/></g>' +
+  '<path class="mesi-mouth" d="M28 41.8q4 3.4 8 0"/><ellipse class="mesi-mouth-o" cx="32" cy="43" rx="2.8" ry="2.6"/>' +
+  '<circle class="mesi-cheek" cx="18.5" cy="41" r="2.4"/><circle class="mesi-cheek" cx="45.5" cy="41" r="2.4"/>' +
+  '</svg>';
+function mesiEl(extraClass){
+  const i = document.createElement('i');
+  i.className = 'mesi-wrap' + (extraClass ? ' ' + extraClass : '');
+  i.innerHTML = MESI_SVG;
+  return i;
+}
+document.querySelectorAll('.mesi-wrap[data-mesi]').forEach(el => { el.innerHTML = MESI_SVG; });
+let mesiTalking = false, mesiTalkTimer = null;
+function mesiState(){ return asisRecOn ? 'listening' : (asisBusy ? 'thinking' : (mesiTalking ? 'talking' : '')); }
+function mesiApplyState(){
+  const s = mesiState();
+  document.querySelectorAll('.mesi-wrap[data-mesi="live"]').forEach(el => {
+    el.classList.toggle('thinking', s === 'thinking');
+    el.classList.toggle('listening', s === 'listening');
+    el.classList.toggle('talking', s === 'talking');
+  });
+}
+function mesiWatchTalk(){
+  clearInterval(mesiTalkTimer);
+  mesiTalking = true; mesiApplyState();
+  mesiTalkTimer = setInterval(() => {
+    let on = false;
+    try{ on = window.speechSynthesis.speaking || window.speechSynthesis.pending; }catch(e){}
+    if(!on){ clearInterval(mesiTalkTimer); mesiTalking = false; mesiApplyState(); }
+  }, 300);
+}
+
 function asisSave(){ try{ localStorage.setItem(ASIS_STORE, JSON.stringify(asisMsgs.slice(-40))); }catch(e){} }
 function asisSpeakOn(){ try{ return localStorage.getItem(ASIS_SPEAK) !== 'off'; }catch(e){ return true; } }
 function asisSpeak(text, force){
@@ -9613,7 +9882,7 @@ function asisSpeak(text, force){
     .replace(/^[•\-*]\s*/gm, '')
     .replace(/([^.!?:\n])\n+/g, '$1. ')
     .replace(/\s+/g, ' ').trim();
-  if(t) speakVoice(t);
+  if(t){ speakVoice(t); mesiWatchTalk(); }
 }
 function asisPendingIndex(){
   for(let i = asisMsgs.length - 1; i >= 0; i--){
@@ -9637,7 +9906,7 @@ const ASIS_ICON_SEND = '<svg viewBox="0 0 24 24" width="22" height="22" fill="cu
 const ASIS_ICON_STOP = '<svg viewBox="0 0 24 24" width="20" height="20"><rect x="6" y="6" width="12" height="12" rx="3" fill="currentColor"/></svg>';
 const ASIS_ICON_SOUND_ON = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
 const ASIS_ICON_SOUND_OFF = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
-const ASIS_SUGERENCIAS = ['¿Qué se está acabando?', '¿Cuánto vendí hoy?', '¿Qué me deja más ganancia?', '¿En qué estoy perdiendo plata?'];
+const ASIS_SUGERENCIAS = ['¿Qué sabes hacer?', '¿Cuánto vendí hoy?', '¿Qué se está acabando?', '¿Quién me debe?', '¿Qué mesas están abiertas?', '¿Qué me deja más ganancia?'];
 
 // El botón redondo hace de micrófono cuando no hay nada escrito y de "enviar"
 // cuando sí (como en WhatsApp): un solo botón en vez de dos.
@@ -9649,17 +9918,26 @@ function asisSyncGo(){
   b.innerHTML = asisRecOn ? ASIS_ICON_STOP : (hasText ? ASIS_ICON_SEND : ASIS_ICON_MIC);
   b.title = asisRecOn ? 'Terminar y enviar' : (hasText ? 'Enviar' : 'Hablar');
   const st = document.getElementById('asisStatus');
-  if(st) st.textContent = asisRecOn ? 'Te escucho… habla con calma' : (asisBusy ? 'Pensando…' : (hasAIKey() ? 'Escríbele o háblale' : 'Modo básico · sin IA'));
+  if(st) st.textContent = asisRecOn ? 'Te escucho… habla con calma' : (asisBusy ? 'Pensando…' : (hasAIKey() ? 'Tu asistente · escríbele o háblale' : 'Tu asistente · modo básico, sin IA'));
+  mesiApplyState();
 }
 function asisRender(){
   const box = document.getElementById('asisMsgs');
   if(!box) return;
   box.innerHTML = '';
+  const botRow = (el, extra) => { const r = document.createElement('div'); r.className = 'asis-row'; r.append(mesiEl('asis-row-av' + (extra ? ' ' + extra : '')), el); return r; };
   if(!asisMsgs.length){
+    const hero = document.createElement('div');
+    hero.className = 'asis-hero';
+    hero.append(mesiEl('float'));
+    const hs = document.createElement('strong'); hs.textContent = 'Hola, soy Mesi';
+    const hm = document.createElement('small'); hm.textContent = 'Tu asistente con inteligencia artificial';
+    hero.append(hs, hm);
+    box.appendChild(hero);
     const hello = document.createElement('div');
     hello.className = 'asis-msg bot';
-    hello.textContent = '¡Hola! ¿En qué te ayudo?\nEscríbeme o toca el micrófono para hablarme.';
-    box.appendChild(hello);
+    hello.textContent = '¿En qué te ayudo? Escríbeme o toca el micrófono para hablarme.\nToca "¿Qué sabes hacer?" para ver todo lo que puedo hacer por ti.';
+    box.appendChild(botRow(hello));
     const sug = document.createElement('div');
     sug.className = 'asis-suggest';
     ASIS_SUGERENCIAS.forEach(q => { const b = document.createElement('button'); b.type = 'button'; b.textContent = q; b.onclick = () => asisAsk(q); sug.appendChild(b); });
@@ -9667,11 +9945,11 @@ function asisRender(){
     if(!hasAIKey()){
       const n = document.createElement('div');
       n.className = 'asis-msg bot';
-      n.textContent = 'Para que te entienda cualquier pregunta y pueda cambiar productos por ti, conecta la IA gratis de Google.';
+      n.textContent = 'Sin conexión a la IA ya te respondo muchas cosas. Para que te entienda cualquier pregunta, conecta la IA gratis de Google.';
       const acts = document.createElement('div'); acts.className = 'asis-acts';
       const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Conectar IA';
       b.onclick = e => { e.stopPropagation(); try{ openAIConfigDialog(); }catch(x){} };
-      acts.appendChild(b); n.appendChild(acts); box.appendChild(n);
+      acts.appendChild(b); n.appendChild(acts); box.appendChild(botRow(n));
     }
   } else {
     const nc = document.createElement('button');
@@ -9713,14 +9991,19 @@ function asisRender(){
       b.onclick = () => { try{ openAIConfigDialog(); }catch(e){} };
       acts.appendChild(b); d.appendChild(acts);
     }
-    box.appendChild(d);
+    if(Array.isArray(m.quick) && m.quick.length){
+      const acts = document.createElement('div'); acts.className = 'asis-acts';
+      m.quick.forEach(q => { const b = document.createElement('button'); b.type = 'button'; b.textContent = q; b.onclick = e => { e.stopPropagation(); asisAsk(q); }; acts.appendChild(b); });
+      d.appendChild(acts);
+    }
+    box.appendChild(m.role === 'bot' ? botRow(d) : d);
   });
   if(asisBusy){
     const t = document.createElement('div');
     t.className = 'asis-typing'; t.innerHTML = '<i></i><i></i><i></i>';
-    box.appendChild(t);
+    box.appendChild(botRow(t, 'thinking'));
   }
-  box.scrollTop = box.scrollHeight;
+  box.scrollTop = asisMsgs.length ? box.scrollHeight : 0;
   const sp = document.getElementById('asisSpeakBtn');
   if(sp){ sp.innerHTML = asisSpeakOn() ? ASIS_ICON_SOUND_ON : ASIS_ICON_SOUND_OFF; sp.title = asisSpeakOn() ? 'Leyendo en voz alta (toca para solo texto)' : 'Solo texto (toca para que lea en voz alta)'; }
   asisSyncGo();
@@ -9768,8 +10051,14 @@ function asisContext(){
     ventasHoy: s.hoy, cuentasCobradasHoy: s.nHoy,
     gananciaHoy: s.hoySinCosto ? s.ganHoy + ' (incompleta: algunos productos vendidos no tienen costo)' : s.ganHoy,
     ventasUltimos7dias: s.sem,
+    ventasAyer: (() => { const d0 = new Date(); d0.setHours(0, 0, 0, 0); return asisVentasEntre(d0.getTime() - 864e5, d0.getTime()).total; })(),
+    ventasEsteMes: (() => { const m0 = new Date(); m0.setHours(0, 0, 0, 0); m0.setDate(1); return asisVentasEntre(m0.getTime(), Date.now() + 1).total; })(),
     masVendidos30dias: s.top,
     mesasAbiertas: abiertas,
+    // Cuentas cerradas que quedaron debiendo (fiados).
+    deudas: asisDeudas().slice(0, 30).map(d => ({ quien: d.quien, debe: d.debe, fecha: new Date(d.fecha).toLocaleDateString('es-CO') })),
+    clientesFrecuentes: (data.clientesFrecuentes || []).slice().sort((a, b) => b.visitas - a.visitas).slice(0, 10).map(c => ({ cliente: c.nombre || c.telefono, visitas: c.visitas, gastado: c.totalGastado })),
+    reclamosAbiertos: (data.casos || []).filter(c => c.estado !== 'resuelto').slice(0, 10).map(c => ({ tipo: CASO_CATEGORIAS[c.categoria] || c.categoria, urgencia: c.urgencia, detalle: c.descripcion, asignadoA: c.asignadoA || '' })),
     // Compacto para que la IA responda más rápido: una fila por producto.
     productosColumnas: 'nombre | tamaño | categoría | precio | costo (0 = sin costo) | margen % | stock (- = sin control) | estado',
     productos: data.products.slice(0, 400).map(p => {
@@ -9825,6 +10114,226 @@ function asisSinCostoNote(){
   return n ? '(Hay ' + n + ' productos sin costo; ponlo en Productos para ver todo.)' : '';
 }
 
+/* ---------- Comandos directos de Mesi ----------
+   Se resuelven aquí mismo, al instante y sin internet: moverse por la app,
+   abrir una mesa, la hora, la guía de uso y consultas del negocio (deudas,
+   mesas abiertas, ventas de ayer o del mes, lo más vendido, precio o stock
+   de un producto, clientes frecuentes, reclamos abiertos). Sin IA también
+   propone cambiar precios o sumar stock, siempre con "¿Lo hago?". */
+const ASIS_AYUDA_CHIPS = ['¿Quién me debe?', '¿Cuánto vendí ayer?', '¿Qué es lo más vendido?', 'Abre inventario', '¿Hay reclamos abiertos?', '¿Cómo escaneo una factura?'];
+const ASIS_NAV = [
+  { view: 'mesas', re: /\b(mesas|salon|mapa del local)\b/, name: 'Mesas' },
+  { view: 'cocina', re: /\b(cocina|comandas)\b/, name: 'Cocina' },
+  { view: 'productos', re: /\bproductos?\b/, name: 'Productos' },
+  { view: 'inventario', re: /\b(inventario|bodega|existencias)\b/, name: 'Inventario' },
+  { view: 'estadisticas', re: /\b(estadisticas?|graficas?|reportes?|informes?)\b/, name: 'Estadísticas' },
+  { view: 'carta', re: /\b(carta|menu)\b/, name: 'la carta' },
+  { view: 'historial', re: /\b(historial|cuentas cerradas)\b/, name: 'Historial' },
+  { view: 'musica', re: /\b(musica|canciones|playlist)\b/, name: 'Música' },
+  { view: 'ajustes', re: /\b(ajustes|configuracion)\b/, name: 'Ajustes' }
+];
+const ASIS_AJ = [
+  { cat: 'negocio', re: /\b(clientes frecuentes|fidelizacion|propinas?|domicilios?|nequi|facturacion|sedes?)\b/, name: 'Negocio y facturación' },
+  { cat: 'pedidos', re: /\b(atencion al cliente|casos|reclamos|quejas|codigos? qr|qr|cierre automatico|alertas)\b/, name: 'Pedidos, QR y caja' },
+  { cat: 'apariencia', re: /\b(apariencia|diseno|tema|colores|tipo de letra|letra|fondo|modo facil)\b/, name: 'Apariencia' },
+  { cat: 'voz', re: /\b(microfono|ajustes de voz)\b/, name: 'Voz' },
+  { cat: 'datos', re: /\b(respaldo|copia de seguridad|transferir datos|calculadoras?)\b/, name: 'Datos y herramientas' },
+  { cat: 'ayuda', re: /\b(soporte|guia de uso|guia)\b/, name: 'Guía y soporte' }
+];
+const ASIS_GO_RE = /\b(abre|abreme|abrir|abra|ir a|ir al|ve a|ve al|vaya a|vamos a|llevame|muestrame|mostrame|mostrar|entra a|entrar a|pasa a|pasame a|quiero ver|ensename)\b/;
+const ASIS_STOP = new Set('el la los las un una unos unas de del al a en y o que por para con mi mis me se lo le les es esta este esto como cuanto cuanta cuantos cuantas cual cuales hay tengo tiene quedan queda dime decime sabes favor porfa por favor precio precios vale cuesta costo stock existencias unidades unidad producto productos cambia cambiar cambiale sube subir subele baja bajar bajale pon ponle poner actualiza actualizar nuevo nueva llegaron llego compre entraron suma sumale sumar agrega agregale agregar inventario pesos peso mil ahora quiero'.split(' '));
+
+// Número desde el texto crudo: "3.500", "3,500", "$3500", "3500" → 3500.
+function asisRawNumbers(raw){
+  return (String(raw).match(/\d{1,3}(?:[.,]\d{3})+|\d+/g) || []).map(s => Number(s.replace(/[.,]/g, '')));
+}
+// "mesa 3" o "mesa tres" → 3
+function asisMesaNum(t){
+  const m = t.match(/\bmesa (\d+|[a-z]+)\b/);
+  if(!m) return null;
+  const n = /^\d+$/.test(m[1]) ? Number(m[1]) : NUM_WORDS_VOICE[m[1]];
+  return n ? n : null;
+}
+function asisFindProduct(t){
+  const words = t.split(' ').filter(w => w && !ASIS_STOP.has(w) && !/^\d+$/.test(w) && NUM_WORDS_VOICE[w] === undefined);
+  if(!words.length) return null;
+  return findProductByVoiceAlias(words.join(' '));
+}
+function asisDeudas(){
+  return (data.history || []).filter(h => (Number(h.debt) || 0) > 0).map(h => {
+    const quien = [...new Set((h.payments || []).filter(p => p.method === 'debe' && p.note && p.note !== 'Saldo sin registrar al cerrar').map(p => p.note))];
+    return { quien: quien.join(', ') || (h.tableName || tableLabel(h.table)), debe: Number(h.debt), fecha: h.date };
+  });
+}
+function asisVentasEntre(desde, hasta){
+  let total = 0, n = 0;
+  (data.history || []).forEach(h => { const t = new Date(h.date).getTime(); if(t >= desde && t < hasta){ total += Number(h.total) || 0; n++; } });
+  return { total, n };
+}
+function asisAyudaTexto(){
+  return 'Esto es lo que puedo hacer por ti:\n' +
+    '• Moverme por la app: "abre inventario", "llévame a música", "abre la mesa 3", "abre clientes frecuentes"\n' +
+    '• Ventas: "¿cuánto vendí hoy?", "¿y ayer?", "ventas de la semana", "ventas del mes", "¿qué es lo más vendido?"\n' +
+    '• Mesas y deudas: "¿qué mesas están abiertas?", "¿cuánto debe la mesa 2?", "¿quién me debe?"\n' +
+    '• Productos: "¿a cómo está la Póker?", "¿cuántas Águilas quedan?", "¿qué se está acabando?", "¿cuánto gano con la Club Colombia?"\n' +
+    '• Cambios: "sube la Póker a 3.500", "llegaron 24 Águilas" (te pregunto antes de hacerlo)\n' +
+    '• Clientes: "¿quiénes son mis mejores clientes?", "¿hay reclamos abiertos?"\n' +
+    '• Ayuda: "¿cómo escaneo una factura?", "¿cómo divido una cuenta?", "¿qué hora es?"' +
+    (hasAIKey() ? '\n\nY como tengo la IA conectada, puedes preguntarme lo que quieras con tus palabras.' : '\n\nSi conectas la IA gratis de Google, te entiendo cualquier pregunta con tus propias palabras.');
+}
+function asisGuia(t){
+  if(typeof GUIDE_ENTRIES === 'undefined') return null;
+  const stop = new Set('como hago hacer se puedo puede donde para el la los las un una de del en que mi me lo y o a por con esta es quiero'.split(' '));
+  const words = t.split(' ').filter(w => w.length > 2 && !stop.has(w));
+  if(!words.length) return null;
+  let best = null, bestScore = 0;
+  // Raíz de cada palabra ("escaneo" → "escan", "divido" → "divi") para que
+  // coincida con "escanear", "dividir", etc. del texto de la guía.
+  const roots = words.map(w => w.length > 5 ? w.slice(0, w.length - 2) : w);
+  GUIDE_ENTRIES.forEach(e => {
+    const hay = normVoiceText(e.title + ' ' + e.keywords + ' ' + e.body);
+    const score = roots.filter(r => hay.includes(r)).length;
+    if(score > bestScore){ bestScore = score; best = e; }
+  });
+  if(!best || bestScore < Math.min(2, words.length)) return null;
+  return best.title + '\n' + best.body;
+}
+
+// Comandos que siempre se resuelven aquí (con o sin IA). Devuelve {text, extra, run} o null.
+function asisCommand(raw){
+  const t = normVoiceText(raw);
+  if(!t) return null;
+  const nWords = t.split(' ').length;
+  if(/\b(que sabes hacer|que puedes hacer|que mas puedes hacer|que haces|comandos|como te uso|que te puedo (pedir|preguntar|decir)|en que me ayudas)\b/.test(t) || t === 'ayuda'){
+    return { text: asisAyudaTexto(), extra: { quick: ASIS_AYUDA_CHIPS } };
+  }
+  if(nWords <= 4 && /^(hola|holi|buenas|buenos dias|buenas tardes|buenas noches|hey|que mas|quiubo|q hubo)\b/.test(t)){
+    const h = new Date().getHours();
+    return { text: (h < 12 ? '¡Buenos días!' : h < 19 ? '¡Buenas tardes!' : '¡Buenas noches!') + ' Soy Mesi. ¿Qué necesitas?', extra: { quick: ['¿Cuánto vendí hoy?', '¿Qué sabes hacer?'] } };
+  }
+  if(nWords <= 5 && /^(gracias|muchas gracias|mil gracias|listo gracias|ok gracias)\b/.test(t)) return { text: '¡Con mucho gusto! Aquí estoy cuando me necesites.' };
+  if(/\b(que hora es|la hora|que dia es|que fecha es|fecha de hoy)\b/.test(t)){
+    const d = new Date();
+    return { text: 'Son las ' + d.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) + ' del ' + d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }) + '.' };
+  }
+  const go = ASIS_GO_RE.test(t);
+  // Abrir una mesa: "abre la mesa 3"
+  const mesaN = asisMesaNum(t);
+  if(go && mesaN){
+    const id = mesaN;
+    if(!data.tables[id]) return { text: 'No tengo la mesa ' + id + '. Tienes ' + Object.keys(data.tables).length + ' mesas; puedes agregar más en Mesas → Número de mesas.' };
+    return { text: 'Listo, te abro la ' + tableLabel(id) + '.', run: () => { asisClose(); asisGoView('mesas'); openTableModal(id); } };
+  }
+  if(go){
+    const aj = ASIS_AJ.find(x => x.re.test(t));
+    if(aj) return { text: 'Te llevo a Ajustes → ' + aj.name + '.', run: () => { asisClose(); asisGoView('ajustes'); if(typeof mostrarCategoriaAjustes === 'function') mostrarCategoriaAjustes(aj.cat); } };
+    const nv = ASIS_NAV.find(x => x.re.test(t));
+    if(nv) return { text: 'Listo, te llevo a ' + nv.name + '.', run: () => { asisClose(); asisGoView(nv.view); } };
+  }
+  // Pedidos de mesa: eso lo hace el micrófono de pedidos, no el chat.
+  if(/\b(agrega|agregale|agregame|anota|pon|ponle|sirve)\b/.test(t) && asisMesaNum(t)){
+    return { text: 'Los pedidos de las mesas se anotan con el micrófono 🎤 de abajo a la derecha (por ejemplo: "tres Águilas para la mesa 1"). Yo te ayudo con consultas y cambios de productos.' };
+  }
+  // ¿Cómo hago…? → la guía de uso
+  if(/^(como|donde|en donde|para que sirve)\b/.test(t) && !/\b(voy|va|vamos|van|estoy)\b/.test(t)){
+    const g = asisGuia(t);
+    if(g) return { text: g };
+  }
+  return null;
+}
+function asisGoView(view){
+  const b = document.querySelector('nav button[data-view="' + view + '"]');
+  if(b) b.click();
+}
+
+// Consultas del negocio sin IA (se suman a las de asisLocal).
+function asisLocalMas(raw){
+  const t = normVoiceText(raw);
+  const bullets = arr => arr.map(x => '• ' + x).join('\n');
+  const mesaN = asisMesaNum(t);
+  if(mesaN && /\b(cuanto|total|debe|va|lleva|cuenta|saldo)\b/.test(t)){
+    const id = mesaN;
+    if(!data.tables[id]) return 'No tengo la mesa ' + id + '.';
+    const items = (data.tables[id].items || []);
+    if(!items.length) return 'La ' + tableLabel(id) + ' está libre, sin cuenta abierta.';
+    return 'La ' + tableLabel(id) + ' lleva ' + fmt(tableTotal(id)) + ' en consumo y le falta pagar ' + fmt(tableBalance(id)) + ' (' + items.reduce((s, it) => s + (Number(it.qty) || 0), 0) + ' productos).';
+  }
+  if(/\b(mesas (abiertas|ocupadas)|que mesas|cuantas mesas (hay|tengo|estan))\b/.test(t)){
+    const ab = Object.keys(data.tables).map(Number).filter(id => (data.tables[id].items || []).length);
+    if(!ab.length) return 'Ahora no hay mesas abiertas. Todo libre.';
+    const tot = ab.reduce((s, id) => s + tableBalance(id), 0);
+    return 'Tienes ' + ab.length + (ab.length === 1 ? ' mesa abierta' : ' mesas abiertas') + ':\n' + bullets(ab.map(id => tableLabel(id) + ': debe ' + fmt(tableBalance(id)))) + '\nEn total falta cobrar ' + fmt(tot) + '.';
+  }
+  if(/\b(me deben|quien(es)? (me )?deben?|deudas?|fiados?|fiado|deudores|por cobrar)\b/.test(t)){
+    const d = asisDeudas();
+    if(!d.length) return 'Nadie te debe. ¡Todas las cuentas cerradas están pagadas!';
+    const tot = d.reduce((s, x) => s + x.debe, 0);
+    return 'Te deben ' + fmt(tot) + ' en ' + d.length + (d.length === 1 ? ' cuenta' : ' cuentas') + ':\n' + bullets(d.slice(0, 12).map(x => x.quien + ': ' + fmt(x.debe) + ' (' + new Date(x.fecha).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) + ')')) + '\nCuando te paguen, márcalo en Historial → "Ya pagó".';
+  }
+  if(/\b(mas vendid[oa]s?|que se vende mas|lo que mas (se )?vend|mas se vende|top)\b/.test(t)){
+    const top = asisSales().top.slice(0, 5);
+    if(!top.length) return 'Todavía no hay ventas en los últimos 30 días para saber qué es lo más vendido.';
+    return 'Lo más vendido en los últimos 30 días:\n' + bullets(top.map((x, i) => (i + 1) + '. ' + x.producto + ': ' + x.unidades + ' unidades (' + fmt(x.vendido) + ')'));
+  }
+  const d0 = new Date(); d0.setHours(0, 0, 0, 0);
+  if(/\bayer\b/.test(t) && /\b(vend|venta|hice|facture|caja|cuanto)/.test(t)){
+    const r = asisVentasEntre(d0.getTime() - 864e5, d0.getTime());
+    return 'Ayer vendiste ' + fmt(r.total) + ' en ' + r.n + (r.n === 1 ? ' cuenta.' : ' cuentas.');
+  }
+  if(/\b(este mes|del mes|el mes|mensual|en el mes)\b/.test(t) && /\b(vend|venta|hice|facture|cuanto|llevo)/.test(t)){
+    const m0 = new Date(d0); m0.setDate(1);
+    const r = asisVentasEntre(m0.getTime(), Date.now() + 1);
+    return 'En lo que va del mes llevas ' + fmt(r.total) + ' en ' + r.n + (r.n === 1 ? ' cuenta.' : ' cuentas.');
+  }
+  if(/\bsemana\b/.test(t) && /\b(vend|venta|hice|facture|cuanto|llevo)/.test(t)){
+    const r = asisVentasEntre(Date.now() - 7 * 864e5, Date.now() + 1);
+    return 'En los últimos 7 días vendiste ' + fmt(r.total) + ' en ' + r.n + (r.n === 1 ? ' cuenta' : ' cuentas') + (r.n ? ', unos ' + fmt(Math.round(r.total / 7 / 100) * 100) + ' diarios en promedio.' : '.');
+  }
+  if(/\b(mejores clientes|clientes frecuentes|clientes vip|quien(es)? (viene|vienen|compra|compran) mas)\b/.test(t)){
+    const cs = (data.clientesFrecuentes || []).slice().sort((a, b) => b.visitas - a.visitas || b.totalGastado - a.totalGastado).slice(0, 5);
+    if(!cs.length) return 'Todavía no tienes clientes guardados. Actívalo en Ajustes → Negocio → Clientes frecuentes y anota su WhatsApp al cobrar.';
+    return 'Tus mejores clientes:\n' + bullets(cs.map(c => (c.nombre || c.telefono) + ': ' + c.visitas + (c.visitas === 1 ? ' visita' : ' visitas') + ', ' + fmt(c.totalGastado) + (clienteTier(c.visitas) ? ' · ' + clienteTier(c.visitas) : '')));
+  }
+  if(/\b(casos|reclamos?|quejas?)\b/.test(t)){
+    const ab = (data.casos || []).filter(c => c.estado !== 'resuelto');
+    if(!ab.length) return 'No tienes reclamos abiertos. 🎉';
+    return 'Tienes ' + ab.length + (ab.length === 1 ? ' reclamo abierto' : ' reclamos abiertos') + ':\n' + bullets(ab.slice(0, 8).map(c => CASO_URGENCIA_ICONS[c.urgencia] + ' ' + (c.descripcion || CASO_CATEGORIAS[c.categoria]) + (c.asignadoA ? ' (lo atiende ' + c.asignadoA + ')' : ''))) + '\nLos ves en Ajustes → Pedidos, QR y caja → Atención al cliente.';
+  }
+  if(/\bcuantos productos\b/.test(t)) return 'Tienes ' + data.products.length + ' productos en total.';
+  // Precio o stock de un producto concreto
+  const quierePrecio = /\b(precio|a como|cuanto vale|cuanto esta|en cuanto (lo|la) vendo|a cuanto)\b/.test(t);
+  const quiereStock = /\b(cuant[oa]s?\b.*\b(hay|quedan?|tengo)|stock|existencias|unidades)\b/.test(t);
+  if(quierePrecio || quiereStock){
+    const p = asisFindProduct(t);
+    if(p){
+      if(quiereStock && !quierePrecio){
+        if(p.stock == null) return p.name + ' no tiene control de stock. Actívalo en Inventario para saber cuántas te quedan.';
+        return p.stock <= 0 ? p.name + ' está agotado. ⚠️' : 'Te quedan ' + p.stock + ' de ' + p.name + (invStatus(p) === 'low' ? ' (ya se está acabando).' : '.');
+      }
+      return p.name + (p.size ? ' (' + p.size + ')' : '') + ' está a ' + fmt(p.price) + (p.stock != null ? ' y te quedan ' + p.stock + '.' : '.');
+    }
+  }
+  return null;
+}
+
+// Sin IA: entiende "sube la Póker a 3500" o "llegaron 24 Águilas" y lo propone.
+function asisLocalAccion(raw){
+  const t = normVoiceText(raw);
+  const nums = asisRawNumbers(raw);
+  if(/\b(precio|sube|subir|subele|baja|bajar|bajale|cambia|cambiar|ponle|actualiza)\b/.test(t) && nums.length){
+    const precio = nums[nums.length - 1];
+    const p = asisFindProduct(t);
+    if(p && precio >= 50) return { text: 'Voy a cambiar el precio de ' + p.name + ' de ' + fmt(p.price) + ' a ' + fmt(precio) + '. ¿Lo hago?', actions: [{ tipo: 'editar', producto: p.name, precio }] };
+  }
+  const mLlego = t.match(/\b(llegaron|llego|compre|entraron|suma|sumale|sumar|agrega|agregale|agregar)\b\s+(\d+)\b/);
+  if(mLlego && !/\bmesa\b/.test(t)){
+    const n = Number(mLlego[2]);
+    const p = asisFindProduct(t.replace(mLlego[0], ' '));
+    if(p && n > 0) return { text: 'Voy a sumar ' + n + ' unidades a ' + p.name + (p.stock != null ? ' (quedarían ' + ((p.stock || 0) + n) + ')' : '') + '. ¿Lo hago?', actions: [{ tipo: 'editar', producto: p.name, sumarStock: n }] };
+  }
+  return null;
+}
+
 function asisApply(actions){
   const done = [];
   (actions || []).forEach(a => {
@@ -9875,16 +10384,24 @@ async function asisAsk(text){
     if(/^(no|nada|cancela|cancelar|deja|dejalo|mejor no)\b/.test(t)){ asisConfirm(pi, false); return; }
     asisMsgs[pi].state = 'no';
   }
+  const cmd = asisCommand(text);
+  if(cmd){
+    asisBot(cmd.text, cmd.extra || null);
+    if(cmd.run) setTimeout(cmd.run, 800);
+    return;
+  }
   if(!hasAIKey()){
-    const r = asisLocal(text);
+    const acc = asisLocalAccion(text);
+    if(acc){ asisBot(acc.text, { actions: acc.actions }); return; }
+    const r = asisLocalMas(text) || asisLocal(text);
     if(r) asisBot(r);
-    else asisBot('Eso todavía no lo sé responder sin la IA. Sin ella te respondo cosas como: "¿qué se está acabando?", "¿cuánto vendí hoy?", "¿cuánto gano con la Póker?", "¿en qué estoy perdiendo?".\n\nSi conectas la IA gratis de Google (Gemini), te entiendo cualquier pregunta y puedo crear o cambiar productos.', { cfg: true });
+    else asisBot('Eso todavía no lo sé responder sin la IA. Toca "¿Qué sabes hacer?" para ver todo lo que te respondo sin ella.\n\nSi conectas la IA gratis de Google (Gemini), te entiendo cualquier pregunta con tus palabras y puedo crear o cambiar productos.', { cfg: true, quick: ['¿Qué sabes hacer?'] });
     return;
   }
   asisBusy = true;
   asisRender();
   const hist = asisMsgs.slice(-12).map(m => (m.role === 'me' ? 'Persona: ' : 'Asistente: ') + m.text).join('\n');
-  const prompt = 'Eres el asistente de "' + (data.businessName || 'la tienda') + '", un negocio (tienda, cafetería, bar) en Colombia. Hablas con el dueño o sus empleados; muchos son personas mayores o no saben de tecnología. ' +
+  const prompt = 'Te llamas Mesi y eres el asistente con inteligencia artificial de "' + (data.businessName || 'la tienda') + '", un negocio (tienda, cafetería, bar) en Colombia, dentro de la app Mesora. Hablas con el dueño o sus empleados; muchos son personas mayores o no saben de tecnología. ' +
     'Responde en español sencillo, cálido y CORTO (máximo 5 frases o una lista corta de hasta 8 líneas con "• "), sin palabras técnicas ni markdown (nada de **, #, tablas). Plata en pesos colombianos con formato $3.300. ' +
     'Usa SOLO los DATOS de abajo; nunca inventes cifras. Si falta un dato (por ejemplo el costo de un producto) dilo claro y explica dónde se pone: Productos → tocar el producto → Costo. Si la pregunta no es clara, pregunta con cariño qué necesita. ' +
     'Margen = (precio − costo) ÷ precio. Si el costo es mayor que el precio, está perdiendo plata. Un precio sugerido se redondea a los 100 pesos. ' +
@@ -9902,7 +10419,7 @@ async function asisAsk(text){
     if(j && typeof j.respuesta === 'string'){ reply = j.respuesta; actions = Array.isArray(j.acciones) ? j.acciones.filter(a => a && (a.tipo === 'crear' || a.tipo === 'editar')) : []; }
     else reply = String(raw || '').trim();
   }catch(err){
-    const local = asisLocal(text);
+    const local = asisLocalMas(text) || asisLocal(text);
     reply = local ? local + '\n\n(La IA no respondió, así que te contesté con lo básico.)' : '⚠️ No pude hablar con la IA: ' + (err && err.message ? String(err.message).slice(0, 160) : err) + '\nRevisa el internet o la clave en ⚙️ Configurar IA.';
   }finally{
     asisBusy = false;
@@ -11386,6 +11903,7 @@ const GUIDE_ENTRIES = [
   { title: '🌙 Cierre de caja', keywords: 'cierre caja dia cerrar jornada automatico manual resumen', body: 'Al final del día puedes hacer un cierre de caja, manual o automático, que te resume las ventas del día y deja todo listo para el día siguiente.' },
   { title: '💵 Propina al cobrar', keywords: 'propina redondeo cobrar cliente porcentaje', body: 'Actívala en Ajustes → Propina al cobrar. Cada vez que cobres una mesa, te pregunta si el cliente deja propina (10% o redondear el total) antes de cerrar la cuenta.' },
   { title: '👤 Ventas por empleado (turno)', keywords: 'empleado turno caja quien vendio cuanto', body: 'Si más de una persona maneja la caja con su propio usuario, en Estadísticas aparece cuánto vendió cada empleado en el período que estés viendo, sin que tengas que hacer nada extra.' },
+  { title: '🤖 Mesi, tu asistente de IA', keywords: 'mesi asistente ia inteligencia artificial preguntar chat comandos hablar ayuda', body: 'Toca la carita con "IA" arriba a la derecha (o "Más" → Mesi). Puedes escribirle o hablarle. Te responde cuánto vendiste hoy, ayer o en el mes, quién te debe, qué mesas están abiertas, qué se está acabando, el precio o stock de un producto y tus mejores clientes; te lleva a cualquier sección ("abre inventario", "abre la mesa 3") y te explica cómo usar la app. También puede cambiar precios o sumar stock, siempre preguntándote antes. Escríbele "¿Qué sabes hacer?" para ver todo.' },
   { title: '💬 Soporte por WhatsApp', keywords: 'soporte ayuda whatsapp contacto problema falla ticket urgencia', body: 'Si algo no funciona o tienes una duda, en Ajustes → Guía y soporte elige qué tipo de solicitud es y qué tan urgente es, y te escribimos por WhatsApp con el mensaje ya armado y clasificado, para responderte más rápido si es algo urgente.' },
   { title: '🛵 Facturar un domicilio', keywords: 'domicilio domicilios entrega envio direccion cliente restaurante bar', body: 'Actívalo en Ajustes → Domicilios. Aparece un botón "🛵 Domicilio" junto a "Venta rápida" en Mesas: agrega los productos, y si quieres el nombre, teléfono, dirección del cliente y el valor del envío, sin necesidad de abrir una mesa.' },
   { title: '📥 Descargar las ventas en Excel', keywords: 'excel exportar ventas dia mes rango cierre descargar csv contabilidad personalizar', body: 'En Estadísticas, el botón "📥 Exportar ventas (Excel)" te deja elegir el período: hoy, ayer, este mes, un rango de fechas personalizado, o un cierre de caja específico. Descarga un archivo con el detalle de cada producto vendido (mesas, mostrador y domicilios), listo para abrir con Excel.' }
@@ -12073,7 +12591,8 @@ function maybeShowLowStockAlert(){
 const TUTORIAL_SEEN_KEY = 'cm-tutorial-seen';
 const TUTORIAL_SLIDES = [
   { icon: '👋', title: 'Bienvenido a Mesora', text: 'Controla las mesas, los productos y el inventario de tu negocio, todo en un solo lugar.' },
-  { icon: '🕒', title: 'Los íconos de arriba', text: 'Arriba a la derecha ves la hora. Debajo: la 🔔 campana avisa pedidos y canciones nuevas, y el botón ✨ IA abre el asistente de inteligencia artificial, para preguntarle lo que necesites de tu negocio.' },
+  { icon: '🕒', title: 'Los íconos de arriba', text: 'Arriba a la derecha ves la hora. Debajo: la 🔔 campana avisa pedidos y canciones nuevas, y la carita con "IA" es Mesi, tu asistente de inteligencia artificial: pregúntale lo que necesites de tu negocio.' },
+  { icon: '🧭', title: 'El menú de abajo', text: 'Abajo tienes Mesas, Cocina, Productos e Inventario. Toca "Más" para ver Estadísticas, Carta, Historial, Música y Ajustes.' },
   { icon: '🍽️', title: 'Mesas', text: 'Abre una mesa, agrega lo que van pidiendo, y cóbrala cuando se vayan. Puedes dividir la cuenta entre varias personas.' },
   { icon: '📦', title: 'Inventario y facturas', text: 'Escanea la factura de tu proveedor (con o sin internet) y Mesora calcula solo cuánto ganas o pierdes en cada producto.' },
   { icon: '📊', title: 'Estadísticas, diseño y ayuda', text: 'Mira cómo va tu negocio en Estadísticas, cambia el diseño en Ajustes → Apariencia, y si algo no funciona, escríbenos por WhatsApp desde Ajustes → Ayuda y soporte.' }
@@ -12930,13 +13449,15 @@ function mostrarCategoriaAjustes(cat){
   document.querySelectorAll('#view-ajustes .settings-group[data-cat]').forEach(g=>{ g.hidden = g.dataset.cat !== cat; });
   $('ajustesCats').hidden = true;
   $('ajustesBackBtn').hidden = false;
-  document.getElementById('view-ajustes').scrollTo({ top: 0 });
+  window.scrollTo({ top: 0 });
 }
 function volverACategoriasAjustes(){
   document.querySelectorAll('#view-ajustes .settings-group[data-cat]').forEach(g=>{ g.hidden = true; });
   $('ajustesCats').hidden = false;
   $('ajustesBackBtn').hidden = true;
 }
+window.volverACategoriasAjustes = volverACategoriasAjustes;
+window.mostrarCategoriaAjustes = mostrarCategoriaAjustes;
 function iniAjustesCats(){
   document.querySelectorAll('.ajustes-cat').forEach(b=>{
     b.addEventListener('click', ()=>mostrarCategoriaAjustes(b.dataset.cat));
