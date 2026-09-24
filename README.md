@@ -24,6 +24,23 @@ proveedor** o una **etiqueta de precio**, de dos formas:
 En ambos casos siempre se abre una pantalla de revisión para corregir
 cualquier dato antes de guardar.
 
+### Novedades
+
+- **Mesi (IA) más rápida**: cada respuesta tiene un límite de 14 segundos en
+  total (reintentos incluidos) y solo se le mandan los productos que importan
+  para la pregunta. Si la IA no alcanza, Mesi responde igual con lo básico.
+- **Saludo de bienvenida** cada vez que se abre Mesi, con un resumen del día.
+- **Transmitir al TV con YouTube** (Música → 📺 Transmitir al TV): abre la app
+  de YouTube con la lista de canciones pedidas para mandarla al televisor. Con
+  Google conectado, las canciones nuevas se agregan solas a la lista en vivo.
+- **Fotos de productos** (Productos → Editar → 📷 Agregar foto): el fondo se
+  vuelve blanco automáticamente y la foto sale en la carta de `pedido.html`.
+  Las fotos se guardan en el propio dispositivo (IndexedDB).
+- **Autorreparación**: la app registra cada error con un código (ej. `E-1A2B`).
+  Mesi lo detecta, corrige lo que se puede (datos dañados, memoria llena,
+  pantallas trabadas, conexión de YouTube vencida) y explica el resto. Basta
+  con decirle "arregla los errores".
+
 ## `pedido.html` — la página que ve el cliente
 
 Se abre al escanear el QR de la mesa. Muestra la carta, deja armar el pedido
