@@ -7503,11 +7503,23 @@ function invOnSale(item, q){                 // se llama solo, cada vez que camb
 }
 function invMatch(name){                     // busca un producto ya registrado por nombre
   const n = normVoiceText(name || ''); if(n.length < 3) return null;
-  return data.products.find(p => { const k = normVoiceText(p.name); return k === n || (k.length >= 4 && (n.includes(k) || k.includes(n))); }) || null;
+  const exact = data.products.find(p => { const k = normVoiceText(p.name); return k === n || (k.length >= 4 && (n.includes(k) || k.includes(n))); });
+  if(exact) return exact;
+  // Si no hay coincidencia directa por nombre, prueba con los sinónimos y
+  // nombres de marca conocidos (ej. una factura o etiqueta que dice "POKER"
+  // o "AGUILA" cuando el producto en el catálogo se llama "Aguila/Póker") —
+  // el mismo sistema de alias y tolerancia a errores de tipeo que ya usan
+  // los comandos de voz, para no crear productos duplicados por una marca.
+  return findProductByVoiceAlias(name) || null;
 }
 function invCatalogHint(){                   // la foto se compara con tus productos: mismo nombre, sin duplicados
   const names = data.products.slice(0, 60).map(p => p.name).join('; ');
-  return names ? 'Productos ya registrados (si coincide, usa exactamente ese nombre): ' + names + '.' : '';
+  if(!names) return '';
+  return 'Productos ya registrados (si coincide, usa exactamente ese nombre): ' + names + '. ' +
+    'Muchas marcas colombianas de cervecería/cafetería aparecen con nombres distintos en facturas o etiquetas ' +
+    '(ej: "Águila" y "Póker" pueden ser el mismo producto de catálogo "Aguila/Póker"; "Costeña" y "Costeñita" según la presentación; ' +
+    '"Club" es "Club Colombia"; "Coca" es "Coca-Cola"; "Pony" es "Pony Malta"): si el nombre leído es una variante o sinónimo de marca ' +
+    'de un producto ya registrado, úsalo como ese mismo producto en vez de crear uno nuevo.';
 }
 function invDlg(html, onOk){
   const o = document.createElement('div');
