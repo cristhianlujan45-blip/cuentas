@@ -126,6 +126,15 @@ h1{
 .ytrow .ytnm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .ytrow .ytch{flex:none;color:var(--ink2);font-size:12px}
 .ytmsg{padding:12px 16px;color:var(--ink2);font-size:13.5px}
+/* Artistas encontrados (búsqueda tipo YouTube Music: nombre igual o parecido) */
+.ytsec{padding:9px 12px 3px;font:700 10.5px var(--sans);letter-spacing:.07em;text-transform:uppercase;color:var(--ink2)}
+.ytartists{display:flex;gap:10px;overflow-x:auto;padding:2px 12px 10px;-webkit-overflow-scrolling:touch;border-top:1px solid var(--line2)}
+.ytartists:first-child{border-top:0}
+.ytartist{flex:none;display:flex;flex-direction:column;align-items:center;gap:5px;width:66px;border:0;background:none;color:var(--ink);padding:4px 2px;border-radius:12px}
+.ytartist img{width:50px;height:50px;border-radius:50%;object-fit:cover;background:var(--card);border:2px solid transparent}
+.ytartist span{font-size:11px;line-height:1.2;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:66px}
+.ytartist.sel img{border-color:var(--gold)}
+.ytartist.sel span{color:var(--gold-hi);font-weight:700}
 
 /* Fichas rápidas */
 .chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -686,58 +695,133 @@ function pintarSugC(){
 $('s').addEventListener('input',pintarSugC);
 $('s').addEventListener('focus',()=>{ if(!$('s').value.trim()){ const box=$('sugC'); if(box){ box.hidden=true; } } });
 
-/* ---------- Vista previa de YouTube: ver la canción antes de pedirla (no la agrega, solo confirma) ---------- */
+/* ---------- Vista previa de YouTube: ver la canción antes de pedirla (no la agrega, solo confirma) ----------
+   Busca como YouTube Music: si lo que se escribe se parece al nombre de un
+   artista, primero aparecen los artistas (la propia búsqueda de YouTube ya
+   encuentra nombres parecidos o con errores de tipeo), y al tocar uno se
+   arma la lista de sus canciones más populares (por reproducciones reales,
+   leyendo su canal). YouTube no da álbum/sencillo por su API pública —eso
+   es interno de la app YouTube Music—, así que "lo más pedido del artista"
+   es lo más cerca que se puede llegar sin esa información. */
 const YT_KEY='AIzaSyCQ_IKzsP2TEPc7jiIfV3prwc6VYvgq1xY';
-let ytTimer=null, ytSeq=0;
+let ytTimer=null, ytSeq=0, ytSelArtist=null;
+const ytArtistCache={};
 function ytPintarMsg(msg){
   const box=$('ytPrev'); if(!box) return;
   box.textContent='';
   box.appendChild(h('div','ytmsg',msg));
   box.hidden=false;
 }
+function ytUnesc(s){ return String(s||'').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"'); }
+function ytThumb(sn){ return (sn&&sn.thumbnails&&(sn.thumbnails.default||sn.thumbnails.medium)||{}).url||''; }
+function ytSongRow(box,q,title,channelTitle,thumb){
+  const b=h('button','ytrow');b.type='button';
+  if(thumb){ const im=document.createElement('img'); im.src=thumb; im.alt=''; b.appendChild(im); }
+  const info=h('span','ytnm');
+  const nm=h('span',null,title||''); nm.style.display='block';
+  const ch=h('span','ytch',channelTitle||'');
+  info.appendChild(nm); info.appendChild(ch);
+  b.appendChild(info);
+  b.onmousedown=e=>e.preventDefault();
+  b.onclick=()=>{
+    $('s').value=ytUnesc(title||q);
+    $('ytPrev').hidden=true;
+    if($('sugC'))$('sugC').hidden=true;
+    $('s').focus();
+  };
+  return b;
+}
+function ytPintarCanciones(wrap,q,songs,titulo){
+  wrap.textContent='';
+  if(titulo) wrap.appendChild(h('div','ytsec',titulo));
+  if(!songs.length){ wrap.appendChild(h('div','ytmsg','No encontré canciones.')); return; }
+  songs.forEach(s=>wrap.appendChild(ytSongRow(wrap,q,s.title,s.channelTitle,s.thumb)));
+}
+// Canales cuyo nombre coincide o se parece a lo escrito.
+async function ytBuscarArtistas(q){
+  try{
+    const url='https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=6&q='+encodeURIComponent(q)+'&key='+YT_KEY;
+    const r=await fetch(url); if(!r.ok) return [];
+    const j=await r.json();
+    return (j.items||[]).filter(it=>it.id&&it.id.channelId).map(it=>({
+      id:it.id.channelId,
+      name:((it.snippet&&it.snippet.title)||'').replace(/\s*-\s*Topic$/i,''),
+      thumb:ytThumb(it.snippet)
+    }));
+  }catch(e){ return []; }
+}
+// Canciones más populares de un artista: se leen los videos de su canal
+// (playlist de "subidos", funciona también con los canales "- Topic" que
+// YouTube arma solo para la música oficial) y se ordenan por reproducciones
+// reales — 3 llamadas baratas en vez de una búsqueda por canal (que con
+// canales "- Topic" casi siempre viene vacía).
+async function ytCancionesDeArtista(channelId){
+  if(ytArtistCache[channelId]) return ytArtistCache[channelId];
+  try{
+    const chJ=await fetch('https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id='+channelId+'&key='+YT_KEY).then(r=>r.json());
+    const uploads=chJ.items&&chJ.items[0]&&chJ.items[0].contentDetails&&chJ.items[0].contentDetails.relatedPlaylists&&chJ.items[0].contentDetails.relatedPlaylists.uploads;
+    if(!uploads) return ytArtistCache[channelId]=[];
+    const plJ=await fetch('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=25&playlistId='+uploads+'&key='+YT_KEY).then(r=>r.json());
+    const ids=(plJ.items||[]).filter(it=>it.snippet&&it.snippet.resourceId&&it.snippet.resourceId.videoId).map(it=>it.snippet.resourceId.videoId).slice(0,50);
+    if(!ids.length) return ytArtistCache[channelId]=[];
+    const vJ=await fetch('https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id='+ids.join(',')+'&key='+YT_KEY).then(r=>r.json());
+    const songs=(vJ.items||[]).map(it=>({
+      title:it.snippet.title, channelTitle:it.snippet.channelTitle, thumb:ytThumb(it.snippet),
+      views:+(it.statistics&&it.statistics.viewCount)||0
+    })).sort((a,b)=>b.views-a.views).slice(0,8);
+    return ytArtistCache[channelId]=songs;
+  }catch(e){ return ytArtistCache[channelId]=[]; }
+}
+async function ytElegirArtista(a,btn,row,songsWrap,q,myId){
+  if(ytSeq!==myId) return;
+  row.querySelectorAll('.ytartist').forEach(x=>x.classList.remove('sel'));
+  btn.classList.add('sel');
+  ytSelArtist=a;
+  songsWrap.textContent='';
+  songsWrap.appendChild(h('div','ytmsg','Buscando lo más pedido de '+a.name+'…'));
+  const songs=await ytCancionesDeArtista(a.id);
+  if(ytSeq!==myId||ytSelArtist!==a) return;
+  ytPintarCanciones(songsWrap,q,songs,'🔥 Lo más pedido de '+a.name);
+}
 async function ytBuscar(q){
   const box=$('ytPrev'); if(!box) return;
   const myId=++ytSeq;
+  ytSelArtist=null;
   ytPintarMsg('Buscando en YouTube…');
+  let artistas=[], cancionesJson=null;
   try{
-    const url='https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=4&q='+encodeURIComponent(q)+'&key='+YT_KEY;
-    const r=await fetch(url);
-    if(myId!==ytSeq) return;
-    if(!r.ok){ box.hidden=true; return; }
-    const j=await r.json();
-    if(myId!==ytSeq) return;
-    const items=(j.items||[]).filter(it=>it.id&&it.id.videoId);
-    if(!items.length){ ytPintarMsg('No encontramos esa canción en YouTube.'); return; }
-    box.textContent='';
-    items.forEach(it=>{
-      const sn=it.snippet||{};
-      const thumb=(sn.thumbnails&&(sn.thumbnails.default||sn.thumbnails.medium)||{}).url||'';
-      const b=h('button','ytrow');b.type='button';
-      if(thumb){ const im=document.createElement('img'); im.src=thumb; im.alt=''; b.appendChild(im); }
-      const info=h('span','ytnm');
-      const nm=h('span',null,sn.title||''); nm.style.display='block';
-      const ch=h('span','ytch',sn.channelTitle||'');
-      info.appendChild(nm); info.appendChild(ch);
-      b.appendChild(info);
-      b.onmousedown=e=>e.preventDefault();
-      b.onclick=()=>{
-        $('s').value=(sn.title||q).replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
-        box.hidden=true;
-        if($('sugC'))$('sugC').hidden=true;
-        $('s').focus();
-      };
-      box.appendChild(b);
+    [artistas,cancionesJson]=await Promise.all([
+      ytBuscarArtistas(q),
+      fetch('https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=4&q='+encodeURIComponent(q)+'&key='+YT_KEY).then(r=>r.ok?r.json():null).catch(()=>null)
+    ]);
+  }catch(err){}
+  if(myId!==ytSeq) return;
+  const canciones=((cancionesJson&&cancionesJson.items)||[]).filter(it=>it.id&&it.id.videoId).map(it=>({
+    title:it.snippet.title, channelTitle:it.snippet.channelTitle, thumb:ytThumb(it.snippet)
+  }));
+  if(!artistas.length&&!canciones.length){ ytPintarMsg('No encontramos nada en YouTube para "'+q+'".'); return; }
+  box.textContent='';
+  if(artistas.length){
+    const row=h('div','ytartists');
+    artistas.forEach(a=>{
+      const btn=h('button','ytartist'); btn.type='button';
+      const im=document.createElement('img'); im.src=a.thumb; im.alt=''; btn.appendChild(im);
+      btn.appendChild(h('span',null,a.name));
+      btn.onmousedown=e=>e.preventDefault();
+      btn.onclick=()=>ytElegirArtista(a,btn,row,songsWrap,q,myId);
+      row.appendChild(btn);
     });
-    box.hidden=false;
-  }catch(err){
-    if(myId!==ytSeq) return;
-    box.hidden=true;
+    box.appendChild(row);
   }
+  const songsWrap=h('div');
+  box.appendChild(songsWrap);
+  ytPintarCanciones(songsWrap,q,canciones,artistas.length?'🎵 Coincidencias':'🎵 Canciones');
+  box.hidden=false;
 }
 $('s').addEventListener('input',()=>{
   const q=$('s').value.trim();
   clearTimeout(ytTimer);
-  if(q.length<4){ if($('ytPrev'))$('ytPrev').hidden=true; return; }
+  if(q.length<3){ if($('ytPrev'))$('ytPrev').hidden=true; return; }
   ytTimer=setTimeout(()=>ytBuscar(q),600);
 });
 $('s').addEventListener('blur',()=>{ setTimeout(()=>{ if($('ytPrev'))$('ytPrev').hidden=true; },150); });
