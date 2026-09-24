@@ -5018,15 +5018,33 @@ function isRecallVoiceCommand(rawText){
 }
 
 /* "Agrégame la misma ronda para la mesa 5" / "agrégame lo mismo para la mesa 5". */
+// "misma ronda para la mesa 2", "otra ronda mesa 3", "lo mismo para la mesa 2", "repite la mesa 4",
+// "la misma ronda de la mesa 3 para la mesa 5" (copia la ronda de la 3 en la 5).
 function isRepeatLastRoundVoiceCommand(rawText){
   const t = normVoiceText(rawText);
-  const hasAddAction = /\b(agrega|agregame|agregar|añade|anade|pon|poner)\b/.test(t);
-  const hasSameRound = /\bmisma\s+ronda\b|\blo\s+mismo\b|\bigual\b/.test(t);
-  const hasTable = /\bmesa\b/.test(t);
-  return hasAddAction && hasSameRound && hasTable;
+  return /\b(mism[ao]s?\s+ronda|otra\s+ronda|otra\s+igual|otra\s+vez\s+lo\s+mismo|lo\s+mismo|la\s+misma|igual\s+que\s+antes|la\s+de\s+antes|repit\w*|repet\w*|otra\s+tanda|misma\s+tanda)\b/.test(t);
 }
-
-function getRepeatLastRoundItems(){
+// Mesa de donde se copia la ronda ("…de la mesa 3 para la mesa 5") y mesa destino.
+function voiceRondaMesas(rawText){
+  const t = normVoiceText(rawText);
+  const nums = [];
+  const re = /\b(de\s+la\s+|para\s+la\s+|a\s+la\s+|en\s+la\s+|la\s+)?mesa\s+(?:numero\s+)?(\d+|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince)\b/g;
+  let m;
+  while((m = re.exec(t))){ const n = /^\d+$/.test(m[2]) ? parseInt(m[2], 10) : NUM_WORDS_VOICE[m[2]]; if(n) nums.push({ n, de: /^de/.test(m[1] || '') }); }
+  if(nums.length >= 2){ const src = nums.find(x => x.de) || nums[0]; const dst = nums.find(x => x !== src); return { origen: src.n, destino: dst.n }; }
+  return { origen: null, destino: nums.length ? nums[0].n : null };
+}
+// Última ronda de cada mesa (lo último que se le agregó, por voz o a mano), para repetirla.
+function guardarRonda(info){
+  if(!info || !info.tableId || !data.tables[info.tableId]) return;
+  let items = [];
+  if(info.mode === 'manual') items = info.items.filter(a => Number(a.delta) > 0).map(a => ({ productText: a.name, qty: Number(a.delta) }));
+  else if(info.mode === 'add' || !info.mode) items = info.items.filter(a => Number(a.qty) > 0).map(a => ({ productText: a.name, qty: Number(a.qty) }));
+  if(items.length) data.tables[info.tableId].ultimaRonda = { items, at: Date.now() };
+}
+function getRepeatLastRoundItems(tableId){
+  const r = tableId && data.tables[tableId] && data.tables[tableId].ultimaRonda;
+  if(r && Array.isArray(r.items) && r.items.length) return r.items.map(x => ({ productText: x.productText, qty: x.qty }));
   if(!lastVoiceOrderInfo || !Array.isArray(lastVoiceOrderInfo.items)) return [];
   if(lastVoiceOrderInfo.mode === 'manual'){
     return lastVoiceOrderInfo.items
@@ -5054,6 +5072,7 @@ function noteManualChange(tableId, name, delta){
   }else{
     lastVoiceOrderInfo = { tableId, mode: 'manual', items: [{ name, delta }], at: now };
   }
+  guardarRonda(lastVoiceOrderInfo);
 }
 
 function describeVoiceOrder(info){
@@ -5160,6 +5179,7 @@ function applyVoiceItems(tableId, items, mode){
     if(currentTable === tableId) { renderModalItems(); renderPeople(); }
     renderMesas();
     lastVoiceOrderInfo = { tableId, mode, items: added.map(a => ({ name: a.name, qty: a.qty })), at: Date.now() };
+    if(!applyVoiceItems.repitiendo) guardarRonda(lastVoiceOrderInfo);
   } else if(voiceUndoStack.length && voiceUndoStack[voiceUndoStack.length - 1].tableId === tableId){
     // Nada cambió: descarta el snapshot vacío que se acaba de guardar
     voiceUndoStack.pop();
@@ -5463,8 +5483,26 @@ function voiceLocalCanHandle(rawText){
 // El micrófono de pedidos es SIEMPRE la voz clásica: instantánea, gratis y sin internet.
 // La IA solo se usa desde su propio botón («IA», junto al micrófono), si se activa en Ajustes → Voz.
 let voiceModoIA = false;
+// Corrige lo que el reconocedor de voz del celular suele escribir mal:
+// • "póquer"/"poquer" → póker.
+// • Números pegados: al decir "mesa 1, dos águilas" el celular escribe "mesa 12 águilas". Si esa mesa
+//   no existe, se separa en "mesa 1, 2 águilas" (se prueba el corte que deja una mesa que sí existe).
+function voiceNormalizarHabla(raw){
+  let t = String(raw || '');
+  t = t.replace(/\bp[oó]quer(e?s)?\b/gi, 'póker').replace(/\bpoker(e?s)\b/gi, 'póker');
+  t = t.replace(/\b(mesa|mesita)\s+(\d{2,3})\b(?=\s+[^\d\s])/gi, (all, w, num) => {
+    if(data.tables[parseInt(num, 10)]) return all;
+    for(let k = num.length - 1; k >= 1; k--){
+      const a = parseInt(num.slice(0, k), 10), q = parseInt(num.slice(k), 10);
+      if(q > 0 && data.tables[a]) return w + ' ' + a + ', ' + q;
+    }
+    return all;
+  });
+  return t;
+}
 async function handleVoiceTranscript(rawText){
   const conIA = voiceModoIA; voiceModoIA = false;
+  rawText = voiceNormalizarHabla(rawText);
   try{
     if(isVoiceHelpCommand(rawText)){ voiceAyuda(); return; }
     if(handleSimpleVoiceCommands(rawText)) return;
@@ -5495,7 +5533,7 @@ async function handleVoiceTranscriptAI(rawText, forzar){
       }
       if(ai.intent === 'repeat_last_round'){
         const tableId = resolveVoiceTableId(ai.tableId);
-        const repeatItems = getRepeatLastRoundItems();
+        const repeatItems = getRepeatLastRoundItems(tableId);
         if(!tableId){
           showToast('¿Para cuál mesa? Di por ejemplo "misma ronda para la mesa 5".');
           speakVoice('¿Para cuál mesa es la misma ronda?');
@@ -5544,23 +5582,27 @@ async function handleVoiceTranscriptAI(rawText, forzar){
 
 function handleVoiceTranscriptLocal(rawText){
   if(isRepeatLastRoundVoiceCommand(rawText)){
-    const parsedId = extractVoiceTableId(rawText);
-    const tableId = resolveVoiceTableId(parsedId);
+    const rm = voiceRondaMesas(rawText);
+    const tableId = resolveVoiceTableId(rm.destino || extractVoiceTableId(rawText));
     if(!tableId){
       showToast('¿Para cuál mesa? Di por ejemplo "misma ronda para la mesa 5".');
       speakVoice('¿Para cuál mesa es la misma ronda?');
       return;
     }
-    const repeatItems = getRepeatLastRoundItems();
+    const origen = rm.origen || tableId;
+    const repeatItems = getRepeatLastRoundItems(origen);
     if(!repeatItems.length){
-      showToast('No hay una ronda anterior para repetir.');
+      showToast('⚠️ No hay una ronda anterior para repetir en ' + tableLabel(origen) + '.');
       speakVoice('No hay una ronda anterior para repetir.');
       return;
     }
-    const result = applyVoiceItems(tableId, repeatItems, 'add');
+    applyVoiceItems.repitiendo = true;
+    let result;
+    try{ result = applyVoiceItems(tableId, repeatItems, 'add'); }finally{ applyVoiceItems.repitiendo = false; }
     if(result.added.length){
-      const msg = 'Misma ronda agregada a ' + tableLabel(tableId) + '.';
-      showToast('✅ ' + msg);
+      const resumen = result.added.map(a => a.qty + ' ' + a.name).join(', ');
+      const msg = 'Misma ronda para ' + tableLabel(tableId) + (origen !== tableId ? ' (copiada de ' + tableLabel(origen) + ')' : '') + ': ' + resumen + '.';
+      showToast('🔁 ' + msg);
       speakVoice(msg);
     }
     if(result.notFound.length){
