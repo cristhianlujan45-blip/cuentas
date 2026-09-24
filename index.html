@@ -1591,6 +1591,15 @@
   @keyframes castPulse{ 0%,100%{ opacity:.35 } 50%{ opacity:1 } }
   .cast-guide ol{ margin:6px 0 0; padding-left:20px; display:flex; flex-direction:column; gap:9px; font-size:14px; line-height:1.45; text-align:left; }
   .cast-guide b{ color:var(--cream); }
+  .pair-steps{ display:flex; flex-direction:column; gap:14px; margin-top:10px; text-align:left; }
+  .pair-step{ display:flex; gap:12px; align-items:flex-start; }
+  .pair-n{ width:28px; height:28px; flex-shrink:0; border-radius:50%; display:grid; place-items:center; font-weight:800; font-size:14px; background:var(--amber); color:#fff; }
+  .pair-step p{ margin:3px 0 0; font-size:14px; line-height:1.45; }
+  .pair-step b{ color:var(--cream); }
+  #pairCode{ width:100%; box-sizing:border-box; margin-top:8px; padding:12px; border-radius:12px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font:800 22px/1.2 var(--font-main); letter-spacing:.12em; text-align:center; }
+  #pairCode:focus{ outline:none; border-color:var(--amber); }
+  .pair-hint{ font-size:12.5px; color:var(--ink-soft); margin-top:6px; }
+  .pair-done{ display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:12px; font-size:13.5px; background:color-mix(in srgb, var(--paid) 14%, transparent); border:1px solid color-mix(in srgb, var(--paid) 40%, transparent); }
   .product-row .p-name{ font-weight:600; font-size: 14.5px; }
   .product-row .p-size{
     display:inline-flex;
@@ -2441,6 +2450,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       <div class="cast-devs" id="castDevs"><span class="cast-dot"></span><span id="castDevsTxt">Buscando televisores en tu wifi…</span></div>
       <div class="mz-actions">
         <button class="btn-primary" id="castStart" type="button">📺 Buscar TV y transmitir</button>
+        <button class="btn-ghost" id="castPair" type="button">🔗 Vincular con código de TV</button>
         <button class="btn-ghost" id="castHelp" type="button">¿No aparece tu TV?</button>
         <button class="btn-ghost" id="castStop" type="button" hidden>Terminar transmisión</button>
       </div>
@@ -10463,6 +10473,9 @@ function asisCommand(raw){
   // Problemas de la app: Mesi revisa, repara lo que puede y explica el resto.
   if(asisPideReparar(t)) return { text: '🛠️ Dame un segundo, reviso la app…', run: () => { if(typeof mesoraDiagnosticoChat === 'function') mesoraDiagnosticoChat(raw); } };
   if(/^(recarga|recargar|reinicia|reiniciar) (la )?(app|aplicacion|pagina)\b/.test(t)) return { text: 'Listo, recargo la app. Tus datos quedan guardados.', run: () => location.reload() };
+  if(/\b(vincul\w*|enlaz\w*|codigo)\b/.test(t) && /\b(tv|tele|televisor|television)\b/.test(t)){
+    return { text: 'Te abro los pasos para vincular tu TV con el código de YouTube.', run: () => { asisClose(); asisGoView('musica'); setTimeout(() => { if(typeof castVincular === 'function') castVincular(); }, 300); } };
+  }
   if(/\b(transmit\w*|castea\w*|chromecast)\b/.test(t) || (/\b(musica|youtube|cancion|canciones|lista)\b/.test(t) && /\b(tv|tele|televisor|television)\b/.test(t))){
     return { text: 'Te llevo a Música. Toca «📺 Buscar TV y transmitir»: te muestro los televisores de tu wifi y abro YouTube con la lista.', run: () => { asisClose(); asisGoView('musica'); setTimeout(() => { const b = document.getElementById('castStart'); if(b) b.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 300); } };
   }
@@ -16142,9 +16155,10 @@ function castEstado(){
   const c = LS(CAST_KEY, {}), g = !!(vm().yTok && vm().yTok());
   document.getElementById('castStop').hidden = !c.on;
   castDevsPintar();
-  if(!c.on){ e.textContent = g ? '🟢 Google conectado: la lista del TV se actualizará sola.' : '⚪ Sin Google conectado: YouTube abre la primera canción de la cola. Conecta Google abajo (una sola vez) para que la lista completa se arme y se actualice sola.'; return; }
+  const vin = LS(PAIR_KEY, {}).ok ? ' · 🔗 TV vinculado con código' : '';
+  if(!c.on){ e.textContent = (g ? '🟢 Google conectado: la lista del TV se actualizará sola.' : '⚪ Sin Google conectado: YouTube abre la primera canción de la cola. Conecta Google abajo (una sola vez) para que la lista completa se arme y se actualice sola.') + vin; return; }
   const pend = vm().cola().filter(x => !x.done).length;
-  e.textContent = '📡 Transmitiendo desde ' + new Date(c.desde).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) + (g ? ' · las canciones nuevas entran solas a la lista en vivo' : ' · sin Google: toca «Buscar TV y transmitir» otra vez para mandar las nuevas') + (pend ? ' · ' + pend + ' por agregar' : '') + '.';
+  e.textContent = '📡 Transmitiendo desde ' + new Date(c.desde).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) + (g ? ' · las canciones nuevas entran solas a la lista en vivo' : ' · sin Google: toca «Buscar TV y transmitir» otra vez para mandar las nuevas') + (pend ? ' · ' + pend + ' por agregar' : '') + '.' + vin;
 }
 // Abre la APP de YouTube (nunca el navegador). En Android se le pide la app por su
 // paquete exacto (com.google.android.youtube); si no está instalada, Android abre la
@@ -16253,6 +16267,63 @@ function castBuscarYTransmitir(){
   }
   transmitirTV();
 }
+/* Vincular con código de TV: sirve aunque el wifi no deje ver el TV (routers de negocio).
+   El código lo muestra la app de YouTube del TV; el enlace lo hace la app de YouTube del
+   celular (Configuración → Ver en TV → Ingresar código de TV). Esta pantalla guía los pasos,
+   copia el código y abre YouTube. Una vez vinculado, el TV sale siempre al transmitir. */
+const PAIR_KEY = 'vito_tv_vinculado';
+function castVincular(){
+  let ov = document.getElementById('castPairOverlay');
+  if(!ov){
+    ov = document.createElement('div'); ov.id = 'castPairOverlay'; ov.className = 'overlay';
+    ov.innerHTML = '<div class="modal" style="max-width:430px;max-height:90vh;overflow:auto"><h2>🔗 Vincular con código de TV</h2>' +
+      '<div class="modal-sub">Se hace una sola vez. Después tu TV aparece siempre al transmitir, aunque el wifi no lo detecte.</div>' +
+      '<div id="pairDone"></div>' +
+      '<div class="pair-steps">' +
+        '<div class="pair-step"><span class="pair-n">1</span><div><strong>En el TV</strong><p>Abre la app de <b>YouTube</b> → <b>Configuración</b> (⚙️, abajo a la izquierda) → <b>Vincular con código de TV</b>. Aparece un código azul de 12 números.</p></div></div>' +
+        '<div class="pair-step"><span class="pair-n">2</span><div style="flex:1;min-width:0"><strong>Escribe aquí el código del TV</strong>' +
+          '<input id="pairCode" inputmode="numeric" autocomplete="off" placeholder="000 000 000 000" maxlength="15">' +
+          '<div class="pair-hint" id="pairHint">Son 12 números. Te lo copio para pegarlo en YouTube.</div></div></div>' +
+        '<div class="pair-step"><span class="pair-n">3</span><div><strong>En el celular</strong><p>Toca el botón de abajo: se copia el código y se abre YouTube. Ahí toca <b>tu foto</b> → <b>Configuración</b> → <b>Ver en TV</b> → <b>Ingresar código de TV</b>, pega el código y toca <b>Vincular</b>.</p></div></div>' +
+      '</div>' +
+      '<div class="modal-actions" style="flex-direction:column;gap:8px;margin-top:16px">' +
+        '<button class="btn-primary" id="pairGo" type="button" style="width:100%;padding:13px;font-size:15px" disabled>📋 Copiar código y abrir YouTube</button>' +
+        '<button class="btn-ghost" id="pairOk" type="button" style="width:100%">✅ Ya quedó vinculado</button>' +
+        '<button class="btn-ghost" id="pairWeb" type="button" style="width:100%">💻 Vincular desde el navegador (youtube.com/pair)</button>' +
+        '<button class="btn-close" id="pairClose" type="button">Cerrar</button>' +
+      '</div></div>';
+    document.body.appendChild(ov);
+    const inp = ov.querySelector('#pairCode'), go = ov.querySelector('#pairGo'), hint = ov.querySelector('#pairHint');
+    const digits = () => inp.value.replace(/\D/g, '').slice(0, 12);
+    inp.addEventListener('input', () => {
+      const d = digits();
+      inp.value = d.replace(/(\d{3})(?=\d)/g, '$1 ');
+      go.disabled = d.length !== 12;
+      hint.textContent = d.length === 12 ? '✅ Código completo.' : 'Van ' + d.length + ' de 12 números.';
+    });
+    go.onclick = async () => {
+      const d = digits(); if(d.length !== 12) return;
+      let copiado = false;
+      try{ await navigator.clipboard.writeText(d); copiado = true; }catch(e){}
+      if(!copiado){ try{ inp.select(); copiado = document.execCommand('copy'); }catch(e){} }
+      SS(PAIR_KEY, Object.assign({}, LS(PAIR_KEY, {}), { codigo: d, pedido: Date.now() }));
+      abrirEnAppYouTube('');
+      showToast((copiado ? '📋 Código copiado. ' : '✍️ Anota el código: ' + inp.value + '. ') + 'En YouTube: tu foto → Configuración → Ver en TV → Ingresar código de TV.', 9000);
+    };
+    ov.querySelector('#pairOk').onclick = () => {
+      SS(PAIR_KEY, Object.assign({}, LS(PAIR_KEY, {}), { ok: Date.now() }));
+      ov.classList.remove('show'); castEstado();
+      showToast('✅ TV vinculado. Ahora toca «Buscar TV y transmitir» y, en YouTube, el ícono de transmitir: tu TV sale en la lista.', 7000);
+    };
+    ov.querySelector('#pairWeb').onclick = () => window.open('https://www.youtube.com/pair', '_blank');
+    ov.querySelector('#pairClose').onclick = () => ov.classList.remove('show');
+    ov.addEventListener('click', e => { if(e.target === ov) ov.classList.remove('show'); });
+  }
+  const v = LS(PAIR_KEY, {});
+  ov.querySelector('#pairDone').innerHTML = v.ok ? '<div class="pair-done">✅ Ya vinculaste un TV el ' + new Date(v.ok).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' }) + '. Repite los pasos solo si cambiaste de TV.</div>' : '';
+  ov.classList.add('show');
+  setTimeout(() => { const i = document.getElementById('pairCode'); if(i && window.innerWidth > 700) i.focus(); }, 60);
+}
 function castGuia(){
   let ov = document.getElementById('castGuideOverlay');
   if(!ov){
@@ -16263,11 +16334,12 @@ function castGuia(){
       '<li><b>TV listo:</b> enciende el TV y abre su app de YouTube una vez. En Smart TV activa «Chromecast integrado» o «Google Cast» en su configuración.</li>' +
       '<li><b>Permiso del celular:</b> Ajustes del celular → Apps → YouTube (y también Chrome) → Permisos → activa <b>Dispositivos cercanos</b>. Sin ese permiso no ve los TV.</li>' +
       '<li><b>Apaga la VPN</b> y el ahorro de batería extremo, si los tienes.</li>' +
-      '<li><b>Wifi del negocio que bloquea:</b> muchos routers de negocio no dejan que los aparatos se vean entre sí. Solución que siempre funciona: en el <b>TV</b> abre YouTube → Configuración → <b>Vincular con código de TV</b>; en el <b>celular</b> abre YouTube → tu foto → Configuración → <b>Ver en TV</b> → <b>Ingresar código de TV</b>. Queda vinculado para siempre y aparece en el ícono de transmitir aunque el wifi no lo detecte.</li>' +
+      '<li><b>Wifi del negocio que bloquea:</b> muchos routers de negocio no dejan que los aparatos se vean entre sí. Solución que siempre funciona: en el <b>TV</b> abre YouTube → Configuración → <b>Vincular con código de TV</b>; en el <b>celular</b> abre YouTube → tu foto → Configuración → <b>Ver en TV</b> → <b>Ingresar código de TV</b>. Queda vinculado para siempre y aparece en el ícono de transmitir aunque el wifi no lo detecte. <button type="button" class="btn-ghost" id="castGuidePair" style="margin-top:8px;display:block">🔗 Vincular con código de TV</button></li>' +
       '<li>Vuelve aquí y toca <b>Buscar TV y transmitir</b>.</li></ol>' +
       '<div class="modal-actions"><button class="btn-primary" type="button" id="castGuideOk">Entendido</button></div></div>';
     document.body.appendChild(ov);
     ov.querySelector('#castGuideOk').onclick = () => ov.classList.remove('show');
+    ov.querySelector('#castGuidePair').onclick = () => { ov.classList.remove('show'); castVincular(); };
     ov.addEventListener('click', e => { if(e.target === ov) ov.classList.remove('show'); });
   }
   ov.classList.add('show');
@@ -16320,6 +16392,7 @@ function iniCast(){
   if(!st) return;
   st.onclick = castBuscarYTransmitir;
   document.getElementById('castHelp').onclick = castGuia;
+  document.getElementById('castPair').onclick = castVincular;
   castCargarSdk();
   document.getElementById('castStop').onclick = () => { SS(CAST_KEY, {}); castEstado(); showToast('Transmisión terminada. En el TV puedes detenerla desde la app de YouTube.'); };
   const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', castEstado);
