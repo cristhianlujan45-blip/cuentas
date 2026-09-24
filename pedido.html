@@ -213,8 +213,7 @@ h1{
 .cat-tab.on{background:linear-gradient(180deg,var(--gold-hi),var(--gold-lo));color:#1a1108;border-color:transparent;box-shadow:0 6px 16px rgba(201,138,43,.3)}
 
 /* Tarjetas de producto en cuadrícula: más visuales y fáciles de tocar que una lista de texto */
-.cardgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media (max-width:360px){.cardgrid{grid-template-columns:1fr}}
+.cardgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(148px,100%),1fr));gap:10px}
 .pcard{position:relative;display:flex;flex-direction:column;gap:5px;padding:14px 12px;border-radius:16px;border:1px solid var(--line);background:var(--card);text-align:left;min-height:88px}
 .pcard .pic{font-size:24px;line-height:1}
 .pcard .pimg{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:#fff;border-radius:12px;margin-bottom:2px}
@@ -231,12 +230,19 @@ h1{
 @keyframes qbPop{from{transform:scale(1.4)}to{transform:none}}
 .catbtn{display:flex;align-items:center;gap:12px;width:100%;margin-top:16px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
 .catbtn .ic{font-size:26px}.catbtn .rt{flex:1;display:flex;flex-direction:column}.catbtn strong{font:600 19px/1.2 var(--serif)}.catbtn .rd{font-size:13px;color:var(--ink2)}.catbtn .go{color:var(--gold);font-size:24px}
-.carta{position:fixed;inset:0;z-index:50;background:var(--bg);overflow:auto;padding:16px 16px 96px}
+/* La carta se adapta a cada pantalla: en celular 2 columnas, en tablet/computador más columnas
+   (tarjetas de ~150-220 px) y el contenido centrado hasta 1100 px de ancho. */
+.carta{--cx:max(16px,calc((100vw - 1100px) / 2));position:fixed;inset:0;z-index:50;background:var(--bg);overflow:auto;padding:16px var(--cx) 96px}
 /* Encabezado + buscador pegados arriba: siempre a la vista aunque se haga scroll por la carta */
-.carta-head{position:sticky;top:0;z-index:6;margin:-16px -16px 10px;padding:16px 16px 10px;background:var(--bg)}
+.carta-head{position:sticky;top:0;z-index:6;margin:-16px calc(-1 * var(--cx)) 10px;padding:16px var(--cx) 10px;background:var(--bg)}
 .carta .top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
-.carta .x{background:none;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:8px 12px;font:inherit;cursor:pointer}
-.carta .back{position:fixed;left:16px;right:16px;bottom:16px;width:auto}
+.carta .x{width:auto;height:auto;background:none;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:8px 14px;font:inherit;font-size:15px;cursor:pointer;white-space:nowrap}
+.carta .back{position:fixed;left:var(--cx);right:var(--cx);bottom:calc(16px + env(safe-area-inset-bottom));width:auto}
+@media (min-width:700px){.cardgrid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}}
+/* Página principal: más ancha y un poco más grande en tablets y computadores */
+@media (min-width:700px){.wrap{max-width:600px}html{font-size:17px}}
+@media (min-width:1100px){.wrap{max-width:640px}}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 @keyframes vIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes fxFall{to{transform:translateY(112vh)}}@keyframes fxSway{from{margin-left:-14px}to{margin-left:14px}}
 button{transition:transform .12s ease,filter .15s ease,background-color .2s ease,border-color .2s ease}

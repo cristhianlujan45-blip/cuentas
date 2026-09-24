@@ -2484,6 +2484,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
         <button class="btn-ghost" id="castHelp" type="button">¿No aparece tu TV?</button>
         <button class="btn-ghost" id="castStop" type="button" hidden>Terminar transmisión</button>
       </div>
+      <button class="btn-primary cast-big" id="castRefresh" type="button" hidden>▶ Mandar las canciones nuevas al TV</button>
       <div class="cast-state" id="castEstado"></div>
     </div>
     <div class="settings-group">
@@ -14190,7 +14191,7 @@ function iniMusica(){
 
 /* ---------- YouTube Music automático (lista de reproducción por API de YouTube) ---------- */
 const yCfg=()=>Object.assign({cid:'',pl:'',len:0,on:false,key:'AIzaSyCQ_IKzsP2TEPc7jiIfV3prwc6VYvgq1xY'},LS('vito_yt',{}));
-const yTok=()=>{try{const t=JSON.parse(sessionStorage.getItem('vito_ytok'));return t&&t.exp>Date.now()?t.t:null;}catch(e){return null;}};
+const yTok=()=>{try{const t=JSON.parse(localStorage.getItem('vito_ytok')||sessionStorage.getItem('vito_ytok'));return t&&t.exp>Date.now()?t.t:null;}catch(e){return null;}};
 let yTC=null,cadena=Promise.resolve();
 function yEstado(){
   const e=$('ytEstado'),c=yCfg();
@@ -14257,6 +14258,7 @@ async function ytUno(id){
       SS('vito_cola',l);
       tvPublicar();
     }
+    if(it.vid&&!it.yt&&!yTok()&&!tvOn()&&typeof castOn==='function'&&castOn()&&yCfg().cid){showToast('⚠️ Google se desconectó: «'+it.song+'» todavía no entró a la lista del TV. Toca cualquier parte de Mesora y se reconecta y la agrega.',8000);}
     if(!it.vid||it.yt||!yTok()||tvOn())return;
     const pl=await yLista();
     // position:1 (no position:0) pone la canción nueva JUSTO DESPUÉS de la
@@ -14275,6 +14277,7 @@ async function ytUno(id){
     if(!(typeof castOn==='function'&&castOn()))sn.position=1;
     const r=await yApi('playlistItems?part=snippet',{method:'POST',body:JSON.stringify({snippet:sn})});
     l=cola();it=l.find(x=>x.id===id);if(it){it.yt=true;it.done=true;it.ytAt=Date.now();it.ytItemId=r&&r.id;SS('vito_cola',l);}
+    try{if(typeof castEstado==='function')castEstado();}catch(e){}
     const c=yCfg();c.len++;SS('vito_yt',c);
   }catch(e){showToast('YouTube: '+e.message);}
   yEstado();
@@ -14304,7 +14307,7 @@ function yConectar(silencio){
   }
   yTC=yTC||google.accounts.oauth2.initTokenClient({client_id:c.cid,scope:'https://www.googleapis.com/auth/youtube',callback:r=>{
     if(r.error){if(!yTC.silencio)showToast('Google: '+r.error);return;}
-    sessionStorage.setItem('vito_ytok',JSON.stringify({t:r.access_token,exp:Date.now()+(r.expires_in-120)*1000}));
+    try{localStorage.setItem('vito_ytok',JSON.stringify({t:r.access_token,exp:Date.now()+(r.expires_in-120)*1000}));}catch(e){sessionStorage.setItem('vito_ytok',JSON.stringify({t:r.access_token,exp:Date.now()+(r.expires_in-120)*1000}));}
     const x=yCfg();x.on=true;SS('vito_yt',x);yEstado();yPendientes();}});
   yTC.silencio=!!silencio;
   yTC.requestAccessToken({prompt:silencio?'none':''});
@@ -14332,6 +14335,11 @@ function iniYT(){
     if(c.key||yTok())ordenJusto(cola().filter(x=>!x.yt&&!x.novid)).forEach(x=>ytAgregar(x.id));
   },60000);
   { const c=yCfg(); if(c.cid&&c.on&&!yTok())yConectar(true); } // reconecta sola apenas abrís la app, sin esperar el primer minuto
+  // El permiso de Google dura ~1 hora y el celular NO deja renovarlo sin un toque (bloquea la
+  // ventanita de Google). Por eso se renueva con el primer toque en cualquier parte de Mesora
+  // después de vencer: la ventanita se abre y se cierra sola, sin pedir nada.
+  let yReconT=0;
+  document.addEventListener('pointerdown',()=>{const c=yCfg();if(c.cid&&c.on&&!yTok()&&Date.now()-yReconT>20000){yReconT=Date.now();yConectar(true);}},true);
   yEstado();
 }
 
@@ -16367,15 +16375,25 @@ async function publicarFotosCarta(){
    la lista es la de tu cuenta y las canciones nuevas se agregan en vivo. */
 const CAST_KEY = 'vito_cast';
 function castOn(){ return !!LS(CAST_KEY, {}).on; }
+// Canciones que llegaron después de abrir YouTube: la app de YouTube / YouTube Music carga la
+// lista UNA vez al empezar, así que las nuevas hay que mandarlas volviendo a abrirla (un toque).
+function castNuevas(){
+  const c = LS(CAST_KEY, {});
+  if(!c.on) return [];
+  const l = vm().cola ? vm().cola() : [];
+  return (vm().yTok && vm().yTok()) ? l.filter(x => (x.yt === true && !x.enviado) || (!x.done && !x.novid)) : l.filter(x => !x.done && !x.novid);
+}
 function castEstado(){
   const e = document.getElementById('castEstado'); if(!e) return;
   const c = LS(CAST_KEY, {}), g = !!(vm().yTok && vm().yTok());
   document.getElementById('castStop').hidden = !c.on;
   castDevsPintar();
   const vin = LS(PAIR_KEY, {}).ok ? ' · 🔗 TV vinculado con código' : '';
-  if(!c.on){ e.textContent = (g ? '🟢 Google conectado: la lista del TV se actualizará sola.' : '⚪ Sin Google conectado: YouTube abre la primera canción de la cola. Conecta Google abajo (una sola vez) para que la lista completa se arme y se actualice sola.') + vin; return; }
+  if(!c.on){ e.textContent = (g ? '🟢 Google conectado: las canciones pedidas se agregan solas a tu lista de YouTube.' : '⚪ Sin Google conectado: YouTube abre la primera canción de la cola. Conecta Google abajo (una sola vez) para que la lista completa se arme y se actualice sola.') + vin; return; }
+  const nuevas = castNuevas().length, rb = document.getElementById('castRefresh');
+  if(rb){ rb.hidden = !nuevas; rb.textContent = '▶ Mandar ' + (nuevas === 1 ? 'la canción nueva' : 'las ' + nuevas + ' canciones nuevas') + ' al TV'; }
   const pend = vm().cola().filter(x => !x.done).length;
-  e.textContent = '📡 Transmitiendo desde ' + new Date(c.desde).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) + (g ? ' · las canciones nuevas entran solas a la lista en vivo' : ' · sin Google: toca «Transmitir al TV» otra vez para mandar las nuevas') + (pend ? ' · ' + pend + ' por agregar' : '') + '.' + vin;
+  e.textContent = '📡 Transmitiendo desde ' + new Date(c.desde).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) + (g ? ' · las canciones nuevas se agregan solas a tu lista de YouTube' : ' · sin Google: cada canción nueva se manda con «Mandar al TV»') + (pend ? ' · ' + pend + ' por agregar' : '') + '.' + vin;
 }
 // Abre la APP de YouTube (nunca el navegador). En Android se le pide la app por su
 // paquete exacto (com.google.android.youtube); si no está instalada, Android abre la
@@ -16419,7 +16437,23 @@ function castLanzar(path, aviso){
   ov.classList.add('show');
 }
 const CAST_AVISO = '📺 Toca el ícono de transmitir (arriba) y elige tu TV: ahí salen todos tus dispositivos. Si ya estaba conectado, suena directo en el TV.';
-let castEsperaGoogle = 0;
+let castEsperaGoogle = 0, castAvisadas = 0;
+// Muestra el botón grande «Mandar al TV» (hace falta un toque para abrir YouTube).
+function castLanzarNuevas(){
+  const n = castNuevas().length;
+  let ov = document.getElementById('castNewOverlay');
+  if(!ov){
+    ov = document.createElement('div'); ov.id = 'castNewOverlay'; ov.className = 'overlay';
+    ov.innerHTML = '<div class="modal" style="max-width:380px;text-align:center"><h2>🎵 Canciones nuevas</h2><div class="modal-sub" id="castNewTxt"></div>' +
+      '<div class="modal-actions" style="flex-direction:column;gap:8px"><button class="btn-primary" id="castNewGo" type="button" style="width:100%;padding:14px;font-size:16px">▶ Mandar al TV</button>' +
+      '<button class="btn-close" id="castNewNo" type="button">Ahora no</button></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#castNewNo').onclick = () => ov.classList.remove('show');
+    ov.querySelector('#castNewGo').onclick = () => { ov.classList.remove('show'); transmitirTV(); };
+  }
+  ov.querySelector('#castNewTxt').textContent = (n === 1 ? 'Pidieron 1 canción' : 'Pidieron ' + n + ' canciones') + ' desde que abriste ' + (castApp() === 'yt' ? 'YouTube' : 'YouTube Music') + '. Toca para mandarlas al TV (se abre la app con la lista actualizada).';
+  ov.classList.add('show');
+}
 
 /* App con la que se transmite. La lista de dispositivos (YouTube on TV, Smart TV LG/Samsung,
    Chromecast…) solo la puede armar la propia app de YouTube / YouTube Music: los buscan con
@@ -16453,7 +16487,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
    la Pantalla del TV de Mesora (tv.html) y reproduce la cola en vivo: cada canción que piden las
    mesas entra sola. Los Smart TV LG/Samsung sin Chromecast no aparecen aquí (solo los ve la app
    de YouTube): para esos están los botones de YouTube Music / YouTube. */
-const MESORA_VERSION = '2026-09-24 · v9';
+const MESORA_VERSION = '2026-09-24 · v10';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
@@ -16618,13 +16652,21 @@ async function transmitirTV(){
       showToast('Conectando con Google para armar tu lista del TV…', 4000);
       return;
     }
-    SS(CAST_KEY, { on: true, desde: Date.now() });
+    const prev = LS(CAST_KEY, {});
+    const abiertoAntes = prev.on ? (prev.abierto || 0) : 0;
+    SS(CAST_KEY, { on: true, desde: prev.on && prev.desde ? prev.desde : Date.now(), abierto: Date.now() });
     const pend = vm().ordenJusto(vm().cola());
     if(vm().yTok()){
       const pl = await vm().yLista();
       pend.forEach(x => vm().ytAgregar(x.id));
       await vm().esperarYT();                                    // espera a que entren las pendientes
-      const f = pend.map(x => vm().cola().find(y => y.id === x.id)).find(it => it && it.vid);
+      // Empieza por la primera canción que entró a la lista DESPUÉS de la última vez que se abrió
+      // YouTube (así la app vuelve a cargar la lista, ya con las nuevas), o por la primera pendiente.
+      const l0 = vm().cola();
+      const nuevas = l0.filter(x => x.yt === true && !x.enviado && Date.now() - (x.ytAt || 0) < 6 * 36e5).sort((a, b) => a.ytAt - b.ytAt);
+      const f = nuevas[0] || pend.map(x => l0.find(y => y.id === x.id)).find(it => it && it.vid);
+      // Todo lo que ya está en la lista va en esta apertura: ya no cuenta como «nueva».
+      l0.forEach(x => { if(x.yt === true) x.enviado = true; }); SS('vito_cola', l0);
       const now = LS('vito_now', null);
       const vid = f ? f.vid : (now && now.vid) || '';
       castLanzar(vid ? 'watch?v=' + encodeURIComponent(vid) + '&list=' + encodeURIComponent(pl) : 'playlist?list=' + encodeURIComponent(pl),
@@ -16662,6 +16704,16 @@ function castAbrirApp(){
 function iniCast(){
   if(!document.getElementById('castPres')) return;
   document.getElementById('castPres').onclick = presBuscar;
+  document.getElementById('castRefresh').onclick = () => transmitirTV();
+  // Al volver a Mesora (desde YouTube) con canciones nuevas: se ofrece mandarlas al TV de un toque.
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden) return;
+    castEstado();
+    const n = castNuevas().length;
+    if(n && !vm().tvOn()) setTimeout(() => { if(!document.hidden && castNuevas().length) castLanzarNuevas(); }, 600);
+  });
+  // Si una canción nueva entra mientras Mesora está abierta, también se avisa.
+  setInterval(() => { const n = castNuevas().length; if(n && n !== castAvisadas && !document.hidden){ castAvisadas = n; castEstado(); showToast('🎵 ' + (n === 1 ? 'Hay 1 canción nueva' : 'Hay ' + n + ' canciones nuevas') + ' para el TV: toca «Mandar al TV» en Música.', 6000); } }, 10000);
   document.getElementById('castOpenMusic').onclick = () => { SS(CAST_APP_KEY, { app: 'music' }); castAbrirApp(); };
   document.getElementById('castOpenYT').onclick = () => { SS(CAST_APP_KEY, { app: 'yt' }); castAbrirApp(); };
   const env = castEntorno(), ce = document.getElementById('castEnv');
@@ -16779,7 +16831,7 @@ function mesoraReparar(opts){
     try{ setGeminiModel(''); setOpenAIModel(''); hecho.push('Volví al modelo de IA de fábrica (el que tenías ya no existe).'); }catch(e){}
   }
   // 5) YouTube: sesión vencida
-  try{ const t = JSON.parse(sessionStorage.getItem('vito_ytok') || 'null'); if(t && !(t.exp > Date.now())){ sessionStorage.removeItem('vito_ytok'); hecho.push('Renové la conexión con YouTube (estaba vencida).'); } }catch(e){ try{ sessionStorage.removeItem('vito_ytok'); }catch(x){} }
+  try{ const t = JSON.parse(localStorage.getItem('vito_ytok') || sessionStorage.getItem('vito_ytok') || 'null'); if(t && !(t.exp > Date.now())){ localStorage.removeItem('vito_ytok'); sessionStorage.removeItem('vito_ytok'); hecho.push('Borré la conexión vencida con YouTube; se renueva sola con tu próximo toque.'); } }catch(e){ try{ localStorage.removeItem('vito_ytok'); sessionStorage.removeItem('vito_ytok'); }catch(x){} }
   // 6) Volver a dibujar las pantallas
   try{ renderAll(); }catch(e){ mesoraLogError('reparar', 'Al redibujar: ' + e.message, 'renderAll'); hecho.push('⚠️ Una pantalla sigue fallando al dibujarse; recarga la app.'); }
   return hecho;
