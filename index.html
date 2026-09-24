@@ -3560,7 +3560,9 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
     <select id="qsMethod">
       <option value="efectivo">Efectivo</option>
       <option value="transferencia">Transferencia</option>
+      <option value="debe">⏳ Quedó debiendo (fiado)</option>
     </select>
+    <input type="text" id="qsDebeName" placeholder="¿Quién queda debiendo? (nombre)" autocomplete="off" hidden style="margin-top:8px">
 
     <div class="modal-actions">
       <button class="btn-close" id="qsCancelBtn">Cancelar</button>
@@ -4373,6 +4375,8 @@ function closeTableToHistory(tableId){
   return entry;
 }
 
+document.getElementById('qsMethod').addEventListener('change', e => { const dn = document.getElementById('qsDebeName'); dn.hidden = e.target.value !== 'debe'; if(!dn.hidden) dn.focus(); });
+
 /* ---------- Clientes frecuentes (fidelización) ----------
    Guarda visitas y gasto por número de WhatsApp, para que el negocio sepa
    a quién le vale la pena premiar. Es opcional y no toca los cálculos de
@@ -5163,11 +5167,33 @@ let lastVoiceOrderInfo = null; // { tableId, mode, items: [{name, qty}], at }
 
 function isRecallVoiceCommand(rawText){
   const t = normVoiceText(rawText);
-  const hasAction = /\b(recuerda|recuerdame|recuerdeme|recordar|dime|repite|repiteme|acuerdate|acuerdame|cual)\b/.test(t);
-  const hasTarget = /\b(pedido|orden)\b[\s\S]*\b(anterior|ultimo|ultima|pasado|pasada)\b|\b(ultimo|ultima)\b[\s\S]*\b(pedido|orden)\b/.test(t);
-  if(hasAction && hasTarget) return true;
-  if(/\bque\s+(pedi|agregue|pedimos|agregamos)\b/.test(t)) return true;
+  // "recuérdame el pedido", "dime el pedido", "repíteme el pedido" (sin "para la mesa"), "cuál fue mi último pedido"
+  if(/\b(recuerda\w*|recuerde\w*|recordar|recordame|acuerda\w*|dime|digame|repiteme|repitame|leeme|cual|como|que)\b[\s\S]*\b(pedido|pedidos|orden)\b/.test(t) && !/\b(para|a|en)\s+la\s+mesa\b/.test(t)) return true;
+  if(/\b(pedido|orden)\b[\s\S]*\b(anterior|ultimo|ultima|pasado|pasada)\b|\b(ultimo|ultima)\b[\s\S]*\b(pedido|orden)\b/.test(t)) return true;
+  if(/\bque\s+(pedi|agregue|pedimos|agregamos|anote|anotamos|puse|pusimos)\b/.test(t)) return true;
+  if(/\bque\s+(fue\s+)?lo\s+ultimo\b/.test(t)) return true;
+  // "¿qué lleva / qué tiene / qué pidió la mesa 2?"
+  if(/\bque\s+(lleva|llevan|tiene|tienen|pidio|pidieron|ha pedido|han pedido)\b[\s\S]*\bmesa\b/.test(t)) return true;
   return false;
+}
+// Respuesta de "recuérdame el pedido": si se nombra una mesa, su última ronda y lo que lleva;
+// si no, el último pedido anotado (por voz o a mano), que también se recuerda al recargar la app.
+function voiceRecordarPedido(rawText){
+  const t = normVoiceText(rawText);
+  let mesa = null;
+  if(/\bmesa\b/.test(t)){ const rm = voiceRondaMesas(rawText); mesa = rm.destino || extractVoiceTableId(rawText); }
+  if(mesa && data.tables[mesa]){
+    const tb = data.tables[mesa], its = tb.items || [];
+    const r = tb.ultimaRonda;
+    const ronda = r && r.items && r.items.length ? 'Lo último que pidió: ' + r.items.map(x => x.qty + ' ' + x.productText).join(', ') + '. ' : '';
+    const lleva = its.length ? 'En total lleva ' + its.map(x => x.qty + ' ' + x.name).join(', ') + ', por ' + fmtSpoken(tableTotal(mesa)) + (tableBalance(mesa) !== tableTotal(mesa) ? ' (le falta pagar ' + fmtSpoken(tableBalance(mesa)) + ')' : '') + '.' : tableLabel(mesa) + ' no tiene nada pedido.';
+    const msg = tableLabel(mesa) + ': ' + ronda + lleva;
+    showToast('🗣️ ' + msg, 8000); speakVoice(msg); return;
+  }
+  const info = lastVoiceOrderInfo || (data && data.ultimoPedido) || null;
+  if(!info){ showToast('Todavía no hay ningún pedido registrado.'); speakVoice('Todavía no hay ningún pedido registrado.'); return; }
+  const msg = 'Tu último pedido fue: ' + describeVoiceOrder(info) + '.';
+  showToast('🗣️ ' + msg, 7000); speakVoice(msg);
 }
 
 /* "Agrégame la misma ronda para la mesa 5" / "agrégame lo mismo para la mesa 5". */
@@ -5190,6 +5216,7 @@ function voiceRondaMesas(rawText){
 // Última ronda de cada mesa (lo último que se le agregó, por voz o a mano), para repetirla.
 function guardarRonda(info){
   if(!info || !info.tableId || !data.tables[info.tableId]) return;
+  try{ data.ultimoPedido = JSON.parse(JSON.stringify(info)); }catch(e){}
   let items = [];
   if(info.mode === 'manual') items = info.items.filter(a => Number(a.delta) > 0).map(a => ({ productText: a.name, qty: Number(a.delta) }));
   else if(info.mode === 'add' || !info.mode) items = info.items.filter(a => Number(a.qty) > 0).map(a => ({ productText: a.name, qty: Number(a.qty) }));
@@ -5427,6 +5454,7 @@ function isCancelVoiceCommand(rawText){
 }
 
 function doRemoveTable(target){
+  try{ closeTableToHistory(target); }catch(e){}         // si tenía cuenta, queda en el historial (lo no pagado, como deuda)
   delete data.tables[target];
   const ids = Object.keys(data.tables).map(Number);
   data.tableCount = ids.length ? Math.max(...ids) : 0;
@@ -5445,7 +5473,8 @@ const VOICE_AYUDA = [
   ['Crear mesas', ['agrégame una mesa a nombre de Juan y agrégale dos cervezas y una póker', 'crea la mesa Carolina con tres Club Colombia', 'nueva mesa para don Pedro', 'agrega una mesa', 'agrega hasta la mesa 10']],
   ['Cambiar de mesa', ['pasa la mesa 3 a la 5', 'junta la mesa 1 con la 4 (se juntan las cuentas)', 'cambia la mesa Juan a la 2']],
   ['Corregir', ['quita una póker de la mesa 2', 'la mesa 4 son tres águilas (corrige la cantidad)', 'deshacer', 'quitar mesa 3']],
-  ['Cuentas', ['cuenta de la mesa 2', 'total de todas las mesas', 'cuánto llevo vendido', 'cuál fue mi último pedido']],
+  ['Recordar', ['recuérdame el pedido (el último, por voz o a mano)', 'recuérdame el pedido de la mesa 2', 'qué lleva la mesa 3']],
+  ['Cuentas', ['cuenta de la mesa 2', 'total de todas las mesas', 'cuánto llevo vendido']],
   ['Abrir', ['mesa 4 (abre esa mesa)', 'mesa Juan']]
 ];
 function voiceAyuda(){
@@ -5709,7 +5738,7 @@ function voiceTableManagement(rawText){
   if(tdata.items && tdata.items.length){
     const balance = tableBalance(target);
     pendingTableRemoval = { tableId: target, at: Date.now() };
-    const msg = 'Atención: la Mesa ' + target + ' tiene una cuenta activa de ' + fmtSpoken(balance) + '. Si en verdad quieres quitarla, di "confirmar". Si no, di "cancelar".';
+    const msg = 'Atención: la Mesa ' + target + ' tiene una cuenta activa de ' + fmtSpoken(balance) + '. Si la quitas, esa cuenta pasa al historial como deuda. Si en verdad quieres quitarla, di "confirmar". Si no, di "cancelar".';
     showToast('⚠️ ' + msg);
     speakVoice(msg);
     return true;
@@ -5769,6 +5798,34 @@ function voiceLocalCanHandle(rawText){
 
 // El micrófono de pedidos es SIEMPRE la voz clásica: instantánea, gratis y sin internet.
 // La IA solo se usa desde su propio botón («IA», junto al micrófono), si se activa en Ajustes → Voz.
+// Separa varios productos dichos seguidos sin número ("águila póker heineken" → 3 productos). Toma
+// siempre el nombre de producto más largo que calce ("águila light" gana a "águila"), en singular.
+function voiceSepararProductos(items){
+  const sing = w => w.length > 3 ? w.replace(/(es|s)$/, '') : w;
+  const norm = x => normVoiceText(x).split(' ').filter(Boolean).map(sing);
+  const nombres = (data.products || []).map(p => ({ p, w: norm(p.name) })).filter(x => x.w.length);
+  const calza = seg => {                  // producto cuyo nombre empieza exactamente con esas palabras
+    let best = null;
+    nombres.forEach(x => { if(seg.length <= x.w.length && seg.every((w, i) => x.w[i] === w)){ if(!best || x.w.length < best.w.length) best = x; } });
+    return best;
+  };
+  const out = [];
+  (items || []).forEach(it => {
+    const w = norm(it.productText || '');
+    if(w.length < 2 || calza(w)){ out.push(it); return; }
+    const partes = []; let i = 0;
+    while(i < w.length){
+      let k = Math.min(4, w.length - i), hit = null;
+      for(; k >= 1; k--){ hit = calza(w.slice(i, i + k)); if(hit) break; }
+      if(!hit){ partes.length = 0; break; }
+      partes.push(hit.p.name); i += k;
+    }
+    if(partes.length >= 2){ partes.forEach((n, j) => out.push({ productText: n, qty: j === 0 ? (it.qty || 1) : 1 })); }
+    else out.push(it);
+  });
+  return out;
+}
+{ const _pvc = parseVoiceCommand; parseVoiceCommand = function(raw){ const r = _pvc.apply(this, arguments); if(r && r.items) r.items = voiceSepararProductos(r.items); return r; }; }
 let voiceModoIA = false;
 // Corrige lo que el reconocedor de voz del celular suele escribir mal:
 // • "póquer"/"poquer" → póker.
@@ -5868,6 +5925,7 @@ async function handleVoiceTranscriptAI(rawText, forzar){
 }
 
 function handleVoiceTranscriptLocal(rawText){
+  if(isRecallVoiceCommand(rawText)){ voiceRecordarPedido(rawText); return; }
   if(isRepeatLastRoundVoiceCommand(rawText)){
     const rm = voiceRondaMesas(rawText);
     const tableId = resolveVoiceTableId(rm.destino || extractVoiceTableId(rawText));
@@ -5911,18 +5969,7 @@ function handleVoiceTranscriptLocal(rawText){
     return;
   }
 
-  if(isRecallVoiceCommand(rawText)){
-    if(!lastVoiceOrderInfo){
-      showToast('Todavía no hay ningún pedido registrado.');
-      speakVoice('Todavía no hay ningún pedido registrado.');
-      return;
-    }
-    const desc = describeVoiceOrder(lastVoiceOrderInfo);
-    const msg = 'Tu último pedido fue: ' + desc + '.';
-    showToast('🗣️ ' + msg);
-    speakVoice(msg);
-    return;
-  }
+  if(isRecallVoiceCommand(rawText)){ voiceRecordarPedido(rawText); return; }
 
   if(isBillRequestVoiceCommand(rawText)){
     const parsedId = extractVoiceTableId(rawText);
@@ -6370,9 +6417,9 @@ document.getElementById('applyTableCount').addEventListener('click', ()=>{
   const toRemove = current.filter(id => id > n);
   const withOpenTabs = toRemove.filter(id => data.tables[id].items && data.tables[id].items.length);
   if(withOpenTabs.length){
-    if(!confirm('Las mesas ' + withOpenTabs.join(', ') + ' tienen cuentas abiertas. ¿Reducir igual las mesas? Se perderán esas cuentas.')) return;
+    if(!confirm('Las mesas ' + withOpenTabs.join(', ') + ' tienen cuentas abiertas. ¿Reducir igual las mesas? Esas cuentas pasan al historial (lo no pagado, como deuda).')) return;
   }
-  toRemove.forEach(id => delete data.tables[id]);
+  toRemove.forEach(id => { try{ closeTableToHistory(id); }catch(e){} delete data.tables[id]; });
   for(let i=1;i<=n;i++){
     if(!data.tables[i]) data.tables[i] = { items: [], people: [] };
   }
@@ -9196,8 +9243,8 @@ function renderStats(){
     const mk = h.tableName || (h.table != null ? i18nPut('Mesa') + ' ' + h.table : '—'); mesas[mk] = (mesas[mk] || 0) + (h.total || 0);
     if(h.by){ const ek = h.by; emps[ek] = emps[ek] || { v: 0, n: 0 }; emps[ek].v += h.total || 0; emps[ek].n++; }
     (h.payments || []).forEach(p => { meth[p.method] = (meth[p.method] || 0) + (p.amount || 0); });
-    (h.items || []).forEach(it => { const v = it.qty * it.price; units += it.qty; const P = prod[it.name] = prod[it.name] || { q: 0, v: 0 }; P.q += it.qty; P.v += v; const c = catOf[cartaNrm(it.name)] || 'Otros'; cats[c] = (cats[c] || 0) + v;
-      if(it.cost != null){ hasCostData = true; const g = v - it.qty * it.cost; knownRevenue += v; margin += g; const G = profit[it.name] = profit[it.name] || { q: 0, g: 0 }; G.q += it.qty; G.g += g; }
+    (h.items || []).forEach(it => { const v = it.qty * it.price; units += it.qty; const nv = nombreVigente(it.name); const P = prod[nv] = prod[nv] || { q: 0, v: 0 }; P.q += it.qty; P.v += v; const c = catOf[cartaNrm(nv)] || 'Otros'; cats[c] = (cats[c] || 0) + v;
+      if(it.cost != null){ hasCostData = true; const g = v - it.qty * it.cost; knownRevenue += v; margin += g; const G = profit[nombreVigente(it.name)] = profit[nombreVigente(it.name)] || { q: 0, g: 0 }; G.q += it.qty; G.g += g; }
     });
   });
   let prevTotal = null;                          // ventas del período anterior de igual duración (para comparar)
@@ -10401,6 +10448,7 @@ function qsOpen(mode){
   document.getElementById('qsProductId').value = '';
   document.getElementById('qsQty').value = 1;
   document.getElementById('qsMethod').value = 'efectivo';
+  { const dn = document.getElementById('qsDebeName'); dn.value = ''; dn.hidden = true; }
   document.getElementById('qsCliente').value = '';
   document.getElementById('qsTelefono').value = '';
   document.getElementById('qsDireccion').value = '';
@@ -10451,6 +10499,8 @@ document.getElementById('qsChargeBtn').addEventListener('click', async ()=>{
   });
   if(!ok) return;
   const method = document.getElementById('qsMethod').value;
+  const deudor = (document.getElementById('qsDebeName').value || '').trim() || (isDom && cliente ? cliente : '');
+  if(method === 'debe' && !deudor){ showToast('⚠️ Escribe quién queda debiendo.'); return; }
   const items = quickSaleCart.map(it => ({
     name: it.name,
     qty: it.qty,
@@ -10467,8 +10517,9 @@ document.getElementById('qsChargeBtn').addEventListener('click', async ()=>{
     tableName: isDom ? ('🛵 Domicilio' + (cliente ? ': ' + cliente : '')) : 'Mostrador',
     businessName: data.businessName,
     total,
-    payments: [{ note: isDom ? 'Domicilio' : 'Venta de mostrador', amount: total, method }],
-    debt: 0,
+    payments: [{ note: method === 'debe' ? deudor : (isDom ? 'Domicilio' : 'Venta de mostrador'), amount: total, method }],
+    debt: method === 'debe' ? total : 0,
+    person: method === 'debe' ? deudor : null,
     items,
     delivery: isDom ? { cliente, telefono, direccion, envio } : null,
     date: new Date().toISOString(),
@@ -10478,7 +10529,7 @@ document.getElementById('qsChargeBtn').addEventListener('click', async ()=>{
   saveData();
   quickSaleCart = [];
   document.getElementById('quickSaleOverlay').classList.remove('show');
-  showToast(isDom ? '✅ Domicilio facturado: ' + fmt(total) + '.' : '✅ Venta de mostrador registrada: ' + fmt(total) + '.');
+  showToast(method === 'debe' ? '⏳ ' + deudor + ' quedó debiendo ' + fmt(total) + '. Está en Historial → Deben.' : (isDom ? '✅ Domicilio facturado: ' + fmt(total) + '.' : '✅ Venta de mostrador registrada: ' + fmt(total) + '.'));
 });
 
 /* ---------- Categorías ---------- */
@@ -10792,7 +10843,7 @@ function asisSales(){
       const q = Number(it.qty) || 0, pr = Number(it.price) || 0, c = Number(it.cost);
       if(esHoy){ if(c > 0) ganHoy += q * (pr - c); else hoySinCosto = true; }
       if(t < d30) return;
-      const s = stats[it.name] || (stats[it.name] = { u: 0, v: 0, g: 0, sc: false });
+      const s = stats[nombreVigente(it.name)] || (stats[nombreVigente(it.name)] = { u: 0, v: 0, g: 0, sc: false });
       s.u += q; s.v += q * pr;
       if(c > 0) s.g += q * (pr - c); else s.sc = true;
     });
@@ -11161,6 +11212,7 @@ function asisApply(actions){
   try{ renderProductos(); }catch(e){}
   try{ renderInventario(); }catch(e){}
   try{ if(typeof window.vitoPublicarCatalogo === 'function') window.vitoPublicarCatalogo(true); }catch(e){}
+  try{ refrescarTodoEnVivo(); }catch(e){}
   return done;
 }
 function asisConfirm(i, yes){
@@ -12086,6 +12138,28 @@ function closeEditProductModal(){
 // Cuando se cambia el nombre, el precio o el tamaño de un producto, también se actualiza en las
 // mesas abiertas (cada mesa guarda una copia del producto al agregarlo). Las cuentas ya cerradas
 // (historial y facturas) NO cambian. Los productos viejos sin enlace se reconocen por su nombre anterior.
+// Cambios de nombre: data.renombres guarda { nombre viejo (normalizado) → nombre actual }. Las
+// estadísticas, "lo más vendido", Mesi y el orden de la carta agrupan con el nombre vigente, así
+// las ventas de antes y de después del cambio se suman juntas. Las facturas ya hechas no cambian.
+function nombreVigente(n){
+  const r = data && data.renombres; if(!r || !n) return n;
+  let x = n, k = 0;
+  while(k++ < 10){ const nx = r[String(x).trim().toLowerCase()]; if(!nx || nx === x) break; x = nx; }
+  return x;
+}
+function registrarRenombre(viejo, nuevo){
+  if(!viejo || !nuevo || viejo === nuevo) return;
+  data.renombres = data.renombres || {};
+  data.renombres[String(viejo).trim().toLowerCase()] = nuevo;
+  delete data.renombres[String(nuevo).trim().toLowerCase()];     // el nombre nuevo es el vigente (sin ciclos)
+}
+// Después de editar un producto: todo lo que se ve en pantalla (y la carta de los clientes) al día.
+function refrescarTodoEnVivo(){
+  try{ renderAll(); }catch(e){}
+  const act = document.querySelector('nav button.active'), v = act && act.dataset.view;
+  try{ if(v === 'estadisticas') renderStats(); if(v === 'cocina') renderCocina(); if(v === 'carta') renderCarta(); if(v === 'historial') renderHistorial(); if(v === 'contabilidad' && typeof renderConta === 'function') renderConta(); }catch(e){}
+  try{ if(typeof window.vitoPublicarCatalogo === 'function') window.vitoPublicarCatalogo(true); }catch(e){}
+}
 function sincronizarProductoEnMesas(p, nombreAnterior){
   if(!p || !data || !data.tables) return 0;
   const viejo = String(nombreAnterior || '').trim().toLowerCase();
@@ -12133,9 +12207,11 @@ function saveEditedProduct(){
   p.cost = invNum(document.getElementById('editProdCost').value);
   if(typeof prodFotoModalGuardar === 'function') prodFotoModalGuardar(p);
   const nMesas = sincronizarProductoEnMesas(p, nombreAntes);
+  registrarRenombre(nombreAntes, p.name);
   saveData();
   closeEditProductModal();
   renderProductos();
+  refrescarTodoEnVivo();
   showToast('✅ Producto actualizado.' + avisoMesasActualizadas(nMesas), nMesas ? 4500 : undefined);
 }
 
@@ -12710,19 +12786,22 @@ deleteHistoryOverlay.addEventListener('click', (e)=>{ if(e.target === deleteHist
 async function resetDay(){
   const ok = await showConfirm({
     title: '¿Restablecer el día?',
-    message: 'Se vaciarán todas las mesas (cuentas y personas abiertas ahora mismo). El historial y los cierres de caja ya guardados NO se borran.',
+    message: 'Se vaciarán todas las mesas. Las cuentas abiertas se guardan en el historial: lo que no se ha pagado queda como deuda (fiado), para que no se pierda.',
     confirmText: 'Sí, restablecer día',
     icon: '🔄'
   });
   if(!ok) return;
+  let guardadas = 0;
   Object.keys(data.tables).forEach(id=>{
+    if(closeTableToHistory(Number(id))) guardadas++;   // cuenta abierta → historial (lo no pagado queda como deuda)
     data.tables[id].items = [];
     data.tables[id].people = [];
+    data.tables[id].payments = [];
   });
   await saveData();
   renderAll();
   renderHistorial();
-  showToast('Día restablecido. Todas las mesas quedaron vacías.');
+  showToast('Día restablecido. ' + (guardadas ? guardadas + (guardadas === 1 ? ' cuenta abierta quedó' : ' cuentas abiertas quedaron') + ' en el historial (lo no pagado, como deuda).' : 'Todas las mesas quedaron vacías.'), 6000);
 }
 
 async function resetAll(){
@@ -14545,7 +14624,7 @@ function graficas(){
   const days=[];for(let i=rango-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(d);}
   const byDay=days.map(d=>hs.filter(h=>dkey(new Date(h.date))===dkey(d)).reduce((s,h)=>s+h.total,0));
   const byHour=Array(24).fill(0);hs.forEach(h=>{byHour[new Date(h.date).getHours()]+=h.total;});
-  const prod={};hs.forEach(h=>(h.items||[]).forEach(it=>{prod[it.name]=(prod[it.name]||0)+it.qty;}));
+  const prod={};hs.forEach(h=>(h.items||[]).forEach(it=>{const nv=nombreVigente(it.name);prod[nv]=(prod[nv]||0)+it.qty;}));
   const top=Object.entries(prod).sort((a,b)=>b[1]-a[1]).slice(0,8);
   let ef=0,tr=0,de=0;hs.forEach(h=>(h.payments||[]).forEach(x=>{if(x.method==='efectivo')ef+=x.amount;else if(x.method==='transferencia')tr+=x.amount;else if(x.method==='debe')de+=x.amount;}));
   p.innerHTML='<div class="mz-actions" id="rg">'+[7,30,90].map(r=>'<button class="btn-ghost'+(r===rango?' on':'')+'" data-r="'+r+'" type="button">'+r+' días</button>').join('')+'</div>'
@@ -15333,7 +15412,7 @@ function catEstado(t){ const e = $('catPubEstado'); if(e) e.textContent = t; }
 function productSalesUnits(){
   const units = {};
   (data.history || []).forEach(h => (h.items || []).forEach(it => {
-    const k = cartaNrm(it.name); units[k] = (units[k] || 0) + (it.qty || 0);
+    const k = cartaNrm(nombreVigente(it.name)); units[k] = (units[k] || 0) + (it.qty || 0);
   }));
   return units;
 }
@@ -17245,7 +17324,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
    la Pantalla del TV de Mesora (tv.html) y reproduce la cola en vivo: cada canción que piden las
    mesas entra sola. Los Smart TV LG/Samsung sin Chromecast no aparecen aquí (solo los ve la app
    de YouTube): para esos están los botones de YouTube Music / YouTube. */
-const MESORA_VERSION = '2026-09-24 · v18';
+const MESORA_VERSION = '2026-09-24 · v19';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
