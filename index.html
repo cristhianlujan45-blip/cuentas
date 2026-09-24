@@ -1636,7 +1636,8 @@
   /* ---- Barra superior: pocas cosas, discretas ---- */
   .brand-row{flex:1 1 100%;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-width:0}
   .brand-block{min-width:0}
-  .top-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;padding-top:4px}
+  .top-actions{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;padding-top:4px}
+  .top-actions-row{display:flex;align-items:center;gap:8px}
   .top-pill{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 14px 0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:border-color .15s ease,transform .12s ease}
   .top-pill svg{color:var(--amber)}
   .top-pill:hover{border-color:var(--amber-deep)}
@@ -2034,7 +2035,9 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
       <div class="top-actions" id="topActions">
         <div class="live-clock" id="liveClock"><span class="lc-time" id="lcTime">--:--</span><span class="lc-date" id="lcDate">—</span></div>
-        <button type="button" class="top-pill" id="asisFab" title="Asistente: pregúntale lo que necesites"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M11 2.5l1.9 5.2 5.3 1.9-5.3 1.9L11 16.8l-1.9-5.3-5.3-1.9 5.3-1.9z"/><path d="M18.5 14l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9z" opacity=".7"/></svg><span>Asistente</span></button>
+        <div class="top-actions-row" id="topActionsRow">
+          <button type="button" class="top-pill" id="asisFab" title="Asistente IA: pregúntale lo que necesites sobre tu negocio"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M11 2.5l1.9 5.2 5.3 1.9-5.3 1.9L11 16.8l-1.9-5.3-5.3-1.9 5.3-1.9z"/><path d="M18.5 14l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9z" opacity=".7"/></svg><span>IA</span></button>
+        </div>
       </div>
     </div>
     <nav>
@@ -2374,6 +2377,16 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
         <div class="settings-row-text"><strong>Ofrecer propina al cobrar</strong><span>Muestra opciones de 10% o redondear el total.</span></div>
         <label class="switch"><input type="checkbox" id="tipsOnToggle"><span class="switch-slider"></span></label>
       </div>
+    </div>
+
+    <div class="settings-group" hidden data-cat="negocio">
+      <h2>🎖️ Clientes frecuentes</h2>
+      <div class="settings-desc">Guarda quién te compra seguido: al cerrar una cuenta puedes anotar el WhatsApp del cliente y la app lleva la cuenta de sus visitas y cuánto ha gastado, para que sepas a quién premiar o darle una atención especial.</div>
+      <div class="settings-row">
+        <div class="settings-row-text"><strong>Activar clientes frecuentes</strong><span>Muestra el campo de WhatsApp del cliente al cerrar una cuenta.</span></div>
+        <label class="switch"><input type="checkbox" id="loyaltyOnToggle"><span class="switch-slider"></span></label>
+      </div>
+      <div id="loyaltyClientsList"></div>
     </div>
 
     <div class="settings-group" hidden data-cat="negocio">
@@ -2844,6 +2857,12 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
     </div>
 
     <button class="btn-settle" id="settleFullBtn">✅ Marcar cuenta como saldada</button>
+
+    <div class="section-divider" id="loyaltyDivider" hidden>🎖️ Cliente frecuente</div>
+    <div class="add-row" id="loyaltyRow" hidden>
+      <input type="tel" id="loyaltyPhone" placeholder="📱 WhatsApp del cliente (opcional)" inputmode="numeric">
+      <input type="text" id="loyaltyName" placeholder="Nombre (opcional)">
+    </div>
 
     <div class="section-divider">Compartir cuenta</div>
     <div class="share-row">
@@ -3339,6 +3358,9 @@ async function loadData(){
   if(data.invoicePrefix === undefined) data.invoicePrefix = 'FV';
   if(data.invoiceNextNo === undefined) data.invoiceNextNo = 1;
   if(data.dianResolucionText === undefined) data.dianResolucionText = '';
+  // ---- Clientes frecuentes (fidelización) ----
+  if(data.loyaltyOn === undefined) data.loyaltyOn = false;
+  if(!data.clientesFrecuentes) data.clientesFrecuentes = [];
   // ---- Personalización de la página de pedidos (pedido.html) ----
   if(data.orderMessage === undefined) data.orderMessage = '';
   if(data.orderExtraInfo === undefined) data.orderExtraInfo = '';
@@ -3776,6 +3798,48 @@ function closeTableToHistory(tableId){
   t.payments = [];
   t.people = [];
   return entry;
+}
+
+/* ---------- Clientes frecuentes (fidelización) ----------
+   Guarda visitas y gasto por número de WhatsApp, para que el negocio sepa
+   a quién le vale la pena premiar. Es opcional y no toca los cálculos de
+   la cuenta: solo se anota al cerrarla, si el cajero escribió el teléfono. */
+function clienteTier(visitas){
+  if(visitas >= 30) return '🥇 Cliente VIP';
+  if(visitas >= 15) return '🥈 Cliente frecuente';
+  if(visitas >= 5) return '🥉 Cliente recurrente';
+  return '';
+}
+function registrarVisitaCliente(telefono, nombre, monto){
+  const tel = (telefono || '').replace(/\D/g, '');
+  if(tel.length < 7) return null;
+  if(!data.clientesFrecuentes) data.clientesFrecuentes = [];
+  let c = data.clientesFrecuentes.find(x => x.telefono === tel);
+  if(!c){ c = { telefono: tel, nombre: '', visitas: 0, totalGastado: 0, ultimaVisita: 0 }; data.clientesFrecuentes.push(c); }
+  c.visitas++;
+  c.totalGastado += (monto || 0);
+  c.ultimaVisita = Date.now();
+  if(nombre && nombre.trim()) c.nombre = nombre.trim();
+  return c;
+}
+function renderLoyaltyClientsList(){
+  const el = document.getElementById('loyaltyClientsList');
+  if(!el) return;
+  const clientes = (data.clientesFrecuentes || []).slice()
+    .sort((a, b) => b.visitas - a.visitas || b.totalGastado - a.totalGastado)
+    .slice(0, 15);
+  if(!clientes.length){
+    el.innerHTML = '<div class="guide-empty">Todavía no hay clientes guardados. Se van agregando cuando anotas el WhatsApp del cliente al cerrar una cuenta.</div>';
+    return;
+  }
+  el.innerHTML = '<div class="section-divider">Tus clientes (' + clientes.length + ')</div>' +
+    clientes.map(c => {
+      const tier = clienteTier(c.visitas);
+      return '<div class="settings-row">' +
+        '<div class="settings-row-text"><strong>' + invEsc(c.nombre || c.telefono) + '</strong>' +
+        '<span>' + c.visitas + (c.visitas === 1 ? ' visita' : ' visitas') + ' · ' + fmt(c.totalGastado) + ' gastado' + (tier ? ' · ' + tier : '') + '</span></div>' +
+        '</div>';
+    }).join('');
 }
 
 function getOpenTableIds(){
@@ -5805,6 +5869,10 @@ function openTableModal(id){
   renderPeople();
   renderFavChips();
   renderModalItems();
+  document.getElementById('loyaltyDivider').hidden = !data.loyaltyOn;
+  document.getElementById('loyaltyRow').hidden = !data.loyaltyOn;
+  document.getElementById('loyaltyPhone').value = '';
+  document.getElementById('loyaltyName').value = '';
   overlay.classList.add('show');
 }
 
@@ -6315,8 +6383,12 @@ document.getElementById('chargeBtn').addEventListener('click', async ()=>{
     icon: '🔒'
   });
   if(!ok) return;
+  const loyaltyPhone = data.loyaltyOn ? document.getElementById('loyaltyPhone').value : '';
+  const loyaltyName = data.loyaltyOn ? document.getElementById('loyaltyName').value : '';
   const entry = closeTableToHistory(currentTable);
+  if(loyaltyPhone) registrarVisitaCliente(loyaltyPhone, loyaltyName, entry.total);
   saveData();
+  renderLoyaltyClientsList();
   overlay.classList.remove('show');
   currentTable = null;
   renderMesas();
@@ -11143,6 +11215,7 @@ const GUIDE_ENTRIES = [
   { title: '🏷️ Código de barras / etiquetas de producto', keywords: 'codigo de barras etiqueta imprimir producto qr generar', body: 'En Productos, el botón "🏷️ Imprimir etiquetas" genera una hoja para imprimir con el código o QR y el precio de todos los productos visibles. Arriba puedes elegir si quieres código de barras o QR. El botón 🏷️ junto a cada producto imprime solo la etiqueta de ese producto.' },
   { title: '💜 Cobrar con Nequi desde el QR de la mesa', keywords: 'nequi pago pasarela cobrar transferencia cuenta', body: 'En Ajustes → Pasarela de pago (Nequi), activa "Aceptar pagos por Nequi" y escribe tu número. Cuando un cliente pida la cuenta desde el QR de su mesa, si queda saldo por pagar, le aparece tu número y el valor exacto para transferir, y un botón "Ya pagué por Nequi" que te avisa. Tú confirmas el pago cuando lo veas llegar — no es un cobro automático. Reimprime los QR de tus mesas después de activarlo para que lleven el número.' },
   { title: '➗ Dividir la cuenta', keywords: 'dividir cuenta partes personas mitad separar pago', body: 'Al cobrar una mesa puedes dividir el total entre varias personas, en partes iguales o eligiendo qué le corresponde a cada quien, y cobrar cada parte por separado.' },
+  { title: '🎖️ Clientes frecuentes', keywords: 'clientes frecuentes fidelizacion fidelidad puntos premio vip whatsapp visitas', body: 'En Ajustes → Clientes frecuentes, actívalo para que al cerrar una cuenta aparezca un campo para anotar el WhatsApp (y el nombre, si quieres) del cliente. La app lleva la cuenta de sus visitas y de cuánto ha gastado, y le va poniendo una insignia (🥉 recurrente, 🥈 frecuente, 🥇 VIP) según cuántas veces vuelve, para que sepas a quién darle una atención especial.' },
   { title: '💸 Marcar una cuenta como deuda (fiado)', keywords: 'deuda fiado fiar debe pagar despues credito cliente', body: 'Si un cliente no paga de una vez, marca la cuenta como deuda en vez de cobrarla. Queda guardada como pendiente hasta que la salde, y puedes verla y cobrarla después.' },
   { title: '➕ Agregar o editar productos', keywords: 'agregar producto editar crear nuevo precio nombre categoria', body: 'En Productos puedes crear un producto nuevo con nombre, precio y categoría, o tocar uno existente para editarlo. Los cambios se reflejan al instante en las mesas.' },
   { title: '🍔 Combos', keywords: 'combo combos paquete varios productos juntos', body: 'Puedes armar combos que agrupan varios productos en una sola opción con su propio precio, para agregarlos más rápido a una mesa.' },
@@ -11851,6 +11924,7 @@ function maybeShowLowStockAlert(){
 const TUTORIAL_SEEN_KEY = 'cm-tutorial-seen';
 const TUTORIAL_SLIDES = [
   { icon: '👋', title: 'Bienvenido a Mesora', text: 'Controla las mesas, los productos y el inventario de tu negocio, todo en un solo lugar.' },
+  { icon: '🕒', title: 'Los íconos de arriba', text: 'Arriba a la derecha ves la hora. Debajo: la 🔔 campana avisa pedidos y canciones nuevas, y el botón ✨ IA abre el asistente de inteligencia artificial, para preguntarle lo que necesites de tu negocio.' },
   { icon: '🍽️', title: 'Mesas', text: 'Abre una mesa, agrega lo que van pidiendo, y cóbrala cuando se vayan. Puedes dividir la cuenta entre varias personas.' },
   { icon: '📦', title: 'Inventario y facturas', text: 'Escanea la factura de tu proveedor (con o sin internet) y Mesora calcula solo cuánto ganas o pierdes en cada producto.' },
   { icon: '📊', title: 'Estadísticas, diseño y ayuda', text: 'Mira cómo va tu negocio en Estadísticas, cambia el diseño en Ajustes → Apariencia, y si algo no funciona, escríbenos por WhatsApp desde Ajustes → Ayuda y soporte.' }
@@ -12011,6 +12085,12 @@ function wireAccountUI(){
   if(tipsToggle){
     tipsToggle.checked = !!data.tipsOn;
     tipsToggle.onchange = () => { data.tipsOn = tipsToggle.checked; saveData(); };
+  }
+  const loyaltyToggle = document.getElementById('loyaltyOnToggle');
+  if(loyaltyToggle){
+    loyaltyToggle.checked = !!data.loyaltyOn;
+    loyaltyToggle.onchange = () => { data.loyaltyOn = loyaltyToggle.checked; saveData(); };
+    renderLoyaltyClientsList();
   }
   const bizNitInput = document.getElementById('bizNitInput');
   const bizAddressInput = document.getElementById('bizAddressInput');
@@ -12450,8 +12530,8 @@ bootApp();
     bell=document.createElement('div'); bell.className='vito-campana'; bell.title='Notificaciones'; bell.setAttribute('role','button');
     bell.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 16v-5a6 6 0 0 0-12 0v5l-2 2h16z"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>';
     badge=document.createElement('span'); badge.className='vito-campana-badge'; bell.appendChild(badge);
-    // Ya no flota: va arriba, junto a "Asistente", para no llenar la pantalla de botones.
-    const topBar=document.getElementById('topActions');
+    // Ya no flota: va arriba, junto al botón de IA, para no llenar la pantalla de botones.
+    const topBar=document.getElementById('topActionsRow')||document.getElementById('topActions');
     if(topBar) topBar.insertBefore(bell, topBar.firstChild); else document.body.appendChild(bell);
     cardsWrap=document.createElement('div'); cardsWrap.className='vito-pedidos-cards';
     document.body.appendChild(cardsWrap);
