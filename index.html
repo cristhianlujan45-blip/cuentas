@@ -2642,11 +2642,23 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
         <summary>Ver toda la guía</summary>
         <div id="guideResults"></div>
       </details>
-      <div class="settings-row" style="margin-top:6px">
+      <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px;margin-top:6px">
         <div class="settings-row-text">
           <strong>¿No encontraste tu respuesta?</strong>
-          <span>Escríbenos directo por WhatsApp, con el mensaje ya escrito.</span>
+          <span>Cuéntanos qué pasa: así llega mejor organizado y te respondemos más rápido.</span>
         </div>
+        <select id="supportType" class="mz-in">
+          <option value="falla">🐛 Algo no funciona</option>
+          <option value="pregunta">❓ Tengo una pregunta</option>
+          <option value="pago">💳 Problema con un pago o factura</option>
+          <option value="sugerencia">💡 Idea o sugerencia</option>
+        </select>
+        <select id="supportUrgency" class="mz-in">
+          <option value="urgente">🔴 Urgente — no puedo cobrar o usar la app</option>
+          <option value="normal" selected>🟡 Normal — puede esperar unas horas</option>
+          <option value="baja">🟢 No es urgente</option>
+        </select>
+        <textarea id="supportMsg" class="mz-in" rows="3" style="width:100%;resize:vertical" placeholder="Cuéntanos qué pasó (opcional, pero ayuda)"></textarea>
         <button class="btn-primary" id="supportWaBtn" type="button">💬 Escribir por WhatsApp</button>
       </div>
     </div>
@@ -11201,9 +11213,25 @@ document.getElementById('resetAllBtn').addEventListener('click', resetAll);
 document.getElementById('clearAllTableNamesBtn').addEventListener('click', clearAllTableNames);
 
 // ---------- Ayuda y soporte: WhatsApp directo ----------
+// Antes era un solo botón genérico. Ahora, como Freshdesk o Zendesk, el
+// mensaje se organiza solo por tipo y urgencia antes de llegar por WhatsApp
+// (que sigue siendo el único canal real que tenemos, pero ya no llega en
+// blanco: llega clasificado, para responder más rápido lo urgente).
 const SUPPORT_WA_NUMBER = '573138950277';
+const SUPPORT_TYPE_LABELS = { falla: '🐛 Algo no funciona', pregunta: '❓ Pregunta', pago: '💳 Problema con un pago o factura', sugerencia: '💡 Idea o sugerencia' };
+const SUPPORT_URGENCY_LABELS = { urgente: '🔴 Urgente', normal: '🟡 Normal', baja: '🟢 No urgente' };
 document.getElementById('supportWaBtn').addEventListener('click', () => {
-  const msg = 'Hola, tengo una pregunta/problema con la app Mesora' + (authUser ? ' (usuario: ' + authUser + (data && data.businessName ? ' · ' + data.businessName : '') + ')' : '') + '.';
+  const type = SUPPORT_TYPE_LABELS[document.getElementById('supportType').value];
+  const urgency = SUPPORT_URGENCY_LABELS[document.getElementById('supportUrgency').value];
+  const detail = document.getElementById('supportMsg').value.trim();
+  const lines = [
+    'Hola, les escribo desde la app Mesora.',
+    'Tipo: ' + type,
+    'Urgencia: ' + urgency,
+    authUser ? 'Usuario: ' + authUser + (data && data.businessName ? ' · ' + data.businessName : '') : ''
+  ];
+  if(detail) lines.push('Detalle: ' + detail);
+  const msg = lines.filter(Boolean).join('\n');
   window.open('https://wa.me/' + SUPPORT_WA_NUMBER + '?text=' + encodeURIComponent(msg), '_blank');
 });
 
@@ -11237,7 +11265,7 @@ const GUIDE_ENTRIES = [
   { title: '🌙 Cierre de caja', keywords: 'cierre caja dia cerrar jornada automatico manual resumen', body: 'Al final del día puedes hacer un cierre de caja, manual o automático, que te resume las ventas del día y deja todo listo para el día siguiente.' },
   { title: '💵 Propina al cobrar', keywords: 'propina redondeo cobrar cliente porcentaje', body: 'Actívala en Ajustes → Propina al cobrar. Cada vez que cobres una mesa, te pregunta si el cliente deja propina (10% o redondear el total) antes de cerrar la cuenta.' },
   { title: '👤 Ventas por empleado (turno)', keywords: 'empleado turno caja quien vendio cuanto', body: 'Si más de una persona maneja la caja con su propio usuario, en Estadísticas aparece cuánto vendió cada empleado en el período que estés viendo, sin que tengas que hacer nada extra.' },
-  { title: '💬 Soporte por WhatsApp', keywords: 'soporte ayuda whatsapp contacto problema falla', body: 'Si algo no funciona o tienes una duda, en Ajustes → Guía y soporte puedes escribirnos directo por WhatsApp con un mensaje ya escrito para ti.' },
+  { title: '💬 Soporte por WhatsApp', keywords: 'soporte ayuda whatsapp contacto problema falla ticket urgencia', body: 'Si algo no funciona o tienes una duda, en Ajustes → Guía y soporte elige qué tipo de solicitud es y qué tan urgente es, y te escribimos por WhatsApp con el mensaje ya armado y clasificado, para responderte más rápido si es algo urgente.' },
   { title: '🛵 Facturar un domicilio', keywords: 'domicilio domicilios entrega envio direccion cliente restaurante bar', body: 'Actívalo en Ajustes → Domicilios. Aparece un botón "🛵 Domicilio" junto a "Venta rápida" en Mesas: agrega los productos, y si quieres el nombre, teléfono, dirección del cliente y el valor del envío, sin necesidad de abrir una mesa.' },
   { title: '📥 Descargar las ventas en Excel', keywords: 'excel exportar ventas dia mes rango cierre descargar csv contabilidad personalizar', body: 'En Estadísticas, el botón "📥 Exportar ventas (Excel)" te deja elegir el período: hoy, ayer, este mes, un rango de fechas personalizado, o un cierre de caja específico. Descarga un archivo con el detalle de cada producto vendido (mesas, mostrador y domicilios), listo para abrir con Excel.' }
 ];
