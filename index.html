@@ -1788,6 +1788,7 @@
 @media (max-width:600px){.camera-comprobante-btn{width:100%;justify-content:center}}
 
   .mz-in{padding:10px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;font-size:15px;max-width:100%}
+  #casoCategoria, #casoUrgencia{ background:var(--bg); }
   .mz-actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
   .mz-actions .on{border-color:var(--ink);font-weight:700}
   .mz-song{display:flex;gap:6px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
@@ -2520,6 +2521,30 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
         <div class="mz-actions"><button class="btn-warn" id="ntfyOpen" type="button">📲 Abrir en ntfy</button><button class="btn-warn" id="ntfyCopy" type="button">📋 Copiar canal</button><button class="btn-warn" id="ntfyTest" type="button">🔔 Enviar prueba</button></div>
         <div class="auth-hint" id="ntfyEstado">El canal es como una contraseña: no lo compartas. La alerta solo avisa; para confirmar o despachar el pedido abre la app.</div>
       </div>
+    </div>
+
+    <div class="settings-group" hidden data-cat="pedidos">
+      <h2>🎧 Atención al cliente (casos)</h2>
+      <div class="settings-desc">Anota aquí los reclamos o problemas de tus clientes (pedido equivocado, demora, calidad, un domicilio que no llegó) para que ninguno se te quede sin resolver. Si el cliente ya está en Clientes frecuentes, el caso queda relacionado con él automáticamente.</div>
+      <div class="add-row" style="flex-direction:column;align-items:stretch;gap:8px">
+        <textarea id="casoDesc" class="mz-in" rows="2" style="width:100%;resize:vertical" placeholder="¿Qué pasó? Ej: Le faltó una cerveza al pedido de la mesa 4"></textarea>
+        <select id="casoCategoria" class="mz-in">
+          <option value="pedido">📦 Pedido incorrecto o incompleto</option>
+          <option value="calidad">🍺 Calidad del producto</option>
+          <option value="demora">⏱️ Demora en la atención</option>
+          <option value="domicilio">🛵 Problema con un domicilio</option>
+          <option value="otro">📋 Otro</option>
+        </select>
+        <select id="casoUrgencia" class="mz-in">
+          <option value="urgente">🔴 Urgente</option>
+          <option value="normal" selected>🟡 Normal</option>
+          <option value="baja">🟢 Puede esperar</option>
+        </select>
+        <input type="tel" id="casoTelefono" class="mz-in" placeholder="📱 WhatsApp del cliente (opcional)" inputmode="numeric">
+        <input type="text" id="casoAsignado" class="mz-in" placeholder="Asignado a (opcional, ej: nombre del mesero)">
+        <button class="btn-primary" id="casoGuardarBtn" type="button">➕ Guardar caso</button>
+      </div>
+      <div id="casosList"></div>
     </div>
 
     <div class="settings-group" hidden data-cat="apariencia">
@@ -3373,6 +3398,8 @@ async function loadData(){
   // ---- Clientes frecuentes (fidelización) ----
   if(data.loyaltyOn === undefined) data.loyaltyOn = false;
   if(!data.clientesFrecuentes) data.clientesFrecuentes = [];
+  // ---- Atención al cliente (casos/reclamos) ----
+  if(!data.casos) data.casos = [];
   // ---- Personalización de la página de pedidos (pedido.html) ----
   if(data.orderMessage === undefined) data.orderMessage = '';
   if(data.orderExtraInfo === undefined) data.orderExtraInfo = '';
@@ -3852,6 +3879,99 @@ function renderLoyaltyClientsList(){
         '<span>' + c.visitas + (c.visitas === 1 ? ' visita' : ' visitas') + ' · ' + fmt(c.totalGastado) + ' gastado' + (tier ? ' · ' + tier : '') + '</span></div>' +
         '</div>';
     }).join('');
+}
+
+/* ---------- Atención al cliente (casos/reclamos) ----------
+   Un mini "helpdesk" propio para los reclamos de tus clientes: se
+   organizan por categoría y urgencia (como Freshdesk), quedan
+   centralizados en un solo lugar con seguimiento hasta que se resuelven
+   (como Zendesk), se pueden asignar a quien los va a atender (como
+   Praxedo asigna el técnico más indicado), quedan ligados al cliente
+   frecuente si ya existe y guardan qué tan satisfecho quedó (como
+   Salesforce Service Cloud), todo integrado con los mismos datos del
+   negocio en vez de un sistema aparte (como el enfoque modular de Odoo). */
+const CASO_CATEGORIAS = {
+  pedido: '📦 Pedido incorrecto o incompleto',
+  calidad: '🍺 Calidad del producto',
+  demora: '⏱️ Demora en la atención',
+  domicilio: '🛵 Problema con un domicilio',
+  otro: '📋 Otro'
+};
+const CASO_URGENCIA_ICONS = { urgente: '🔴', normal: '🟡', baja: '🟢' };
+function sugerirCategoriaCaso(texto){
+  const t = normVoiceText(texto || '');
+  if(!t) return null;
+  if(/domicili|entrega|direccion|no lleg/.test(t)) return 'domicilio';
+  if(/demor|espera|tardo|lento/.test(t)) return 'demora';
+  if(/frio|caliente|malo|dañad|vencid|sabor|calidad|mal estado/.test(t)) return 'calidad';
+  if(/equivoc|falto|falta|cambiar|incompleto|mal pedido/.test(t)) return 'pedido';
+  return null;
+}
+function crearCaso({categoria, urgencia, telefono, asignadoA, descripcion}){
+  if(!data.casos) data.casos = [];
+  const tel = (telefono || '').replace(/\D/g, '');
+  const clienteExistente = tel ? (data.clientesFrecuentes || []).find(c => c.telefono === tel) : null;
+  const caso = {
+    id: Date.now().toString(),
+    fecha: Date.now(),
+    categoria, urgencia,
+    telefono: tel,
+    nombreCliente: clienteExistente ? clienteExistente.nombre : '',
+    asignadoA: (asignadoA || '').trim(),
+    descripcion: (descripcion || '').trim(),
+    estado: 'abierto',
+    resolucion: '',
+    satisfaccion: null,
+    fechaResuelto: null
+  };
+  data.casos.unshift(caso);
+  return caso;
+}
+function resolverCaso(id, resolucion, satisfaccion){
+  const c = (data.casos || []).find(x => x.id === id);
+  if(!c) return;
+  c.estado = 'resuelto';
+  c.resolucion = (resolucion || '').trim();
+  c.satisfaccion = satisfaccion || null;
+  c.fechaResuelto = Date.now();
+}
+function renderCasosList(){
+  const el = document.getElementById('casosList');
+  if(!el) return;
+  const urgenciaOrden = { urgente: 0, normal: 1, baja: 2 };
+  const abiertos = (data.casos || []).filter(c => c.estado !== 'resuelto')
+    .sort((a, b) => (urgenciaOrden[a.urgencia] ?? 1) - (urgenciaOrden[b.urgencia] ?? 1) || b.fecha - a.fecha);
+  const resueltos = (data.casos || []).filter(c => c.estado === 'resuelto').sort((a, b) => b.fechaResuelto - a.fechaResuelto);
+  const casoRow = c => {
+    const meta = [
+      (c.nombreCliente || c.telefono) ? '👤 ' + invEsc(c.nombreCliente || c.telefono) : '',
+      c.asignadoA ? '🙋 ' + invEsc(c.asignadoA) : '',
+      new Date(c.fecha).toLocaleString('es-CO')
+    ].filter(Boolean).join(' · ');
+    return '<div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px">' +
+      '<div class="settings-row-text"><strong>' + CASO_URGENCIA_ICONS[c.urgencia] + ' ' + (CASO_CATEGORIAS[c.categoria] || c.categoria) + '</strong>' +
+      '<span>' + invEsc(c.descripcion || '(sin descripción)') + '</span>' +
+      '<span>' + meta + '</span></div>' +
+      (c.estado === 'resuelto'
+        ? '<div class="auth-hint">✅ Resuelto' + (c.resolucion ? ': ' + invEsc(c.resolucion) : '') + (c.satisfaccion ? ' · ' + (c.satisfaccion == 3 ? '😊' : c.satisfaccion == 2 ? '😐' : '😞') : '') + '</div>'
+        : '<details class="caso-resolver-wrap" data-caso-id="' + c.id + '"><summary>✅ Marcar resuelto</summary>' +
+          '<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">' +
+          '<textarea class="mz-in caso-resolucion-input" rows="2" placeholder="¿Cómo se resolvió? (opcional)"></textarea>' +
+          '<select class="mz-in caso-satisfaccion-input"><option value="">Satisfacción del cliente (opcional)</option><option value="3">😊 Quedó contento</option><option value="2">😐 Normal</option><option value="1">😞 Quedó insatisfecho</option></select>' +
+          '<button type="button" class="btn-primary caso-confirmar-btn">Confirmar resuelto</button>' +
+          '</div></details>')
+      + '</div>';
+  };
+  if(!abiertos.length && !resueltos.length){
+    el.innerHTML = '<div class="guide-empty">Todavía no hay casos guardados. Anota aquí cualquier reclamo para no perderle el rastro.</div>';
+    return;
+  }
+  let html = '<div class="section-divider">Casos abiertos (' + abiertos.length + ')</div>';
+  html += abiertos.length ? abiertos.map(casoRow).join('') : '<div class="guide-empty">No tienes casos abiertos. 🎉</div>';
+  if(resueltos.length){
+    html += '<details class="guide-results-wrap"><summary>Ver resueltos (' + resueltos.length + ')</summary>' + resueltos.map(casoRow).join('') + '</details>';
+  }
+  el.innerHTML = html;
 }
 
 function getOpenTableIds(){
@@ -11244,6 +11364,7 @@ const GUIDE_ENTRIES = [
   { title: '💜 Cobrar con Nequi desde el QR de la mesa', keywords: 'nequi pago pasarela cobrar transferencia cuenta', body: 'En Ajustes → Pasarela de pago (Nequi), activa "Aceptar pagos por Nequi" y escribe tu número. Cuando un cliente pida la cuenta desde el QR de su mesa, si queda saldo por pagar, le aparece tu número y el valor exacto para transferir, y un botón "Ya pagué por Nequi" que te avisa. Tú confirmas el pago cuando lo veas llegar — no es un cobro automático. Reimprime los QR de tus mesas después de activarlo para que lleven el número.' },
   { title: '➗ Dividir la cuenta', keywords: 'dividir cuenta partes personas mitad separar pago', body: 'Al cobrar una mesa puedes dividir el total entre varias personas, en partes iguales o eligiendo qué le corresponde a cada quien, y cobrar cada parte por separado.' },
   { title: '🎖️ Clientes frecuentes', keywords: 'clientes frecuentes fidelizacion fidelidad puntos premio vip whatsapp visitas', body: 'En Ajustes → Clientes frecuentes, actívalo para que al cerrar una cuenta aparezca un campo para anotar el WhatsApp (y el nombre, si quieres) del cliente. La app lleva la cuenta de sus visitas y de cuánto ha gastado, y le va poniendo una insignia (🥉 recurrente, 🥈 frecuente, 🥇 VIP) según cuántas veces vuelve, para que sepas a quién darle una atención especial.' },
+  { title: '🎧 Atención al cliente (casos y reclamos)', keywords: 'atencion cliente casos reclamos quejas problemas pedido incorrecto calidad demora domicilio helpdesk soporte interno', body: 'En Ajustes → Pedidos, QR y caja → Atención al cliente puedes anotar cualquier reclamo (pedido incorrecto, calidad, demora, un domicilio que no llegó) con su urgencia. Al escribir qué pasó, la app te sugiere sola la categoría. Se puede asignar a quién lo va a atender, y si el cliente ya está en Clientes frecuentes queda relacionado con él. Cuando lo resuelvas, anota cómo quedó y qué tan satisfecho salió el cliente, para no perder el rastro de ningún caso.' },
   { title: '💸 Marcar una cuenta como deuda (fiado)', keywords: 'deuda fiado fiar debe pagar despues credito cliente', body: 'Si un cliente no paga de una vez, marca la cuenta como deuda en vez de cobrarla. Queda guardada como pendiente hasta que la salde, y puedes verla y cobrarla después.' },
   { title: '➕ Agregar o editar productos', keywords: 'agregar producto editar crear nuevo precio nombre categoria', body: 'En Productos puedes crear un producto nuevo con nombre, precio y categoría, o tocar uno existente para editarlo. Los cambios se reflejan al instante en las mesas.' },
   { title: '🍔 Combos', keywords: 'combo combos paquete varios productos juntos', body: 'Puedes armar combos que agrupan varios productos en una sola opción con su propio precio, para agregarlos más rápido a una mesa.' },
@@ -12119,6 +12240,52 @@ function wireAccountUI(){
     loyaltyToggle.checked = !!data.loyaltyOn;
     loyaltyToggle.onchange = () => { data.loyaltyOn = loyaltyToggle.checked; saveData(); };
     renderLoyaltyClientsList();
+  }
+  const casoDescInput = document.getElementById('casoDesc');
+  const casoCategoriaSelect = document.getElementById('casoCategoria');
+  if(casoDescInput && casoCategoriaSelect){
+    casoDescInput.oninput = () => {
+      const sugerida = sugerirCategoriaCaso(casoDescInput.value);
+      if(sugerida) casoCategoriaSelect.value = sugerida;
+    };
+  }
+  const casoGuardarBtn = document.getElementById('casoGuardarBtn');
+  if(casoGuardarBtn){
+    casoGuardarBtn.onclick = () => {
+      const descripcion = casoDescInput.value.trim();
+      if(!descripcion){ showToast('Escribe qué pasó antes de guardar el caso.'); return; }
+      crearCaso({
+        categoria: casoCategoriaSelect.value,
+        urgencia: document.getElementById('casoUrgencia').value,
+        telefono: document.getElementById('casoTelefono').value,
+        asignadoA: document.getElementById('casoAsignado').value,
+        descripcion
+      });
+      saveData();
+      casoDescInput.value = '';
+      document.getElementById('casoTelefono').value = '';
+      document.getElementById('casoAsignado').value = '';
+      casoCategoriaSelect.value = 'pedido';
+      document.getElementById('casoUrgencia').value = 'normal';
+      renderCasosList();
+      showToast('Caso guardado.');
+    };
+  }
+  const casosListEl = document.getElementById('casosList');
+  if(casosListEl){
+    casosListEl.onclick = (e) => {
+      const btn = e.target.closest('.caso-confirmar-btn');
+      if(!btn) return;
+      const wrap = btn.closest('.caso-resolver-wrap');
+      const id = wrap.dataset.casoId;
+      const resolucion = wrap.querySelector('.caso-resolucion-input').value;
+      const satisfaccionVal = wrap.querySelector('.caso-satisfaccion-input').value;
+      resolverCaso(id, resolucion, satisfaccionVal ? +satisfaccionVal : null);
+      saveData();
+      renderCasosList();
+      showToast('Caso marcado como resuelto.');
+    };
+    renderCasosList();
   }
   const bizNitInput = document.getElementById('bizNitInput');
   const bizAddressInput = document.getElementById('bizAddressInput');
