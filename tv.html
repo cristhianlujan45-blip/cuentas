@@ -162,6 +162,10 @@
   };
   document.addEventListener('keydown', function(e){ if($('start').style.display !== 'none' && (e.keyCode === 13 || e.keyCode === 415)) $('go').click(); });
   window.onYouTubeIframeAPIReady = function(){ if(empezado && !player) crearPlayer(); };
+  // Abierta por transmisión (Chromecast / Google TV) o con ?auto=1: arranca sola, sin tocar OK.
+  if(/[?&]auto=1/.test(location.search) || (navigator.presentation && navigator.presentation.receiver)){
+    empezado = true; $('start').style.display = 'none';
+  }
   var s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
   pintar();
 })();

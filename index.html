@@ -1588,6 +1588,12 @@
   #tvpLink{ width:100%; box-sizing:border-box; margin:8px 0; font-weight:700; }
   #ytBox.yt-espera iframe{ visibility:hidden; }
   #ytBox.yt-espera::after{ content:'🎵 Esperando la próxima canción…'; position:absolute; inset:0; display:grid; place-items:center; border-radius:12px; background:var(--surface-2); color:var(--ink-soft); font-size:14px; font-weight:600; }
+  .cast-env{ font-size:12.5px; line-height:1.4; color:var(--ink-soft); margin:8px 0 0; }
+  .cast-env.bad{ color:var(--brick); font-weight:700; }
+  .cast-big{ width:100%; padding:13px; font-size:15px; margin:8px 0 4px; }
+  .cast-or{ font-size:12.5px; color:var(--ink-soft); margin:10px 0 6px; }
+  .cast-apps{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+  .cast-apps button{ padding:12px 8px; font-size:14.5px; }
   .cast-app{ display:flex; gap:6px; margin:10px 0 4px; padding:4px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line); }
   .cast-app button{ flex:1; padding:9px 6px; border-radius:9px; border:0; background:transparent; color:var(--ink-soft); font:700 13.5px var(--font-main); }
   .cast-app button.on{ background:var(--amber); color:#fff; }
@@ -2463,14 +2469,17 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
     <div class="settings-group">
-      <h2>📺 Transmitir al TV con YouTube</h2>
-      <div class="settings-desc">Toca «Transmitir al TV»: se abre directo la app que elijas (YouTube Music o YouTube) con la lista de canciones pedidas. Ahí toca el ícono de transmitir y te salen <b>todos</b> tus dispositivos (YouTube on TV, tu Smart TV LG/Samsung, Chromecast…); elige el TV. Con Google conectado (más abajo), las canciones que pidan las mesas se agregan solas a esa lista en tiempo real, sin volver a tocar nada.</div>
-      <div class="cast-app" id="castApp" role="group" aria-label="App para transmitir">
-        <button type="button" data-app="music">▶ YouTube Music</button>
-        <button type="button" data-app="yt">▶ YouTube</button>
+      <h2>📺 Transmitir al TV</h2>
+      <div class="settings-desc"><b>📡 Buscar Chromecast / Google TV</b> muestra los dispositivos que reciben transmisión en tu wifi; al elegir uno, la música de las mesas suena ahí en vivo. <b>▶ YouTube Music / ▶ YouTube</b> abren la app instalada (no el navegador) con la lista; ahí el ícono de transmitir muestra todos tus dispositivos (YouTube on TV, Smart TV LG/Samsung…). Con Google conectado (más abajo), las canciones que pidan las mesas se agregan solas a esa lista en tiempo real, sin volver a tocar nada.</div>
+      <div class="cast-env" id="castEnv"></div>
+      <div class="cast-devs" id="castDevs"><span class="cast-dot"></span><span id="castDevsTxt">Revisando si hay Chromecast / Google TV en tu wifi…</span></div>
+      <button class="btn-primary cast-big" id="castPres" type="button">📡 Buscar Chromecast / Google TV / Android TV</button>
+      <div class="cast-or">o abre la app de YouTube instalada en este celular, con la lista puesta:</div>
+      <div class="cast-apps">
+        <button class="btn-primary" id="castOpenMusic" type="button">▶ YouTube Music</button>
+        <button class="btn-primary" id="castOpenYT" type="button">▶ YouTube</button>
       </div>
       <div class="mz-actions">
-        <button class="btn-primary" id="castStart" type="button">📺 Transmitir al TV</button>
         <button class="btn-ghost" id="castPair" type="button">🔗 Vincular con código de TV</button>
         <button class="btn-ghost" id="castHelp" type="button">¿No aparece tu TV?</button>
         <button class="btn-ghost" id="castStop" type="button" hidden>Terminar transmisión</button>
@@ -10498,7 +10507,7 @@ function asisCommand(raw){
     return { text: 'Te abro los pasos para vincular tu TV con el código de YouTube.', run: () => { asisClose(); asisGoView('musica'); setTimeout(() => { if(typeof castVincular === 'function') castVincular(); }, 300); } };
   }
   if(/\b(transmit\w*|castea\w*|chromecast)\b/.test(t) || (/\b(musica|youtube|cancion|canciones|lista)\b/.test(t) && /\b(tv|tele|televisor|television)\b/.test(t))){
-    return { text: 'Te llevo a Música. Toca «📺 Transmitir al TV»: abro YouTube Music (o YouTube) con la lista y ahí eliges tu TV en el ícono de transmitir.', run: () => { asisClose(); asisGoView('musica'); setTimeout(() => { const b = document.getElementById('castStart'); if(b) b.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 300); } };
+    return { text: 'Te llevo a Música. Toca «📡 Buscar Chromecast / Google TV» para ver tus dispositivos, o «▶ YouTube Music» / «▶ YouTube» para abrir la app con la lista.', run: () => { asisClose(); asisGoView('musica'); setTimeout(() => { const b = document.getElementById('castPres'); if(b) b.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 300); } };
   }
   if(nWords <= 4 && /^(hola|holi|buenas|buenos dias|buenas tardes|buenas noches|hey|que mas|quiubo|q hubo)\b/.test(t)){
     const h = new Date().getHours();
@@ -14599,7 +14608,7 @@ async function publicarCatalogo(force){
 }
 window.vitoPublicarCatalogo = publicarCatalogo;
 // Lo que usan las fotos de la carta y la transmisión al TV (script del final).
-window.vitoMod = { tvOn, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena };
+window.vitoMod = { tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena };
 function publicarCuentas(){
   if(typeof data==='undefined'||!data||!qCfg().live)return;
   try{publicarCatalogo();}catch(e){}
@@ -16362,6 +16371,7 @@ function castEstado(){
   const e = document.getElementById('castEstado'); if(!e) return;
   const c = LS(CAST_KEY, {}), g = !!(vm().yTok && vm().yTok());
   document.getElementById('castStop').hidden = !c.on;
+  castDevsPintar();
   const vin = LS(PAIR_KEY, {}).ok ? ' · 🔗 TV vinculado con código' : '';
   if(!c.on){ e.textContent = (g ? '🟢 Google conectado: la lista del TV se actualizará sola.' : '⚪ Sin Google conectado: YouTube abre la primera canción de la cola. Conecta Google abajo (una sola vez) para que la lista completa se arme y se actualice sola.') + vin; return; }
   const pend = vm().cola().filter(x => !x.done).length;
@@ -16386,8 +16396,9 @@ function abrirEnAppYouTube(path){
   if(d.tipo === 'ios'){
     const t = setTimeout(() => { if(!document.hidden) location.href = 'https://apps.apple.com/app/youtube/id544007664'; }, 2000);
     document.addEventListener('visibilitychange', () => clearTimeout(t), { once: true });
+    location.href = d.url; return;
   }
-  location.href = d.url;                                          // cambia a la app de YouTube; esta pantalla queda abierta detrás
+  abrirIntent(d.url);                                          // cambia a la app de YouTube; esta pantalla queda abierta detrás
 }
 // Los navegadores solo dejan abrir otra app justo después de un toque. Si preparar la lista
 // tardó (buscar canciones, conectar Google), se pide un toque más con un botón grande.
@@ -16419,10 +16430,16 @@ function castApp(){ return LS(CAST_APP_KEY, { app: 'music' }).app === 'yt' ? 'yt
 function castAppPintar(){
   document.querySelectorAll('#castApp button').forEach(b => b.classList.toggle('on', b.dataset.app === castApp()));
 }
+// Abre un intent/esquema de app con un enlace tocado: Chrome y Samsung Internet lo mandan a la app
+// instalada (sin pasar por el navegador); si la app no está, Android abre la Play Store.
+function abrirIntent(url){
+  const a = document.createElement('a'); a.href = url; a.rel = 'noopener'; a.style.display = 'none';
+  document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 500);
+}
 function abrirAppElegida(path){
   if(castApp() === 'yt') return abrirEnAppYouTube(path);
   const ua = navigator.userAgent;
-  if(/Android/i.test(ua)) location.href = 'intent://music.youtube.com/' + path + '#Intent;scheme=https;package=com.google.android.apps.youtube.music;action=android.intent.action.VIEW;end';
+  if(/Android/i.test(ua)) abrirIntent('intent://music.youtube.com/' + path + '#Intent;scheme=https;package=com.google.android.apps.youtube.music;action=android.intent.action.VIEW;end');
   else if(/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)){
     const t = setTimeout(() => { if(!document.hidden) location.href = 'https://apps.apple.com/app/youtube-music/id1017492454'; }, 2000);
     document.addEventListener('visibilitychange', () => clearTimeout(t), { once: true });
@@ -16430,6 +16447,67 @@ function abrirAppElegida(path){
   } else window.open('https://music.youtube.com/' + path, '_blank');
 }
 function castBuscarYTransmitir(){ transmitirTV(); }
+
+/* Chromecast / Google TV / Android TV: Chrome busca en el wifi los dispositivos que reciben
+   transmisión y muestra su propia lista (Presentation API). Al elegir uno, el dispositivo abre
+   la Pantalla del TV de Mesora (tv.html) y reproduce la cola en vivo: cada canción que piden las
+   mesas entra sola. Los Smart TV LG/Samsung sin Chromecast no aparecen aquí (solo los ve la app
+   de YouTube): para esos están los botones de YouTube Music / YouTube. */
+const MESORA_VERSION = '2026-09-24 · v8';
+let presDisp = null, presConn = null;
+function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
+function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
+function castEntorno(){
+  const ua = navigator.userAgent;
+  if(/; wv\)|FBAN|FBAV|Instagram|WhatsApp|Line\/|GSA\//.test(ua)) return { bad: true, t: '⚠️ Mesora está abierta DENTRO de otra app (no en Chrome). Así el celular no deja abrir YouTube ni buscar televisores. Ábrela en Chrome (copia su dirección y pégala en Chrome) o instálala desde el menú de Chrome.' };
+  if(location.protocol === 'file:') return { bad: true, t: '⚠️ Mesora está abierta como archivo. Ábrela desde su dirección https para transmitir.' };
+  if(/SamsungBrowser/.test(ua)) return { t: 'Samsung Internet: los botones de YouTube funcionan; para buscar Chromecast/Google TV abre Mesora en Chrome.' };
+  if(!/Android|iPhone|iPad/.test(ua)) return { t: 'Computador: aquí no hay app de YouTube (se abre youtube.com).' };
+  return { t: '✅ Listo para transmitir.' };
+}
+function castDevsPintar(){
+  const box = document.getElementById('castDevs'), t = document.getElementById('castDevsTxt');
+  if(!box) return;
+  box.classList.remove('ok', 'no', 'busy');
+  if(presConn && presConn.state === 'connected'){ box.classList.add('ok'); t.textContent = '📡 Transmitiendo a tu dispositivo: la música de las mesas suena allá en vivo.'; return; }
+  if(!presSoportado()){ t.textContent = 'Este navegador no busca Chromecast/Google TV. Usa Chrome, o los botones de YouTube de abajo.'; return; }
+  if(presDisp === true){ box.classList.add('ok'); t.textContent = 'Hay dispositivos que reciben transmisión en tu wifi. Toca «Buscar» y elige el tuyo.'; }
+  else if(presDisp === false){ box.classList.add('no'); t.textContent = 'Chrome no ve Chromecast/Google TV en este wifi. Si tu TV es LG/Samsung sin Chromecast, usa los botones de YouTube de abajo.'; }
+  else { t.textContent = 'Toca «Buscar» para ver los Chromecast / Google TV / Android TV de tu wifi.'; }
+}
+function presVigilar(){
+  if(!presSoportado()) return;
+  const u = presUrl(); if(!u) return;
+  try{
+    const req = new PresentationRequest([u]);
+    navigator.presentation.defaultRequest = req;          // también aparece en el menú «Transmitir» de Chrome
+    req.getAvailability().then(av => { presDisp = av.value; av.onchange = () => { presDisp = av.value; castDevsPintar(); }; castDevsPintar(); }).catch(() => { presDisp = null; castDevsPintar(); });
+  }catch(e){}
+}
+function presBuscar(){
+  const env = castEntorno();
+  if(env.bad){ showToast(env.t, 9000); return; }
+  if(!presSoportado()){ showToast('⚠️ Este navegador no puede buscar Chromecast/Google TV. Abre Mesora en Chrome, o usa los botones de YouTube.', 7000); return; }
+  const u = presUrl();
+  if(!u){ showToast('⚠️ Abre Mesora desde su dirección https para transmitir.'); return; }
+  // El dispositivo reproduce la cola: se enciende la Pantalla del TV (el celular le manda las canciones).
+  const sw = document.getElementById('tvpOn');
+  if(sw && !sw.checked){ sw.checked = true; sw.dispatchEvent(new Event('change')); }
+  let req;
+  try{ req = new PresentationRequest([presUrl()]); }catch(e){ showToast('⚠️ No se pudo iniciar la búsqueda: ' + e.message); return; }
+  req.start().then(conn => {
+    presConn = conn;
+    showToast('📡 Conectado. La música de las mesas va a sonar en tu TV.', 6000);
+    const upd = () => { castDevsPintar(); castEstado(); };
+    conn.onconnect = upd; conn.onclose = upd; conn.onterminate = () => { presConn = null; upd(); };
+    upd();
+  }).catch(e => {
+    const n = e && e.name;
+    if(n === 'NotAllowedError' || n === 'AbortError') return;           // cerró la lista sin elegir
+    if(n === 'NotFoundError'){ presDisp = false; castDevsPintar(); showToast('⚠️ Chrome no encontró Chromecast / Google TV en este wifi. Para Smart TV LG/Samsung usa los botones de YouTube.', 8000); return; }
+    showToast('⚠️ ' + (e && e.message ? e.message : 'No se pudo transmitir.'), 6000);
+  });
+}
 /* Vincular con código de TV: sirve aunque el wifi no deje ver el TV (routers de negocio).
    El código lo muestra la app de YouTube del TV; el enlace lo hace la app de YouTube del
    celular (Configuración → Ver en TV → Ingresar código de TV). Esta pantalla guía los pasos,
@@ -16508,8 +16586,8 @@ function castGuia(){
   ov.classList.add('show');
 }
 async function transmitirTV(){
-  const b = document.getElementById('castStart');
-  b.disabled = true; const txt = b.textContent; b.textContent = '⏳ Preparando la lista…';
+  const b = document.getElementById(castApp() === 'yt' ? 'castOpenYT' : 'castOpenMusic');
+  b.disabled = true; const txt = b.textContent; b.textContent = '⏳ Preparando…';
   try{
     // Si la reproducción dentro de la app estaba prendida, se apaga para que no suenen dos a la vez.
     if(vm().AUTO && vm().AUTO()){ const a = document.getElementById('autoPlay'); if(a){ a.checked = false; a.dispatchEvent(new Event('change')); } }
@@ -16550,14 +16628,29 @@ async function transmitirTV(){
     b.disabled = false; b.textContent = txt; castEstado(); try{ vm().renderMusica(); }catch(e){}
   }
 }
+// Botones de YouTube Music / YouTube: con la cola vacía abre la app igual (para transmitir lo que quieras).
+function castAbrirApp(){
+  const env = castEntorno();
+  if(env.bad){ showToast(env.t, 9000); return; }
+  const hay = vm().cola && vm().cola().some(x => !x.done);
+  if(!hay && !(vm().yTok && vm().yTok() && vm().yCfg().pl)){
+    abrirAppElegida('');
+    showToast('📺 Abrí ' + (castApp() === 'yt' ? 'YouTube' : 'YouTube Music') + '. Toca el ícono de transmitir y elige tu TV.', 7000);
+    return;
+  }
+  transmitirTV();
+}
 function iniCast(){
-  const st = document.getElementById('castStart');
-  if(!st) return;
-  st.onclick = castBuscarYTransmitir;
+  if(!document.getElementById('castPres')) return;
+  document.getElementById('castPres').onclick = presBuscar;
+  document.getElementById('castOpenMusic').onclick = () => { SS(CAST_APP_KEY, { app: 'music' }); castAbrirApp(); };
+  document.getElementById('castOpenYT').onclick = () => { SS(CAST_APP_KEY, { app: 'yt' }); castAbrirApp(); };
+  const env = castEntorno(), ce = document.getElementById('castEnv');
+  ce.textContent = env.t + ' · Versión ' + MESORA_VERSION; ce.classList.toggle('bad', !!env.bad);
+  presVigilar();
   document.getElementById('castHelp').onclick = castGuia;
   document.getElementById('castPair').onclick = castVincular;
-  document.querySelectorAll('#castApp button').forEach(b => b.onclick = () => { SS(CAST_APP_KEY, { app: b.dataset.app }); castAppPintar(); });
-  castAppPintar();
+
   document.getElementById('castStop').onclick = () => { SS(CAST_KEY, {}); castEstado(); showToast('Transmisión terminada. En el TV puedes detenerla desde la app de YouTube.'); };
   const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', castEstado);
   setInterval(castEstado, 15000);
