@@ -15,31 +15,34 @@
 <meta name="apple-mobile-web-app-title" content="Mesora">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&family=Poppins:wght@600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&family=Poppins:wght@600;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg: #000000;
-    --surface: #050a05;
-    --surface-2: #0a140a;
-    --paper: #061006;
-    --paper-2: #0a1a0a;
-    --ink: #00ff41;
-    --ink-soft: #0d9e2f;
-    --cream: #00ff41;
-    --cream-soft: #3ecb5e;
-    --amber: #00ff41;
-    --amber-deep: #00b32d;
-    --brick: #ff3b3b;
-    --brick-soft: #ff7a7a;
-    --line: #0d3d16;
-    --paid: #39d98a;
-    --cat-1: #00ff41;
-    --cat-2: #00d4ff;
-    --cat-3: #ffd400;
-    --cat-4: #ff3b3b;
-    --cat-5: #b388ff;
-    --cat-6: #ff9f1c;
-    --font-main: 'Share Tech Mono', 'IBM Plex Mono', monospace;
+    /* Valores por defecto = paleta "Noche violeta" (la nueva predeterminada),
+       para que no se alcance a ver un parpadeo con los colores del diseño
+       viejo antes de que cargue el JS y aplique la paleta guardada. */
+    --bg: #0f0f16;
+    --surface: #17171f;
+    --surface-2: #1e1e29;
+    --paper: #15151c;
+    --paper-2: #1c1c26;
+    --ink: #f2f1f7;
+    --ink-soft: #9a97ad;
+    --cream: #c4b5fd;
+    --cream-soft: #a78bfa;
+    --amber: #7c3aed;
+    --amber-deep: #5b21b6;
+    --brick: #fb7185;
+    --brick-soft: #fda4af;
+    --line: #2a2a38;
+    --paid: #34d399;
+    --cat-1: #7c3aed;
+    --cat-2: #22d3ee;
+    --cat-3: #fbbf24;
+    --cat-4: #fb7185;
+    --cat-5: #60a5fa;
+    --cat-6: #34d399;
+    --font-main: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;overflow-x:hidden;}
@@ -72,8 +75,8 @@
   body{
     background: var(--bg);
     background-image:
-      radial-gradient(circle at 15% 0%, rgba(0,255,65,0.06), transparent 45%),
-      radial-gradient(circle at 90% 90%, rgba(0,255,65,0.05), transparent 40%);
+      radial-gradient(circle at 15% 0%, color-mix(in srgb, var(--amber) 8%, transparent), transparent 45%),
+      radial-gradient(circle at 90% 90%, color-mix(in srgb, var(--amber) 6%, transparent), transparent 40%);
     color: var(--cream);
     font-family: var(--font-main);
     min-height: 100vh;
@@ -100,10 +103,10 @@
   }
   .brand-name{
     font-family: var(--font-main);
-    font-weight:700;
+    font-weight:800;
     font-size: clamp(24px, 4vw, 34px);
     color: var(--cream);
-    text-shadow: 0 0 8px rgba(0,255,65,0.55);
+    letter-spacing: -0.01em;
     background: none;
     border: none;
     outline: none;
@@ -485,7 +488,7 @@
   .shape-option-icon{ font-size: 24px; }
   .shape-option-label{ font-size: 11px; text-align:center; line-height:1.2; }
   .shape-option:hover{ border-color: var(--amber); color: var(--cream); }
-  .shape-option.active{ border-color: var(--amber); background: rgba(0,255,65,.12); color: var(--cream); }
+  .shape-option.active{ border-color: var(--amber); background: color-mix(in srgb, var(--amber) 12%, transparent); color: var(--cream); }
 
   .shape-photo-row{
     display:flex;
@@ -1287,7 +1290,6 @@
     color: var(--amber);
     letter-spacing: 0.5px;
     line-height: 1.1;
-    text-shadow: 0 0 18px rgba(0,255,65,0.35);
   }
 
   /* Cuenta general (todas las mesas) */
@@ -1352,7 +1354,10 @@
     color: var(--cream);
     font-size: 14px;
   }
-  .product-form button{
+  /* :not([class]) para no pisar el estilo de los botones que ya traen su
+     propia clase (.btn-ghost, .btn-camera) dentro del mismo formulario —
+     esta regla es solo para el botón final "Agregar", que no tiene clase. */
+  .product-form button:not([class]){
     background: var(--amber);
     color: #1b1208;
     border:none;
@@ -1676,7 +1681,7 @@
     user-select: none;
   }
   .voice-fab-wrap.dragging{ z-index: 90; }
-  .voice-fab-wrap.dragging .voice-fab{ box-shadow: 0 0 22px rgba(0,255,65,0.6); }
+  .voice-fab-wrap.dragging .voice-fab{ box-shadow: 0 0 22px color-mix(in srgb, var(--amber) 60%, transparent); }
   .voice-fab{
     width: 56px;
     height: 56px;
@@ -1689,8 +1694,8 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 0 14px rgba(0,255,65,0.35);
-    transition: transform .15s ease;
+    box-shadow: 0 0 14px color-mix(in srgb, var(--amber) 35%, transparent);
+    transition: transform .15s ease, box-shadow .15s ease;
   }
   .voice-fab:active{ transform: scale(0.92); }
   .voice-fab.listening{
@@ -1747,7 +1752,7 @@
   /* ---------- Acceso (usuario y contraseña) ---------- */
   .auth-overlay{ position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(0,0,0,.94); }
   .auth-overlay[hidden]{ display:none; }
-  .auth-card{ width:100%; max-width:360px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:22px; display:flex; flex-direction:column; gap:12px; box-shadow:0 0 24px rgba(0,255,65,.15); }
+  .auth-card{ width:100%; max-width:360px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:22px; display:flex; flex-direction:column; gap:12px; box-shadow:0 0 24px color-mix(in srgb, var(--amber) 15%, transparent); }
   .auth-card h2{ margin:0 0 4px; color:var(--ink); font-size:20px; }
   .auth-card label{ display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--cream-soft); }
   .auth-card input, .auth-card select, .acc-inline input, .acc-inline select{ padding:11px 12px; font-size:16px; background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:8px; }
@@ -2478,9 +2483,9 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       <h2>Letra</h2>
       <div class="settings-desc">Cambia la tipografía, el color y el tamaño del texto de toda la app.</div>
       <div class="settings-row"><div class="settings-row-text"><strong>Tipografía</strong></div>
-        <select id="tyFont" class="mz-in"><option value="orig">Terminal (original)</option><option value="sans">Moderna</option><option value="serif">Con serifas</option><option value="round">Redondeada</option><option value="mono">Máquina de escribir</option></select></div>
+        <select id="tyFont" class="mz-in"><option value="manrope">Manrope (nueva, recomendada)</option><option value="orig">Terminal (original)</option><option value="sans">Moderna</option><option value="serif">Con serifas</option><option value="round">Redondeada</option><option value="mono">Máquina de escribir</option></select></div>
       <div class="settings-row"><div class="settings-row-text"><strong>Color de las letras</strong><span>Solo el texto; el acento de botones se cambia arriba.</span></div>
-        <input type="color" id="tyColor" value="#00ff41" style="width:56px;height:40px;border:none;background:none;padding:0"></div>
+        <input type="color" id="tyColor" value="#7c3aed" style="width:56px;height:40px;border:none;background:none;padding:0"></div>
       <div class="settings-row"><div class="settings-row-text"><strong>Tamaño: <span id="tySizeLbl">100%</span></strong></div>
         <input type="range" id="tySize" min="80" max="150" step="5" value="100"></div>
       <div class="settings-row"><div class="settings-row-text"><strong>Restablecer letra</strong></div><button class="btn-ghost" id="tyReset" type="button">Restablecer</button></div>
@@ -2506,11 +2511,11 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
       <div class="settings-row">
         <div class="settings-row-text"><strong>Color de letras y botones</strong><span>Es el color de acento de toda la app.</span></div>
-        <input type="color" id="colorAccent" value="#00ff41" style="width:56px;height:40px;border:none;background:none;padding:0">
+        <input type="color" id="colorAccent" value="#7c3aed" style="width:56px;height:40px;border:none;background:none;padding:0">
       </div>
       <div class="settings-row">
         <div class="settings-row-text"><strong>Lluvia Matrix</strong><span>Apágala si usas foto o colores propios.</span></div>
-        <label class="switch"><input type="checkbox" id="rainToggle" checked><span class="switch-slider"></span></label>
+        <label class="switch"><input type="checkbox" id="rainToggle"><span class="switch-slider"></span></label>
       </div>
       <div class="settings-row">
         <div class="settings-row-text"><strong>Restablecer colores</strong><span>Vuelve al verde original.</span></div>
@@ -3278,7 +3283,13 @@ async function loadData(){
   if(!data.history) data.history = [];
   if(!data.categories) data.categories = [];
   if(!data.closures) data.closures = [];
-  if(!data.theme) data.theme = 'apple';
+  if(!data.theme) data.theme = 'noche';
+  // El diseño original (Matrix) se deja solo como opción personal en Ajustes,
+  // no como lo que ve el negocio por defecto: si alguien lo tenía puesto sin
+  // haber elegido conscientemente uno de los diseños nuevos, se pasa una
+  // sola vez al nuevo predeterminado.
+  if(data.theme === 'matrix' && !data.themeChosen) data.theme = 'noche';
+  data.themeChosen = true;
   if(!data.tableViewMode) data.tableViewMode = 'list';
   if(data.easyMode === undefined) data.easyMode = false;
   if(data.tipsOn === undefined) data.tipsOn = false;
@@ -11060,7 +11071,7 @@ async function resetAll(){
   await saveData();
   renderAll();
   renderHistorial();
-  applyPalette(data.theme || 'apple');
+  applyPalette(data.theme || 'noche');
   showToast('La aplicación fue restablecida por completo.');
 }
 
@@ -11175,10 +11186,30 @@ const PALETTES = {
   // (azul), como el lenguaje visual de un iPhone/Mac — limpio, con mucho
   // blanco de por medio y fácil de leer de un vistazo. Es lo primero que
   // ve cualquiera que instale la app desde cero.
+  // Rediseño 2026: paleta nueva de acento violeta con tipografía Manrope
+  // (moderna, geométrica, muy legible), pensada para que la app se vea
+  // como un producto nuevo — no un ajuste de colores sobre el diseño
+  // viejo. Queda como predeterminada; ver migración en loadData().
+  noche: {
+    name: '🌙 Noche violeta',
+    rain: false,
+    recommended: true,
+    vars: {
+      '--font-main': "'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      '--bg':'#0f0f16', '--surface':'#17171f', '--surface-2':'#1e1e29',
+      '--paper':'#15151c', '--paper-2':'#1c1c26',
+      '--ink':'#f2f1f7', '--ink-soft':'#9a97ad',
+      '--cream':'#c4b5fd', '--cream-soft':'#a78bfa',
+      '--amber':'#7c3aed', '--amber-deep':'#5b21b6',
+      '--brick':'#fb7185', '--brick-soft':'#fda4af',
+      '--line':'#2a2a38', '--paid':'#34d399',
+      '--cat-1':'#7c3aed', '--cat-2':'#22d3ee', '--cat-3':'#fbbf24',
+      '--cat-4':'#fb7185', '--cat-5':'#60a5fa', '--cat-6':'#34d399'
+    }
+  },
   apple: {
     name: '🤍 Blanco moderno',
     rain: false,
-    recommended: true,
     vars: {
       '--font-main': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Poppins', 'Segoe UI', Roboto, sans-serif",
       '--bg':'#f2f2f7', '--surface':'#ffffff', '--surface-2':'#e9e9ef',
@@ -11298,7 +11329,7 @@ const PALETTES = {
 };
 
 function applyPalette(key){
-  const palette = PALETTES[key] || PALETTES.matrix;
+  const palette = PALETTES[key] || PALETTES.noche;
   const root = document.documentElement;
   // La tipografía es la única variable que no todos los temas traen (solo el
   // estilo Apple la cambia): si el tema elegido no la trae, hay que
@@ -11347,7 +11378,7 @@ function paletteCardHtml(key, p, current){
 function renderPaletteOptions(){
   const grid = document.getElementById('paletteGrid');
   const personalGrid = document.getElementById('palettePersonalGrid');
-  const current = data.theme || 'matrix';
+  const current = data.theme || 'noche';
   grid.innerHTML = Object.entries(PALETTES).filter(([key])=>!PALETTE_PERSONAL_KEYS.includes(key)).map(([key, p])=>paletteCardHtml(key, p, current)).join('');
   if(personalGrid){
     personalGrid.innerHTML = Object.entries(PALETTES).filter(([key])=>PALETTE_PERSONAL_KEYS.includes(key)).map(([key, p])=>paletteCardHtml(key, p, current)).join('');
@@ -11620,8 +11651,8 @@ function setupColorPickers(){
   pb.oninput = pa.oninput = onInput;
   pb.onchange = pa.onchange = () => saveData();
   rain.checked = !data.rainOff;
-  rain.onchange = () => { data.rainOff = !rain.checked; applyPalette(data.theme || 'apple'); saveData(); };
-  reset.onclick = () => { delete data.customColors; applyPalette(data.theme || 'apple'); saveData(); showToast('Colores originales restablecidos.'); };
+  rain.onchange = () => { data.rainOff = !rain.checked; applyPalette(data.theme || 'noche'); saveData(); };
+  reset.onclick = () => { delete data.customColors; applyPalette(data.theme || 'noche'); saveData(); showToast('Colores originales restablecidos.'); };
   applyCustomColors();
 }
 
@@ -12567,8 +12598,11 @@ const dkey=(d=new Date())=>d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
 const btn=(t,f)=>{const e=document.createElement('button');e.className='btn-ghost';e.type='button';e.textContent=t;e.onclick=f;return e;};
 
 /* ---------- Letra: tipografía, color, tamaño ---------- */
-const FONTS={orig:"'Share Tech Mono','IBM Plex Mono',monospace",sans:"system-ui,-apple-system,'Segoe UI',Roboto,sans-serif",serif:"Georgia,'Times New Roman',serif",round:"'Trebuchet MS','Segoe UI',sans-serif",mono:"'Courier New',monospace"};
-function tipo(){return Object.assign({f:'orig',c:'',s:100},LS('vito_tipo',{}));}
+const FONTS={manrope:"'Manrope',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif",orig:"'Share Tech Mono','IBM Plex Mono',monospace",sans:"system-ui,-apple-system,'Segoe UI',Roboto,sans-serif",serif:"Georgia,'Times New Roman',serif",round:"'Trebuchet MS','Segoe UI',sans-serif",mono:"'Courier New',monospace"};
+// "manrope" es el nuevo default (va con el rediseño 2026); "orig" (la
+// monoespaciada del diseño viejo) se deja disponible para quien la prefiera,
+// pero ya no se fuerza sola por encima de la tipografía de cada paleta.
+function tipo(){return Object.assign({f:'manrope',c:'',s:100},LS('vito_tipo',{}));}
 function aplicarTipo(){
   const t=tipo(),f=FONTS[t.f]||FONTS.orig;
   let st=$('tipoStyle');if(!st){st=document.createElement('style');st.id='tipoStyle';document.head.appendChild(st);}
