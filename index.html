@@ -15384,6 +15384,7 @@ function procesar(txt){
     // en pedido.html), el aviso trae esa nota en el cuerpo — se muestra tal
     // cual en vez del toast genérico, para que no se pierda ese dato.
     showToast(/nequi/i.test(cuerpo) ? (tableLabel(id) + ': ' + cuerpo) : ('🧾 ' + tableLabel(id) + ' pide la cuenta'));
+    if(/nequi/i.test(cuerpo)) try{ window.pagosVerificarMesa && window.pagosVerificarMesa(id); }catch(e){}
     try{openBillSummary(id);}catch(e){}
   }
   else{
@@ -17858,7 +17859,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-25 · v30';
+const MESORA_VERSION = '2026-09-25 · v31';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 let presDisp = null, presConn = null;
@@ -19253,6 +19254,158 @@ let fotosListas = false;
   // Se muestra el botón cuando cargan los datos (y se revisa por si cambian el modo fácil).
   const t0 = setInterval(() => { if(typeof data !== 'undefined' && data){ lbFab(); } }, 1500);
   setTimeout(() => clearInterval(t0), 120000);
+})();
+</script>
+<script>
+/* ==================== 💜 Verificación de pagos Nequi / Daviplata ====================
+   Nequi y Daviplata no tienen una API pública para cuentas personales, así que la app no
+   puede preguntarle al banco. Lo que sí llega al instante es la NOTIFICACIÓN en el celular del
+   dueño («¡Te llegó plata! JUAN PÉREZ te envió $20.000»). Una app gratis (MacroDroid) la
+   reenvía a un canal privado de ntfy y Mesora la lee aquí: avisa con voz, la guarda y la
+   cruza con la mesa que debe ese valor o que dijo «Ya pagué por Nequi». */
+(function(){
+  const $p = id => document.getElementById(id);
+  const plata = n => '$' + Math.round(n || 0).toLocaleString('es-CO');
+  const escp = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const PG = () => {
+    if(!data.pagos) data.pagos = { on: false, topic: '', lista: [], vistos: [], espera: {} };
+    const g = data.pagos;
+    // Canal PROPIO y secreto (no el de los QR de las mesas, que ven los clientes).
+    if(!g.topic) g.topic = 'mesorapago' + Array.from(crypto.getRandomValues(new Uint8Array(14)), b => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
+    if(!g.espera) g.espera = {};
+    return g;
+  };
+  const url = () => 'https://ntfy.sh/' + PG().topic;
+
+  // ---------- Leer la notificación ----------
+  const APPS = [[/daviplata/i, 'Daviplata'], [/nequi/i, 'Nequi'], [/bancolombia/i, 'Bancolombia'], [/movii/i, 'Movii'], [/\bdale\b/i, 'Dale'], [/davivienda/i, 'Davivienda'], [/bre-?b/i, 'Bre-B']];
+  function pgLeer(txt){
+    const t = String(txt || '').replace(/\s+/g, ' ').trim();
+    if(!t) return null;
+    const recibido = /(recibiste|te lleg(?:[oó]|aron)|te envi[oó]|te transfiri[oó]|te pag[oó]|te consign|te abon|consignaron|abonaron|entr[oó] plata|ingres[oó]|recibi[oó]|pago recibido|dinero recibido|transferencia recibida)/i.test(t);
+    const salida = /(enviaste|pagaste|transferiste|retiraste|compraste|sacaste|c[oó]digo|clave din|otp|contrase)/i.test(t);
+    if(!recibido || salida && !/(recibiste|te lleg)/i.test(t)) return null;
+    const m = t.match(/\$\s?(\d{1,3}(?:[.,]\d{3})+|\d+)/);
+    if(!m) return null;
+    const monto = Number(m[1].replace(/[.,]/g, ''));
+    if(!(monto > 0)) return null;
+    const app = (APPS.find(([re]) => re.test(t)) || [0, 'Transferencia'])[1];
+    const NOM = "[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ'.]+(?:\\s+[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ'.]+){0,3}";
+    let de = (t.match(new RegExp('(' + NOM + ')\\s+te\\s+(?:envi|transfiri|pag|consign|abon)')) || [])[1]
+          || (t.match(new RegExp('\\bde\\s+(' + NOM + ')')) || [])[1] || '';
+    if(/^(nequi|daviplata|bancolombia|tu|su|la|el|dinero|plata|recibiste|te)$/i.test(de.split(' ')[0])) de = '';
+    de = de.split(' ').map(x => x.charAt(0).toUpperCase() + x.slice(1).toLowerCase()).join(' ');
+    return { monto, app, de };
+  }
+
+  // ---------- ¿De qué mesa es? ----------
+  function pgMesaPara(monto){
+    const g = PG(), ahora = Date.now(), cands = [];
+    Object.keys(data.tables || {}).forEach(id => {
+      const t = data.tables[id]; if(!t || !(t.items || []).length) return;
+      const saldo = tableTotal(id) - tablePaid(id);
+      if(saldo === monto || tableTotal(id) === monto) cands.push({ id, avisada: !!(g.espera[id] && ahora - g.espera[id] < 3600e3) });
+    });
+    cands.sort((a, b) => b.avisada - a.avisada);
+    return cands[0] ? cands[0].id : null;
+  }
+  function pgRecibir(txt, id){
+    const g = PG();
+    if(id){ if(g.vistos.includes(id)) return; g.vistos.push(id); g.vistos = g.vistos.slice(-300); }
+    const p = pgLeer(txt);
+    if(!p) return;
+    const mesa = pgMesaPara(p.monto);
+    const reg = { id: id || Date.now().toString(36), t: Date.now(), monto: p.monto, app: p.app, de: p.de, mesa: mesa ? Number(mesa) : null, txt: String(txt).slice(0, 200) };
+    g.lista.unshift(reg); g.lista = g.lista.slice(0, 200);
+    if(mesa) delete g.espera[mesa];
+    saveData();
+    const msg = '💜 Llegó ' + p.app + ': ' + plata(p.monto) + (p.de ? ' de ' + p.de : '') + (mesa ? ' · coincide con ' + tableLabel(mesa) : '');
+    try{ showToast(msg, 9000); }catch(e){}
+    try{ speakVoice('Llegó un ' + p.app + ' de ' + p.monto + ' pesos' + (p.de ? ' de ' + p.de : '') + (mesa ? ', es de la ' + tableLabel(mesa) : '')); }catch(e){}
+    if(navigator.vibrate) try{ navigator.vibrate([150, 80, 150]); }catch(e){}
+    pgPintar();
+  }
+  window.pagosRecibirTexto = pgRecibir;   // también para pruebas
+  window.pagosLeer = pgLeer;
+
+  // La mesa avisó «Ya pagué por Nequi»: ¿ya llegó la plata?
+  window.pagosVerificarMesa = function(mesa){
+    if(!data || !data.pagos || !data.pagos.on) return;
+    const g = PG(), saldo = tableTotal(mesa) - tablePaid(mesa), total = tableTotal(mesa);
+    const hay = g.lista.find(x => Date.now() - x.t < 3600e3 && (x.monto === saldo || x.monto === total) && (!x.mesa || x.mesa === Number(mesa)));
+    if(hay){
+      hay.mesa = Number(mesa); saveData(); pgPintar();
+      const m = '✅ Verificado: ' + tableLabel(mesa) + ' pagó ' + plata(hay.monto) + ' por ' + hay.app + (hay.de ? ' (' + hay.de + ')' : '') + '.';
+      setTimeout(() => { try{ showToast(m, 9000); speakVoice(m.replace(/[✅$]/g, '')); }catch(e){} }, 1500);
+    } else {
+      g.espera[mesa] = Date.now(); saveData();
+      setTimeout(() => { try{ showToast('⏳ ' + tableLabel(mesa) + ' dice que pagó por Nequi, pero todavía no ha llegado la notificación. Te aviso apenas llegue.', 8000); }catch(e){} }, 1500);
+    }
+  };
+
+  // ---------- Escuchar el canal ----------
+  let es = null, vivo = 0;
+  function pgConectar(){
+    if(!data || !data.pagos || !data.pagos.on) return;
+    if(es && es.readyState !== 2 && Date.now() - vivo < 100000) return;
+    try{ if(es) es.close(); }catch(e){}
+    try{ es = new EventSource(url() + '/sse?since=15m'); }catch(e){ return; }
+    vivo = Date.now();
+    es.onmessage = ev => { vivo = Date.now(); try{ const m = JSON.parse(ev.data); if(m.event === 'message') pgRecibir((m.title ? m.title + ' | ' : '') + (m.message || ''), m.id); }catch(e){} };
+    ['open', 'keepalive'].forEach(n => es.addEventListener(n, () => { vivo = Date.now(); }));
+    pgPintar();
+  }
+  async function pgSondear(){
+    if(!data || !data.pagos || !data.pagos.on) return;
+    try{
+      const r = await fetch(url() + '/json?poll=1&since=15m', { cache: 'no-store' });
+      (await r.text()).split('\n').forEach(l => { if(!l.trim()) return; try{ const m = JSON.parse(l); if(m.event === 'message') pgRecibir((m.title ? m.title + ' | ' : '') + (m.message || ''), m.id); }catch(e){} });
+    }catch(e){}
+  }
+  setInterval(pgConectar, 15000);
+  setInterval(() => { if(document.visibilityState === 'visible') pgSondear(); }, 30000);
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible'){ pgConectar(); pgSondear(); } });
+
+  // ---------- Ajustes ----------
+  function pgCrearUI(){
+    if($p('pgGrupo')) return true;
+    const ancla = $p('nequiOnToggle'); const grupo = ancla && ancla.closest('.settings-group');
+    if(!grupo) return false;
+    const g = document.createElement('div');
+    g.className = 'settings-group'; g.id = 'pgGrupo'; g.hidden = true; g.dataset.cat = 'negocio';
+    g.innerHTML = '<h2>🔔 Verificar pagos de Nequi y Daviplata al instante <span class="tvp-badge">Nuevo</span></h2>' +
+      '<div class="settings-desc">Cada vez que te llega plata a Nequi, Daviplata o Bancolombia, tu celular recibe la notificación del banco. Con la app gratis <b>MacroDroid</b> esa notificación se reenvía a Mesora en un segundo: te avisa con voz cuánto llegó y de quién, y te dice de qué mesa es (si el valor coincide con lo que debe una mesa, o si la mesa tocó «Ya pagué por Nequi»). Nequi y Daviplata no tienen conexión directa para cuentas personales; esta es la forma que sí funciona.</div>' +
+      '<div class="settings-row"><div class="settings-row-text"><strong>Recibir avisos de pagos</strong><span id="pgEstado"></span></div><label class="switch"><input type="checkbox" id="pgOn"><span class="switch-slider"></span></label></div>' +
+      '<div id="pgCaja" hidden>' +
+      '<div class="settings-row" style="flex-direction:column;align-items:stretch"><div class="settings-row-text"><strong>Tu dirección privada de avisos</strong><span>No la compartas: quien la tenga podría mandarte avisos falsos.</span></div>' +
+      '<input id="pgUrl" class="mz-in" style="width:100%" readonly onclick="this.select()"><div class="mz-actions"><button class="btn-primary" id="pgCopiar" type="button">📋 Copiar dirección</button><button class="btn-ghost" id="pgProbar" type="button">Probar</button><button class="btn-ghost" id="pgNueva" type="button">Cambiar dirección</button></div></div>' +
+      '<details class="settings-desc" open><summary><b>Cómo configurarlo en el celular donde te llegan los pagos (una vez)</b></summary><ol style="margin:8px 0 0;padding-left:20px;line-height:1.55">' +
+      '<li>Instala <b>MacroDroid</b> desde Play Store (gratis) y dale el permiso de <b>acceso a notificaciones</b> que te pide.</li>' +
+      '<li>Toca <b>Añadir macro</b>. En <b>Disparadores</b> elige <b>Notificación → Notificación recibida</b>, marca las apps <b>Nequi</b>, <b>DaviPlata</b> (y Bancolombia si quieres) y deja «Cualquier contenido».</li>' +
+      '<li>En <b>Acciones</b> elige <b>Web / Conectividad → Solicitud HTTP</b>. Método <b>POST</b>. En URL pega la dirección de arriba.</li>' +
+      '<li>En <b>Cuerpo del mensaje</b> (texto sin formato) usa el botón de <b>texto mágico</b> y agrega el <b>nombre de la app</b>, el <b>título de la notificación</b> y el <b>texto de la notificación</b>, separados por una raya «|».</li>' +
+      '<li>Guarda la macro con el ✓. Pídele a alguien que te mande $1.000: acá debe salir el aviso. También puedes tocar <b>Probar</b>.</li></ol>' +
+      '<p style="margin:8px 0 0">Si tu Nequi te avisa por <b>mensaje de texto (SMS)</b>, haz lo mismo pero con el disparador <b>SMS recibido</b>. Mesora debe estar abierta en algún celular o computador para oír los avisos (en el negocio normalmente lo está).</p></details>' +
+      '<div class="settings-row" style="flex-direction:column;align-items:stretch"><div class="settings-row-text"><strong>Últimos pagos que llegaron</strong></div><div id="pgLista"></div></div></div>';
+    grupo.insertAdjacentElement('afterend', g);
+    const on = $p('pgOn');
+    on.onchange = () => { PG().on = on.checked; saveData(); if(on.checked){ pgConectar(); pgSondear(); } else { try{ es && es.close(); }catch(e){} es = null; } pgPintar(); };
+    $p('pgCopiar').onclick = async () => { try{ await navigator.clipboard.writeText(url()); showToast('📋 Dirección copiada. Pégala en MacroDroid (Solicitud HTTP → URL).', 7000); }catch(e){ $p('pgUrl').select(); showToast('Mantén presionada la dirección para copiarla.'); } };
+    $p('pgProbar').onclick = async () => {
+      try{ await fetch(url(), { method: 'POST', body: 'Nequi | ¡Te llegó plata! | PRUEBA MESORA te envió $1.000' }); showToast('Enviado. En unos segundos debe salir el aviso de $1.000.'); pgConectar(); setTimeout(pgSondear, 2500); }
+      catch(e){ showToast('No se pudo enviar la prueba. Revisa el internet.'); }
+    };
+    $p('pgNueva').onclick = () => { if(!confirm('¿Cambiar la dirección? Tendrás que pegar la nueva en MacroDroid.')) return; PG().topic = ''; PG(); saveData(); try{ es && es.close(); }catch(e){} es = null; pgConectar(); pgPintar(); };
+    return true;
+  }
+  function pgPintar(){
+    if(!data || !pgCrearUI()) return;
+    const g = PG();
+    $p('pgOn').checked = !!g.on; $p('pgCaja').hidden = !g.on; $p('pgUrl').value = url();
+    $p('pgEstado').textContent = !g.on ? 'Apagado.' : (es && es.readyState === 1 ? '🟢 Escuchando los avisos de pagos.' : '🟠 Conectando…');
+    $p('pgLista').innerHTML = g.lista.length ? g.lista.slice(0, 15).map(x => '<div style="display:flex;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:14px"><span style="flex:1">' + escp(x.app) + (x.de ? ' · ' + escp(x.de) : '') + '<br><small style="opacity:.7">' + new Date(x.t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + (x.mesa ? ' · ' + escp(tableLabel(x.mesa)) : '') + '</small></span><b>' + plata(x.monto) + '</b></div>').join('') : '<div class="empty-note">Todavía no ha llegado ningún aviso.</div>';
+  }
+  const arr = setInterval(() => { if(typeof data !== 'undefined' && data){ clearInterval(arr); pgPintar(); pgConectar(); } }, 1000);
 })();
 </script>
 </body>
