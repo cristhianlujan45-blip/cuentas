@@ -3,6 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<script>
+/* Pantalla siempre al ancho del celular: si Chrome abre la página como «sitio para computadoras»
+   (o el celular la dibuja más ancha que la pantalla), se agranda sola para no tener que hacer zoom. */
+(function(){
+  function ajustar(){
+    try{
+      var d = document.documentElement, tactil = window.matchMedia && matchMedia('(pointer:coarse)').matches;
+      var ancho = Math.min(screen.width || 0, screen.availWidth || screen.width || 0);
+      d.style.zoom = '';
+      var vw = window.innerWidth || d.clientWidth;
+      if(tactil && ancho && ancho < 820 && vw > ancho * 1.25) d.style.zoom = (vw / ancho).toFixed(3);
+    }catch(e){}
+  }
+  ajustar();
+  window.addEventListener('resize', ajustar);
+  window.addEventListener('orientationchange', function(){ setTimeout(ajustar, 300); });
+})();
+</script>
+<style>html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; }</style>
 <meta name="theme-color" content="#120d0a">
 <title>Mi mesa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
