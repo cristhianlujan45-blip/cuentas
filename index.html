@@ -2281,6 +2281,10 @@
 .iv-top{display:flex;align-items:flex-start;gap:8px;justify-content:space-between}
 .iv-top label{display:flex;gap:6px;align-items:center;font-size:12px;opacity:.8;white-space:nowrap}
 .iv-name{font-weight:700;flex:1}
+.iv-name-in{font-weight:700;flex:1;min-width:0;border:1px solid transparent;background:transparent;color:inherit;font-size:15px;padding:4px 6px;border-radius:6px;font-family:inherit}
+.iv-name-in:hover{border-color:var(--line)}
+.iv-name-in:focus{border-color:var(--amber,#c8a24a);background:rgba(127,127,127,.10);outline:none}
+.iv-name-flags{display:flex;align-items:center;flex-wrap:wrap}
 .iv-flag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:6px;white-space:nowrap}
 .iv-flag.up{background:rgba(255,90,90,.18);color:#ff5a5a}
 .iv-flag.new{background:rgba(76,217,123,.18);color:#4cd97b}
@@ -9815,7 +9819,8 @@ function invoiceRowHtml(it, i){
   const margenActual = (precioActual != null && precioActual > 0) ? (precioActual - it.cost) / precioActual : null;
   const utilidadActual = precioActual != null ? precioActual - it.cost : null;
   return '<div class="iv-item' + (it.include ? '' : ' iv-skip') + '" data-i="' + i + '">' +
-    '<div class="iv-top"><span class="iv-name">' + invEsc(it.name) +
+    '<div class="iv-top"><input type="text" class="iv-name-in" value="' + invEsc(it.name) + '" maxlength="60" placeholder="Nombre del producto" title="Toca para cambiarle el nombre">' +
+    '<span class="iv-name-flags">' +
       (matched ? '' : '<span class="iv-flag new">nuevo</span>') +
       (inc ? '<span class="iv-flag up">⬆ ' + incPct + '%</span>' : '') +
     '</span><label><input type="checkbox" class="iv-inc" ' + (it.include ? 'checked' : '') + '> incluir</label></div>' +
@@ -9989,6 +9994,8 @@ document.getElementById('invoiceRawReparseBtn').addEventListener('click', () => 
 });
 function invoiceReadRow(el){
   const i = +el.dataset.i, it = invoiceDraft.items[i]; if(!it) return it;
+  const nameEl = el.querySelector('.iv-name-in');
+  if(nameEl){ const v = nameEl.value.trim(); if(v) it.name = v.slice(0, 60); }
   it.include = el.querySelector('.iv-inc').checked;
   it.productId = el.querySelector('.iv-match').value;
   it.qty = Math.max(0, Math.round(invNum(el.querySelector('.iv-qty').value) || 0));
@@ -17954,7 +17961,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-25 · v37';
+const MESORA_VERSION = '2026-09-25 · v38';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 let presDisp = null, presConn = null;
