@@ -15733,11 +15733,12 @@ async function ytUno(id){
   }catch(e){ if(!window.ytAvisoT||Date.now()-window.ytAvisoT>600000){ window.ytAvisoT=Date.now(); showToast('YouTube: '+(window.ytFallo||e.message),8000); } }
   yEstado();
 }
-function yPendientes(){
+function yPendientes(silencio){
   const o=ordenJusto(cola().filter(x=>!x.yt));
-  if(!o.length){showToast('No hay canciones nuevas por cargar.');return;}
+  if(!o.length){if(!silencio)showToast('No hay canciones nuevas por cargar.');return;}
   o.forEach(x=>ytAgregar(x.id));
-  cadena=cadena.then(()=>{showToast('✅ Listo: se procesaron '+o.length+' canciones en tu lista de YouTube Music.');renderMusica();});
+  if(!silencio)cadena=cadena.then(()=>{showToast('✅ Listo: se procesaron '+o.length+' canciones en tu lista de YouTube Music.');renderMusica();});
+  else cadena=cadena.then(()=>{try{renderMusica();}catch(e){}});
 }
 function cargarLista(){
   if(!yCfg().cid){showToast('Primero pega tu Client ID de Google (más abajo).');return;}
@@ -15759,7 +15760,7 @@ function yConectar(silencio){
   yTC=yTC||google.accounts.oauth2.initTokenClient({client_id:c.cid,scope:'https://www.googleapis.com/auth/youtube',callback:r=>{
     if(r.error){if(!yTC.silencio)showToast('Google: '+r.error);yAvisoReconectar();return;}
     try{localStorage.setItem('vito_ytok',JSON.stringify({t:r.access_token,exp:Date.now()+(r.expires_in-120)*1000}));}catch(e){sessionStorage.setItem('vito_ytok',JSON.stringify({t:r.access_token,exp:Date.now()+(r.expires_in-120)*1000}));}
-    const x=yCfg();x.on=true;SS('vito_yt',x);yEstado();yAvisoReconectar();yQuien();yPendientes();}});
+    const x=yCfg();x.on=true;SS('vito_yt',x);yEstado();yAvisoReconectar();yQuien();yPendientes(yTC.silencio);}});
   yTC.silencio=!!silencio;
   yTC.requestAccessToken({prompt:silencio?'none':''});
 }
@@ -15773,13 +15774,17 @@ function iniYT(){
   // Respaldo: por si una canción no se resolvió sola al llegar (sin internet un
   // instante, o la API key se configuró después), cada minuto revisa si quedó
   // alguna pendiente y la vuelve a intentar.
-  // IMPORTANTE: la conexión con Google (dura ~1 h) NUNCA se renueva sola. Renovarla abre la
-  // ventanita de Google, y en el celular eso sale como una pestaña en blanco con Google cada
-  // vez que se abre o recarga la app. Solo se renueva cuando la persona toca «Reconectar».
+  // La conexión con Google dura ~1 hora. Se renueva ella sola, en silencio (prompt:"none": la
+  // API de Google no abre nada, ni pestaña ni ventana — o no dice nada si no puede). Antes se
+  // pedía con prompt:"" (sin silencio), y eso sí abría una pestaña en blanco con Google cada
+  // vez; con el modo silencioso de verdad esto no pasa. Si el modo silencioso no logra renovar
+  // (por ejemplo, la persona revocó el permiso), se deja el aviso de siempre para reconectar a mano.
+  let yUltimoSilencioso=0;
   setInterval(()=>{
     yEstado();yAvisoReconectar();
     const c=yCfg();
     if(c.key||yTok())ordenJusto(cola().filter(x=>!x.yt&&!x.novid)).forEach(x=>ytAgregar(x.id));
+    if(c.cid&&c.on&&!yTok()&&Date.now()-yUltimoSilencioso>5*60000){yUltimoSilencioso=Date.now();yConectar(true);}
   },60000);
   yAvisoReconectar();
   yEstado();
@@ -17949,7 +17954,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-25 · v36';
+const MESORA_VERSION = '2026-09-25 · v37';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 let presDisp = null, presConn = null;
@@ -19113,8 +19118,8 @@ let fotosListas = false;
     cien:100, ciento:100, doscientos:200, doscientas:200, trescientos:300, trescientas:300, cuatrocientos:400, quinientos:500, quinientas:500,
     seiscientos:600, setecientos:700, ochocientos:800, novecientos:900, medio:0.5 };
   const MIL = /^(mil|lucas?|barras?)$/, MILLON = /^(millon|millones|palo|palos)$/;
-  // Devuelve { monto, resto } : el número más grande dicho y el texto sin ese número.
-  function lbMonto(t){
+  // Todos los números dichos, en orden, con su posición (palabra i a j) — «20 mil», «cinco», «3».
+  function lbRuns(t){
     const w = t.split(' '), runs = [];
     let i = 0;
     while(i < w.length){
@@ -19135,9 +19140,35 @@ let fotosListas = false;
       runs.push({ i, j, v: Math.round(total + grupo) });
       i = j;
     }
+    return { w, runs };
+  }
+  // Devuelve { monto, resto } : el número más grande dicho y el texto sin ese número.
+  function lbMonto(t){
+    const { w, runs } = lbRuns(t);
     if(!runs.length) return { monto: 0, resto: t };
     const r = runs.reduce((a, b) => (b.v > a.v ? b : a));
     return { monto: r.v, resto: w.slice(0, r.i).concat(w.slice(r.j)).join(' ') };
+  }
+  const numFmt = n => { const r = Math.round(n * 100) / 100; return r.toLocaleString('es-CO', { maximumFractionDigits: 2 }); };
+  // Calculadora de cabeza: toma TODOS los números dichos, en orden, y la palabra entre cada par
+  // decide la operación («más», «menos», «por», «dividido»/«entre»). Se resuelve de izquierda a
+  // derecha, como se hace a mano, no con la jerarquía de operaciones del colegio.
+  function lbCalc(t){
+    const { w, runs } = lbRuns(t);
+    if(runs.length < 2) return null;
+    let acc = runs[0].v, detalle = numFmt(acc);
+    for(let k = 1; k < runs.length; k++){
+      const entre = w.slice(runs[k - 1].j, runs[k].i).join(' ');
+      let op = '+';
+      if(/\b(menos|resta|restale|restando|quitando|quitale)\b/.test(entre)) op = '-';
+      else if(/\b(por|multiplicado|veces)\b/.test(entre)) op = '×';
+      else if(/\b(dividido|entre|divide)\b/.test(entre)) op = '÷';
+      const b = runs[k].v;
+      if(op === '÷' && b === 0) return 'No se puede dividir entre cero.';
+      acc = op === '+' ? acc + b : op === '-' ? acc - b : op === '×' ? acc * b : acc / b;
+      detalle += ' ' + op + ' ' + numFmt(b);
+    }
+    return detalle + ' = ' + numFmt(acc);
   }
 
   // ---------- Personas ----------
@@ -19228,6 +19259,14 @@ let fotosListas = false;
       lbQuitarMov(m); saveData(); lbPintar();
       return { texto: 'Listo, borré: ' + TIPOS[m.tipo].replace(/^\S+ /, '') + ' ' + m.persona + ', ' + plata(m.monto) + '.' };
     }
+    // Calculadora: «cuánto es 20 mil más 15 mil», «suma 200 más 300», «45 por 3», «800 entre 4»…
+    // Se resuelve aquí mismo (sin IA), así responde al instante.
+    if(/\b(cuanto es|cuanto da|cuanto son|cuanto queda|cuanto suman|calcula|calculame)\b/.test(t) ||
+       (/\b(mas|menos|por|multiplicado|dividido|entre)\b/.test(t) && lbRuns(t).runs.length >= 2 &&
+        !/\b(debe|deben|debia|debiendo|pague|pago|pagaron|paga|fiado|fiar|fie|fio|preste|abono|abonar|sueldo|nomina|quincena|jornal)\b/.test(t))){
+      const r = lbCalc(t);
+      if(r) return { texto: r };
+    }
     // Preguntas
     if(/\b(cuanto|cuantos|quien|quienes|que)\b/.test(t)){
       if(/\b(quien|quienes)\b.*\bdeben?\b|\bcuanto me deben\b|\bcuanto me estan debiendo\b|\bcuanto hay (por|en) (cobrar|fiados?)\b/.test(t)){
@@ -19309,9 +19348,19 @@ let fotosListas = false;
     ov.className = 'overlay'; ov.id = 'libretaOverlay';
     ov.innerHTML = '<div class="modal lb-modal"><div class="modal-title-row"><h2>📒 Mi libreta</h2><button class="rename-table-btn" id="lbCerrar" title="Cerrar">✕</button></div>' +
       '<button type="button" class="lb-mic" id="lbMic">🎤 Toca y habla</button>' +
-      '<div class="lb-ej">Di, por ejemplo:<br>«Juan me debe 20 mil» · «Juan me pagó 10 mil»<br>«Le pagué a Pedro 50 mil» · «¿Quién me debe?»</div>' +
+      '<div class="lb-ej">Di, por ejemplo:<br>«Juan me debe 20 mil» · «Juan me pagó 10 mil»<br>«Le pagué a Pedro 50 mil» · «¿Quién me debe?»<br>«Cuánto es 20 mil más 15 mil» (también suma, hace cuentas)</div>' +
       '<div class="lb-resp" id="lbRespuesta" hidden></div>' +
       '<div class="lb-btns"><button type="button" class="lb-b lb-debe" data-t="debe">📕 Alguien<br>me debe</button><button type="button" class="lb-b lb-abono" data-t="abono">✅ Me<br>pagaron</button><button type="button" class="lb-b lb-emp" data-t="emp">👷 Pagué a un<br>empleado</button></div>' +
+      '<button type="button" class="lb-calc-btn" id="lbCalcAbrir">🧮 Calculadora</button>' +
+      '<div class="lb-calc" id="lbCalcBox" hidden>' +
+      '<div class="lb-calc-pant" id="lbCalcPant">0</div>' +
+      '<div class="lb-calc-grid">' +
+      '<button type="button" data-k="C">C</button><button type="button" data-k="⌫">⌫</button><button type="button" data-k="%">%</button><button type="button" data-k="÷" class="lb-calc-op">÷</button>' +
+      '<button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button><button type="button" data-k="×" class="lb-calc-op">×</button>' +
+      '<button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button><button type="button" data-k="−" class="lb-calc-op">−</button>' +
+      '<button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button><button type="button" data-k="+" class="lb-calc-op">+</button>' +
+      '<button type="button" data-k="0" class="lb-calc-0">0</button><button type="button" data-k=".">.</button><button type="button" data-k="=" class="lb-calc-ig">=</button>' +
+      '</div></div>' +
       '<div class="lb-form" id="lbForm" hidden><div class="lb-form-t" id="lbFormT"></div>' +
       '<input id="lbPersona" class="mz-in" list="lbPersonasList" placeholder="Nombre" autocomplete="off"><datalist id="lbPersonasList"></datalist>' +
       '<input id="lbMonto" class="mz-in" type="number" inputmode="numeric" placeholder="¿Cuánta plata?" min="0" step="500">' +
@@ -19331,6 +19380,38 @@ let fotosListas = false;
       $l('lbForm').hidden = false; $l('lbPersona').focus();
     });
     $l('lbFormNo').onclick = () => { $l('lbForm').hidden = true; };
+    // ---------- Calculadora de botones (suma, resta, multiplica, divide) ----------
+    // Igual que cualquier calculadora de bolsillo: un acumulador, un operador pendiente y lo que
+    // se va tecleando. «=» resuelve de una; encadenar operadores («20 + 5 ×») va calculando de
+    // a poco, como en una calculadora de verdad.
+    let calcAcc = null, calcOp = null, calcTexto = '0', calcNueva = false;
+    const calcPintar = () => { $l('lbCalcPant').textContent = calcTexto; };
+    const calcNum = s => { const n = Number(String(s).replace(',', '.')); return isFinite(n) ? n : 0; };
+    const calcOpera = (a, op, b) => op === '+' ? a + b : op === '−' ? a - b : op === '×' ? a * b : (b === 0 ? NaN : a / b);
+    $l('lbCalcAbrir').onclick = () => {
+      const box = $l('lbCalcBox'); box.hidden = !box.hidden;
+      if(!box.hidden){ calcAcc = null; calcOp = null; calcTexto = '0'; calcNueva = false; calcPintar(); }
+    };
+    ov.querySelectorAll('.lb-calc-grid button').forEach(b => b.onclick = () => {
+      const k = b.dataset.k;
+      if(k === 'C'){ calcAcc = null; calcOp = null; calcTexto = '0'; calcNueva = false; }
+      else if(k === '⌫'){ calcTexto = calcTexto.length > 1 ? calcTexto.slice(0, -1) : '0'; }
+      else if(k === '%'){ calcTexto = numFmt(calcNum(calcTexto) / 100); calcNueva = true; }
+      else if(k === '.'){ if(calcNueva){ calcTexto = '0.'; calcNueva = false; } else if(!calcTexto.includes('.')) calcTexto += '.'; }
+      else if(/^[0-9]$/.test(k)){ calcTexto = (calcTexto === '0' || calcNueva) ? k : calcTexto + k; calcNueva = false; }
+      else if(['+', '−', '×', '÷'].includes(k)){
+        const n = calcNum(calcTexto);
+        calcAcc = calcAcc === null ? n : calcOpera(calcAcc, calcOp, n);
+        calcOp = k; calcNueva = true; calcTexto = numFmt(calcAcc);
+      } else if(k === '='){
+        const n = calcNum(calcTexto);
+        const r = calcAcc === null ? n : calcOpera(calcAcc, calcOp, n);
+        calcTexto = isNaN(r) ? 'No se puede dividir entre 0' : numFmt(r);
+        if(!isNaN(r)) try{ hablar('son ' + numFmt(r) + ' pesos'); }catch(e){}
+        calcAcc = null; calcOp = null; calcNueva = true;
+      }
+      calcPintar();
+    });
     $l('lbFormSi').onclick = () => {
       const p = $l('lbPersona').value.trim().replace(/\s+/g, ' '), n = Number($l('lbMonto').value);
       if(!p) return lbResponder('Escribe el nombre.');
@@ -19414,6 +19495,14 @@ let fotosListas = false;
     '.lb-ej{font-size:14px;text-align:center;opacity:.8;line-height:1.5;margin-bottom:8px}' +
     '.lb-resp{font-size:19px;font-weight:700;padding:14px;border-radius:14px;background:rgba(200,162,74,.15);margin:8px 0;line-height:1.4}' +
     '.lb-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}' +
+    '.lb-calc-btn{display:block;width:100%;padding:14px;border-radius:14px;border:2px solid var(--amber,#c8a24a);background:transparent;color:inherit;font:700 17px system-ui;cursor:pointer;margin-bottom:8px}' +
+    '.lb-calc{background:rgba(127,127,127,.10);border-radius:16px;padding:12px;margin-bottom:10px;animation:mzIn .2s ease-out}' +
+    '.lb-calc-pant{background:rgba(0,0,0,.25);border-radius:12px;padding:16px 14px;text-align:right;font:800 32px system-ui;margin-bottom:10px;overflow-x:auto;white-space:nowrap}' +
+    '.lb-calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}' +
+    '.lb-calc-grid button{padding:18px 4px;border-radius:14px;border:0;background:rgba(127,127,127,.18);color:inherit;font:700 22px system-ui;cursor:pointer}' +
+    '.lb-calc-grid .lb-calc-op{background:var(--amber,#c8a24a);color:#1a1410}' +
+    '.lb-calc-grid .lb-calc-ig{background:#27ae60;color:#fff;grid-column:span 2}' +
+    '.lb-calc-grid .lb-calc-0{grid-column:span 1}' +
     '.lb-b{padding:16px 6px;border-radius:14px;border:2px solid var(--line,#555);background:transparent;color:inherit;font:700 16px system-ui;line-height:1.25;cursor:pointer}' +
     '.lb-debe{border-color:#c0392b}.lb-abono{border-color:#27ae60}.lb-emp{border-color:#2980b9}' +
     '.lb-form{padding:12px;border-radius:14px;background:rgba(127,127,127,.12);display:flex;flex-direction:column;gap:8px}.lb-form-t{font-weight:700;font-size:17px}' +
