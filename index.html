@@ -3341,6 +3341,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       <div class="scan-frame"></div>
     </div>
     <div class="modal-actions">
+      <button class="btn-ghost" id="scanTorchBtn" type="button" style="flex:1" hidden>🔦 Linterna</button>
       <button class="btn-close" id="scanCloseBtn2" style="flex:1">Cerrar</button>
     </div>
   </div>
@@ -8379,7 +8380,12 @@ function geminiBody(o, model){
   parts.push({ text: o.prompt });
   const body = { contents: [{ role: 'user', parts }], generationConfig: { temperature: o.json ? 0.1 : 0.3 } };
   if(o.json && !o.web) body.generationConfig.responseMimeType = 'application/json';  // JSON estricto (no se combina con búsqueda web)
-  if(o.fast){ body.generationConfig.maxOutputTokens = o.maxOutputTokens || 220; body.generationConfig.mediaResolution = 'MEDIA_RESOLUTION_MEDIUM'; }  // foto ligera (+ respuesta corta si no se pide más) = más rápido
+  if(o.fast){
+    body.generationConfig.maxOutputTokens = o.maxOutputTokens || 220;
+    // Foto ligera = más rápido. Pero NO en documentos (facturas): con la letra pequeña a media
+    // resolución la IA leía mal, la pasada rápida fallaba y había que esperar la lenta completa.
+    if(!o.doc) body.generationConfig.mediaResolution = 'MEDIA_RESOLUTION_MEDIUM';
+  }
   if(o.maxOutputTokens && !o.fast) body.generationConfig.maxOutputTokens = o.maxOutputTokens;   // respuestas cortas = más rápidas
   if(o.web) body.tools = [{ google_search: {} }];
   /* Sin razonamiento largo = respuesta mucho más rápida (3 a 10 veces). Los modelos nuevos
@@ -8577,7 +8583,7 @@ async function openaiText(o){
     try{
       const result = await openaiResponses(model => {
         const body = { model, input: o.imageDataUrl
-          ? [{ role: 'user', content: [{ type: 'input_text', text: o.prompt }, { type: 'input_image', image_url: o.imageDataUrl, detail: o.fast ? 'low' : 'auto' }] }]
+          ? [{ role: 'user', content: [{ type: 'input_text', text: o.prompt }, { type: 'input_image', image_url: o.imageDataUrl, detail: o.doc ? 'high' : (o.fast ? 'low' : 'auto') }] }]
           : o.prompt };
         if(o.json && !o.imageDataUrl) body.text = { format: { type: 'json_object' } };
         if(tool) body.tools = [{ type: tool }];
@@ -9710,7 +9716,7 @@ async function recognizeInvoiceWithAI(dataUrl){
     // Sin reintentos aquí a propósito: si la pasada rápida no responde en 12s, reintentar con
     // la misma foto/modelo casi nunca es más rápido — es mejor pasar de una vez a la pasada
     // a fondo (que sí reintenta) que esperar el doble antes de caer a ella.
-    info = cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 12000, retries: 0, oneModel: true, fast: true, maxOutputTokens: 2200 }));
+    info = cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 15000, retries: 0, oneModel: true, fast: true, doc: true, maxOutputTokens: 2200 }));
   }catch(err){
     if(!(err && AI_LADDER_KINDS.includes(err.kind))) throw err;   // clave inválida, cuota diaria, etc.: se avisa tal cual
   }
@@ -11972,7 +11978,9 @@ document.getElementById('productLabelsBtn').addEventListener('click', () => {
    de facturas — sin librerías nuevas — y ahora también lee QR, no solo
    códigos de barras. Queda abierta para escanear varios seguidos: fácil de
    usar, sin tener que volver a tocar el botón cada vez. */
-let scanStream = null, scanDetector = null, scanTimer = null, scanLastCode = null, scanLastAt = 0, scanOnResult = null;
+let scanStream = null, scanDetector = null, scanTimer = null, scanLastCode = null, scanLastAt = 0, scanOnResult = null, scanVivo = false;
+// Formatos que se piden: los que el celular sí sabe leer (pedir uno que no soporta rompe el lector en algunos equipos).
+const SCAN_FORMATOS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code', 'code_39', 'itf', 'codabar'];
 
 function scanBeep(){
   try{
@@ -11993,6 +12001,8 @@ function closeScanOverlay(){
   const ov = document.getElementById('scanOverlay');
   if(ov) ov.classList.remove('show');
   if(scanTimer){ clearInterval(scanTimer); scanTimer = null; }
+  scanVivo = false;
+  const tb = document.getElementById('scanTorchBtn'); if(tb){ tb.hidden = true; tb.classList.remove('on'); }
   if(scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
   scanDetector = null; scanOnResult = null; scanLastCode = null;
 }
@@ -12011,36 +12021,66 @@ async function openScanOverlay(onResult, opts){
     status.textContent = 'Tu navegador no soporta lectura de códigos por cámara (usa Chrome en Android). Busca el producto a mano.';
     return;
   }
+  /* Cámara en buena resolución y con enfoque continuo: con la cámara por defecto (baja
+     resolución, sin autoenfoque) los códigos pequeños o de cerca no se leían. Si el celular
+     no acepta estas opciones, se abre la cámara normal. */
   try{
-    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 }, advanced: [{ focusMode: 'continuous' }] } });
   }catch(e){
-    status.textContent = 'No se pudo abrir la cámara. Revisa los permisos del navegador para esta página.';
-    return;
+    try{ scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); }
+    catch(e2){ status.textContent = 'No se pudo abrir la cámara. Revisa los permisos del navegador para esta página.'; return; }
   }
   video.srcObject = scanStream;
   try{ await video.play(); }catch(e){}
   try{
-    scanDetector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e'] });
+    let formatos = SCAN_FORMATOS;
+    try{ const sop = await BarcodeDetector.getSupportedFormats(); if(sop && sop.length) formatos = SCAN_FORMATOS.filter(f => sop.includes(f)); }catch(e){}
+    scanDetector = new BarcodeDetector({ formats: formatos.length ? formatos : ['ean_13', 'qr_code'] });
   }catch(e){
     status.textContent = 'Tu navegador no soporta lectura de códigos por cámara. Busca el producto a mano.';
     closeScanOverlay();
     return;
   }
-  scanTimer = setInterval(async () => {
-    if(!scanDetector || !video.videoWidth) return;
-    try{
-      const codes = await scanDetector.detect(video);
-      if(codes && codes[0] && codes[0].rawValue){
-        const raw = codes[0].rawValue;
-        const now = Date.now();
-        if(raw === scanLastCode && (now - scanLastAt) < 1500) return; // no repetir el mismo código mientras sigue en cámara
-        scanLastCode = raw; scanLastAt = now;
-        scanBeep();
-        if(navigator.vibrate) try{ navigator.vibrate(60); }catch(e){}
-        if(scanOnResult) scanOnResult(raw);
-      }
-    }catch(e){}
-  }, 350);
+  // Linterna (en un bar suele estar oscuro): solo si la cámara la tiene.
+  try{
+    const track = scanStream.getVideoTracks()[0], cap = track && track.getCapabilities ? track.getCapabilities() : {};
+    const tb = document.getElementById('scanTorchBtn');
+    if(tb && cap && cap.torch){
+      tb.hidden = false; tb.classList.remove('on');
+      tb.onclick = async () => {
+        const on = !tb.classList.contains('on');
+        try{ await track.applyConstraints({ advanced: [{ torch: on }] }); tb.classList.toggle('on', on); tb.textContent = on ? '🔦 Apagar linterna' : '🔦 Linterna'; }catch(e){}
+      };
+    }
+  }catch(e){}
+  /* Se lee en cada cuadro del video (antes cada 350 ms): el código sale apenas entra en
+     cámara. Nunca se lanzan dos lecturas a la vez, para no trabar celulares lentos. */
+  scanVivo = true;
+  let ocupado = false;
+  const leer = async () => {
+    if(!scanVivo) return;
+    if(!ocupado && scanDetector && video.videoWidth){
+      ocupado = true;
+      try{
+        const codes = await scanDetector.detect(video);
+        const c0 = codes && codes.find(c => c && c.rawValue);
+        if(c0){
+          const raw = c0.rawValue, now = Date.now();
+          // Mientras el código siga en cámara no se repite (antes se volvía a sumar cada 1,5 s si
+          // se dejaba quieto). Para sumar otra unidad del mismo, se retira un momento y se vuelve a mostrar.
+          if(!(raw === scanLastCode && (now - scanLastAt) < 800)){
+            scanLastCode = raw; scanLastAt = now;
+            scanBeep();
+            if(navigator.vibrate) try{ navigator.vibrate(60); }catch(e){}
+            if(scanOnResult) scanOnResult(raw);
+          } else scanLastAt = now;
+        }
+      }catch(e){}
+      ocupado = false;
+    }
+    if(scanVivo) (video.requestVideoFrameCallback ? video.requestVideoFrameCallback(leer) : requestAnimationFrame(leer));
+  };
+  leer();
 }
 
 document.getElementById('scanCloseBtn').addEventListener('click', closeScanOverlay);
@@ -12754,41 +12794,33 @@ document.getElementById('printReceiptBtn').addEventListener('click', ()=>{
 /* ---------- Historial ---------- */
 const methodLabelHist = { efectivo: 'Efectivo', transferencia: 'Transferencia', debe: 'Debe' };
 
-function renderHistorial(){
-  const list = document.getElementById('histList');
-  const summary = document.getElementById('histSummary');
-  const totalSum = data.history.reduce((s,h)=>s+h.total,0);
-  const debtSum = data.history.reduce((s,h)=>s+(h.debt||0),0);
-  summary.innerHTML = `
-    <div class="hist-stat"><div class="n">${data.history.length}</div><div class="l">Cuentas cerradas</div></div>
-    <div class="hist-stat"><div class="n">${fmt(totalSum)}</div><div class="l">Total vendido</div></div>
-    <div class="hist-stat"><div class="n hist-debt-flag">${fmt(debtSum)}</div><div class="l">Total en deudas</div></div>
-  `;
-  list.innerHTML = '';
-  if(data.history.length === 0){
-    list.innerHTML = '<div class="empty-state">Todavía no has cerrado ninguna cuenta.</div>';
-    return;
-  }
-  data.history.forEach((h, idx)=>{
-    const d = new Date(h.date);
-    const dateStr = d.toLocaleDateString('es-CO', {day:'2-digit', month:'short', year:'numeric'}) + ' · ' + d.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'});
-    const items = h.items || [];
-    const payments = h.payments || [];
-    const debt = h.debt || 0;
-
-    const itemsHtml = items.map(it=>`
+/* Historial por páginas. Antes se dibujaban TODAS las cuentas de una vez (con 3.000 cuentas,
+   unos meses de un bar, la app se congelaba casi 2 segundos al abrir el historial, al hacer el
+   cierre de caja o al marcar una deuda pagada). Ahora se dibujan de a HIST_PAGINA y se pueden
+   ver más. El filtro (Deben / Pagaron) se aplica ANTES de paginar, para que una deuda vieja
+   nunca quede escondida al filtrar por «Deben». */
+const HIST_PAGINA = 60;
+let histMostrar = HIST_PAGINA;
+const histFmtFecha = new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+const histFmtHora = new Intl.DateTimeFormat('es-CO', { hour: '2-digit', minute: '2-digit' });
+function histFiltroActual(){ const b = document.querySelector('#histFilter button.on'); return (b && b.dataset.f) || 'todos'; }
+function histFila(h, idx){
+  const d = new Date(h.date);
+  const dateStr = histFmtFecha.format(d) + ' · ' + histFmtHora.format(d);
+  const items = h.items || [];
+  const payments = h.payments || [];
+  const debt = h.debt || 0;
+  const itemsHtml = items.map(it=>`
       <div class="hist-detail-line"><span>${it.name}${it.person ? ' — ' + it.person : ''} ×${it.qty}</span><span>${fmt(it.price*it.qty)}</span></div>
     `).join('') || '<div class="hist-detail-line"><span>Sin productos registrados</span><span></span></div>';
-
-    const paymentsHtml = payments.map(p=>`
+  const paymentsHtml = payments.map(p=>`
       <div class="hist-detail-line"><span>${p.note || 'Pago'} <span class="pay-method ${p.method}">${methodLabelHist[p.method] || p.method}</span>${payItemsHtml(p)}</span><span>${fmt(p.amount)}</span></div>
     `).join('') || '<div class="hist-detail-line"><span>Sin pagos registrados</span><span></span></div>';
-
-    const debtHtml = debt > 0 ? `<div class="hist-detail-line"><span class="hist-debt-flag">Queda debiendo</span><span class="hist-debt-flag">${fmt(debt)}</span></div>` : '';
-
-    const row = document.createElement('div');
-    row.className = 'hist-row';
-    row.innerHTML = `
+  const debtHtml = debt > 0 ? `<div class="hist-detail-line"><span class="hist-debt-flag">Queda debiendo</span><span class="hist-debt-flag">${fmt(debt)}</span></div>` : '';
+  const row = document.createElement('div');
+  row.className = 'hist-row';
+  row.dataset.idx = idx;
+  row.innerHTML = `
       <div class="hist-row-top">
         <div class="hist-left">
           <div class="hist-table">${h.tableName || (i18nPut('Mesa') + ' ' + h.table)}${h.person ? ' — ' + h.person : ''}${debt > 0 ? ' · <span class="hist-debt-flag">DEBE</span>' : ''}</div>
@@ -12808,44 +12840,80 @@ function renderHistorial(){
         </div>
       </div>
     `;
-    row.addEventListener('click', ()=> row.classList.toggle('expanded'));
-    list.appendChild(row);
-  });
-
-  function histReceiptData(h){
-    return {
-      businessName: h.businessName || data.businessName,
-      tableLabel: (h.tableName || ('Mesa ' + h.table)) + (h.person ? ' — ' + h.person : ''),
-      dateStr: new Date(h.date).toLocaleString('es-CO'),
-      items: h.items || [],
-      payments: h.payments || [],
-      total: h.total,
-      debt: h.debt || 0,
-      // Cuentas cerradas antes de esta versión no tienen estos campos
-      // guardados — en ese caso, simplemente no aparecen en la factura.
-      invoiceNo: h.invoiceNo || '',
-      nit: h.nit || '',
-      bizAddress: h.bizAddress || '',
-      ivaResponsable: !!h.ivaResponsable,
-      ivaRate: h.ivaRate || 19,
-      dianResolucionText: h.dianResolucionText || ''
-    };
+  return row;
+}
+function histReceiptData(h){
+  return {
+    businessName: h.businessName || data.businessName,
+    tableLabel: (h.tableName || ('Mesa ' + h.table)) + (h.person ? ' — ' + h.person : ''),
+    dateStr: new Date(h.date).toLocaleString('es-CO'),
+    items: h.items || [],
+    payments: h.payments || [],
+    total: h.total,
+    debt: h.debt || 0,
+    // Cuentas cerradas antes de esta versión no tienen estos campos
+    // guardados — en ese caso, simplemente no aparecen en la factura.
+    invoiceNo: h.invoiceNo || '',
+    nit: h.nit || '',
+    bizAddress: h.bizAddress || '',
+    ivaResponsable: !!h.ivaResponsable,
+    ivaRate: h.ivaRate || 19,
+    dianResolucionText: h.dianResolucionText || ''
+  };
+}
+function renderHistorial(masPagina){
+  const list = document.getElementById('histList');
+  const summary = document.getElementById('histSummary');
+  let totalSum = 0, debtSum = 0;
+  for(const h of data.history){ totalSum += h.total; debtSum += (h.debt || 0); }
+  summary.innerHTML = `
+    <div class="hist-stat"><div class="n">${data.history.length}</div><div class="l">Cuentas cerradas</div></div>
+    <div class="hist-stat"><div class="n">${fmt(totalSum)}</div><div class="l">Total vendido</div></div>
+    <div class="hist-stat"><div class="n hist-debt-flag">${fmt(debtSum)}</div><div class="l">Total en deudas</div></div>
+  `;
+  // Un solo manejador para los botones de todas las filas (también las de «ver más»).
+  if(!list.dataset.delegado){
+    list.dataset.delegado = '1';
+    list.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.hist-share-text, .hist-share-image');
+      if(btn){
+        e.stopPropagation();
+        const h = data.history[parseInt(btn.dataset.idx,10)];
+        if(!h) return;
+        if(btn.classList.contains('hist-share-text')) whatsappShareText(buildReceiptText(histReceiptData(h)));
+        else shareReceiptImage(histReceiptData(h));
+        return;
+      }
+      const mas = e.target.closest('.hist-mas');
+      if(mas){ e.stopPropagation(); histMostrar += HIST_PAGINA; renderHistorial(true); return; }
+      const row = e.target.closest('.hist-row');
+      if(row && e.target.closest('.hist-row-top, .hist-detail') && !e.target.closest('button')) row.classList.toggle('expanded');
+    });
   }
-  list.querySelectorAll('.hist-share-text').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const h = data.history[parseInt(btn.dataset.idx,10)];
-      whatsappShareText(buildReceiptText(histReceiptData(h)));
-    });
-  });
-  list.querySelectorAll('.hist-share-image').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const h = data.history[parseInt(btn.dataset.idx,10)];
-      shareReceiptImage(histReceiptData(h));
-    });
-  });
-
+  if(!masPagina) histMostrar = HIST_PAGINA;
+  list.innerHTML = '';
+  if(data.history.length === 0){
+    list.innerHTML = '<div class="empty-state">Todavía no has cerrado ninguna cuenta.</div>';
+    renderClosures();
+    return;
+  }
+  const f = histFiltroActual();
+  const idxs = [];
+  data.history.forEach((h, idx) => { const debe = (h.debt || 0) > 0; if(f === 'todos' || (f === 'deben' && debe) || (f === 'pagaron' && !debe)) idxs.push(idx); });
+  const frag = document.createDocumentFragment();
+  idxs.slice(0, histMostrar).forEach(idx => frag.appendChild(histFila(data.history[idx], idx)));
+  if(!idxs.length){
+    const v = document.createElement('div'); v.className = 'empty-state';
+    v.textContent = f === 'deben' ? 'Nadie te debe. 🎉' : 'No hay cuentas con ese filtro.';
+    frag.appendChild(v);
+  } else if(idxs.length > histMostrar){
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn-ghost hist-mas'; b.style.cssText = 'width:100%;margin-top:10px';
+    const quedan = idxs.length - histMostrar;
+    b.textContent = 'Ver ' + Math.min(HIST_PAGINA, quedan) + ' más (' + quedan + ' ' + (quedan === 1 ? 'cuenta anterior' : 'cuentas anteriores') + ')';
+    frag.appendChild(b);
+  }
+  list.appendChild(frag);
   renderClosures();
 }
 
@@ -14990,8 +15058,8 @@ function pagarDeuda(h,m){
 }
 function mejorarHist(){
   if(typeof data==='undefined'||!data)return;
-  $('histList').querySelectorAll(':scope > .hist-row').forEach((row,i)=>{
-    const h=data.history[i];if(!h)return;
+  $('histList').querySelectorAll(':scope > .hist-row').forEach(row=>{
+    const h=data.history[+row.dataset.idx];if(!h)return;
     const e=(h.debt||0)>0?'deben':'pagaron';row.dataset.est=e;
     if(!row.querySelector('.est-badge')){
       const ps=h.payments||[],uniq=a=>[...new Set(a)];
@@ -15043,7 +15111,7 @@ function graficas(){
 function iniHist(){
   new MutationObserver(mejorarHist).observe($('histList'),{childList:true});
   document.querySelectorAll('#histFilter button').forEach(b=>{b.onclick=()=>{
-    filtro=b.dataset.f;document.querySelectorAll('#histFilter button').forEach(x=>x.classList.toggle('on',x===b));mejorarHist();};});
+    filtro=b.dataset.f;document.querySelectorAll('#histFilter button').forEach(x=>x.classList.toggle('on',x===b));renderHistorial();};});
   $('chartsToggle').onclick=()=>{const p=$('chartsPanel');p.hidden=!p.hidden;$('chartsToggle').textContent=p.hidden?'📊 Ver gráficas de ventas':'📊 Ocultar gráficas';if(!p.hidden)graficas();};
 }
 
