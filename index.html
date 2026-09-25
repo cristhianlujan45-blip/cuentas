@@ -3842,6 +3842,79 @@ export default {
 };
 </script>
 
+<script type="text/plain" id="waWorkerSrc">/* Puente de Mesora para WhatsApp (Cloudflare Worker, gratis).
+   Mesora es una página web y no puede recibir directamente los mensajes que WhatsApp Business
+   manda por su "webhook" (necesita un servidor con dirección fija). Este puente sí la tiene:
+   1) Cuando llega un mensaje de un cliente, lo reenvía a un canal privado de ntfy que Mesora
+      escucha, para que la IA lo lea y arme el pedido.
+   2) Cuando Mesora quiere responder, le pide a este puente que la envíe por WhatsApp (con tu
+      token, que nunca queda visible en la app ni en el celular del cliente).
+   No guarda ningún mensaje: solo los pasa de un lado a otro.
+
+   Cómo publicarlo (una sola vez):
+   1) dash.cloudflare.com → Workers & Pages → Create → Create Worker → Deploy.
+   2) Edit code → borra todo, pega este archivo completo → Deploy.
+   3) Settings → Variables and Secrets → agrega estas 5, todas como "Secret" (los 3 primeros
+      valores los da Meta al crear tu app de WhatsApp Business; los otros 2 te los da Mesora):
+        WHATSAPP_TOKEN     el token de acceso permanente de tu app de WhatsApp Business
+        PHONE_NUMBER_ID    el ID del número de WhatsApp de tu negocio (lo ves en Meta)
+        VERIFY_TOKEN       una palabra que TÚ inventes (la misma que pongas al configurar el
+                            webhook en Meta, en "Token de verificación")
+        NTFY_TOPIC         pégalo desde Mesora (Ajustes → WhatsApp con IA)
+        MESORA_SECRET      pégalo desde Mesora (el mismo campo de arriba)
+   4) En Meta (developers.facebook.com → tu app → WhatsApp → Configuration → Webhook):
+      URL de devolución de llamada = la dirección de este Worker (termina en .workers.dev);
+      Token de verificación = el mismo que pusiste en VERIFY_TOKEN. Suscríbete al campo "messages". */
+export default {
+  async fetch(req, env) {
+    const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, GET, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '86400' };
+    if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
+    const u = new URL(req.url);
+
+    // 1) Meta verifica el webhook (una vez, al configurarlo en su panel).
+    if (req.method === 'GET' && u.pathname === '/webhook') {
+      const mode = u.searchParams.get('hub.mode'), tok = u.searchParams.get('hub.verify_token'), challenge = u.searchParams.get('hub.challenge');
+      if (mode === 'subscribe' && tok === env.VERIFY_TOKEN) return new Response(challenge || '', { status: 200 });
+      return new Response('Token de verificación equivocado', { status: 403 });
+    }
+
+    // 2) Llega un mensaje nuevo de un cliente: se reenvía a Mesora por ntfy.
+    if (req.method === 'POST' && u.pathname === '/webhook') {
+      try {
+        const body = await req.json();
+        const value = body?.entry?.[0]?.changes?.[0]?.value;
+        const msg = value?.messages?.[0];
+        if (msg && msg.type === 'text' && env.NTFY_TOPIC) {
+          const de = String(msg.from || '').replace(/\D/g, '');
+          const nombre = value?.contacts?.[0]?.profile?.name || '';
+          const texto = String(msg.text?.body || '').slice(0, 1500);
+          const paquete = JSON.stringify({ de, nombre, texto, id: msg.id });
+          await fetch('https://ntfy.sh/' + env.NTFY_TOPIC, { method: 'POST', body: paquete, headers: { 'Content-Type': 'application/json' } });
+        }
+      } catch (e) { /* si el mensaje no trae texto (foto, audio, sticker…) no hay nada que reenviar */ }
+      return new Response('EVENT_RECEIVED', { status: 200 }); // WhatsApp exige 200 rápido, si no reintenta y duplica
+    }
+
+    // 3) Mesora pide enviar una respuesta al cliente.
+    if (req.method === 'POST' && u.pathname === '/send') {
+      let body; try { body = await req.json(); } catch (e) { return new Response('JSON inválido', { status: 400, headers: cors }); }
+      if (!body || body.secret !== env.MESORA_SECRET) return new Response('No autorizado', { status: 401, headers: cors });
+      const to = String(body.to || '').replace(/\D/g, ''), text = String(body.text || '').slice(0, 4000);
+      if (!to || !text) return new Response('Falta destinatario o texto', { status: 400, headers: cors });
+      const r = await fetch('https://graph.facebook.com/v21.0/' + env.PHONE_NUMBER_ID + '/messages', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + env.WHATSAPP_TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body: text } })
+      });
+      const j = await r.text();
+      return new Response(j, { status: r.ok ? 200 : 502, headers: { ...cors, 'Content-Type': 'application/json' } });
+    }
+
+    return new Response('Mesora: puente de WhatsApp funcionando ✔', { status: u.pathname === '/' ? 200 : 404, headers: { ...cors, 'Content-Type': 'text/plain; charset=utf-8' } });
+  }
+};
+</script>
+
 <div class="voice-fab-wrap" id="voiceFabWrap">
   <button class="voice-fab-close" id="voiceFabCloseBtn" title="Ocultar comando por voz">✕</button>
   <button class="voice-fab-help" id="voiceFabHelp" type="button" title="Ver los comandos de voz" aria-label="Comandos de voz">?</button>
@@ -13471,6 +13544,7 @@ const GUIDE_ENTRIES = [
   { title: '🍳 Pantalla de cocina (KDS)', keywords: 'cocina kds pantalla pedidos barra despachar preparar listo', body: 'La pestaña "Cocina" muestra en tiempo real lo que hay pendiente en cada mesa y los pedidos nuevos que llegan por el QR o WhatsApp, para que cocina o barra los vea sin ir hasta la caja. Toca "Listo" en un ticket para marcarlo atendido, o "Aceptar"/"Rechazar" en un pedido nuevo.' },
   { title: '🧮 Calculadoras rápidas (NIT, descuento, prima, Rete-ICA)', keywords: 'calculadora nit digito verificacion descuento prima bonificacion reteica retencion ica', body: 'En Ajustes → Calculadoras rápidas tienes cuatro herramientas: el dígito de verificación del NIT, un cálculo de descuento, la prima o bonificación proporcional a los días trabajados, y la retención de ICA sobre un pago. No guardan nada, solo calculan al momento.' },
   { title: '📒 La Libreta: fiados, pagos y calculadora por voz', keywords: 'libreta fiados deudas pagar empleados calculadora suma resta multiplicar dividir voz cuenta corrida corregir', body: 'La Libreta entiende lo que le digas o escribas, al instante, sin necesitar internet. Fiados y pagos: "Juan me debe 20 mil", "Juan me pagó 10 mil", "le fié a Carlos 15 lucas", "¿cuánto me debe Juan?", "¿quién me debe?", "le pagué a Pedro 50 mil" (para empleados), "borra lo último" (deshace el último movimiento). Cuentas de la casa: las mesas que quedan "debiendo" al cobrar aparecen solas en la Libreta con el nombre de quien debe, con su historial de cuándo debió y cuándo pagó. Calculadora suelta (no se guarda): "cuánto es 20 mil más 15 mil", "cuánto vale 45 por 3", "800 entre 4", "calcula 100 más 200 más 300". Calculadora de cuenta corrida (con memoria, para ir sumando varias cosas seguidas): "súmame 13.400", y luego, sin decir "más", otro comando aparte "súmame 15.200" — se van sumando una tras otra. También "réstame 2.000", "cuánto llevo" (dice el total), y para corregir si algo quedó mal, "corrige" o "réstame" sin decir ningún número (quita lo último que se metió y dice cuánto era). "nueva cuenta" la deja en cero para empezar otra. También hay una calculadora con botones grandes tocando "🧮 Calculadora" dentro de la Libreta, para quien prefiera usar el dedo en vez de la voz.' },
+  { title: '💬 WhatsApp con IA: recibir y responder pedidos solo', keywords: 'whatsapp business api ia auto responder pedidos puente cloudflare worker webhook meta', body: 'En Ajustes → Negocio y facturación → "WhatsApp con IA" puedes conectar el WhatsApp Business de tu negocio para que Mesora reciba los pedidos y la IA los entienda y responda. Necesitas una app de WhatsApp Business en developers.facebook.com (la tramitas tú, con tu número; Meta te da un token de acceso y un número de prueba gratis para empezar) y publicar un "puente" gratis en Cloudflare (los pasos exactos están dentro de esa sección, con un botón para copiar el código). Cuando un cliente escribe, la IA lee el mensaje, saca el nombre, la dirección y los productos, y redacta una respuesta corta y personalizada. Si activas "Responder automáticamente" se envía sola por WhatsApp; si la dejas apagada, revisas cada respuesta y la envías con un toque. El botón "🛵 Armar domicilio" en cada mensaje lo deja listo para facturar, con el nombre y el teléfono ya puestos.' },
   { title: '🏷️ Código de barras / etiquetas de producto', keywords: 'codigo de barras etiqueta imprimir producto qr generar', body: 'En Productos, el botón "🏷️ Imprimir etiquetas" genera una hoja para imprimir con el código o QR y el precio de todos los productos visibles. Arriba puedes elegir si quieres código de barras o QR. El botón 🏷️ junto a cada producto imprime solo la etiqueta de ese producto.' },
   { title: '💜 Cobrar con Nequi desde el QR de la mesa', keywords: 'nequi pago pasarela cobrar transferencia cuenta', body: 'En Ajustes → Pasarela de pago (Nequi), activa "Aceptar pagos por Nequi" y escribe tu número. Cuando un cliente pida la cuenta desde el QR de su mesa, si queda saldo por pagar, le aparece tu número y el valor exacto para transferir, y un botón "Ya pagué por Nequi" que te avisa. Tú confirmas el pago cuando lo veas llegar — no es un cobro automático. Reimprime los QR de tus mesas después de activarlo para que lleven el número.' },
   { title: '➗ Dividir la cuenta', keywords: 'dividir cuenta partes personas mitad separar pago', body: 'Al cobrar una mesa puedes dividir el total entre varias personas, en partes iguales o eligiendo qué le corresponde a cada quien, y cobrar cada parte por separado.' },
@@ -18098,7 +18172,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-25 · v41';
+const MESORA_VERSION = '2026-09-25 · v42';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 let presDisp = null, presConn = null;
@@ -19882,6 +19956,173 @@ let fotosListas = false;
     $p('pgLista').innerHTML = g.lista.length ? g.lista.slice(0, 15).map(x => '<div style="display:flex;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:14px"><span style="flex:1">' + escp(x.app) + (x.de ? ' · ' + escp(x.de) : '') + '<br><small style="opacity:.7">' + new Date(x.t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + (x.mesa ? ' · ' + escp(tableLabel(x.mesa)) : '') + '</small></span><b>' + plata(x.monto) + '</b></div>').join('') : '<div class="empty-note">Todavía no ha llegado ningún aviso.</div>';
   }
   const arr = setInterval(() => { if(typeof data !== 'undefined' && data){ clearInterval(arr); pgPintar(); pgConectar(); } }, 1000);
+})();
+</script>
+<script>
+/* ==================== 💬 WhatsApp con IA (recibir y responder pedidos) ====================
+   WhatsApp Business tiene una API oficial (de Meta) para negocios, pero solo habla con un
+   servidor de verdad, no con una página web como Mesora. El "puente" (un Cloudflare Worker
+   gratis, igual que el del TV) hace ese papel: recibe los mensajes de WhatsApp y se los pasa
+   a Mesora por un canal privado de ntfy; cuando Mesora quiere contestar, le pide al puente que
+   la envíe. La IA lee cada mensaje, arma el pedido (cliente, dirección, productos) y redacta
+   una respuesta — que se manda sola si activas "Responder automáticamente", o que tú revisas
+   y envías con un toque si prefieres tener el control. */
+(function(){
+  const $w = id => document.getElementById(id);
+  const escw = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const WA = () => {
+    if(!data.whatsapp) data.whatsapp = { on: false, auto: false, topic: '', puente: '', secreto: '', lista: [], vistos: [] };
+    const g = data.whatsapp;
+    // Canal PROPIO y secreto (no el de los QR de las mesas, que ven los clientes).
+    if(!g.topic) g.topic = 'mesorawa' + Array.from(crypto.getRandomValues(new Uint8Array(14)), b => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
+    if(!g.secreto) g.secreto = Array.from(crypto.getRandomValues(new Uint8Array(18)), b => 'abcdefghjkmnpqrstuvwxyz0123456789'[b % 36]).join('');
+    if(g.puente == null) g.puente = '';
+    if(!Array.isArray(g.lista)) g.lista = [];
+    if(!Array.isArray(g.vistos)) g.vistos = [];
+    return g;
+  };
+  const waUrl = () => 'https://ntfy.sh/' + WA().topic;
+
+  // ---------- La IA lee el mensaje, entiende el pedido y redacta la respuesta ----------
+  const WA_IA_PROMPT = 'Eres el asistente de WhatsApp de un restaurante/tienda colombiano que recibe pedidos por este medio. ' +
+    'Te llega el mensaje de un cliente. Devuelve SOLO JSON válido (sin texto extra, sin ```), con esta forma exacta: ' +
+    '{"cliente":"","direccion":"","items":[{"nombre":"","cantidad":1}],"respuesta":""}. ' +
+    'cliente y direccion: solo si el mensaje los trae explícitos, si no cadena vacía (no inventes). ' +
+    'items: un objeto por cada producto que pidió, con la cantidad en número (si no dice cantidad, 1); vacío si el mensaje no es un pedido (solo saluda, pregunta algo, o agradece). ' +
+    'respuesta: el mensaje que le vas a contestar por WhatsApp — cálido, breve (máximo 3 líneas), en español colombiano informal pero respetuoso, sin emojis de más. ' +
+    'Si el pedido viene completo, confírmalo y pregunta la dirección si no la dio. Si falta la dirección, pídesela. Si no es un pedido, respóndele lo que preguntó o salúdalo de vuelta. No agregues nada fuera del JSON.';
+  async function waProcesar(texto, de, nombre){
+    const g = WA();
+    let info = null;
+    try{
+      info = cleanAiJsonText(await aiText({ prompt: WA_IA_PROMPT + '\n\nMensaje del cliente' + (nombre ? ' (' + nombre + ')' : '') + ':\n' + texto, json: true, timeoutMs: 30000, retries: 1, fast: true, maxOutputTokens: 500 }));
+    }catch(err){ info = null; }
+    const items = (info && Array.isArray(info.items)) ? info.items.filter(x => x && x.nombre) : [];
+    const reg = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), t: Date.now(), de, nombre: nombre || '',
+      texto: String(texto || '').slice(0, 500),
+      cliente: (info && info.cliente) || nombre || '', direccion: (info && info.direccion) || '',
+      items, respuesta: (info && info.respuesta) || 'Recibimos tu mensaje, en un momento te contestamos 🙂',
+      enviada: false, enviarFallo: false
+    };
+    g.lista.unshift(reg); g.lista = g.lista.slice(0, 200); saveData();
+    try{ showToast('💬 WhatsApp de ' + (reg.cliente || de) + (items.length ? ': ' + items.map(x => x.cantidad + ' ' + x.nombre).join(', ') : ''), 9000); }catch(e){}
+    try{ if(navigator.vibrate) navigator.vibrate([120, 60, 120]); }catch(e){}
+    if(g.auto) await waEnviar(reg);
+    waPintar();
+    return reg;
+  }
+  async function waEnviar(reg){
+    const g = WA();
+    if(!g.puente){ showToast('⚠️ Configura el puente de WhatsApp en Ajustes para poder responder.'); return; }
+    try{
+      const r = await fetch(g.puente.replace(/\/+$/, '') + '/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: reg.de, text: reg.respuesta, secret: g.secreto }) });
+      reg.enviada = r.ok; reg.enviarFallo = !r.ok; saveData(); waPintar();
+      if(!r.ok) showToast('⚠️ No se pudo enviar la respuesta por WhatsApp (revisa el puente en Ajustes).');
+    }catch(e){ reg.enviarFallo = true; saveData(); waPintar(); showToast('⚠️ No se pudo conectar con el puente de WhatsApp.'); }
+  }
+  window.waArmarDomicilio = function(id){
+    const reg = WA().lista.find(x => x.id === id); if(!reg) return;
+    domRecibirDeIa({ cliente: reg.cliente, telefono: reg.de, direccion: reg.direccion, items: reg.items });
+  };
+  window.waReenviar = function(id){ const reg = WA().lista.find(x => x.id === id); if(reg) waEnviar(reg); };
+  window.waTextoAbrir = function(o){ try{ o.disabled = false; }catch(e){} };
+
+  // ---------- Escuchar el canal (igual patrón que los avisos de pago) ----------
+  let es = null, vivo = 0;
+  function waConectar(){
+    if(!data || !data.whatsapp || !data.whatsapp.on) return;
+    if(es && es.readyState !== 2 && Date.now() - vivo < 100000) return;
+    try{ if(es) es.close(); }catch(e){}
+    try{ es = new EventSource(waUrl() + '/sse?since=15m'); }catch(e){ return; }
+    vivo = Date.now();
+    es.onmessage = ev => { vivo = Date.now(); waRecibirCruda(ev); };
+    ['open', 'keepalive'].forEach(n => es.addEventListener(n, () => { vivo = Date.now(); }));
+    waPintar();
+  }
+  async function waSondear(){
+    if(!data || !data.whatsapp || !data.whatsapp.on) return;
+    try{
+      const r = await fetch(waUrl() + '/json?poll=1&since=15m', { cache: 'no-store' });
+      (await r.text()).split('\n').forEach(l => { if(!l.trim()) return; try{ waRecibirCruda({ data: l }); }catch(e){} });
+    }catch(e){}
+  }
+  function waRecibirCruda(ev){
+    let m; try{ m = JSON.parse(ev.data); }catch(e){ return; }
+    if(m.event !== 'message' || !m.message) return;
+    const g = WA(); if(g.vistos.includes(m.id)) return; g.vistos.push(m.id); g.vistos = g.vistos.slice(-500);
+    let paquete; try{ paquete = JSON.parse(m.message); }catch(e){ return; }
+    if(!paquete || !paquete.texto || !paquete.de) return;
+    // Evita procesar el mismo mensaje dos veces si WhatsApp lo reintenta.
+    if(paquete.id && g.vistos.includes('w:' + paquete.id)) return;
+    if(paquete.id) g.vistos.push('w:' + paquete.id);
+    waProcesar(paquete.texto, paquete.de, paquete.nombre);
+  }
+  setInterval(waConectar, 15000);
+  setInterval(() => { if(document.visibilityState === 'visible') waSondear(); }, 30000);
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible'){ waConectar(); waSondear(); } });
+
+  // ---------- Ajustes ----------
+  function waCrearUI(){
+    if($w('waGrupo')) return true;
+    const ancla = $w('domIaBtn'); const grupo = ancla && ancla.closest('.settings-group');
+    if(!grupo) return false;
+    const g = document.createElement('div');
+    g.className = 'settings-group'; g.id = 'waGrupo'; g.hidden = true; g.dataset.cat = 'negocio';
+    g.innerHTML = '<h2>💬 WhatsApp con IA (recibir pedidos) <span class="tvp-badge">Nuevo</span></h2>' +
+      '<div class="settings-desc">Necesitas una app de WhatsApp Business en Meta for Developers (gratis, lo tramitas tú con tu número). Una vez la tengas, este puente conecta esos mensajes con Mesora: la IA lee cada pedido, lo deja listo para facturar y redacta la respuesta — que se envía sola si activas "Responder automáticamente", o la revisas tú primero.</div>' +
+      '<div class="settings-row"><div class="settings-row-text"><strong>Escuchar mensajes de WhatsApp</strong><span id="waEstado"></span></div><label class="switch"><input type="checkbox" id="waOn"><span class="switch-slider"></span></label></div>' +
+      '<div id="waCaja" hidden>' +
+      '<div class="settings-row"><div class="settings-row-text"><strong>Responder automáticamente con IA</strong><span>Si lo apagas, tú revisas y envías cada respuesta con un toque.</span></div><label class="switch"><input type="checkbox" id="waAuto"><span class="switch-slider"></span></label></div>' +
+      '<details class="settings-desc" open><summary><b>Cómo conectarlo (una vez)</b></summary><ol style="margin:8px 0 0;padding-left:20px;line-height:1.55">' +
+      '<li>En <b>developers.facebook.com</b>, crea una app de tipo "Negocio" y agrégale el producto <b>WhatsApp</b>. Ahí Meta te da un <b>token de acceso</b> y el <b>ID del número de teléfono</b> (Phone Number ID) — dan uno de prueba gratis para empezar.</li>' +
+      '<li>Publica el puente: <b>dash.cloudflare.com</b> → Workers & Pages → Create Worker → Deploy → Edit code → borra todo, pega el código de abajo → Deploy.</li>' +
+      '<li>En el Worker, <b>Settings → Variables and Secrets</b>, agrega <b>WHATSAPP_TOKEN</b>, <b>PHONE_NUMBER_ID</b>, y una palabra tuya como <b>VERIFY_TOKEN</b>. Copia también <b>NTFY_TOPIC</b> y <b>MESORA_SECRET</b> de aquí abajo.</li>' +
+      '<li>En Meta, en la configuración del <b>Webhook</b> de tu app de WhatsApp, pega la dirección del Worker (termina en <b>.workers.dev/webhook</b>) y el mismo VERIFY_TOKEN. Suscríbete al campo <b>messages</b>.</li>' +
+      '<li>Pega abajo la dirección de tu Worker (sin <b>/webhook</b> al final) y activa "Escuchar mensajes".</li></ol></details>' +
+      '<div class="mz-actions"><button type="button" class="btn-ghost" id="waCopyCode">📋 Copiar código del puente</button></div>' +
+      '<div class="settings-row" style="flex-direction:column;align-items:stretch"><div class="settings-row-text"><strong>Dirección de tu puente</strong></div>' +
+      '<input id="waPuente" class="mz-in" style="width:100%" placeholder="https://mesora-whatsapp.tu-usuario.workers.dev"></div>' +
+      '<div class="settings-row" style="flex-direction:column;align-items:stretch"><div class="settings-row-text"><strong>NTFY_TOPIC</strong><span>Pégalo tal cual en el Worker.</span></div><input id="waTopicVal" class="mz-in" style="width:100%" readonly onclick="this.select()"></div>' +
+      '<div class="settings-row" style="flex-direction:column;align-items:stretch"><div class="settings-row-text"><strong>MESORA_SECRET</strong><span>No lo compartas: protege que solo Mesora pueda mandar mensajes por tu número.</span></div><input id="waSecretoVal" class="mz-in" style="width:100%" readonly onclick="this.select()"></div>' +
+      '<div class="settings-row" style="flex-direction:column;align-items:stretch"><div class="settings-row-text"><strong>Mensajes recientes</strong></div><div id="waLista"></div></div></div>';
+    grupo.insertAdjacentElement('afterend', g);
+    const on = $w('waOn'), auto = $w('waAuto'), puente = $w('waPuente');
+    on.onchange = () => { WA().on = on.checked; saveData(); if(on.checked){ waConectar(); waSondear(); } else { try{ es && es.close(); }catch(e){} es = null; } waPintar(); };
+    auto.onchange = () => { WA().auto = auto.checked; saveData(); waPintar(); };
+    puente.addEventListener('change', () => { WA().puente = puente.value.trim().replace(/\/webhook\/?$/, '').replace(/\/+$/, ''); saveData(); waPintar(); });
+    $w('waCopyCode').onclick = async () => {
+      const src = document.getElementById('waWorkerSrc').textContent.trim();
+      try{ await navigator.clipboard.writeText(src); showToast('📋 Código del puente copiado. Pégalo en Cloudflare (Edit code) y toca Deploy.', 6000); }
+      catch(e){ showToast('⚠️ No se pudo copiar. Está en la carpeta «puente» del proyecto en GitHub.', 6000); }
+    };
+    g.addEventListener('click', e => {
+      const bDom = e.target.closest('[data-wa-dom]'); if(bDom){ window.waArmarDomicilio(bDom.dataset.waDom); return; }
+      const bEnv = e.target.closest('[data-wa-send]'); if(bEnv){ window.waReenviar(bEnv.dataset.waSend); return; }
+    });
+    return true;
+  }
+  function waPintar(){
+    if(!data || !waCrearUI()) return;
+    const g = WA();
+    $w('waOn').checked = !!g.on; $w('waCaja').hidden = !g.on; $w('waAuto').checked = !!g.auto;
+    $w('waPuente').value = g.puente || ''; $w('waTopicVal').value = g.topic; $w('waSecretoVal').value = g.secreto;
+    $w('waEstado').textContent = !g.on ? 'Apagado.' : (es && es.readyState === 1 ? '🟢 Escuchando WhatsApp.' : '🟠 Conectando…');
+    $w('waLista').innerHTML = g.lista.length ? g.lista.slice(0, 15).map(x => {
+      const items = x.items.map(i => i.cantidad + ' ' + escw(i.nombre)).join(', ');
+      const estadoEnvio = x.enviada ? '✅ Respondido' : (x.enviarFallo ? '⚠️ No se pudo enviar' : (g.auto ? '⏳ Enviando…' : '🕓 Por responder'));
+      return '<div style="padding:8px 0;border-top:1px solid var(--line);font-size:14px">' +
+        '<div><b>' + escw(x.cliente || x.de) + '</b> <small style="opacity:.7">' + new Date(x.t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + '</small></div>' +
+        '<div style="opacity:.85">"' + escw(x.texto) + '"</div>' +
+        (items ? '<div style="margin-top:2px">🛒 ' + items + '</div>' : '') +
+        '<div style="margin-top:4px;opacity:.8">💬 ' + escw(x.respuesta) + '</div>' +
+        '<div style="margin-top:4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><small>' + estadoEnvio + '</small>' +
+        (items.length || x.direccion ? '<button type="button" class="btn-ghost" style="padding:4px 10px;font-size:12px" data-wa-dom="' + x.id + '">🛵 Armar domicilio</button>' : '') +
+        (!x.enviada ? '<button type="button" class="btn-ghost" style="padding:4px 10px;font-size:12px" data-wa-send="' + x.id + '">📤 Enviar respuesta</button>' : '') +
+        '</div></div>';
+    }).join('') : '<div class="empty-note">Todavía no ha llegado ningún mensaje.</div>';
+  }
+  const arrW = setInterval(() => { if(typeof data !== 'undefined' && data){ clearInterval(arrW); waPintar(); waConectar(); } }, 1000);
 })();
 </script>
 <script>
