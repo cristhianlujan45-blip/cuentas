@@ -2708,6 +2708,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
     </div>
     <div class="settings-group">
       <h2>▶ YouTube Music automático</h2>
+      <div class="settings-desc">⚠️ Esto copia las canciones a una lista <b>de tu cuenta de Google</b>. Para verlas en el TV, el TV tiene que estar con <b>esa misma cuenta</b>: si el TV está con otra (o sin cuenta), la lista no le aparece. Abajo se muestra con cuál quedó conectada la app, para que la compares con la del TV.<br><br>Si no quieres depender de la cuenta, usa <b>📺 YouTube del TV</b> (el del código de 12 números): ese <b>no necesita ninguna cuenta</b> ni que el TV y tú tengan la misma, porque le manda las canciones al TV como si fueras el control remoto.</div>
       <div class="settings-desc" id="ytEstado"></div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
         <input id="ytKey" class="mz-in" placeholder="API key de YouTube (para buscar las canciones)" autocapitalize="none" autocomplete="off">
@@ -15356,10 +15357,22 @@ function iniMusica(){
 const yCfg=()=>Object.assign({cid:'',pl:'',len:0,on:false,key:'AIzaSyCQ_IKzsP2TEPc7jiIfV3prwc6VYvgq1xY'},LS('vito_yt',{}));
 const yTok=()=>{try{const t=JSON.parse(localStorage.getItem('vito_ytok')||sessionStorage.getItem('vito_ytok'));return t&&t.exp>Date.now()?t.t:null;}catch(e){return null;}};
 let yTC=null,cadena=Promise.resolve();
+/* Con qué cuenta de Google quedó conectada la app. Importa porque la lista se crea en
+   ESA cuenta: si el TV está con otra, la lista no le aparece y parece que «no agrega
+   los videos». Se pregunta el nombre del canal, que es lo que identifica la cuenta. */
+async function yQuien(){
+  if(!yTok()) return;
+  try{
+    const j = await yApi('channels?part=snippet&mine=true');
+    const it = (j && j.items || [])[0];
+    const n = it && it.snippet && it.snippet.title;
+    if(n){ const c = yCfg(); if(c.who !== n){ c.who = n; SS('vito_yt', c); } yEstado(); }
+  }catch(e){}
+}
 function yEstado(){
   const e=$('ytEstado'),c=yCfg();
   const n=cola().filter(x=>!x.done&&!x.yt&&!x.vid).length,p=n?' ('+n+' canciones sin buscar)':'';
-  if(e)e.textContent=(c.key?'🟢 Búsqueda lista (API key)':'⚪ Sin API key')+' · '+(yTok()?'🟢 Google conectado: se copian solas a tu lista de YouTube Music':(c.cid?(c.on?'🟠 Google desconectado (la conexión dura 1 hora): toca «Reconectar» arriba o «Conectar con Google»':'🟠 Google desconectado: toca «Conectar con Google» para la lista de YouTube Music'):'⚪ Lista de YouTube Music sin configurar'))+p+'.';
+  if(e)e.textContent=(c.key?'🟢 Búsqueda lista (API key)':'⚪ Sin API key')+' · '+(yTok()?('🟢 Google conectado'+(c.who?' como «'+c.who+'» (el TV debe estar con esta misma cuenta)':'')+': se copian solas a tu lista de YouTube Music'):(c.cid?(c.on?'🟠 Google desconectado (la conexión dura 1 hora): toca «Reconectar» arriba o «Conectar con Google»':'🟠 Google desconectado: toca «Conectar con Google» para la lista de YouTube Music'):'⚪ Lista de YouTube Music sin configurar'))+p+'.';
   const a=$('autoEstado');if(a)a.textContent=AUTO()?((c.key||yTok())?'🟢 Activo: suena solo y las nuevas entran solas.':'🟠 Falta la API key para buscar las canciones.'):'⚪ Apagado.';
 }
 async function yApi(path,opt){
@@ -15471,7 +15484,7 @@ function yConectar(silencio){
   yTC=yTC||google.accounts.oauth2.initTokenClient({client_id:c.cid,scope:'https://www.googleapis.com/auth/youtube',callback:r=>{
     if(r.error){if(!yTC.silencio)showToast('Google: '+r.error);yAvisoReconectar();return;}
     try{localStorage.setItem('vito_ytok',JSON.stringify({t:r.access_token,exp:Date.now()+(r.expires_in-120)*1000}));}catch(e){sessionStorage.setItem('vito_ytok',JSON.stringify({t:r.access_token,exp:Date.now()+(r.expires_in-120)*1000}));}
-    const x=yCfg();x.on=true;SS('vito_yt',x);yEstado();yAvisoReconectar();yPendientes();}});
+    const x=yCfg();x.on=true;SS('vito_yt',x);yEstado();yAvisoReconectar();yQuien();yPendientes();}});
   yTC.silencio=!!silencio;
   yTC.requestAccessToken({prompt:silencio?'none':''});
 }
@@ -15495,6 +15508,7 @@ function iniYT(){
   },60000);
   yAvisoReconectar();
   yEstado();
+  yQuien();
 }
 // Aviso con botón (en Música) cuando la conexión con Google se venció.
 function yAvisoReconectar(){
