@@ -17672,7 +17672,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-25 · v26';
+const MESORA_VERSION = '2026-09-25 · v27';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
@@ -18223,18 +18223,22 @@ async function lngCmd(sc, datos, reintento){
    continuación); y si ni así, se le pone la canción directa. Así no depende de haberle
    acertado al comando la primera vez. */
 async function lngArrancar(videoId, encolada){
-  /* Solo se para cuando el TV CONFIRMA que está sonando. Antes se paraba también cuando el
-     TV no decía nada, que es justo lo que pasa con YouTube recién abierto: se daba por bueno
-     y la canción se quedaba callada.
-     «next» (reproducir a continuación) solo se usa si el TV dijo claramente que está detenido:
-     si no se sabe, saltar podría cortar una canción que sí está sonando. */
+  /* Después de mandar la canción se comprueba que el TV de verdad esté sonando.
+     - Si el TV CONFIRMA que suena: listo.
+     - Si dice claramente que está DETENIDO: se le da lo que daría una persona con el control:
+       «play»; si sigue quieto, «next» (reproducir a continuación, solo si la canción quedó en
+       cola); y como último recurso, ponerla directa.
+     - Si NO dice nada: solo «play», que no hace daño si ya estaba sonando. No se hace más a
+       ciegas, porque saltar o reponer la canción cortaría una que sí esté sonando. */
   for(let i = 0; i < 3; i++){
     await new Promise(r => setTimeout(r, 2500));
     try{ await lngAsegurar(true); }catch(e){ lngLog('   no pude comprobar el TV: ' + (e.message || e)); return; }
-    if(lng.tvPlay === true){ lngLog('   ✅ el TV está sonando'); return; }
-    const detenido = lng.tvPlay === false;
-    const paso = i === 0 ? 'play' : (i === 1 && detenido && encolada) ? 'next' : 'setPlaylist';
-    lngLog('   el TV ' + (detenido ? 'sigue detenido' : 'no confirma que esté sonando') + ' → ' + paso);
+    if(lng.tvPlay === true){ lngLog('   ✅ el TV está sonando'); SS(LNG_KEY, Object.assign(lngCfg(), { visto: Date.now() })); return; }
+    let paso;
+    if(lng.tvPlay === false) paso = i === 0 ? 'play' : (i === 1 && encolada) ? 'next' : 'setPlaylist';
+    else if(i === 0) paso = 'play';
+    else { lngLog('   el TV no dice si está sonando; se deja así para no cortar nada'); return; }
+    lngLog('   el TV ' + (lng.tvPlay === false ? 'sigue detenido' : 'no confirma que esté sonando') + ' → ' + paso);
     try{
       if(paso === 'setPlaylist') await lngCmd('setPlaylist', { videoId: videoId, currentTime: 0, currentIndex: -1, audioOnly: false, listId: '' });
       else await lngCmd(paso, {});
@@ -18244,7 +18248,8 @@ async function lngArrancar(videoId, encolada){
   await new Promise(r => setTimeout(r, 2500));
   try{
     await lngAsegurar(true);
-    lngLog(lng.tvPlay === true ? '   ✅ el TV está sonando' : '   ⚠️ el TV no confirma que esté sonando (' + lngEstadoNombre(lng.tvPlay) + ')');
+    if(lng.tvPlay === true) SS(LNG_KEY, Object.assign(lngCfg(), { visto: Date.now() }));
+    lngLog(lng.tvPlay === true ? '   ✅ el TV está sonando' : '   el TV quedó: ' + lngEstadoNombre(lng.tvPlay));
   }catch(e){}
 }
 // Manda al TV, en orden justo, las canciones que ya tienen video y aún no se mandaron.
@@ -18276,8 +18281,11 @@ async function lngSync(forzar){
          abrir YouTube y está quieto), ANTES se daba por hecho que había cola sonando y solo
          se encolaba: la canción entraba a una cola que no existía y no sonaba nunca. Ahora
          solo se encola si hay prueba de que el TV llegó a reproducir; si no, se arranca. */
-      const arrancando = Date.now() - (lng.ultimoEnvio || 0) < 20000;
-      const probado = lng.tvPlay === true || (c.visto && c.hasta && Date.now() < c.hasta);
+      const arrancando = !!lng.ultimoEnvio && Date.now() - lng.ultimoEnvio < 20000;
+      // Prueba de cola viva: que el TV haya dicho que suena, o que NOSOTROS le hayamos puesto
+      // una lista (setPlaylist aceptado) que todavía no debe haber terminado. Así la segunda
+      // canción entra a continuación de la primera en vez de cortarla.
+      const probado = lng.tvPlay === true || ((c.visto || c.arranco) && c.hasta && Date.now() < c.hasta);
       const quedaCola = arrancando || (lng.tvPlay === false ? false : probado);
       const nuevaCola = forzarInicio || !quedaCola;
       lngLog('«' + String(x.song || '').slice(0, 40) + '» · TV ' + lngEstadoNombre(lng.tvPlay) + ' → ' + (nuevaCola ? 'arrancar' : 'encolar'));
@@ -18287,7 +18295,8 @@ async function lngSync(forzar){
       // Hasta cuándo se calcula que al TV le queda música de Mesora por sonar.
       const base = nuevaCola ? Date.now() : Math.max(c.hasta || 0, Date.now());
       c.hasta = base + LNG_CANCION_MS; c.ultimo = Date.now();
-      SS(LNG_KEY, Object.assign(lngCfg(), { hasta: c.hasta, ultimo: c.ultimo }));
+      if(nuevaCola) c.arranco = Date.now();
+      SS(LNG_KEY, Object.assign(lngCfg(), { hasta: c.hasta, ultimo: c.ultimo, arranco: c.arranco }));
       const l = vm().cola(), it = l.find(y => y.id === x.id);
       if(it){ it.lng = true; it.done = true; it.lngAt = Date.now(); SS('vito_cola', l); }
       SS('vito_now', x);
@@ -18387,7 +18396,7 @@ function iniLounge(){
     try{ await navigator.clipboard.writeText('Mesora ' + MESORA_VERSION + ' · YouTube del TV\n' + txt); showToast('📋 Registro copiado.'); }
     catch(e){ showToast('⚠️ No se pudo copiar.'); }
   };
-  document.getElementById('lngOff').onclick = () => { const c = lngCfg(); ['screenId', 'loungeToken', 'exp', 'nombre', 'on', 'ultimo', 'hasta', 'visto'].forEach(k => delete c[k]); SS(LNG_KEY, c); lng.sid = null; lng.error = ''; lngEstado(); autoRestaurar(); showToast('Desconectado del YouTube del TV.'); };
+  document.getElementById('lngOff').onclick = () => { const c = lngCfg(); ['screenId', 'loungeToken', 'exp', 'nombre', 'on', 'ultimo', 'hasta', 'visto', 'arranco'].forEach(k => delete c[k]); SS(LNG_KEY, c); lng.sid = null; lng.error = ''; lngEstado(); autoRestaurar(); showToast('Desconectado del YouTube del TV.'); };
   setInterval(() => { lngSync(); }, 4000);
   const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', lngEstado);
   lngEstado();
