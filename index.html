@@ -4922,7 +4922,48 @@ const VOICE_PRODUCT_ALIASES = {
   'chocolatina jumbo':['jumbo','chocolatina jumbo'],
   'papas margarita limon':['papas limon','papas margarita limon'],
   'papas margarita natural':['papas natural','papas margarita natural'],
-  'papas margarita picante':['papas picantes','papas margarita picante']
+  'papas margarita picante':['papas picantes','papas margarita picante'],
+
+  // --- Más presentaciones y variantes de cerveza que piden por su apodo ---
+  'poker roja':['poker roja','póker roja','poker fresh','póker fresh'],
+  'aguila lata':['aguila lata','águila lata','lata de aguila','lata de águila'],
+  'poker lata':['poker lata','póker lata','lata de poker','lata de póker'],
+  'club colombia lata':['club lata','club colombia lata','lata de club'],
+  'corona lata':['corona lata','lata de corona'],
+  'stella artois lata':['stella lata','lata de stella'],
+  'bbc monasterio':['bbc monasterio','monasterio bbc'],
+  'bbc golden ale':['bbc golden','golden ale','bbc golden ale'],
+  '3 cordilleras trigo':['tres cordilleras trigo','3 cordilleras trigo','cordilleras trigo'],
+  'baltica':['baltica','báltica','cerveza baltica'],
+  'aguila cero lata':['aguila cero lata','águila cero lata'],
+
+  // --- Café de marca / cafetería (además del tinto suelto que ya está arriba) ---
+  'juan valdez':['juan valdez','cafe juan valdez','café juan valdez'],
+  'cafe oma':['oma','cafe oma','café oma'],
+  'cappuccino':['capuchino','cappuccino','capuccino'],
+  'latte':['latte','café latte','cafe latte'],
+  'americano':['americano','cafe americano','café americano'],
+  'te chai':['chai','te chai','té chai'],
+  'chocolate caliente':['chocolate caliente','chocolate santafereño','onces'],
+  'aromatica':['aromatica','aromática','agua de panela','aguapanela'],
+
+  // --- Más comida callejera y de restaurante que faltaba ---
+  'salchipapa':['salchipapa','salchipapas'],
+  'perro caliente especial':['perro especial','perro caliente especial','completo'],
+  'buñuelo':['buñuelo','bunuelo','buñuelos','bunuelos'],
+  'pandebono':['pandebono','pan de bono'],
+  'almojabana':['almojabana','almojábana'],
+  'arepa e huevo':['arepa e huevo','arepa de huevo','arepa con huevo'],
+  'mazorca':['mazorca','mazorca asada','choclo asado'],
+  'cholado':['cholado'],
+  'raspao':['raspao','raspado','cono de hielo'],
+  'obleas':['oblea','obleas'],
+  'picada':['picada','picada para compartir','fritanga'],
+  'sobrebarriga':['sobrebarriga'],
+  'mute santandereano':['mute','mute santandereano'],
+  'rondón':['rondon','rondón'],
+  'cazuela de mariscos':['cazuela','cazuela de mariscos'],
+  'ceviche':['ceviche','ceviche de camaron','ceviche de camarón']
 };
 
 function normVoiceText(s){
@@ -13429,6 +13470,7 @@ const GUIDE_ENTRIES = [
   { title: '🍽️ Abrir y cobrar una mesa', keywords: 'abrir mesa cobrar cuenta cerrar pagar cliente pedido', body: 'Toca una mesa libre para abrirla y empieza a agregar lo que van pidiendo. Cuando el cliente se va, toca "Cobrar", revisa el total y confirma el pago. La mesa vuelve a quedar libre automáticamente.' },
   { title: '🍳 Pantalla de cocina (KDS)', keywords: 'cocina kds pantalla pedidos barra despachar preparar listo', body: 'La pestaña "Cocina" muestra en tiempo real lo que hay pendiente en cada mesa y los pedidos nuevos que llegan por el QR o WhatsApp, para que cocina o barra los vea sin ir hasta la caja. Toca "Listo" en un ticket para marcarlo atendido, o "Aceptar"/"Rechazar" en un pedido nuevo.' },
   { title: '🧮 Calculadoras rápidas (NIT, descuento, prima, Rete-ICA)', keywords: 'calculadora nit digito verificacion descuento prima bonificacion reteica retencion ica', body: 'En Ajustes → Calculadoras rápidas tienes cuatro herramientas: el dígito de verificación del NIT, un cálculo de descuento, la prima o bonificación proporcional a los días trabajados, y la retención de ICA sobre un pago. No guardan nada, solo calculan al momento.' },
+  { title: '📒 La Libreta: fiados, pagos y calculadora por voz', keywords: 'libreta fiados deudas pagar empleados calculadora suma resta multiplicar dividir voz cuenta corrida corregir', body: 'La Libreta entiende lo que le digas o escribas, al instante, sin necesitar internet. Fiados y pagos: "Juan me debe 20 mil", "Juan me pagó 10 mil", "le fié a Carlos 15 lucas", "¿cuánto me debe Juan?", "¿quién me debe?", "le pagué a Pedro 50 mil" (para empleados), "borra lo último" (deshace el último movimiento). Cuentas de la casa: las mesas que quedan "debiendo" al cobrar aparecen solas en la Libreta con el nombre de quien debe, con su historial de cuándo debió y cuándo pagó. Calculadora suelta (no se guarda): "cuánto es 20 mil más 15 mil", "cuánto vale 45 por 3", "800 entre 4", "calcula 100 más 200 más 300". Calculadora de cuenta corrida (con memoria, para ir sumando varias cosas seguidas): "súmame 13.400", y luego, sin decir "más", otro comando aparte "súmame 15.200" — se van sumando una tras otra. También "réstame 2.000", "cuánto llevo" (dice el total), y para corregir si algo quedó mal, "corrige" o "réstame" sin decir ningún número (quita lo último que se metió y dice cuánto era). "nueva cuenta" la deja en cero para empezar otra. También hay una calculadora con botones grandes tocando "🧮 Calculadora" dentro de la Libreta, para quien prefiera usar el dedo en vez de la voz.' },
   { title: '🏷️ Código de barras / etiquetas de producto', keywords: 'codigo de barras etiqueta imprimir producto qr generar', body: 'En Productos, el botón "🏷️ Imprimir etiquetas" genera una hoja para imprimir con el código o QR y el precio de todos los productos visibles. Arriba puedes elegir si quieres código de barras o QR. El botón 🏷️ junto a cada producto imprime solo la etiqueta de ese producto.' },
   { title: '💜 Cobrar con Nequi desde el QR de la mesa', keywords: 'nequi pago pasarela cobrar transferencia cuenta', body: 'En Ajustes → Pasarela de pago (Nequi), activa "Aceptar pagos por Nequi" y escribe tu número. Cuando un cliente pida la cuenta desde el QR de su mesa, si queda saldo por pagar, le aparece tu número y el valor exacto para transferir, y un botón "Ya pagué por Nequi" que te avisa. Tú confirmas el pago cuando lo veas llegar — no es un cobro automático. Reimprime los QR de tus mesas después de activarlo para que lleven el número.' },
   { title: '➗ Dividir la cuenta', keywords: 'dividir cuenta partes personas mitad separar pago', body: 'Al cobrar una mesa puedes dividir el total entre varias personas, en partes iguales o eligiendo qué le corresponde a cada quien, y cobrar cada parte por separado.' },
@@ -18056,7 +18098,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-25 · v40';
+const MESORA_VERSION = '2026-09-25 · v41';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 let presDisp = null, presConn = null;
@@ -19209,6 +19251,10 @@ let fotosListas = false;
 (function(){
   const LB = () => { if(!data.libreta) data.libreta = { movs: [] }; return data.libreta; };
   let lbAbrirPersona = null;
+  // Calculadora "de cuenta corrida": una cuenta que se va sumando/restando con
+  // varios comandos de voz seguidos («súmame 13.400», luego «súmame 15.200»…),
+  // sin guardarse en los datos del negocio — se reinicia si recargas la app.
+  let lbCuenta = null;   // { total, pasos:[{op:'+'|'-', valor, total}] }
   const TIPOS = { debe: '📕 Me debe', abono: '✅ Me pagó', emp: '👷 Pagué a' };
   const $l = id => document.getElementById(id);
   const esc2 = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -19271,9 +19317,9 @@ let fotosListas = false;
   // Calculadora de cabeza: toma TODOS los números dichos, en orden, y la palabra entre cada par
   // decide la operación («más», «menos», «por», «dividido»/«entre»). Se resuelve de izquierda a
   // derecha, como se hace a mano, no con la jerarquía de operaciones del colegio.
-  function lbCalc(t){
+  function lbCalcPasos(t){
     const { w, runs } = lbRuns(t);
-    if(runs.length < 2) return null;
+    if(!runs.length) return null;
     let acc = runs[0].v, detalle = numFmt(acc);
     for(let k = 1; k < runs.length; k++){
       const entre = w.slice(runs[k - 1].j, runs[k].i).join(' ');
@@ -19282,11 +19328,22 @@ let fotosListas = false;
       else if(/\b(por|multiplicado|veces)\b/.test(entre)) op = '×';
       else if(/\b(dividido|entre|divide)\b/.test(entre)) op = '÷';
       const b = runs[k].v;
-      if(op === '÷' && b === 0) return 'No se puede dividir entre cero.';
+      if(op === '÷' && b === 0) return { err: 'No se puede dividir entre cero.' };
       acc = op === '+' ? acc + b : op === '-' ? acc - b : op === '×' ? acc * b : acc / b;
       detalle += ' ' + op + ' ' + numFmt(b);
     }
-    return detalle + ' = ' + numFmt(acc);
+    return { acc, detalle, n: runs.length };
+  }
+  function lbCalc(t){        // texto «20.000 + 15.000 = 35.000» de una cuenta suelta (no toca lbCuenta)
+    const r = lbCalcPasos(t);
+    if(!r || r.n < 2) return null;
+    if(r.err) return r.err;
+    return r.detalle + ' = ' + numFmt(r.acc);
+  }
+  function lbCalcValor(t){   // solo el número final (uno o varios valores combinados), para sumarlo/restarlo a lbCuenta
+    const r = lbCalcPasos(t);
+    if(!r || r.err) return null;
+    return r.acc;
   }
 
   // ---------- Personas ----------
@@ -19377,13 +19434,50 @@ let fotosListas = false;
       lbQuitarMov(m); saveData(); lbPintar();
       return { texto: 'Listo, borré: ' + TIPOS[m.tipo].replace(/^\S+ /, '') + ' ' + m.persona + ', ' + plata(m.monto) + '.' };
     }
-    // Calculadora: «cuánto es 20 mil más 15 mil», «suma 200 más 300», «45 por 3», «800 entre 4»…
-    // Se resuelve aquí mismo (sin IA), así responde al instante.
-    if(/\b(cuanto es|cuanto da|cuanto son|cuanto queda|cuanto suman|cuanto vale|cuanto valen|calcula|calculame|suma esto|sumame)\b/.test(t) ||
-       (/\b(mas|menos|por|multiplicado|dividido|entre)\b/.test(t) && lbRuns(t).runs.length >= 2 &&
-        !/\b(debe|deben|debia|debiendo|pague|pago|pagaron|paga|fiado|fiar|fie|fio|preste|abono|abonar|sueldo|nomina|quincena|jornal)\b/.test(t))){
+    // Calculadora de cuenta suelta (no se guarda): «cuánto es 20 mil más 15 mil»,
+    // «calcula 45 por 3», «cuánto vale 800 entre 4»… Se resuelve aquí mismo (sin
+    // IA), así responde al instante.
+    const esDeuda = /\b(debe|deben|debia|debiendo|pague|pago|pagaron|paga|fiado|fiar|fie|fio|preste|abono|abonar|sueldo|nomina|quincena|jornal)\b/.test(t);
+    if(/\b(cuanto es|cuanto da|cuanto son|cuanto queda|cuanto suman|cuanto vale|cuanto valen|calcula|calculame)\b/.test(t) ||
+       (/\b(mas|menos|por|multiplicado|dividido|entre)\b/.test(t) && lbRuns(t).runs.length >= 2 && !esDeuda)){
       const r = lbCalc(t);
       if(r) return { texto: r };
+    }
+    // Calculadora "de cuenta corrida" (con memoria): «súmame 13.400», y después
+    // «súmame 15.200» (sin decir «más» entre una y otra) va acumulando un total
+    // — así se pueden ir metiendo varias cuentas seguidas, cada una con su
+    // propio comando, sin tener que acordarse del total ni volver a sumarlo
+    // todo de una vez. Si algo quedó mal, «corrige» (o «réstame» sin decir
+    // ningún valor) quita lo último que se metió y dice cuánto era.
+    if(!esDeuda){
+      const esSuma = /\b(sumame|sumale|suma esto|sumale esto|agregame|agregale|anademe|anadele|mete a la cuenta|agrega a la cuenta|suma a la cuenta)\b/.test(t);
+      const esResta = /\b(restame|restale|resta esto|restale esto|quitame|quitale|descuentame|descuentale|resta a la cuenta|quita a la cuenta)\b/.test(t);
+      const esCorrige = /\b(corrige|corrigela|corrigelo|deshaz eso|deshaz la cuenta|quita eso|quita lo ultimo de la cuenta|quita el ultimo valor|borra el ultimo valor|borra lo ultimo de la cuenta|me equivoque en la cuenta)\b/.test(t);
+      const esPreguntaCuenta = /\b(cuanto llevo|cuanto voy|como va la cuenta|cuanto suma la cuenta|cuanto tengo en la cuenta|total de la cuenta|cual es el total de la cuenta)\b/.test(t);
+      const esNuevaCuenta = /^(nueva cuenta|nueva suma|nueva cuenta corrida|reinicia la cuenta|borra toda la cuenta|cuenta nueva|limpia la cuenta)$/.test(t);
+      if(esNuevaCuenta){
+        lbCuenta = null;
+        return { texto: 'Lista, empecé una cuenta nueva. Dime «súmame» y el valor.' };
+      }
+      if(esPreguntaCuenta){
+        if(!lbCuenta || !lbCuenta.pasos.length) return { texto: 'Todavía no has empezado ninguna cuenta. Dime «súmame» y un valor.' };
+        return { texto: 'Vas en ' + plata(lbCuenta.total) + '.' };
+      }
+      if(esCorrige || (esResta && lbRuns(t).runs.length === 0)){
+        if(!lbCuenta || !lbCuenta.pasos.length) return { texto: 'No hay nada que corregir: todavía no has metido ningún valor a la cuenta.' };
+        const paso = lbCuenta.pasos.pop();
+        lbCuenta.total = lbCuenta.pasos.length ? lbCuenta.pasos[lbCuenta.pasos.length - 1].total : 0;
+        return { texto: 'Corregido: quité ' + plata(paso.valor) + ' que había ' + (paso.op === '+' ? 'sumado' : 'restado') + '. Vas en ' + plata(lbCuenta.total) + '.' };
+      }
+      if(esSuma || esResta){
+        const valor = lbCalcValor(t);
+        if(valor === null) return { texto: (esSuma ? 'Súmame' : 'Réstame') + ' ¿cuánto? Di, por ejemplo, «súmame 13.400».' };
+        if(!lbCuenta) lbCuenta = { total: 0, pasos: [] };
+        const op = esSuma ? '+' : '-';
+        lbCuenta.total += op === '+' ? valor : -valor;
+        lbCuenta.pasos.push({ op, valor, total: lbCuenta.total });
+        return { texto: (op === '+' ? '+ ' : '− ') + plata(valor) + ' → vas en ' + plata(lbCuenta.total) + '.' };
+      }
     }
     // Preguntas
     if(/\b(cuanto|cuantos|quien|quienes|que)\b/.test(t)){
@@ -19466,7 +19560,7 @@ let fotosListas = false;
     ov.className = 'overlay'; ov.id = 'libretaOverlay';
     ov.innerHTML = '<div class="modal lb-modal"><div class="modal-title-row"><h2>📒 Mi libreta</h2><button class="rename-table-btn" id="lbCerrar" title="Cerrar">✕</button></div>' +
       '<button type="button" class="lb-mic" id="lbMic">🎤 Toca y habla</button>' +
-      '<div class="lb-ej">Di, por ejemplo:<br>«Juan me debe 20 mil» · «Juan me pagó 10 mil»<br>«Le pagué a Pedro 50 mil» · «¿Quién me debe?»<br>«Cuánto es 20 mil más 15 mil» (también suma, hace cuentas)</div>' +
+      '<div class="lb-ej">Di, por ejemplo:<br>«Juan me debe 20 mil» · «Juan me pagó 10 mil»<br>«Le pagué a Pedro 50 mil» · «¿Quién me debe?»<br>«Cuánto es 20 mil más 15 mil» (cuenta suelta)<br>«Súmame 13.400», y después «súmame 15.200» (se va sumando solo)<br>«Cuánto llevo» · «Réstame» o «corrige» (si algo quedó mal)</div>' +
       '<div class="lb-resp" id="lbRespuesta" hidden></div>' +
       '<div class="lb-btns"><button type="button" class="lb-b lb-debe" data-t="debe">📕 Alguien<br>me debe</button><button type="button" class="lb-b lb-abono" data-t="abono">✅ Me<br>pagaron</button><button type="button" class="lb-b lb-emp" data-t="emp">👷 Pagué a un<br>empleado</button></div>' +
       '<button type="button" class="lb-calc-btn" id="lbCalcAbrir">🧮 Calculadora</button>' +
