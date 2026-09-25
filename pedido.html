@@ -1210,7 +1210,10 @@ $('qpGuardar').onclick=async()=>{
 };
 $('qpPague').onclick=async()=>{
   if(!mesa)return;
-  const monto=$('qpMonto').hidden?'':' '+$('qpMonto').textContent;
+  // El monto siempre va en el aviso al dueño (antes, si ya no quedaba saldo pendiente, se
+  // mandaba sin el valor y el dueño no sabía cuánto le pagaron).
+  const valor=(snap&&snap.s>0)?snap.s:(snap&&snap.c>0)?snap.c:0;
+  const monto=valor>0?(' '+fm(valor)):'';
   const msg='CUENTA MESA '+mesa+': 💜 Cliente dice que YA PAGÓ'+monto+' por QR ('+(qrPago&&qrPago.q||'Nequi')+')';
   $('qpPague').disabled=true;
   try{const r=await fetch('https://ntfy.sh/'+c,{method:'POST',body:msg});if(r.ok){$('qpOk').hidden=false;$('qpOk').textContent=t('avisoNequiEnviado');try{mesoraCelebrar(['💜','✅','✨'])}catch(e){}return}}catch(e){}

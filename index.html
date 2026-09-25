@@ -15432,11 +15432,14 @@ function procesar(txt){
   if(!data.tables[id])return;
   if(tp==='CANCION'){showToast(agregarCancion(id,cuerpo).msg);renderMusica();}
   else if(tp==='CUENTA'){
-    // Si el cliente avisó que ya pagó por Nequi (botón "Ya pagué por Nequi"
-    // en pedido.html), el aviso trae esa nota en el cuerpo — se muestra tal
-    // cual en vez del toast genérico, para que no se pierda ese dato.
-    showToast(/nequi/i.test(cuerpo) ? (tableLabel(id) + ': ' + cuerpo) : ('🧾 ' + tableLabel(id) + ' pide la cuenta'));
-    if(/nequi/i.test(cuerpo)) try{ window.pagosVerificarMesa && window.pagosVerificarMesa(id); }catch(e){}
+    /* Si el cliente avisó que ya pagó (botón "Ya pagué" del QR o de Nequi en pedido.html), el
+       aviso trae el MONTO y la APP (Nequi, Bancolombia, Daviplata, Bre-B…) en el cuerpo — se
+       muestra tal cual en vez del toast genérico, para no perder ese dato. Antes solo se
+       detectaba la palabra "nequi", así que pagar con cualquier otra app (Bancolombia,
+       Daviplata) mostraba solo "pide la cuenta" sin el monto ni con qué pagó. */
+    const avisoPago = /ya pag[oó]/i.test(cuerpo);
+    showToast(avisoPago ? (tableLabel(id) + ': ' + cuerpo) : ('🧾 ' + tableLabel(id) + ' pide la cuenta'));
+    if(avisoPago){ try{ speakVoice(tableLabel(id) + ' dice que ya pagó.'); }catch(e){} try{ window.pagosVerificarMesa && window.pagosVerificarMesa(id); }catch(e){} }
     try{openBillSummary(id);}catch(e){}
   }
   else{
@@ -15642,6 +15645,14 @@ async function yGet(u){
   }
   return undefined;
 }
+// Duración real de cada video (PT3M42S -> segundos). Se guarda en la propia canción de la
+// cola (x.dur), así el TV sabe cuándo de verdad va a terminar en vez de calcular a ojo.
+function ytDur(iso){
+  const m=/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso||'');
+  if(!m)return null;
+  return (parseInt(m[1]||0,10)*3600)+(parseInt(m[2]||0,10)*60)+parseInt(m[3]||0,10);
+}
+const ytDurCache={};
 async function ySearch(q,excluir){
   const j=await yGet('search?part=snippet&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&maxResults=10&q='+encodeURIComponent(q));
   if(j===undefined)return undefined;
@@ -15656,6 +15667,7 @@ async function ySearch(q,excluir){
       const bloqReg=(rr.blocked&&rr.blocked.includes(YT_REGION))||(rr.allowed&&!rr.allowed.includes(YT_REGION));
       const edad=cd.contentRating&&cd.contentRating.ytRating==='ytAgeRestricted';
       ok[v.id]=st.embeddable!==false&&st.privacyStatus==='public'&&!bloqReg&&!edad;
+      const dur=ytDur(cd.duration);if(dur)ytDurCache[v.id]=dur;
     });
     if(d&&d.items)cands=cands.filter(x=>ok[x.v]);
   }catch(e){}
@@ -15668,7 +15680,7 @@ async function ytUno(id){
     if(!it.vid&&!it.novid){
       const v=await ySearch(it.song,it.probados);
       l=cola();it=l.find(x=>x.id===id);if(!it||v===undefined)return;
-      if(v){it.vid=v;it.ok=false;}else{it.novid=true;it.yt='no';showToast('⚠️ No encontré una versión de «'+it.song+'» que se pueda reproducir aquí.');}
+      if(v){it.vid=v;it.ok=false;if(ytDurCache[v])it.dur=ytDurCache[v];}else{it.novid=true;it.yt='no';showToast('⚠️ No encontré una versión de «'+it.song+'» que se pueda reproducir aquí.');}
       SS('vito_cola',l);
       tvPublicar();
     }
@@ -15794,9 +15806,9 @@ async function reemplazarBloqueada(){
         let v=null;
         for(const q of qs){ try{ v=await ySearch(q,probados); }catch(e){ v=null; } if(v)break; }
         if(v){
-          const nx=Object.assign({},now,{vid:v,probados});
+          const nx=Object.assign({},now,{vid:v,probados,dur:ytDurCache[v]||null});
           SS('vito_now',nx);
-          const l=cola(),it=l.find(y=>y.id===now.id);if(it){it.vid=v;SS('vito_cola',l);}
+          const l=cola(),it=l.find(y=>y.id===now.id);if(it){it.vid=v;it.dur=ytDurCache[v]||it.dur;SS('vito_cola',l);}
           showToast('🔁 Esa versión de «'+now.song+'» está bloqueada por el sello; pongo otra versión.');
           ytMostrar(true);sonando=true;cargadoEn=Date.now();yPl.loadVideoById(v);
           return;
@@ -16041,7 +16053,7 @@ async function publicarCatalogo(force){
 window.vitoPublicarCatalogo = publicarCatalogo;
 window.vitoQCfg = qCfg;   // lo usan los domicilios por web/WhatsApp, que viven fuera de este módulo
 // Lo que usan las fotos de la carta y la transmisión al TV (script del final).
-window.vitoMod = { linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente };
+window.vitoMod = { linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente, ytDur };
 function publicarCuentas(){
   if(typeof data==='undefined'||!data)return;
   try{publicarCatalogo();}catch(e){}             // la carta se publica siempre (aunque "en vivo" esté apagado)
@@ -17912,7 +17924,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-25 · v33';
+const MESORA_VERSION = '2026-09-25 · v34';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 let presDisp = null, presConn = null;
@@ -18198,7 +18210,7 @@ async function transmitirTV(){
       let vid = '';
       for(const x of pend.slice(0, 5)){
         let it = vm().cola().find(y => y.id === x.id);
-        if(it && !it.vid && !it.novid){ try{ const v = await vm().ySearch(it.song); const l = vm().cola(); it = l.find(y => y.id === x.id); if(it){ if(v) it.vid = v; else it.novid = true; SS('vito_cola', l); } }catch(e){} }
+        if(it && !it.vid && !it.novid){ try{ const v = await vm().ySearch(it.song); const l = vm().cola(); it = l.find(y => y.id === x.id); if(it){ if(v){ it.vid = v; if(ytDurCache[v]) it.dur = ytDurCache[v]; } else it.novid = true; SS('vito_cola', l); } }catch(e){} }
         if(it && it.vid){ vid = it.vid; const l = vm().cola(), z = l.find(y => y.id === it.id); if(z){ z.done = true; z.cast = true; } SS('vito_cola', l); SS('vito_now', it); break; }
       }
       if(!vid){ showToast('No hay canciones en cola para transmitir. Los clientes las piden con el QR de su mesa.', 5000); SS(CAST_KEY, {}); return; }
@@ -18534,9 +18546,12 @@ async function lngSync(forzar){
       await lngCmd(nuevaCola ? 'setPlaylist' : 'addVideo', nuevaCola ? { videoId: x.vid, currentTime: 0, currentIndex: -1, audioOnly: false, listId: '' } : { videoId: x.vid });
       forzarInicio = false; lng.forzar = false; lng.ultimoEnvio = Date.now();
       await lngArrancar(x.vid, !nuevaCola);
-      // Hasta cuándo se calcula que al TV le queda música de Mesora por sonar.
+      // Hasta cuándo se calcula que al TV le queda música de Mesora por sonar: se usa la
+      // duración REAL del video (la sabe YouTube) para que la próxima entre justo cuando esta
+      // termine, en vez de calcular con un promedio de 4 minutos que casi nunca acierta.
       const base = nuevaCola ? Date.now() : Math.max(c.hasta || 0, Date.now());
-      c.hasta = base + LNG_CANCION_MS; c.ultimo = Date.now();
+      const durMs = x.dur ? x.dur * 1000 : LNG_CANCION_MS;
+      c.hasta = base + durMs; c.ultimo = Date.now();
       if(nuevaCola) c.arranco = Date.now();
       SS(LNG_KEY, Object.assign(lngCfg(), { hasta: c.hasta, ultimo: c.ultimo, arranco: c.arranco }));
       const l = vm().cola(), it = l.find(y => y.id === x.id);
