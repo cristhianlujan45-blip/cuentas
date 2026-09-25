@@ -220,6 +220,7 @@ h1{
 .nequi-btn{flex:1;min-width:140px;padding:12px 10px;border-radius:12px;border:1px solid #6a3ea1;background:transparent;color:var(--ink);font:600 14px var(--sans);cursor:pointer}
 .nequi-btn-ok{background:#6a3ea1;color:#fff;border-color:#6a3ea1}
 .nequi-ok{margin:10px 0 0;color:var(--gold-hi);font-size:14px}
+.qp-img{display:block;width:210px;height:210px;object-fit:contain;image-rendering:pixelated;background:#fff;border-radius:16px;padding:10px;margin:6px auto 10px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 
 /* Botón de enviar: pegado al campo, siempre a la vista */
 .envio{margin:14px 0 4px}
@@ -451,6 +452,18 @@ body.easy-mode .t{min-height:56px}
       </div>
       <p class="nequi-ok" id="nequiOkMsg" hidden></p>
     </div>
+    <div class="nequi-box qp-box" id="qpBox" hidden>
+      <div class="nequi-h" id="qpH">📱 Paga con QR</div>
+      <img id="qpImg" alt="QR de pago" class="qp-img">
+      <div class="nequi-name" id="qpLlave" hidden></div>
+      <div class="nequi-monto" id="qpMonto" hidden></div>
+      <p class="nequi-instr" id="qpInstr"></p>
+      <div class="nequi-actions">
+        <button type="button" class="nequi-btn" id="qpGuardar">📤 Guardar / compartir QR</button>
+        <button type="button" class="nequi-btn nequi-btn-ok" id="qpPague">✅ Ya pagué</button>
+      </div>
+      <p class="nequi-ok" id="qpOk" hidden></p>
+    </div>
     <p class="hint" id="hintCuentaEl">¿Ya quieres pagar? Pide la cuenta y te la llevamos a la mesa.</p>
     <input id="n" class="in" type="text" autocomplete="off" placeholder="Nota opcional (ej. pago con tarjeta)">
   </section>
@@ -559,6 +572,10 @@ const DICT_SRC={
   nequiInstr:["Abre tu app Nequi → Enviar → pega este número → escribe el valor exacto → envía.","Open your Nequi app → Send → paste this number → enter the exact amount → send.","Abra o app Nequi → Enviar → cole este número → digite o valor exato → envie.","Ouvrez l’appli Nequi → Envoyer → collez ce numéro → indiquez le montant exact → envoyez.","打开你的 Nequi 应用 → 发送 → 粘贴此号码 → 输入准确金额 → 发送。","अपना Nequi ऐप खोलें → भेजें → यह नंबर पेस्ट करें → सही राशि लिखें → भेजें।"],
   copiarNumero:["📋 Copiar número","📋 Copy number","📋 Copiar número","📋 Copier le numéro","📋 复制号码","📋 नंबर कॉपी करें"],
   numeroCopiado:["📋 Número copiado","📋 Number copied","📋 Número copiado","📋 Numéro copié","📋 号码已复制","📋 नंबर कॉपी हुआ"],
+  pagaQR:["📱 Paga con QR","📱 Pay with QR","📱 Pague com QR","📱 Payez par QR","📱 扫码支付","📱 QR से भुगतान करें"],
+  pagaQRInstr:["Guarda o comparte el QR, abre tu app (Nequi, Bancolombia, Daviplata…) → «Pagar con QR» y elige la imagen de tu galería. Luego toca «Ya pagué».","Save or share the QR, open your bank app → “Pay with QR” and pick the image from your gallery. Then tap “I already paid”.","Salve ou compartilhe o QR, abra o app do banco → «Pagar com QR» e escolha a imagem da galeria. Depois toque «Já paguei».","Enregistrez ou partagez le QR, ouvrez votre app bancaire → « Payer par QR » et choisissez l’image. Puis touchez « J’ai payé ».","保存或分享二维码，打开银行应用→“扫码支付”，从相册选择图片。然后点“我已付款”。","QR सेव या शेयर करें, बैंक ऐप खोलें → “QR से भुगतान” और गैलरी से फोटो चुनें। फिर “भुगतान कर दिया” दबाएँ।"],
+  guardarQR:["📤 Guardar / compartir QR","📤 Save / share QR","📤 Salvar / compartilhar QR","📤 Enregistrer / partager le QR","📤 保存 / 分享二维码","📤 QR सेव / शेयर करें"],
+  yaPague:["✅ Ya pagué","✅ I already paid","✅ Já paguei","✅ J’ai payé","✅ 我已付款","✅ भुगतान कर दिया"],
   yaPagueNequi:["✅ Ya pagué por Nequi","✅ I already paid with Nequi","✅ Já paguei pelo Nequi","✅ J’ai déjà payé avec Nequi","✅ 我已用 Nequi 付款","✅ मैंने Nequi से भुगतान कर दिया"],
   avisoNequiEnviado:["✅ Le avisamos a la mesa que pagaste por Nequi.","✅ We told the staff you paid with Nequi.","✅ Avisamos à equipe que você pagou pelo Nequi.","✅ Nous avons prévenu l’équipe que vous avez payé avec Nequi.","✅ 已通知店员你用 Nequi 付款了。","✅ हमने स्टाफ़ को बता दिया कि आपने Nequi से भुगतान किया।"],
   actualizado:["Actualizado {hora}","Updated {hora}","Atualizado {hora}","Mis à jour à {hora}","更新于{hora}","अपडेट किया गया {hora}"],
@@ -1047,6 +1064,7 @@ function pintarNequi(d){
 }
 function pintar(d){
   pintarNequi(d);
+  try{pintarQR(d)}catch(e){}
   $('cs').textContent='';
   if(!d.i||!d.i.length){$('cs').textContent=t('cuentaSinConsumo');return}
   d.i.forEach(x=>fila(x[1]+' × '+x[0],fm(x[1]*x[2])));
@@ -1151,10 +1169,54 @@ async function cargarFotos(){
     const r=await fetch('https://ntfy.sh/'+c+'f/json?poll=1&since=12h',{signal:ctrl.signal});
     clearTimeout(tmo);
     const ls=(await r.text()).trim().split('\n').filter(Boolean),nuevo={};
-    ls.forEach(l=>{try{const m=JSON.parse(l);if(m.event!=='message')return;const x=JSON.parse(m.message);if(!x||!x.n)return;const k=norm(x.n);if(x.i&&/^data:image\/(jpeg|png|webp);base64,/.test(x.i))nuevo[k]=x.i;else delete nuevo[k]}catch(e){}});
+    ls.forEach(l=>{try{const m=JSON.parse(l);if(m.event!=='message')return;const x=JSON.parse(m.message);if(!x||!x.n)return;
+      if(x.n==='__qrpago__'){qrPago=(x.m&&x.s)?{i:qrDeMatriz(x.s,x.m),q:x.q||'',l:x.l||''}:(x.i&&/^data:image\/(png|jpeg|webp);base64,/.test(x.i))?{i:x.i,q:x.q||'',l:x.l||''}:null;jset('qrpago_'+c,qrPago);return}
+      const k=norm(x.n);if(x.i&&/^data:image\/(jpeg|png|webp);base64,/.test(x.i))nuevo[k]=x.i;else delete nuevo[k]}catch(e){}});
     fotos=nuevo;jset('fotos_'+c,fotos);
   }catch(e){}
+  pintarQR(snap);
 }
+/* ---------- QR de pago del local (lo sube el dueño en su app) ----------
+   Llega el patrón de cuadritos del QR (1 bit cada uno) y aquí se dibuja nítido. */
+function qrDeMatriz(n,m){
+  try{
+    const bin=atob(m),mg=4,px=8,cv=document.createElement('canvas');cv.width=cv.height=(n+mg*2)*px;
+    const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,cv.width,cv.height);x.fillStyle='#000';
+    for(let i=0;i<n*n;i++)if(bin.charCodeAt(i>>3)&(128>>(i&7)))x.fillRect(((i%n)+mg)*px,(Math.floor(i/n)+mg)*px,px,px);
+    return cv.toDataURL('image/png');
+  }catch(e){return null}
+}
+let qrPago=jget('qrpago_'+c,null);
+function pintarQR(d){
+  const box=$('qpBox');if(!box)return;
+  if(!qrPago){box.hidden=true;return}
+  // En domicilio va debajo del botón de enviar (el cliente no está en el local).
+  if(dom&&box.parentNode.id!=='vp')$('vp').appendChild(box);
+  box.hidden=false;
+  $('qpImg').src=qrPago.i;
+  $('qpH').textContent=t('pagaQR')+(qrPago.q?' · '+qrPago.q:'');
+  $('qpLlave').hidden=!qrPago.l;$('qpLlave').textContent=qrPago.l?('🔑 '+qrPago.l):'';
+  const saldo=(d&&d.s>0)?d.s:0;
+  $('qpMonto').hidden=!saldo;if(saldo)$('qpMonto').textContent=fm(saldo);
+  $('qpInstr').textContent=t('pagaQRInstr');
+  $('qpGuardar').textContent=t('guardarQR');
+  $('qpPague').textContent=t('yaPague');$('qpPague').hidden=dom||!mesa;
+}
+$('qpGuardar').onclick=async()=>{
+  if(!qrPago)return;
+  const b=await (await fetch(qrPago.i)).blob(),f=new File([b],'qr-pago.png',{type:b.type||'image/png'});
+  try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:t('pagaQR')});return}}catch(e){if(e&&e.name==='AbortError')return}
+  const a=document.createElement('a');a.href=qrPago.i;a.download='qr-pago.png';document.body.appendChild(a);a.click();a.remove();
+};
+$('qpPague').onclick=async()=>{
+  if(!mesa)return;
+  const monto=$('qpMonto').hidden?'':' '+$('qpMonto').textContent;
+  const msg='CUENTA MESA '+mesa+': 💜 Cliente dice que YA PAGÓ'+monto+' por QR ('+(qrPago&&qrPago.q||'Nequi')+')';
+  $('qpPague').disabled=true;
+  try{const r=await fetch('https://ntfy.sh/'+c,{method:'POST',body:msg});if(r.ok){$('qpOk').hidden=false;$('qpOk').textContent=t('avisoNequiEnviado');try{mesoraCelebrar(['💜','✅','✨'])}catch(e){}return}}catch(e){}
+  $('qpPague').disabled=false;
+  if(wa)location.href='https://wa.me/'+wa+'?text='+encodeURIComponent(msg);
+};
 let catTab=null;                                  // categoría elegida en las pestañas (null = la primera disponible)
 const PROMO_CAT_NAME='Promociones y combos';
 const catT=()=>{const y=cat&&cat.y;return (y==='restaurante'||y==='cafeteria')?'Menú':'Carta'};
