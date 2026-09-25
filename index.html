@@ -2343,6 +2343,19 @@
 @keyframes fxFall{to{transform:translateY(112vh)}}@keyframes fxSway{from{margin-left:-14px}to{margin-left:14px}}
 button{transition:transform .12s ease,filter .15s ease,background-color .2s ease,border-color .2s ease}
 button:active{transform:scale(.97)}button:hover{filter:brightness(1.1)}
+/* ---------- Animaciones de Mesora (las mismas en las 3 apps) ---------- */
+@keyframes mzIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes mzPop{0%{opacity:0;transform:scale(.9)}65%{opacity:1;transform:scale(1.02)}100%{opacity:1;transform:none}}
+@keyframes mzBurst{0%{opacity:0;transform:translate(0,0) scale(.4)}15%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.25) rotate(var(--r))}}
+@keyframes mzLatido{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
+.mz-celebra{position:fixed;left:50%;top:55%;width:0;height:0;pointer-events:none;z-index:99999}
+.mz-celebra span{position:absolute;left:0;top:0;opacity:0;animation:mzBurst 1.15s cubic-bezier(.15,.7,.3,1) forwards}
+button{transition:transform .12s ease, filter .15s ease}
+button:not(:disabled):active{transform:scale(.95);filter:brightness(1.08)}
+section[id^="view-"].active{animation:mzIn .3s ease-out}
+.overlay.show>.modal{animation:mzPop .3s cubic-bezier(.2,.9,.3,1.1)}
+.toast.show{animation:mzPop .3s cubic-bezier(.2,.9,.3,1.2)}
+#libretaFab{animation:mzLatido 2.6s ease-in-out infinite}
 #fxLayer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:3}
 #fxLayer span{position:absolute;top:-30px;opacity:.55;animation:fxFall linear infinite,fxSway ease-in-out infinite alternate}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}#fxLayer{display:none}}
@@ -3141,6 +3154,16 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       <div class="settings-row">
         <div class="settings-row-text"><strong>Lluvia Matrix</strong><span>Apágala si usas foto o colores propios.</span></div>
         <label class="switch"><input type="checkbox" id="rainToggle"><span class="switch-slider"></span></label>
+      </div>
+      <div class="settings-row" style="flex-direction:column;align-items:stretch">
+        <div class="settings-row-text"><strong>✨ Motivo que cae en la pantalla</strong><span>Adornos suaves que caen en tu app, en la de pedidos de los clientes y en la de meseros.</span></div>
+        <select id="motivoSel" class="mz-in">
+          <option value="">Según la temática</option><option value="ninguno">Ninguno</option>
+          <option value="fiesta">🎉 Fiesta</option><option value="futbol">⚽ Fútbol</option><option value="cerveza">🍺 Cerveza</option><option value="cafe">☕ Café</option>
+          <option value="flores">🌸 Flores</option><option value="playa">🌴 Playa</option><option value="estrellas">⭐ Estrellas</option><option value="musica">🎵 Música</option>
+          <option value="otono">🍂 Otoño</option><option value="burbujas">🫧 Burbujas</option><option value="navidad">🎄 Navidad</option><option value="halloween">🎃 Halloween</option>
+          <option value="sanvalentin">💘 Amor y amistad</option><option value="velitas">🕯️ Velitas</option>
+        </select>
       </div>
       <div class="settings-row">
         <div class="settings-row-text"><strong>Restablecer colores</strong><span>Vuelve al verde original.</span></div>
@@ -4496,6 +4519,7 @@ function closeTableToHistory(tableId){
     by: (typeof authUser !== 'undefined' && authUser) ? authUser : null   // quién cerró/cobró esta mesa, para el turno de caja
   };
   data.history.unshift(entry);
+  if(!(entry.debt > 0)) try{ window.mesoraCelebrar && window.mesoraCelebrar(['💰', '✨', '🎉']); }catch(e){}
   t.items = [];
   t.payments = [];
   t.people = [];
@@ -9252,8 +9276,19 @@ const FX_SETS = {
   navidad: ['❄️', '❄', '✨', '🎄'],
   halloween: ['🦇', '🎃', '👻', '🕸️'],
   sanvalentin: ['💘', '❤️', '💕', '✨'],
-  velitas: ['🕯️', '✨', '💛', '🌟']
+  velitas: ['🕯️', '✨', '💛', '🌟'],
+  fiesta: ['🎉', '🎊', '✨', '🥳'],
+  futbol: ['⚽', '🏆', '⭐', '🇨🇴'],
+  cerveza: ['🍺', '🍻', '✨', '🥂'],
+  cafe: ['☕', '🥐', '✨', '🤎'],
+  flores: ['🌸', '🌼', '🌺', '🌷'],
+  playa: ['🌴', '☀️', '🍹', '🌊'],
+  estrellas: ['⭐', '✨', '🌟', '💫'],
+  musica: ['🎵', '🎶', '🎸', '✨'],
+  otono: ['🍂', '🍁', '🍃', '🌰'],
+  burbujas: ['🫧', '🫧', '✨', '💧']
 };
+window.FX_SETS_ALL = FX_SETS;
 function fxSet(kind){
   let L = document.getElementById('fxLayer');
   const E = FX_SETS[kind];
@@ -10872,6 +10907,7 @@ document.getElementById('qsChargeBtn').addEventListener('click', async ()=>{
   quickSaleCart = [];
   if(isDom && domActual){ domQuitar(domActual); domActual = null; }
   document.getElementById('quickSaleOverlay').classList.remove('show');
+  if(method !== 'debe') try{ window.mesoraCelebrar && window.mesoraCelebrar(isDom ? ['🛵', '💰', '✨'] : ['💰', '✨', '🎉']); }catch(e){}
   showToast(method === 'debe' ? '⏳ ' + deudor + ' quedó debiendo ' + fmt(total) + '. Está en Historial → Deben.' : (isDom ? '✅ Domicilio facturado: ' + fmt(total) + '.' : '✅ Venta de mostrador registrada: ' + fmt(total) + '.'));
 });
 
@@ -13567,8 +13603,11 @@ function applyPalette(key){
     card.classList.toggle('selected', card.dataset.key === key);
   });
   applyCustomColors();
-  fxSet(palette.fx || null);
+  fxSet(motivoActual(palette.fx));
 }
+// El motivo elegido en Ajustes manda; «Según la temática» usa el de la paleta.
+function motivoActual(deLaPaleta){ const m = data && data.motivo; return m === 'ninguno' ? null : (m || deLaPaleta || null); }
+window.fxSet = fxSet;
 
 // Modo fácil: agranda letras/botones y quita animaciones (gente mayor, táctil).
 // Es aditivo: no cambia la paleta ni el resto del diseño, solo el tamaño/quietud.
@@ -15062,7 +15101,7 @@ function iniAuto(){
 let filtro='todos';
 function pagarDeuda(h,m){
   (h.payments||[]).forEach(p=>{if(p.method==='debe'){p.method=m;p.note=(p.note||'Pago')+' (pagó después)';}});
-  h.debt=0;h.paidLater=new Date().toISOString();saveData();renderHistorial();showToast('Deuda marcada como pagada.');
+  h.debt=0;h.paidLater=new Date().toISOString();saveData();renderHistorial();showToast('Deuda marcada como pagada.');try{window.libretaPintar&&window.libretaPintar();}catch(e){}
 }
 function mejorarHist(){
   if(typeof data==='undefined'||!data)return;
@@ -15973,7 +16012,8 @@ async function publicarCatalogo(force){
     msg: (data.orderMessage || '').slice(0, 200),
     info: (data.orderExtraInfo || '').slice(0, 200),
     oh: data.orderOpenTime || '', ch: data.orderCloseTime || '', hn: (data.orderHoursNote || '').slice(0, 100),
-    mz: musicaOn() ? 1 : 0
+    mz: musicaOn() ? 1 : 0,
+    mo: (data.motivo || '')
   };
   while(list.length && new Blob([JSON.stringify(m)]).size > 3800) list.pop();   // tope de ntfy (~4 KB)
   const s = JSON.stringify(m);
@@ -17859,7 +17899,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-25 · v31';
+const MESORA_VERSION = '2026-09-25 · v32';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 let presDisp = null, presConn = null;
@@ -18989,6 +19029,7 @@ let fotosListas = false;
    50 lucas», «¿cuánto me debe Juan?», «¿quién me debe?», «borra lo último». */
 (function(){
   const LB = () => { if(!data.libreta) data.libreta = { movs: [] }; return data.libreta; };
+  let lbAbrirPersona = null;
   const TIPOS = { debe: '📕 Me debe', abono: '✅ Me pagó', emp: '👷 Pagué a' };
   const $l = id => document.getElementById(id);
   const esc2 = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -19047,17 +19088,66 @@ let fotosListas = false;
     const crudas = String(lbNombre.crudo || '').split(/\s+/).map(x => x.replace(/[^\p{L}]/gu, '')).filter(Boolean);
     return n.split(' ').slice(0, 3).map(x => { const c = crudas.find(r => lbNorm(r) === x) || x; return c.charAt(0).toUpperCase() + c.slice(1).toLowerCase(); }).join(' ');
   }
-  function lbPersonas(){ return [...new Set(LB().movs.map(m => m.persona))]; }
-  function lbSaldo(p){ return LB().movs.filter(m => m.persona === p).reduce((s, m) => s + (m.tipo === 'debe' ? m.monto : m.tipo === 'abono' ? -m.monto : 0), 0); }
+  /* Los fiados de las MESAS también son de la libreta: cuando una cuenta se cierra con
+     «Quedó debiendo», esa deuda aparece aquí con el nombre de quien debe. Un pago anotado
+     en la libreta salda primero esas cuentas (la más vieja primero) y queda en su historial. */
+  const lbHist = () => (typeof data !== 'undefined' && data && data.history) || [];
+  function lbQuienMesa(h){
+    const q = (h.payments || []).filter(x => x.method === 'debe' && x.note && x.note !== 'Saldo sin registrar al cerrar').map(x => x.note);
+    const n = q[0] || h.person || h.tableName || 'Sin nombre';
+    return lbPersonasLib().find(x => lbNorm(x) === lbNorm(n)) || n;
+  }
+  const lbPagoDespues = h => (h.payments || []).filter(x => /pag[oó] despu[eé]s/i.test(x.note || '')).reduce((s, x) => s + (x.amount || 0), 0);
+  const lbAbonosMesa = h => (h.abonosLib || []).reduce((s, x) => s + x.m, 0);
+  const lbDeudaOriginal = h => (h.debt || 0) + lbAbonosMesa(h) + lbPagoDespues(h);
+  const lbFiadosMesa = () => lbHist().filter(h => lbDeudaOriginal(h) > 0 && ((h.debt || 0) > 0 || h.abonosLib || h.paidLater));
+  function lbPersonasLib(){ return [...new Set(LB().movs.map(m => m.persona))]; }
+  function lbPersonas(){ return [...new Set(lbPersonasLib().concat(lbFiadosMesa().map(lbQuienMesa)))]; }
+  const lbMesasDe = p => lbHist().filter(h => (h.debt || 0) > 0 && lbNorm(lbQuienMesa(h)) === lbNorm(p));
+  function lbSaldo(p){
+    const lib = LB().movs.filter(m => m.persona === p).reduce((s, m) => s + (m.tipo === 'debe' ? m.monto : m.tipo === 'abono' ? -(m.monto - (m.aMesas || 0)) : 0), 0);
+    return lib + lbMesasDe(p).reduce((s, h) => s + (h.debt || 0), 0);
+  }
+  // Todo lo que pasó con una persona, en orden: cuándo quedó debiendo y cuándo pagó.
+  function lbHistorial(p){
+    const ev = [];
+    LB().movs.filter(m => m.persona === p).forEach(m => ev.push({ f: m.fecha, t: m.tipo === 'debe' ? '📕 Quedó debiendo' : m.tipo === 'abono' ? '✅ Pagó' : '👷 Le pagaste', m: m.monto, d: m.nota === 'pagó todo' ? 'todo' : '' }));
+    lbHist().filter(h => lbNorm(lbQuienMesa(h)) === lbNorm(p) && lbDeudaOriginal(h) > 0).forEach(h => {
+      ev.push({ f: h.date, t: '📕 Quedó debiendo', m: lbDeudaOriginal(h), d: h.tableName || ('Mesa ' + h.table) });
+      if(lbPagoDespues(h) > 0 && h.paidLater) ev.push({ f: h.paidLater, t: '✅ Pagó', m: lbPagoDespues(h), d: (h.tableName || 'Mesa') + ' · desde Historial' });
+    });
+    return ev.sort((a, b) => new Date(b.f) - new Date(a.f));
+  }
   function lbPagadoMes(p){
     const d = new Date(), ini = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
     return LB().movs.filter(m => m.tipo === 'emp' && m.persona === p && new Date(m.fecha).getTime() >= ini).reduce((s, m) => s + m.monto, 0);
+  }
+  function lbQuitarMov(m){
+    (m.aplic || []).forEach(x => {
+      const h = lbHist().find(y => y.id === x.hid); if(!h) return;
+      h.debt = (h.debt || 0) + x.m;
+      const i = (h.abonosLib || []).findIndex(y => y.f === m.fecha && y.m === x.m); if(i >= 0) h.abonosLib.splice(i, 1);
+      if(h.abonosLib && !h.abonosLib.length) delete h.abonosLib;
+      if(h.debt > 0 && h.paidLater === m.fecha) delete h.paidLater;
+    });
   }
   function lbDeudores(){ return lbPersonas().map(p => [p, lbSaldo(p)]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]); }
   function lbEmpleadosMes(){ return [...new Set(LB().movs.filter(m => m.tipo === 'emp').map(m => m.persona))].map(p => [p, lbPagadoMes(p)]).filter(x => x[1] > 0); }
 
   function lbAgregar(tipo, persona, monto, nota){
     const m = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), tipo, persona, monto: Math.round(monto), nota: nota || '', fecha: new Date().toISOString() };
+    if(tipo === 'abono'){
+      let resto = m.monto; m.aplic = [];
+      lbMesasDe(persona).sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(h => {
+        if(resto <= 0) return;
+        const toma = Math.min(resto, h.debt);
+        h.debt -= toma; resto -= toma;
+        h.abonosLib = (h.abonosLib || []).concat({ f: m.fecha, m: toma });
+        if(h.debt <= 0){ h.debt = 0; h.paidLater = m.fecha; }
+        m.aplic.push({ hid: h.id, m: toma });
+      });
+      m.aMesas = m.monto - resto;
+    }
     LB().movs.push(m); saveData(); lbPintar();
     return m;
   }
@@ -19072,7 +19162,7 @@ let fotosListas = false;
     if(/^(borra|quita|cancela|elimina)( lo| el)? (ultimo|ultima)$|^me equivoque$|^deshacer$/.test(t)){
       if(soloSeguro) return null;
       const m = LB().movs.pop(); if(!m) return { texto: 'No hay nada que borrar.' };
-      saveData(); lbPintar();
+      lbQuitarMov(m); saveData(); lbPintar();
       return { texto: 'Listo, borré: ' + TIPOS[m.tipo].replace(/^\S+ /, '') + ' ' + m.persona + ', ' + plata(m.monto) + '.' };
     }
     // Preguntas
@@ -19091,6 +19181,15 @@ let fotosListas = false;
       if(quien && /\b(pague|pagado)\b/.test(t)){ return { texto: 'Este mes le has pagado a ' + quien + ' ' + plata(lbPagadoMes(quien)) + '.' }; }
       return null;
     }
+    if(/\b(historial|cuentas? de|movimientos?|que ha pasado con|como va)\b/.test(t)){
+      const quien = lbNombre(t.replace(/\b(historial|cuentas?|movimientos?|que ha pasado con|como va)\b/g, ' '));
+      if(quien){
+        const ev = lbHistorial(quien).slice(0, 4);
+        if(!ev.length) return { texto: 'No tengo nada anotado de ' + quien + '.' };
+        lbAbrirPersona = quien;
+        return { texto: quien + ': ' + ev.map(e => e.t.replace(/^\S+ /, '').toLowerCase() + ' ' + plata(e.m) + ' el ' + new Date(e.f).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' })).join('; ') + '. Hoy te debe ' + plata(lbSaldo(quien)) + '.' };
+      }
+    }
     const { monto, resto } = lbMonto(t);
     const todo = /\b(todo|toda la deuda|completo|completa|lo que debia|lo que me debia)\b/.test(t);
     // Pagos a empleados: «le pagué a Pedro», «pagué a María», «pago a Pedro», «le di a Juan», «sueldo de Pedro»
@@ -19107,6 +19206,7 @@ let fotosListas = false;
       if(!(s > 0)) return { texto: persona + ' no te debe nada.' };
       if(!todo && !monto) return { texto: '¿Cuánto te pagó ' + persona + '? Te debe ' + plata(s) + '.' };
       lbAgregar('abono', persona, s, 'pagó todo');
+      try{ window.mesoraCelebrar && window.mesoraCelebrar(['🎉', '💰', '✨']); }catch(e){}
       return { texto: '✅ ' + persona + ' pagó todo (' + plata(s) + '). Ya no te debe nada.' };
     }
     if(!(monto >= 50)) return soloSeguro ? null : { texto: '¿Cuánta plata? Di por ejemplo: «' + persona + ' me debe 20 mil».' };
@@ -19178,12 +19278,14 @@ let fotosListas = false;
       const r = lbEntender(frase); if(r) lbResponder(r.texto);
     };
     ov.addEventListener('click', e => {
+      const dp = e.target.closest('.lb-deudor');
+      if(dp && !e.target.closest('button')){ lbAbrirPersona = lbAbrirPersona === dp.dataset.persona ? null : dp.dataset.persona; lbPintar(); return; }
       const pt = e.target.closest('[data-pagotodo]');
       if(pt){ const r = lbEntender(pt.dataset.pagotodo + ' pagó todo'); if(r) lbResponder(r.texto); return; }
       const del = e.target.closest('[data-borrar]');
       if(del){
         const l = LB().movs, i = l.findIndex(m => m.id === del.dataset.borrar);
-        if(i >= 0 && confirm('¿Borrar este apunte?')){ l.splice(i, 1); saveData(); lbPintar(); }
+        if(i >= 0 && confirm('¿Borrar este apunte?')){ lbQuitarMov(l[i]); l.splice(i, 1); saveData(); lbPintar(); }
       }
     });
     $l('lbMic').onclick = lbEscuchar;
@@ -19192,7 +19294,12 @@ let fotosListas = false;
     if(!$l('libretaOverlay') || !data) return;
     const d = lbDeudores();
     $l('lbTotDeben').textContent = d.length ? plata(d.reduce((s, x) => s + x[1], 0)) : '';
-    $l('lbDeben').innerHTML = d.length ? d.map(([p, s]) => '<div class="lb-fila"><span>' + esc2(p) + '</span><b>' + plata(s) + '</b><button type="button" class="btn-ghost" data-pagotodo="' + esc2(p) + '">✅ Pagó todo</button></div>').join('') : '<div class="lb-vacio">Nadie te debe nada 🎉</div>';
+    $l('lbDeben').innerHTML = d.length ? d.map(([p, s]) => {
+      const mesas = lbMesasDe(p).length;
+      const abierto = lbAbrirPersona === p;
+      return '<div class="lb-fila lb-deudor" data-persona="' + esc2(p) + '"><span>' + esc2(p) + '<small>' + (mesas ? '🍽️ ' + mesas + (mesas === 1 ? ' cuenta de mesa' : ' cuentas de mesa') + ' · ' : '') + 'toca para ver su historial</small></span><b>' + plata(s) + '</b><button type="button" class="btn-ghost" data-pagotodo="' + esc2(p) + '">✅ Pagó todo</button></div>' +
+        (abierto ? '<div class="lb-hist">' + lbHistorial(p).map(e => '<div class="lb-ev"><span>' + e.t + (e.d && e.d !== 'todo' ? ' · ' + esc2(e.d) : e.d === 'todo' ? ' (todo)' : '') + '<small>' + new Date(e.f).toLocaleString('es-CO', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + '</small></span><b>' + plata(e.m) + '</b></div>').join('') + '</div>' : '');
+    }).join('') : '<div class="lb-vacio">Nadie te debe nada 🎉</div>';
     const e = lbEmpleadosMes();
     $l('lbTotEmp').textContent = e.length ? plata(e.reduce((s, x) => s + x[1], 0)) : '';
     $l('lbEmp').innerHTML = e.length ? e.map(([p, s]) => '<div class="lb-fila"><span>' + esc2(p) + '</span><b>' + plata(s) + '</b></div>').join('') : '<div class="lb-vacio">Todavía no hay pagos este mes.</div>';
@@ -19200,6 +19307,8 @@ let fotosListas = false;
     $l('lbMovs').innerHTML = ult.length ? ult.map(m => '<div class="lb-fila lb-mov"><span>' + TIPOS[m.tipo] + ' ' + (m.tipo === 'emp' ? esc2(m.persona) : '· ' + esc2(m.persona)) + '<small>' + new Date(m.fecha).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) + '</small></span><b>' + plata(m.monto) + '</b><button type="button" class="lb-x" data-borrar="' + m.id + '" title="Borrar">🗑</button></div>').join('') : '<div class="lb-vacio">Aquí van a salir tus apuntes.</div>';
   }
   window.libretaAbrir = function(){ lbCrear(); lbPintar(); $l('libretaOverlay').classList.add('show'); };
+  window.libretaPintar = lbPintar;
+  window.libretaSaldo = p => lbSaldo(p);
 
   // ---------- Micrófono propio de la libreta ----------
   let rec = null;
@@ -19248,6 +19357,8 @@ let fotosListas = false;
     '.lb-form input{font-size:20px!important;padding:12px!important}.lb-form-a{display:flex;gap:8px}.lb-form-a button{flex:1;padding:14px;font-size:18px}' +
     '.lb-sec{margin-top:14px}.lb-sec-t{font-size:17px;font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between}' +
     '.lb-fila{display:flex;align-items:center;gap:8px;padding:10px 4px;border-top:1px solid var(--line,#444);font-size:18px}.lb-fila span{flex:1}.lb-fila small{display:block;font-size:12px;opacity:.65}' +
+    '.lb-deudor{cursor:pointer}.lb-hist{margin:0 0 8px 10px;padding:6px 10px;border-left:3px solid var(--amber,#c8a24a);background:rgba(127,127,127,.08);border-radius:0 10px 10px 0;animation:mzIn .25s ease-out}' +
+    '.lb-ev{display:flex;gap:8px;padding:6px 0;font-size:15px}.lb-ev span{flex:1}.lb-ev small{display:block;font-size:12px;opacity:.65}' +
     '.lb-mov{font-size:15px}.lb-x{background:none;border:0;font-size:18px;cursor:pointer;padding:4px}.lb-vacio{opacity:.7;padding:8px 4px}' +
     '#libretaFab{position:fixed;right:14px;bottom:92px;z-index:55;padding:16px 20px;border-radius:30px;border:0;font:800 20px system-ui;background:var(--amber,#c8a24a);color:#1a1410;box-shadow:0 6px 18px rgba(0,0,0,.35);cursor:pointer}';
   document.head.appendChild(st);
@@ -19323,6 +19434,7 @@ let fotosListas = false;
     try{ showToast(msg, 9000); }catch(e){}
     try{ speakVoice('Llegó un ' + p.app + ' de ' + p.monto + ' pesos' + (p.de ? ' de ' + p.de : '') + (mesa ? ', es de la ' + tableLabel(mesa) : '')); }catch(e){}
     if(navigator.vibrate) try{ navigator.vibrate([150, 80, 150]); }catch(e){}
+    try{ window.mesoraCelebrar && window.mesoraCelebrar(['💜', '💰', '✨']); }catch(e){}
     pgPintar();
   }
   window.pagosRecibirTexto = pgRecibir;   // también para pruebas
@@ -19406,6 +19518,47 @@ let fotosListas = false;
     $p('pgLista').innerHTML = g.lista.length ? g.lista.slice(0, 15).map(x => '<div style="display:flex;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:14px"><span style="flex:1">' + escp(x.app) + (x.de ? ' · ' + escp(x.de) : '') + '<br><small style="opacity:.7">' + new Date(x.t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + (x.mesa ? ' · ' + escp(tableLabel(x.mesa)) : '') + '</small></span><b>' + plata(x.monto) + '</b></div>').join('') : '<div class="empty-note">Todavía no ha llegado ningún aviso.</div>';
   }
   const arr = setInterval(() => { if(typeof data !== 'undefined' && data){ clearInterval(arr); pgPintar(); pgConectar(); } }, 1000);
+})();
+</script>
+<script>
+/* Celebración: una explosión de emojis que se desvanece (cobro, pago recibido, pedido enviado).
+   No sale si el celular pide menos movimiento ni en el modo fácil. */
+window.mesoraCelebrar = function(emojis){
+  try{
+    if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if(document.body.classList.contains('easy-mode')) return;
+    const E = Array.isArray(emojis) ? emojis : [emojis || '🎉', '✨'];
+    const box = document.createElement('div'); box.className = 'mz-celebra'; box.setAttribute('aria-hidden', 'true');
+    for(let i = 0; i < 16; i++){
+      const s = document.createElement('span'); s.textContent = E[i % E.length];
+      const a = -Math.PI * (0.05 + Math.random() * 0.9), d = 110 + Math.random() * 170;
+      s.style.setProperty('--dx', Math.round(Math.cos(a) * d) + 'px');
+      s.style.setProperty('--dy', Math.round(Math.sin(a) * d) + 'px');
+      s.style.setProperty('--r', Math.round(Math.random() * 540 - 270) + 'deg');
+      s.style.animationDelay = (Math.random() * 0.12).toFixed(2) + 's';
+      s.style.fontSize = Math.round(18 + Math.random() * 16) + 'px';
+      box.appendChild(s);
+    }
+    document.body.appendChild(box);
+    setTimeout(() => box.remove(), 1500);
+  }catch(e){}
+};
+(function(){
+  const iniMotivo = setInterval(() => {
+    if(typeof data === 'undefined' || !data) return;
+    clearInterval(iniMotivo);
+    const sel = document.getElementById('motivoSel'); if(!sel) return;
+    sel.value = data.motivo || '';
+    if(data.motivo) fxSet(motivoActual(null));
+    sel.onchange = () => {
+      data.motivo = sel.value; saveData();
+      let deLaPaleta = null; try{ deLaPaleta = (PALETTES[data.theme] || {}).fx; }catch(e){}
+      fxSet(motivoActual(deLaPaleta));
+      try{ if(window.vitoPublicarCatalogo) window.vitoPublicarCatalogo(true); }catch(e){}
+      if(sel.value && sel.value !== 'ninguno') window.mesoraCelebrar((window.FX_SETS_ALL || {})[sel.value] || ['✨']);
+      showToast(sel.value === 'ninguno' ? 'Sin motivo.' : '✨ Motivo aplicado. Tus clientes y meseros lo ven en unos segundos.');
+    };
+  }, 800);
 })();
 </script>
 </body>

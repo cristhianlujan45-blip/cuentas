@@ -4,6 +4,55 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <script>
+/* Celebración: una explosión de emojis que se desvanece (cobro, pago recibido, pedido enviado).
+   No sale si el celular pide menos movimiento ni en el modo fácil. */
+window.mesoraCelebrar = function(emojis){
+  try{
+    if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if(document.body.classList.contains('easy-mode')) return;
+    const E = Array.isArray(emojis) ? emojis : [emojis || '🎉', '✨'];
+    const box = document.createElement('div'); box.className = 'mz-celebra'; box.setAttribute('aria-hidden', 'true');
+    for(let i = 0; i < 16; i++){
+      const s = document.createElement('span'); s.textContent = E[i % E.length];
+      const a = -Math.PI * (0.05 + Math.random() * 0.9), d = 110 + Math.random() * 170;
+      s.style.setProperty('--dx', Math.round(Math.cos(a) * d) + 'px');
+      s.style.setProperty('--dy', Math.round(Math.sin(a) * d) + 'px');
+      s.style.setProperty('--r', Math.round(Math.random() * 540 - 270) + 'deg');
+      s.style.animationDelay = (Math.random() * 0.12).toFixed(2) + 's';
+      s.style.fontSize = Math.round(18 + Math.random() * 16) + 'px';
+      box.appendChild(s);
+    }
+    document.body.appendChild(box);
+    setTimeout(() => box.remove(), 1500);
+  }catch(e){}
+};
+var FX_SETS = {
+  navidad: ['❄️', '❄', '✨', '🎄'],
+  halloween: ['🦇', '🎃', '👻', '🕸️'],
+  sanvalentin: ['💘', '❤️', '💕', '✨'],
+  velitas: ['🕯️', '✨', '💛', '🌟'],
+  fiesta: ['🎉', '🎊', '✨', '🥳'],
+  futbol: ['⚽', '🏆', '⭐', '🇨🇴'],
+  cerveza: ['🍺', '🍻', '✨', '🥂'],
+  cafe: ['☕', '🥐', '✨', '🤎'],
+  flores: ['🌸', '🌼', '🌺', '🌷'],
+  playa: ['🌴', '☀️', '🍹', '🌊'],
+  estrellas: ['⭐', '✨', '🌟', '💫'],
+  musica: ['🎵', '🎶', '🎸', '✨'],
+  otono: ['🍂', '🍁', '🍃', '🌰'],
+  burbujas: ['🫧', '🫧', '✨', '💧']
+};
+function fxSet(kind){
+  var L = document.getElementById('fxLayer'), E = FX_SETS[kind];
+  if(!E){ if(L) L.remove(); return; }
+  if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if(!L){ L = document.createElement('div'); L.id = 'fxLayer'; L.setAttribute('aria-hidden', 'true'); document.body.insertBefore(L, document.body.firstChild); }
+  L.innerHTML = '';
+  for(var i = 0; i < 16; i++){ var s = document.createElement('span'); s.textContent = E[i % 4];
+    s.style.cssText = 'left:' + (Math.random() * 100) + 'vw;font-size:' + (12 + Math.random() * 14) + 'px;animation-duration:' + (9 + Math.random() * 10) + 's,' + (3 + Math.random() * 3) + 's;animation-delay:' + (-Math.random() * 14) + 's,0s'; L.appendChild(s); }
+}
+</script>
+<script>
 /* Pantalla siempre al ancho del celular: si Chrome abre la página como «sitio para computadoras»
    (o el celular la dibuja más ancha que la pantalla), se agranda sola para no tener que hacer zoom. */
 (function(){
@@ -107,6 +156,23 @@
   .setup input{ width:100%; height:50px; padding:0 14px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit; font-size:17px; text-align:center; margin:14px 0 10px; }
   .setup button{ width:100%; height:50px; border-radius:12px; border:0; background:var(--acc); color:#fff; font-weight:800; font-size:16px; }
   .hint{ color:var(--soft); font-size:13px; text-align:center; margin:4px 0 12px; }
+/* ---------- Animaciones de Mesora (las mismas en las 3 apps) ---------- */
+@keyframes mzIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes mzPop{0%{opacity:0;transform:scale(.9)}65%{opacity:1;transform:scale(1.02)}100%{opacity:1;transform:none}}
+@keyframes mzBurst{0%{opacity:0;transform:translate(0,0) scale(.4)}15%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.25) rotate(var(--r))}}
+@keyframes mzLatido{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
+.mz-celebra{position:fixed;left:50%;top:55%;width:0;height:0;pointer-events:none;z-index:99999}
+.mz-celebra span{position:absolute;left:0;top:0;opacity:0;animation:mzBurst 1.15s cubic-bezier(.15,.7,.3,1) forwards}
+button{transition:transform .12s ease, filter .15s ease}
+button:not(:disabled):active{transform:scale(.95);filter:brightness(1.08)}
+@keyframes fxFall{to{transform:translateY(112vh)}}@keyframes fxSway{from{margin-left:-14px}to{margin-left:14px}}
+#fxLayer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+#fxLayer span{position:absolute;top:-30px;opacity:.5;animation:fxFall linear infinite,fxSway ease-in-out infinite alternate}
+.primera .mesa{animation:mzIn .35s ease-out both}
+.primera .mesa:nth-child(2){animation-delay:.03s}.primera .mesa:nth-child(3){animation-delay:.06s}.primera .mesa:nth-child(4){animation-delay:.09s}
+.primera .mesa:nth-child(5){animation-delay:.12s}.primera .mesa:nth-child(6){animation-delay:.15s}.primera .mesa:nth-child(n+7){animation-delay:.18s}
+.mesa.abierta{transition:transform .15s ease}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}#fxLayer{display:none}}
 </style>
 </head>
 <body>
@@ -181,7 +247,7 @@
   function recibir(txt){
     var m; try{ m = JSON.parse(txt); }catch(e){ return; }
     if(!m) return;
-    if(m.r && pendientes[m.r]){ delete pendientes[m.r]; toast((m.ok || []).join('\n') || '✅ Listo.', 5000); if(navigator.vibrate) navigator.vibrate(60); return; }
+    if(m.r && pendientes[m.r]){ delete pendientes[m.r]; toast((m.ok || []).join('\n') || '✅ Listo.', 5000); if(navigator.vibrate) navigator.vibrate(60); try{ mesoraCelebrar(['✅', '🍻', '✨']); }catch(e){} return; }
     if(m.e && m.m){ if(m.t && m.t < ultimoEstado) return; ultimoEstado = m.t || Date.now(); estado = m; pintarMesas(); pintarSheet(); }
   }
   function conectar(){
@@ -200,7 +266,7 @@
     fetch('https://ntfy.sh/' + T_CAT + '/json?poll=1&since=12h', { cache: 'no-store' }).then(function(r){ return r.text(); }).then(function(t){
       var ls = t.trim().split('\n'), last = null;
       ls.forEach(function(l){ try{ var j = JSON.parse(l); if(j.event === 'message') last = j; }catch(e){} });
-      if(last){ var c = JSON.parse(last.message); cat = c.p || []; try{ localStorage.setItem('mes_carta', JSON.stringify(cat)); }catch(e){} if(c.n && !estado) $('biz').textContent = c.n; pintarProds(); }
+      if(last){ var c = JSON.parse(last.message); cat = c.p || []; try{ fxSet(c.mo === 'ninguno' ? null : (c.mo || c.th)); }catch(e){} try{ localStorage.setItem('mes_carta', JSON.stringify(cat)); }catch(e){} if(c.n && !estado) $('biz').textContent = c.n; pintarProds(); }
     }).catch(function(){});
     try{ if(!cat.length) cat = JSON.parse(localStorage.getItem('mes_carta') || '[]'); }catch(e){}
   }
@@ -210,6 +276,8 @@
     $('biz').textContent = estado.b || 'Mesora';
     pintarEstado();
     var g = $('mesas'); g.innerHTML = '';
+    // Las mesas entran con animación solo la primera vez (luego se repintan en vivo sin parpadear).
+    g.classList.toggle('primera', !g.dataset.pintada); g.dataset.pintada = '1';
     estado.m.forEach(function(x){
       var b = document.createElement('button'); b.type = 'button'; b.className = 'mesa' + (x.t > 0 || (x.it && x.it.length) ? ' abierta' : '');
       b.innerHTML = '<b>' + esc(x.n) + '</b>' + (x.t > 0 ? '<span class="tot">' + fmt(x.t) + '</span><span class="vac">' + (x.it || []).reduce(function(a, y){ return a + (y[1] || 0); }, 0) + ' productos</span>' : '<span class="vac">Libre</span>');
