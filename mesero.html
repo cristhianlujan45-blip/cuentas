@@ -159,7 +159,7 @@
     $('estado').textContent = 'Conectado' + (min > 5 ? ' · última noticia hace ' + min + ' min' : '');
   }
   function cargarCarta(){
-    fetch('https://ntfy.sh/' + T_CAT + '/json?poll=1&since=4h').then(function(r){ return r.text(); }).then(function(t){
+    fetch('https://ntfy.sh/' + T_CAT + '/json?poll=1&since=12h', { cache: 'no-store' }).then(function(r){ return r.text(); }).then(function(t){
       var ls = t.trim().split('\n'), last = null;
       ls.forEach(function(l){ try{ var j = JSON.parse(l); if(j.event === 'message') last = j; }catch(e){} });
       if(last){ var c = JSON.parse(last.message); cat = c.p || []; try{ localStorage.setItem('mes_carta', JSON.stringify(cat)); }catch(e){} if(c.n && !estado) $('biz').textContent = c.n; pintarProds(); }
@@ -273,9 +273,9 @@
     conectar(); cargarCarta();
     // Saluda al celular principal (así sabe quién está conectado y publica las mesas).
     fetch('https://ntfy.sh/' + T_MES, { method: 'POST', body: JSON.stringify({ k: 'hola', mesero: yo }) }).catch(function(){});
-    setInterval(cargarCarta, 10 * 60000);
+    setInterval(cargarCarta, 2 * 60000);
     setInterval(pintarEstado, 30000);
-    document.addEventListener('visibilitychange', function(){ if(!document.hidden){ fetch('https://ntfy.sh/' + T_MES, { method: 'POST', body: JSON.stringify({ k: 'hola', mesero: yo }) }).catch(function(){}); } });
+    document.addEventListener('visibilitychange', function(){ if(!document.hidden){ cargarCarta(); fetch('https://ntfy.sh/' + T_MES, { method: 'POST', body: JSON.stringify({ k: 'hola', mesero: yo }) }).catch(function(){}); } });
   }
   if(!yo) pedirNombre(); else iniciar();
 })();

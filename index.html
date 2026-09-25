@@ -1656,6 +1656,14 @@
   .yt-recon[hidden]{ display:none; }
   .yt-recon span{ flex:1; }
   .yt-recon button{ flex:none; padding:9px 14px; }
+  .prod-buscar{ position:relative; margin:10px 0 8px; }
+  .prod-buscar input{ width:100%; box-sizing:border-box; height:46px; padding:0 70px 0 14px; border-radius:12px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font:500 15px var(--font-main); }
+  .prod-buscar input:focus{ outline:none; border-color:var(--amber); }
+  .prod-buscar span{ position:absolute; right:12px; top:50%; transform:translateY(-50%); font-size:12px; color:var(--ink-soft); pointer-events:none; }
+  .cat-live{ display:flex; align-items:center; gap:10px; margin:0 0 10px; padding:9px 12px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line); font-size:12.5px; line-height:1.4; color:var(--ink-soft); }
+  .cat-live span{ flex:1; }
+  .cat-live button{ flex:none; padding:7px 10px; font-size:12.5px; }
+  mark.pb{ background:color-mix(in srgb, var(--amber) 35%, transparent); color:inherit; border-radius:3px; padding:0 1px; }
   .acc-users{ display:flex; flex-direction:column; gap:6px; margin:8px 0; }
   .acc-user{ display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line); font-size:14px; }
   .acc-user b{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
@@ -2477,6 +2485,11 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       <div class="pp-status" id="photoStatus">Reconociendo producto…</div>
     </div>
     <div class="voice-product-hint" id="voiceProductHint">📷 La cámara identifica productos con IA. 🎤 La voz entiende español colombiano, variantes de nombres y cantidades; con tu API key puede interpretar mejor la orden. “agregar producto Póker, precio cinco mil” o “crear producto papas Margarita a seis mil quinientos”.</div>
+    <div class="prod-buscar">
+      <input type="search" id="prodBuscar" placeholder="🔎 Buscar producto: nombre, tamaño o categoría" autocomplete="off" enterkeyhint="search">
+      <span id="prodBuscarN"></span>
+    </div>
+    <div class="cat-live" id="catLive"><span id="catLiveTxt">La carta de los clientes se actualiza sola cuando cambias un producto.</span><button type="button" class="btn-ghost" id="catLiveBtn">📤 Actualizar carta ahora</button></div>
     <div class="product-list" id="productList"></div>
   </section>
 
@@ -5825,6 +5838,7 @@ function voiceSepararProductos(items){
   });
   return out;
 }
+{ const _mpv = matchProductVoice; matchProductVoice = function(t){ const r = _mpv.apply(this, arguments); if(r || !data || !data.renombres) return r; const n = normVoiceText(t || ''); const k = Object.keys(data.renombres).find(x => normVoiceText(x) === n); return k ? _mpv(nombreVigente(k)) : r; }; }
 { const _pvc = parseVoiceCommand; parseVoiceCommand = function(raw){ const r = _pvc.apply(this, arguments); if(r && r.items) r.items = voiceSepararProductos(r.items); return r; }; }
 let voiceModoIA = false;
 // Corrige lo que el reconocedor de voz del celular suele escribir mal:
@@ -11953,8 +11967,23 @@ function renderProductos(){
     products = products.filter(p=>p.categoryId === currentCategoryFilter);
   }
 
+  // Buscador: todas las palabras escritas deben aparecer en el nombre, tamaño, categoría o
+  // especificaciones (sin importar tildes ni mayúsculas).
+  const qEl = document.getElementById('prodBuscar'), qRaw = qEl ? qEl.value.trim() : '';
+  const sinTilde = x => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const qWords = sinTilde(qRaw).split(/\s+/).filter(Boolean);
+  if(qWords.length){
+    products = data.products.filter(p => { const h = sinTilde([p.name, p.size, p.categoryId ? categoryName(p.categoryId) : '', Array.isArray(p.specifications) ? p.specifications.join(' ') : p.specifications].join(' ')); return qWords.every(w => h.includes(w)); });
+  }
+  const nEl = document.getElementById('prodBuscarN');
+  if(nEl) nEl.textContent = qWords.length ? products.length + ' de ' + data.products.length : data.products.length + ' productos';
   if(data.products.length === 0){
     list.innerHTML = '<div class="empty-state">Todavía no tienes productos. Agrega tu primera referencia arriba — por ejemplo, una cerveza o una bebida del menú.</div>';
+    return;
+  }
+  if(qWords.length && products.length === 0){
+    list.innerHTML = '<div class="empty-state">No encontré «' + invEsc(qRaw) + '». <button type="button" class="btn-ghost" id="prodBuscarCrear">➕ Crear «' + invEsc(qRaw) + '»</button></div>';
+    document.getElementById('prodBuscarCrear').onclick = () => { const n = document.getElementById('prodName'); n.value = qRaw; qEl.value = ''; renderProductos(); n.scrollIntoView({ block: 'center' }); n.focus(); };
     return;
   }
   if(products.length === 0){
@@ -11971,7 +12000,7 @@ function renderProductos(){
     row.innerHTML = `
       <div class="p-name-wrap">
         ${typeof prodFotoThumbHtml === 'function' ? prodFotoThumbHtml(p) : ''}
-        <span class="p-name">${p.name}</span>
+        <span class="p-name">${qWords.length ? invEsc(p.name).replace(new RegExp('(' + qWords.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi'), '<mark class="pb">$1</mark>') : p.name}</span>
         ${p.size ? `<span class="p-size">📦 ${p.size}</span>` : ''}
         ${tag}
         ${invChip(p)}
@@ -12215,6 +12244,8 @@ function saveEditedProduct(){
   showToast('✅ Producto actualizado.' + avisoMesasActualizadas(nMesas), nMesas ? 4500 : undefined);
 }
 
+document.getElementById('prodBuscar').addEventListener('input', () => renderProductos());
+document.getElementById('catLiveBtn').addEventListener('click', () => { if(typeof window.vitoPublicarCatalogo === 'function'){ window.vitoPublicarCatalogo(true); showToast('📤 Publicando la carta…'); } });
 document.getElementById('editProdCancelBtn').addEventListener('click', closeEditProductModal);
 document.getElementById('editProdSaveBtn').addEventListener('click', saveEditedProduct);
 editProductOverlay.addEventListener('click', (e)=>{ if(e.target === editProductOverlay) closeEditProductModal(); });
@@ -15406,7 +15437,7 @@ function snapMesa(id){
 }
 /* ---------- Menú (restaurante/cafetería) o catálogo (cervecería/tienda) para el QR ---------- */
 let catHash = '', catT = 0;
-function catEstado(t){ const e = $('catPubEstado'); if(e) e.textContent = t; }
+function catEstado(t){ const e = $('catPubEstado'); if(e) e.textContent = t; const l = $('catLiveTxt'); if(l) l.textContent = 'Carta de los clientes: ' + t.replace(/^✅ /, '✅ ').replace(/^🟠 /, '🟠 '); }
 // Unidades vendidas por producto (todo el historial), para publicar cada
 // categoría del catálogo con lo más vendido primero en vez de alfabético.
 function productSalesUnits(){
@@ -15454,8 +15485,9 @@ window.vitoPublicarCatalogo = publicarCatalogo;
 // Lo que usan las fotos de la carta y la transmisión al TV (script del final).
 window.vitoMod = { linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena };
 function publicarCuentas(){
-  if(typeof data==='undefined'||!data||!qCfg().live)return;
-  try{publicarCatalogo();}catch(e){}
+  if(typeof data==='undefined'||!data)return;
+  try{publicarCatalogo();}catch(e){}             // la carta se publica siempre (aunque "en vivo" esté apagado)
+  if(!qCfg().live)return;
   Object.keys(data.tables).forEach(k=>{
     const id=+k,sn=snapMesa(id),h=JSON.stringify(Object.assign({},sn,{t:0}));
     if(pubHash[id]===h)return;
@@ -17324,7 +17356,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
    la Pantalla del TV de Mesora (tv.html) y reproduce la cola en vivo: cada canción que piden las
    mesas entra sola. Los Smart TV LG/Samsung sin Chromecast no aparecen aquí (solo los ve la app
    de YouTube): para esos están los botones de YouTube Music / YouTube. */
-const MESORA_VERSION = '2026-09-24 · v19';
+const MESORA_VERSION = '2026-09-24 · v20';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }

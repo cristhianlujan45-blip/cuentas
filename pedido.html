@@ -1240,14 +1240,25 @@ async function cargarCat(){
   pintarCat();if(!c){pintarCat(true);return}
   try{
     const ctrl=new AbortController(),tmo=setTimeout(()=>ctrl.abort(),6000);
-    const r=await fetch('https://ntfy.sh/'+c+'k/json?poll=1&since=4h',{signal:ctrl.signal});
+    const r=await fetch('https://ntfy.sh/'+c+'k/json?poll=1&since=12h',{signal:ctrl.signal,cache:'no-store'});
     clearTimeout(tmo);
     const ls=(await r.text()).trim().split('\n').filter(Boolean);
     for(let i=ls.length-1;i>=0;i--){const m=JSON.parse(ls[i]);if(m.event==='message'){cat=JSON.parse(m.message);jset('cat_'+c,cat);applyTh(cat.th);break}}
   }catch(e){}
   await cargarFotos();
   pintarCat(true);pintarSug();
+  catEnVivo();
 }
+/* La carta se actualiza sola mientras el cliente la tiene abierta: cuando el negocio cambia un
+   precio o un nombre, llega por el mismo canal y se vuelve a pintar (sin recargar la página). */
+let catES=null;
+function catEnVivo(){
+  if(!c||catES||!window.EventSource)return;
+  try{catES=new EventSource('https://ntfy.sh/'+c+'k/sse?since='+Math.floor(Date.now()/1000));}catch(e){return}
+  catES.onmessage=ev=>{try{const m=JSON.parse(ev.data);if(m.event!=='message')return;cat=JSON.parse(m.message);jset('cat_'+c,cat);applyTh(cat.th);const abierta=!$('carta').hidden;pintarCat(abierta);pintarSug();}catch(e){}};
+  catES.onerror=()=>{if(catES&&catES.readyState===2){catES=null;setTimeout(catEnVivo,5000);}};
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){cargarCat();}});
 
 /* ---------- Efectos de temporada (nieve, murciélagos, corazones, velitas…) ---------- */
 const FX_SETS = {
