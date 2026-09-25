@@ -2733,6 +2733,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       <button type="button" class="ajustes-cat ajustes-cat-danger" data-cat="peligro"><span class="ac-icon">⚠️</span><span class="ac-label">Zona de riesgo</span><span class="ac-arrow">›</span></button>
     </div>
     <button type="button" class="btn-ghost ajustes-back" id="ajustesBackBtn" hidden>← Volver a categorías</button>
+    <div class="settings-desc" id="appVersionEl" style="text-align:center;opacity:.75;margin:14px 0 4px"></div>
 
     <div class="settings-group" hidden data-cat="peligro">
       <h2>Restablecer</h2>
@@ -13309,7 +13310,7 @@ document.getElementById('supportWaBtn').addEventListener('click', () => {
   const urgency = SUPPORT_URGENCY_LABELS[document.getElementById('supportUrgency').value];
   const detail = document.getElementById('supportMsg').value.trim();
   const lines = [
-    'Hola, les escribo desde la app Mesora.',
+    'Hola, les escribo desde la app Mesora (' + (typeof MESORA_VERSION !== 'undefined' ? MESORA_VERSION : '') + ').',
     'Tipo: ' + type,
     'Urgencia: ' + urgency,
     authUser ? 'Usuario: ' + authUser + (data && data.businessName ? ' · ' + data.businessName : '') : ''
@@ -17816,6 +17817,8 @@ function castBuscarYTransmitir(){ transmitirTV(); }
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
 const MESORA_VERSION = '2026-09-25 · v28';
+// Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
+try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
