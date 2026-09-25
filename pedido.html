@@ -1201,9 +1201,18 @@ function tickOrderClock(){
 }
 tickOrderClock();
 setInterval(tickOrderClock,1000);
+/* Locales sin música: el catálogo trae mz:0 y se esconde la pestaña de pedir canción.
+   Si el catálogo todavía no llegó (o es viejo, sin mz), se deja visible como siempre. */
+function aplicarMusicaCliente(){
+  const on=!(cat&&cat.mz===0),tab=$('tc');
+  if(!tab)return;
+  tab.hidden=!on;
+  if(!on&&modo=='c')set('p');
+}
 function pintarCat(fin){
   pintarBizName();
   pintarInfoBar();
+  aplicarMusicaCliente();
   const box=$('cat');box.textContent='';
   const ps=cat&&Array.isArray(cat.p)?cat.p:[],esMenu=catT()==='Menú';
   $('catT').textContent=t(esMenu?'tituloMenu':'tituloCarta');

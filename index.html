@@ -2451,7 +2451,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
         <button data-view="estadisticas" class="nav-extra"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M6.5 16v-5M11.5 16V6M16.5 16V9"/></svg><span class="nav-lbl">Estadísticas</span></button>
         <button data-view="carta" id="cartaTab" class="nav-extra"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4.5h6a3 3 0 0 1 3 3V20a2.5 2.5 0 0 0-2.5-2.5H3z"/><path d="M21 4.5h-6a3 3 0 0 0-3 3V20a2.5 2.5 0 0 1 2.5-2.5H21z"/></svg><span class="nav-lbl">Carta</span></button>
         <button data-view="historial" class="nav-extra"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5M12 7.5V12l3 2"/></svg><span class="nav-lbl">Historial</span></button>
-        <button data-view="musica" class="nav-extra"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><span class="nav-lbl">Música</span></button>
+        <button data-view="musica" class="nav-extra" data-mus="1"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><span class="nav-lbl">Música</span></button>
         <button data-view="ajustes" class="nav-extra"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg><span class="nav-lbl">Ajustes</span></button>
       </nav>
       <button type="button" class="nav-more" id="navMoreBtn" aria-haspopup="dialog"><svg class="nav-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="3.5"/></svg><span class="nav-lbl">Más</span></button>
@@ -2892,6 +2892,15 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
     </div>
 
     <div class="settings-group" hidden data-cat="negocio">
+      <h2>🎵 Música del local</h2>
+      <div class="settings-desc">No todos los locales ponen música. Si la apagas, desaparece la sección de Música de tu app y a tus clientes no les aparece la pestaña de «Pedir canción» en el QR de la mesa: solo pueden pedir productos y la cuenta. Puedes volver a encenderla cuando quieras.</div>
+      <div class="settings-row">
+        <div class="settings-row-text"><strong>Permitir música en el local</strong><span>Apágalo si en tu local no se pone música.</span></div>
+        <label class="switch"><input type="checkbox" id="musicOnToggle"><span class="switch-slider"></span></label>
+      </div>
+    </div>
+
+    <div class="settings-group" hidden data-cat="negocio">
       <h2>🛵 Domicilios</h2>
       <div class="settings-desc">Para restaurantes y bares que también entregan a domicilio. Si lo activas, aparece un botón "🛵 Domicilio" junto a "Venta rápida" para facturar el pedido con cliente, dirección y el valor del envío, sin necesidad de abrir una mesa.</div>
       <div class="settings-row">
@@ -3202,7 +3211,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       <button type="button" class="more-tile" data-go="estadisticas"><span class="more-ic">📊</span><strong>Estadísticas</strong><small>Ventas y ganancias</small></button>
       <button type="button" class="more-tile" data-go="carta"><span class="more-ic" id="moreCartaIc">📖</span><strong id="moreCartaLbl">Carta</strong><small>Lo que ven tus clientes</small></button>
       <button type="button" class="more-tile" data-go="historial"><span class="more-ic">🧾</span><strong>Historial</strong><small>Cuentas cerradas y fiados</small></button>
-      <button type="button" class="more-tile" data-go="musica"><span class="more-ic">🎵</span><strong>Música</strong><small>Canciones que piden</small></button>
+      <button type="button" class="more-tile" data-mus="1" data-go="musica"><span class="more-ic">🎵</span><strong>Música</strong><small>Canciones que piden</small></button>
       <button type="button" class="more-tile" data-go="ajustes"><span class="more-ic">⚙️</span><strong>Ajustes</strong><small>Configura tu negocio</small></button>
       <button type="button" class="more-tile more-tile-ia" data-go="ia"><span class="more-ic more-ic-mesi"><i class="mesi-wrap" data-mesi="static" style="width:30px;height:30px"></i></span><strong>Mesi (IA)</strong><small>Pregúntale lo que sea</small></button>
     </div>
@@ -3946,6 +3955,7 @@ async function loadData(){
   if(data.easyMode === undefined) data.easyMode = false;
   if(data.tipsOn === undefined) data.tipsOn = false;
   if(data.domiciliosOn === undefined) data.domiciliosOn = false;
+  if(data.musicOn === undefined) data.musicOn = true;   // los locales que ya la usaban la conservan
   if(data.nequiOn === undefined) data.nequiOn = false;
   if(data.nequiNumber === undefined) data.nequiNumber = '';
   if(data.nequiName === undefined) data.nequiName = '';
@@ -13828,6 +13838,17 @@ function showAuth(firstRun){
     }
   };
 }
+// Locales sin música: se esconden todas las entradas a la sección (barra de abajo, «Más
+// secciones» y el menú de la campana). A los clientes se les avisa por el catálogo (campo mz).
+const musicaOn = () => data.musicOn !== false;
+function aplicarMusica(){
+  const on = musicaOn();
+  document.querySelectorAll('[data-mus="1"]').forEach(el => { el.hidden = !on; });
+  if(!on){
+    const act = document.querySelector('nav button.active');
+    if(act && act.dataset.view === 'musica'){ const b = document.querySelector('nav button[data-view="mesas"]'); if(b) b.click(); }
+  }
+}
 function wireAccountUI(){
   document.getElementById('accUserLabel').textContent = authUser;
   const sel = document.getElementById('accType');
@@ -13860,6 +13881,17 @@ function wireAccountUI(){
   ai.checked = voiceAiOn();
   ai.onchange = () => { localStorage.setItem(VOICE_AI_KEY, ai.checked ? '1' : '0'); voiceAIBtnSync(); };
   voiceAIBtnSync();
+  const musToggle = document.getElementById('musicOnToggle');
+  if(musToggle){
+    musToggle.checked = musicaOn();
+    musToggle.onchange = () => {
+      data.musicOn = musToggle.checked;
+      saveData();
+      aplicarMusica();
+      try{ publicarCatalogo(true); }catch(e){}   // que las mesas lo vean de una vez
+      showToast(data.musicOn ? '🎵 Música activada: tus clientes ya pueden pedir canciones.' : '🔇 Música apagada: tus clientes ya no verán «Pedir canción».');
+    };
+  }
   const domToggle = document.getElementById('domiciliosOnToggle');
   if(domToggle){
     domToggle.checked = !!data.domiciliosOn;
@@ -14400,7 +14432,8 @@ bootApp();
     menu=document.createElement('div'); menu.className='vito-campana-menu';
     const bPed=document.createElement('button'); bPed.textContent='📝 Pegar pedido de WhatsApp';
     bPed.onclick=()=>{menu.style.display='none';if(window.vitoAbrirPedidos)window.vitoAbrirPedidos();};
-    const bMus=document.createElement('button'); bMus.textContent='🎵 Ver cola de música';
+    const bMus=document.createElement('button'); bMus.textContent='🎵 Ver cola de música'; bMus.dataset.mus='1';
+    try{ bMus.hidden=!musicaOn(); }catch(e){}   // este menú se arma después del arranque
     bMus.onclick=()=>{menu.style.display='none';const nv=document.querySelector('nav button[data-view="musica"]');if(nv)nv.click();};
     const bAdj=document.createElement('button'); bAdj.textContent='🔊 Ajustes de voz';
     bAdj.onclick=()=>{menu.style.display='none';abrirAjustes();};
@@ -15509,7 +15542,8 @@ async function publicarCatalogo(force){
     // reloj + aviso de abierto/cerrado). Todo opcional, se manda tal cual.
     msg: (data.orderMessage || '').slice(0, 200),
     info: (data.orderExtraInfo || '').slice(0, 200),
-    oh: data.orderOpenTime || '', ch: data.orderCloseTime || '', hn: (data.orderHoursNote || '').slice(0, 100)
+    oh: data.orderOpenTime || '', ch: data.orderCloseTime || '', hn: (data.orderHoursNote || '').slice(0, 100),
+    mz: musicaOn() ? 1 : 0
   };
   while(list.length && new Blob([JSON.stringify(m)]).size > 3800) list.pop();   // tope de ntfy (~4 KB)
   const s = JSON.stringify(m);
@@ -18356,6 +18390,7 @@ let fotosListas = false;
   try{ iniMeseros(); }catch(e){ mesoraLogError('arranque', 'Meseros: ' + e.message, ''); }
   try{ iniConta(); }catch(e){ mesoraLogError('arranque', 'Contabilidad: ' + e.message, ''); }
   try{ aplicarModoMesero(); }catch(e){}
+  try{ aplicarMusica(); }catch(e){}
   licCargar().then(licDesdeLink).catch(e => mesoraLogError('arranque', 'Licencia: ' + e.message, ''));
   window.addEventListener('hashchange', () => { licDesdeLink(); });   // link abierto con Mesora ya abierta
   fotosCargar().then(() => { fotosListas = true; try{ renderProductos(); }catch(e){} publicarFotosCarta(); });
