@@ -15751,10 +15751,15 @@ function cargarLista(){
   if(!yCfg().cid){showToast('Primero pega tu Client ID de Google (más abajo).');return;}
   if(!yTok())yConectar(false);else yPendientes();
 }
-function yConectar(silencio){
+function yConectar(silencio,cb){
+  // cb (opcional) avisa cuando el intento terminó (con o sin éxito), para que
+  // quien llamó (ej. el botón "Conectar mi cuenta de YouTube" en YouTube del
+  // TV) pueda refrescar su propio estado en pantalla apenas se sepa el
+  // resultado, en vez de adivinar con un tiempo fijo.
+  const listo=()=>{ if(typeof cb==='function'){ try{cb();}catch(e){} } };
   const c=yCfg();
-  if(!c.cid){if(!silencio)showToast('Pega primero tu Client ID de Google.');return;}
-  if(!window.google||!google.accounts){if(!silencio)showToast('No cargó Google. Revisa el internet.');return;}
+  if(!c.cid){if(!silencio)showToast('Pega primero tu Client ID de Google.');listo();return;}
+  if(!window.google||!google.accounts){if(!silencio)showToast('No cargó Google. Revisa el internet.');listo();return;}
   // Google bloquea el inicio de sesión ("Error 400: invalid_request ... no
   // cumple la política de OAuth 2.0") cuando la app se abre como archivo
   // (file://) o desde una dirección http sin candado. Se avisa antes de
@@ -15762,12 +15767,12 @@ function yConectar(silencio){
   const segura = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
   if(!segura){
     if(!silencio) showToast('⚠️ Google no deja conectar desde aquí: la app está abierta como ' + (location.protocol === 'file:' ? 'archivo del teléfono/PC' : 'dirección sin https') + '. Ábrela desde tu dirección https (por ejemplo tu página de GitHub Pages) y registra esa dirección en Google Cloud → Credenciales → Orígenes de JavaScript autorizados.', 9000);
-    return;
+    listo();return;
   }
-  yTC=yTC||google.accounts.oauth2.initTokenClient({client_id:c.cid,scope:'https://www.googleapis.com/auth/youtube',callback:r=>{
-    if(r.error){if(!yTC.silencio)showToast('Google: '+r.error);yAvisoReconectar();return;}
+  yTC=yTC||google.accounts.oauth2.initTokenClient({client_id:c.cid,scope:'https://www.googleapis.com/auth/youtube',callback:async r=>{
+    if(r.error){if(!yTC.silencio)showToast('Google: '+r.error);yAvisoReconectar();listo();return;}
     try{localStorage.setItem('vito_ytok',JSON.stringify({t:r.access_token,exp:Date.now()+(r.expires_in-120)*1000}));}catch(e){sessionStorage.setItem('vito_ytok',JSON.stringify({t:r.access_token,exp:Date.now()+(r.expires_in-120)*1000}));}
-    const x=yCfg();x.on=true;SS('vito_yt',x);yEstado();yAvisoReconectar();yQuien();yPendientes(yTC.silencio);}});
+    const x=yCfg();x.on=true;SS('vito_yt',x);yEstado();yAvisoReconectar();await yQuien();yPendientes(yTC.silencio);listo();}});
   yTC.silencio=!!silencio;
   yTC.requestAccessToken({prompt:silencio?'none':''});
 }
@@ -17961,7 +17966,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-25 · v38';
+const MESORA_VERSION = '2026-09-25 · v39';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 let presDisp = null, presConn = null;
@@ -18698,8 +18703,17 @@ function iniLounge(){
   document.getElementById('lngCuenta').onclick = () => {
     const m = vm(), y = m.yCfg ? m.yCfg() : {};
     if(!y.cid){ showToast('Para entrar con tu cuenta de YouTube primero hay que pegar el «Client ID de Google» en Música → ▶ YouTube Music automático (ahí están los pasos). Mientras tanto las canciones se buscan con la clave o con la búsqueda libre.', 10000); const k = document.getElementById('ytCid'); if(k){ k.scrollIntoView({ block: 'center', behavior: 'smooth' }); } return; }
-    m.yConectar(false);
-    setTimeout(lngEstado, 4000);
+    // Antes se refrescaba el estado con un tiempo fijo (4s) adivinando que ya
+    // había terminado — si la ventana de Google tardaba más (elegir cuenta,
+    // poner contraseña, aprobar permisos), el botón se quedaba diciendo
+    // "Conectar" aunque sí se hubiera conectado, y parecía que no pasó nada.
+    // Ahora se avisa apenas Google responde de verdad (con o sin éxito).
+    const btn = document.getElementById('lngCuenta');
+    btn.disabled = true; btn.textContent = '⏳ Conectando con tu cuenta de Google…';
+    let terminado = false;
+    const refrescar = () => { if(terminado) return; terminado = true; btn.disabled = false; lngEstado(); };
+    m.yConectar(false, refrescar);
+    setTimeout(refrescar, 20000); // respaldo por si la ventana de Google se quedó abierta sin responder
   };
   document.getElementById('lngVerLog').onclick = () => {
     const box = document.getElementById('lngLogBox');
@@ -19132,13 +19146,20 @@ let fotosListas = false;
     while(i < w.length){
       const esNum = x => /^\d+$/.test(x) || U[x] !== undefined || MIL.test(x) || MILLON.test(x);
       if(!esNum(w[i]) || w[i] === 'una' && !(w[i + 1] && (MIL.test(w[i + 1]) || MILLON.test(w[i + 1])))){ i++; continue; }
-      let j = i, total = 0, grupo = 0;
+      let j = i, total = 0, grupo = 0, huboMil = false;
       while(j < w.length){
         const x = w[j];
-        if(/^\d+$/.test(x)) grupo += Number(x);
-        else if(U[x] !== undefined) grupo += U[x];
-        else if(MIL.test(x)){ total += (grupo || 1) * 1000; grupo = 0; }
-        else if(MILLON.test(x)){ total = (total + (grupo || 1)) * 1e6; grupo = 0; }
+        // Si ya se cerró un «mil»/«millón» en este mismo número y el que sigue
+        // TAMBIÉN trae su propio «mil»/«millón» (ej. «10 mil 15 mil»), es otra
+        // cantidad aparte, no la misma — así se pueden decir varias cantidades
+        // seguidas, sin pausa ni «más» entre ellas, y no se pegan como una
+        // sola («veinte mil quinientos» sigue siendo un solo número porque
+        // «quinientos» no repite «mil»).
+        const otraCantidad = huboMil && (MIL.test(w[j + 1] || '') || MILLON.test(w[j + 1] || ''));
+        if(/^\d+$/.test(x)){ if(otraCantidad) break; grupo += Number(x); }
+        else if(U[x] !== undefined){ if(otraCantidad) break; grupo += U[x]; }
+        else if(MIL.test(x)){ total += (grupo || 1) * 1000; grupo = 0; huboMil = true; }
+        else if(MILLON.test(x)){ total = (total + (grupo || 1)) * 1e6; grupo = 0; huboMil = true; }
         else if(x === 'y' && w[j + 1] && esNum(w[j + 1])){ /* «mil y quinientos» */ }
         else if(x === 'con' && w[j + 1] && esNum(w[j + 1]) && total){ /* «dos mil con quinientos» */ }
         else break;
@@ -19268,7 +19289,7 @@ let fotosListas = false;
     }
     // Calculadora: «cuánto es 20 mil más 15 mil», «suma 200 más 300», «45 por 3», «800 entre 4»…
     // Se resuelve aquí mismo (sin IA), así responde al instante.
-    if(/\b(cuanto es|cuanto da|cuanto son|cuanto queda|cuanto suman|calcula|calculame)\b/.test(t) ||
+    if(/\b(cuanto es|cuanto da|cuanto son|cuanto queda|cuanto suman|cuanto vale|cuanto valen|calcula|calculame|suma esto|sumame)\b/.test(t) ||
        (/\b(mas|menos|por|multiplicado|dividido|entre)\b/.test(t) && lbRuns(t).runs.length >= 2 &&
         !/\b(debe|deben|debia|debiendo|pague|pago|pagaron|paga|fiado|fiar|fie|fio|preste|abono|abonar|sueldo|nomina|quincena|jornal)\b/.test(t))){
       const r = lbCalc(t);
