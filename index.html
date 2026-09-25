@@ -8194,6 +8194,7 @@ async function openaiResponses(buildBody, timeoutMs, maxRetries, oneModel, deadl
         });
         const raw = await res.text();
         if(!res.ok){
+          if(res.status === 400 && /reasoning/i.test(raw) && !aiSinPensarNo.has(model)){ aiSinPensarNo.add(model); attempt--; continue; }
           const err = openAIErrorFromResponse(res.status, raw);
           if(err.kind === 'model'){ lastErr = err; break; }            // prueba el siguiente modelo
           if((err.kind === 'rate' || err.kind === 'server') && attempt <= retries && aiTimeLeft(deadline) > 4000){
@@ -8355,9 +8356,17 @@ function geminiBody(o, model){
   if(o.fast){ body.generationConfig.maxOutputTokens = o.maxOutputTokens || 220; body.generationConfig.mediaResolution = 'MEDIA_RESOLUTION_MEDIUM'; }  // foto ligera (+ respuesta corta si no se pide más) = más rápido
   if(o.maxOutputTokens && !o.fast) body.generationConfig.maxOutputTokens = o.maxOutputTokens;   // respuestas cortas = más rápidas
   if(o.web) body.tools = [{ google_search: {} }];
-  if(/^gemini-2\.5-flash(-lite)?$/.test(model || '')) body.generationConfig.thinkingConfig = { thinkingBudget: 0 };  // sin razonamiento largo = respuesta más rápida
+  /* Sin razonamiento largo = respuesta mucho más rápida (3 a 10 veces). Los modelos nuevos
+     (serie 3) piensan por defecto antes de contestar; antes solo se les quitaba a los 2.5, y
+     cuando un modelo viejo se retiraba la app pasaba a uno nuevo y quedaba lenta para siempre. */
+  if(!aiSinPensarNo.has(model)){
+    if(/^gemini-2\.5-flash(-lite)?$/.test(model || '')) body.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    else if(/^gemini-(3|[4-9])/.test(model || '')) body.generationConfig.thinkingConfig = { thinkingLevel: 'low' };
+  }
   return body;
 }
+// Modelos que rechazaron la opción de no razonar: se les manda sin ella (no se rompe nada).
+const aiSinPensarNo = new Set();
 
 function geminiExtractText(json){
   if(!json) return '';
@@ -8412,6 +8421,7 @@ async function geminiGenerate(o){
         });
         const raw = await res.text();
         if(!res.ok){
+          if(res.status === 400 && /thinking/i.test(raw) && !aiSinPensarNo.has(model)){ aiSinPensarNo.add(model); attempt--; continue; }
           const err = geminiErrorFromResponse(res.status, raw);
           if(err.kind === 'model'){ skippedForModel = true; lastErr = err; break; }
           if(err.kind === 'daily'){ lastErr = err; break; }              // otro modelo tiene su propia cuota
@@ -8546,6 +8556,10 @@ async function openaiText(o){
         if(o.json && !o.imageDataUrl) body.text = { format: { type: 'json_object' } };
         if(tool) body.tools = [{ type: tool }];
         if(o.maxOutputTokens && !/^(gpt-5|o\d)/.test(model)) body.max_output_tokens = o.maxOutputTokens;   // respuestas cortas = más rápidas
+        // Los modelos que razonan (gpt-5, o3…) piensan a medias por defecto: se les pide lo mínimo.
+        // «minimal» solo lo aceptan gpt-5/-mini/-nano y sin búsqueda web; «low» lo aceptan todos.
+        if(/^(gpt-5|o\d)/.test(model) && !/chat/.test(model) && !aiSinPensarNo.has(model))
+          body.reasoning = { effort: (!tool && /^gpt-5(-mini|-nano)?$/.test(model)) ? 'minimal' : 'low' };
         return body;
       }, o.timeoutMs, o.retries, o.oneModel, o.deadline);
       aiLastModel = result._model || '';
@@ -11462,7 +11476,41 @@ function asisLocalMas(raw){
 function asisLocalAccion(raw){
   const t = normVoiceText(raw);
   const nums = asisRawNumbers(raw);
-  if(/\b(precio|sube|subir|subele|baja|bajar|bajale|cambia|cambiar|ponle|actualiza)\b/.test(t) && nums.length){
+  /* Comandos que Mesi hace AL INSTANTE, sin esperar a la IA (siempre pide confirmar antes).
+     Van primero los más específicos: «cambia el costo…» también dice «cambia». */
+  // Costo: "el costo de la águila es 2500", "costo póker 2800", "la club me cuesta 3000"
+  if(/\b(costo|cuesta|me cuesta|me sale|la compro|lo compro|compro a)\b/.test(t) && !/\b(cuanto|que|cual)\b/.test(t) && nums.length){
+    const costo = nums[nums.length - 1];
+    const p = asisFindProduct(t.replace(/\b(costo|cuesta|me cuesta|me sale|la compro|lo compro|compro a|el|la|de|es|en|a|por)\b/g, ' '));
+    if(p && costo >= 50) return { text: 'Voy a poner el costo de ' + p.name + ' en ' + fmt(costo) + (p.price ? ' (ganarías ' + fmt(p.price - costo) + ' por unidad)' : '') + '. ¿Lo hago?', actions: [{ tipo: 'editar', producto: p.name, costo }] };
+  }
+  // Inventario exacto: "quedan 12 águilas", "hay 30 póker", "stock de club en 24", "inventario club 24"
+  const mHay = t.match(/\b(quedan|queda|hay|tengo|stock|inventario|existencias)\b/);
+  if(mHay && nums.length && !/\b(mesa|cuanto|cuantos|cuantas|que|cual)\b/.test(t)){
+    const n = nums[nums.length - 1];
+    const p = asisFindProduct(t.replace(/\b(quedan|queda|hay|tengo|stock|inventario|existencias|de|en|el|la|los|las|unidades|und)\b/g, ' '));
+    if(p && n >= 0 && n < 100000) return { text: 'Voy a dejar ' + p.name + ' con ' + n + ' en inventario' + (p.stock != null ? ' (ahora tiene ' + p.stock + ')' : '') + '. ¿Lo hago?', actions: [{ tipo: 'editar', producto: p.name, stock: n }] };
+  }
+  // Producto nuevo: "crea cerveza club a 4500", "nuevo producto empanada 2500", "agrega producto gaseosa 3000"
+  const mCrea = t.match(/^(?:por favor )?(?:crea|crear|creame|nuevo producto|nuevo|agrega el producto|agrega producto|anade el producto|anade producto|registra)\s+(.+?)\s+(?:a|en|por|de|vale|precio|a precio de)?\s*\$?\s*(\d[\d.,]*)\s*(?:pesos|mil)?$/);
+  if(mCrea){
+    const nombre = mCrea[1].replace(/\b(el|la|un|una|producto)\b/g, ' ').replace(/\s+/g, ' ').trim();
+    let precio = nums[nums.length - 1];
+    if(/\bmil\b/.test(t) && precio < 1000) precio *= 1000;
+    // El nombre se toma de lo que escribió la persona (con tildes y ñ), no del texto normalizado.
+    const crudas = String(raw).trim().split(/\s+/), usadas = new Set();
+    const nombreBonito = nombre.split(' ').map(w => {
+      const i = crudas.findIndex((c, k) => !usadas.has(k) && normVoiceText(c) === w);
+      const x = i >= 0 ? (usadas.add(i), crudas[i]) : w;
+      return x.charAt(0).toUpperCase() + x.slice(1).toLowerCase();
+    }).join(' ');
+    if(nombre.length >= 2 && precio >= 50){
+      const ya = data.products.find(p => normVoiceText(p.name) === nombre);
+      if(ya) return { text: ya.name + ' ya existe a ' + fmt(ya.price) + '. ¿Le cambio el precio a ' + fmt(precio) + '?', actions: [{ tipo: 'editar', producto: ya.name, precio }] };
+      return { text: 'Voy a crear «' + nombreBonito + '» a ' + fmt(precio) + '. ¿Lo hago?', actions: [{ tipo: 'crear', nombre: nombreBonito, precio }] };
+    }
+  }
+  if(/\b(precio|sube|subir|subele|baja|bajar|bajale|cambia|cambiar|ponle|actualiza|vale|valga)\b/.test(t) && nums.length){
     const precio = nums[nums.length - 1];
     const p = asisFindProduct(t);
     if(p && precio >= 50) return { text: 'Voy a cambiar el precio de ' + p.name + ' de ' + fmt(p.price) + ' a ' + fmt(precio) + '. ¿Lo hago?', actions: [{ tipo: 'editar', producto: p.name, precio }] };
