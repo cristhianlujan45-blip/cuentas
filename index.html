@@ -2909,6 +2909,43 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
     </div>
 
+    <div class="settings-group" hidden data-cat="negocio" id="domGrupoWeb" data-dom="1">
+      <h2>🌐 Domicilios por tu página web y WhatsApp <span class="tvp-badge">Nuevo</span></h2>
+      <div class="settings-desc">Enlaza los pedidos a domicilio que ya te llegan por fuera. Mesora te da un <b>link de pedidos a domicilio</b> (el mismo QR de las mesas, pero sin mesa): lo pegas como botón en tu página web, en tu Instagram o se lo mandas al cliente por WhatsApp. El cliente escoge de tu carta y escribe su dirección, y el pedido <b>entra solo a la app</b>, con su nombre, teléfono y dirección, listo para facturar. Si el pedido te llegó escrito por WhatsApp o por otra plataforma, usa el botón de abajo y la IA lo convierte en domicilio.</div>
+
+      <div class="settings-row" style="flex-direction:column;align-items:stretch">
+        <div class="settings-row-text"><strong>1. Tu link de pedidos a domicilio</strong><span>Este es el que va en tu página web, tu Instagram o tu estado de WhatsApp.</span></div>
+        <input id="domLink" class="mz-in" style="width:100%" readonly onclick="this.select()">
+        <div class="mz-actions">
+          <button class="btn-primary" id="domLinkCopy" type="button">📋 Copiar link</button>
+          <button class="btn-ghost" id="domLinkOpen" type="button">Probarlo</button>
+          <button class="btn-ghost" id="domLinkQr" type="button">🔳 Ver QR</button>
+        </div>
+        <div id="domQrBox" hidden style="text-align:center;margin-top:10px"></div>
+      </div>
+
+      <div class="settings-row" style="flex-direction:column;align-items:stretch">
+        <div class="settings-row-text"><strong>2. Botón para tu página web</strong><span>Copia esto y pégalo en tu página: queda un botón de «Pedir a domicilio».</span></div>
+        <textarea id="domEmbed" class="mz-in" style="width:100%;height:76px;font-family:monospace;font-size:12px" readonly onclick="this.select()"></textarea>
+        <div class="mz-actions"><button class="btn-ghost" id="domEmbedCopy" type="button">📋 Copiar el código del botón</button></div>
+      </div>
+
+      <div class="settings-row" style="flex-direction:column;align-items:stretch">
+        <div class="settings-row-text"><strong>3. Pedidos por WhatsApp</strong><span>Tu número recibe el pedido con el link ya puesto. Es el mismo número del QR de las mesas.</span></div>
+        <input id="domWaLink" class="mz-in" style="width:100%" readonly onclick="this.select()">
+        <div class="mz-actions">
+          <button class="btn-primary" id="domWaCopy" type="button">📋 Copiar link de WhatsApp</button>
+          <button class="btn-ghost" id="domWaQr" type="button">🔳 Ver QR</button>
+        </div>
+        <div id="domWaQrBox" hidden style="text-align:center;margin-top:10px"></div>
+      </div>
+
+      <div class="settings-row" style="flex-direction:column;align-items:stretch">
+        <div class="settings-row-text"><strong>4. ¿Te llegó el pedido escrito?</strong><span>Pega el chat de WhatsApp (o la captura) y la IA arma el domicilio solo.</span></div>
+        <div class="mz-actions"><button class="btn-primary" id="domIaBtn" type="button" style="width:100%">🤖 Convertir un pedido escrito en domicilio</button></div>
+      </div>
+    </div>
+
     <div class="settings-group" hidden data-cat="negocio">
       <h2>💜 Pasarela de pago (Nequi)</h2>
       <div class="settings-desc">Muestra tu número de Nequi en el QR de la mesa cuando el cliente pide la cuenta, con el valor exacto a pagar, para que transfiera directo desde su celular. No es un cobro automático: el cliente transfiere desde su propia app Nequi y avisa con un botón; tú confirmas el pago cuando lo veas llegar a tu cuenta. Un cobro automático de verdad (sin que tú confirmes) requiere que Nequi te dé una cuenta de comercio con API, que se tramita directo con ellos, fuera de la app.</div>
@@ -3300,6 +3337,24 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
     </div>
     <div class="modal-actions">
       <button class="btn-close" id="scanCloseBtn2" style="flex:1">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="domIaOverlay">
+  <div class="modal">
+    <div class="modal-title-row">
+      <h2>🤖 Pedido escrito → domicilio</h2>
+      <button class="rename-table-btn" id="domIaClose" title="Cerrar">✕</button>
+    </div>
+    <div class="modal-sub">Pega el mensaje tal como te llegó (WhatsApp, tu página web, Instagram, correo…) o súbele una captura. La IA saca el cliente, el teléfono, la dirección y los productos, y te los deja listos para facturar.</div>
+    <textarea id="domIaTxt" class="mz-in" style="width:100%;height:130px;margin-top:8px" placeholder="Ej: Hola, me regalas 2 hamburguesas y 3 gaseosas. Soy Ana Pérez, cel 3001234567, calle 45 #12-30 apto 201"></textarea>
+    <button type="button" class="btn-camera" id="domIaFotoBtn" style="width:100%;margin-top:8px">📷 Subir captura del chat</button>
+    <input type="file" id="domIaFoto" accept="image/*" style="display:none">
+    <div class="pp-status" id="domIaEstado" style="margin-top:8px" hidden></div>
+    <div class="modal-actions">
+      <button class="btn-close" id="domIaCancel" style="flex:1">Cancelar</button>
+      <button class="btn-primary" id="domIaGo" style="flex:1">Armar el domicilio</button>
     </div>
   </div>
 </div>
@@ -10541,10 +10596,176 @@ async function qsClose(){
   document.getElementById('quickSaleOverlay').classList.remove('show');
 }
 document.getElementById('quickSaleBtn').addEventListener('click', () => qsOpen('mostrador'));
-document.getElementById('domicilioBtn').addEventListener('click', () => qsOpen('domicilio'));
+document.getElementById('domicilioBtn').addEventListener('click', () => { domActual = null; if(domisPend().length) domAbrir(null); else qsOpen('domicilio'); });
 document.getElementById('qsCancelBtn').addEventListener('click', qsClose);
 document.getElementById('quickSaleOverlay').addEventListener('click', e => { if(e.target.id === 'quickSaleOverlay') qsClose(); });
 document.getElementById('qsEnvio').addEventListener('input', qsRenderCart);
+
+/* ---------- Domicilios que entran solos (página web, Instagram o WhatsApp) ----------
+   Es el mismo link de pedidos de las mesas pero con dom=1 y sin mesa: el negocio lo pone
+   en su página web, en su Instagram o lo manda por WhatsApp. El cliente pide ahí y el
+   pedido llega por el mismo canal de ntfy que las mesas, con esta forma:
+       DOMICILIO: nombre | teléfono | dirección | productos
+   Queda guardado como pendiente (no se pierde aunque se cierre la app) y abre la
+   factura de domicilio ya llena, con los productos emparejados con el inventario. */
+const DOM_KEY = 'vito_domis';
+const domisPend = () => LS(DOM_KEY, []);
+let domActual = null;
+function domisGuardar(l){ SS(DOM_KEY, l); domisBadge(); }
+function domisBadge(){
+  const b = document.getElementById('domicilioBtn'); if(!b) return;
+  const n = domisPend().length;
+  b.textContent = n ? '🛵 Domicilio (' + n + ')' : '🛵 Domicilio';
+  b.classList.toggle('btn-warn', n > 0);
+}
+function domRecibir(cuerpo){
+  const p = String(cuerpo).split('|').map(x => x.trim());
+  const d = { id: Date.now() + '' + Math.random().toString(36).slice(2, 5), ts: Date.now(),
+              nombre: p[0] || '', tel: p[1] || '', dir: p[2] || '', texto: p.slice(3).join(', ').trim() };
+  const l = domisPend(); l.push(d); domisGuardar(l);
+  showToast('🛵 Domicilio nuevo' + (d.nombre ? ' de ' + d.nombre : '') + (d.texto ? ': ' + d.texto : '') + (d.dir ? ' · ' + d.dir : ''), 10000);
+  try{ if(window.vitoDecir) window.vitoDecir('Nuevo domicilio' + (d.nombre ? ' de ' + d.nombre : '')); }catch(e){}
+  if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  // Solo se abre solo si no hay otra cosa abierta, para no interrumpir lo que esté haciendo.
+  if(!document.querySelector('.overlay.show')) domAbrir(d.id);
+}
+function domAbrir(id){
+  const l = domisPend(), d = l.find(x => x.id === id) || l[0];
+  qsOpen('domicilio');
+  if(!d){ domActual = null; return; }
+  domActual = d.id;
+  document.getElementById('qsCliente').value = d.nombre || '';
+  document.getElementById('qsTelefono').value = d.tel || '';
+  document.getElementById('qsDireccion').value = d.dir || '';
+  const noReconocidos = [];
+  if(d.texto){
+    let items = [];
+    try{ items = (parseVoiceCommand('mesa 1, ' + d.texto).items) || []; }catch(e){}
+    items.forEach(it => {
+      const prod = matchProductVoice(it.productText);
+      if(prod) qsAddToCart(prod, Math.max(1, it.qty || 1), true);
+      else noReconocidos.push(it.productText);
+    });
+  }
+  qsRenderCart();
+  document.getElementById('qsSub').textContent = '🛵 Pedido que entró por tu link de domicilios' +
+    (d.nombre ? ' (' + d.nombre + ')' : '') + '. Revisa los productos, ponle el valor del envío y factúralo.';
+  if(noReconocidos.length) showToast('⚠️ Esto no lo reconocí, agrégalo a mano: ' + noReconocidos.join(', '), 9000);
+}
+function domQuitar(id){ domisGuardar(domisPend().filter(x => x.id !== id)); }
+// La sección de domicilios por web/WhatsApp solo tiene sentido si el negocio hace domicilios.
+function aplicarDomicilios(){
+  const g = document.getElementById('domGrupoWeb');
+  if(g) g.dataset.off = data.domiciliosOn ? '' : '1';
+  const b = document.getElementById('domicilioBtn');
+  if(b) b.hidden = !data.domiciliosOn;
+}
+
+/* El link de domicilios es el mismo pedido.html de las mesas, con dom=1 y sin mesa. */
+function domLinkUrl(){
+  const c = qCfg();
+  if(!c.url) return '';
+  // Se manda también el WhatsApp: si ntfy llegara a fallar, el cliente puede enviarte el
+  // pedido por WhatsApp con un toque en vez de perderse.
+  return c.url.split('?')[0].trim() + '?dom=1&c=' + c.topic + (c.wa ? '&w=' + c.wa : '');
+}
+function domWaUrl(){
+  const c = qCfg(), l = domLinkUrl();
+  if(!c.wa) return '';
+  const msg = 'Hola! Quiero pedir a domicilio de ' + (data.businessName || 'tu negocio') + (l ? '. Aquí está la carta: ' + l : '');
+  return 'https://wa.me/' + c.wa + '?text=' + encodeURIComponent(msg);
+}
+function domQrPintar(boxId, texto){
+  const box = document.getElementById(boxId); if(!box) return;
+  if(!box.hidden){ box.hidden = true; return; }
+  box.textContent = '';
+  if(!texto){ box.hidden = false; box.textContent = 'Primero completa el link arriba (Ajustes → QR de las mesas).'; return; }
+  const d = document.createElement('div');
+  box.appendChild(d); box.hidden = false;
+  try{ new QRCode(d, { text: texto, width: 170, height: 170 }); }
+  catch(e){ box.textContent = 'No se pudo dibujar el QR.'; }
+}
+async function domCopiar(txt, okMsg){
+  if(!txt) return showToast('⚠️ Primero pon la dirección de tu página de pedidos en Ajustes → QR de las mesas.');
+  try{ await navigator.clipboard.writeText(txt); showToast(okMsg); }
+  catch(e){ showToast('⚠️ No se pudo copiar. Tócalo y cópialo a mano.'); }
+}
+function iniDomicilios(){
+  const link = document.getElementById('domLink'); if(!link) return;
+  const emb = document.getElementById('domEmbed'), wl = document.getElementById('domWaLink');
+  const pintar = () => {
+    const l = domLinkUrl(), w = domWaUrl();
+    link.value = l || '(falta la dirección de tu página de pedidos: Ajustes → QR de las mesas)';
+    wl.value = w || '(falta tu número de WhatsApp: Ajustes → QR de las mesas)';
+    emb.value = l ? '<a href="' + l + '" target="_blank" rel="noopener" style="display:inline-block;padding:14px 22px;border-radius:12px;background:#c8a24a;color:#1a1410;font:700 16px system-ui;text-decoration:none">🛵 Pedir a domicilio</a>' : '';
+  };
+  pintar();
+  document.getElementById('domLinkCopy').onclick = () => domCopiar(domLinkUrl(), '📋 Link copiado. Pégalo en tu página web, tu Instagram o mándalo por WhatsApp.');
+  document.getElementById('domLinkOpen').onclick = () => { const l = domLinkUrl(); if(l) window.open(l, '_blank'); else showToast('⚠️ Primero pon la dirección de tu página de pedidos en Ajustes → QR de las mesas.'); };
+  document.getElementById('domLinkQr').onclick = () => domQrPintar('domQrBox', domLinkUrl());
+  document.getElementById('domEmbedCopy').onclick = () => domCopiar(emb.value, '📋 Código copiado. Pégalo en tu página web donde quieras el botón.');
+  document.getElementById('domWaCopy').onclick = () => domCopiar(domWaUrl(), '📋 Link de WhatsApp copiado.');
+  document.getElementById('domWaQr').onclick = () => domQrPintar('domWaQrBox', domWaUrl());
+  document.getElementById('domIaBtn').onclick = () => { pintar(); domIaAbrir(); };
+  const nav = document.querySelector('nav button[data-view="ajustes"]');
+  if(nav) nav.addEventListener('click', pintar);
+}
+
+/* ---------- Pedido escrito (WhatsApp, web, Instagram…) → domicilio, con IA ---------- */
+const DOM_IA_PROMPT = 'Eres el asistente de un restaurante/tienda. Te paso un mensaje de un cliente pidiendo a domicilio (puede venir de WhatsApp, de una página web o de una captura de pantalla). Devuelve SOLO un JSON con esta forma exacta: {"cliente":"nombre o cadena vacía","telefono":"solo dígitos o cadena vacía","direccion":"dirección de entrega o cadena vacía","envio":0,"items":[{"nombre":"producto tal como lo pidió","cantidad":1}]}. Reglas: si no aparece un dato, deja la cadena vacía (no inventes). "envio" solo si el mensaje dice explícitamente el valor del domicilio, si no 0. En "items" pon un objeto por producto pedido, con la cantidad en número (si no dice cantidad, 1). No agregues texto fuera del JSON.';
+function domIaAbrir(){
+  document.getElementById('domIaTxt').value = '';
+  const est = document.getElementById('domIaEstado'); est.hidden = true; est.textContent = '';
+  domIaFotoUrl = null;
+  document.getElementById('domIaOverlay').classList.add('show');
+}
+function domIaCerrar(){ document.getElementById('domIaOverlay').classList.remove('show'); }
+let domIaFotoUrl = null;
+function iniDomIa(){
+  const ov = document.getElementById('domIaOverlay'); if(!ov) return;
+  document.getElementById('domIaClose').onclick = domIaCerrar;
+  document.getElementById('domIaCancel').onclick = domIaCerrar;
+  ov.addEventListener('click', e => { if(e.target === ov) domIaCerrar(); });
+  const foto = document.getElementById('domIaFoto'), est = document.getElementById('domIaEstado');
+  document.getElementById('domIaFotoBtn').onclick = () => foto.click();
+  foto.addEventListener('change', async e => {
+    const f = e.target.files[0]; if(!f) return;
+    est.hidden = false; est.textContent = 'Preparando la captura…';
+    try{ domIaFotoUrl = await scalePhotoForAI(f, 1280, 0.7); est.textContent = '✅ Captura lista. Toca «Armar el domicilio».'; }
+    catch(err){ domIaFotoUrl = null; est.textContent = '❌ No pude leer la imagen.'; }
+    foto.value = '';
+  });
+  document.getElementById('domIaGo').onclick = async () => {
+    const txt = document.getElementById('domIaTxt').value.trim();
+    if(!txt && !domIaFotoUrl) return showToast('Pega el mensaje del cliente o sube la captura.');
+    const b = document.getElementById('domIaGo'); b.disabled = true; b.textContent = '🤖 Leyendo…';
+    est.hidden = false; est.textContent = 'La IA está leyendo el pedido…';
+    try{
+      const pet = { prompt: DOM_IA_PROMPT + (txt ? '\n\nMensaje del cliente:\n' + txt : ''), json: true, timeoutMs: 45000, retries: 1 };
+      if(domIaFotoUrl) pet.imageDataUrl = domIaFotoUrl;
+      const info = cleanAiJsonText(await aiText(pet));
+      if(!info || !Array.isArray(info.items)) throw new OpenAIError('bad', 'La IA respondió pero no pude leer el pedido. Prueba pegando el texto del chat.');
+      domIaCerrar();
+      domRecibirDeIa(info);
+    }catch(err){
+      const msg = err && err.message === 'NO_API_KEY'
+        ? 'Configura la IA (⚙️ en Productos) para usar esta opción.'
+        : (err && err.message ? err.message : 'No se pudo leer el pedido.');
+      est.textContent = '❌ ' + msg;
+    }finally{ b.disabled = false; b.textContent = 'Armar el domicilio'; }
+  };
+}
+// Lo que entendió la IA se guarda como un domicilio pendiente más y se abre la factura.
+function domRecibirDeIa(info){
+  const items = (info.items || []).map(x => (Math.max(1, parseInt(x.cantidad, 10) || 1)) + ' ' + String(x.nombre || '').trim()).filter(x => x.length > 2);
+  const d = { id: Date.now() + '' + Math.random().toString(36).slice(2, 5), ts: Date.now(),
+              nombre: String(info.cliente || '').slice(0, 40), tel: String(info.telefono || '').replace(/[^\d+ ]/g, '').slice(0, 15),
+              dir: String(info.direccion || '').slice(0, 90), texto: items.join(', ') };
+  const l = domisPend(); l.push(d); domisGuardar(l);
+  domAbrir(d.id);
+  const envio = parseFloat(info.envio);
+  if(isFinite(envio) && envio > 0){ document.getElementById('qsEnvio').value = Math.round(envio); qsRenderCart(); }
+}
 
 document.getElementById('qsChargeBtn').addEventListener('click', async ()=>{
   if(!quickSaleCart.length) return;
@@ -10591,6 +10812,7 @@ document.getElementById('qsChargeBtn').addEventListener('click', async ()=>{
   quickSaleCart.forEach(it => { try{ invOnSale({ productId: it.productId }, it.qty); }catch(e){} });
   saveData();
   quickSaleCart = [];
+  if(isDom && domActual){ domQuitar(domActual); domActual = null; }
   document.getElementById('quickSaleOverlay').classList.remove('show');
   showToast(method === 'debe' ? '⏳ ' + deudor + ' quedó debiendo ' + fmt(total) + '. Está en Historial → Deben.' : (isDom ? '✅ Domicilio facturado: ' + fmt(total) + '.' : '✅ Venta de mostrador registrada: ' + fmt(total) + '.'));
 });
@@ -13901,6 +14123,7 @@ function wireAccountUI(){
       data.domiciliosOn = domToggle.checked;
       saveData();
       if(domBtn) domBtn.hidden = !data.domiciliosOn;
+      aplicarDomicilios();
     };
   }
   const nequiToggle = document.getElementById('nequiOnToggle');
@@ -14627,7 +14850,7 @@ function iniTipo(){
 
 /* ---------- Ajustes por categorías ---------- */
 function mostrarCategoriaAjustes(cat){
-  document.querySelectorAll('#view-ajustes .settings-group[data-cat]').forEach(g=>{ g.hidden = g.dataset.cat !== cat; });
+  document.querySelectorAll('#view-ajustes .settings-group[data-cat]').forEach(g=>{ g.hidden = g.dataset.cat !== cat || g.dataset.off === '1'; });
   $('ajustesCats').hidden = true;
   $('ajustesBackBtn').hidden = false;
   window.scrollTo({ top: 0 });
@@ -14876,7 +15099,8 @@ function recibir(m){
   const v=LS('vito_vistos',[]);if(v.includes(m.id))return;
   v.push(m.id);SS('vito_vistos',v.slice(-1000));
   if(m.topic&&m.topic===mTopic()){try{procesarMesero(String(m.message||'').slice(0,1500));}catch(e){console.error(e);}return;}
-  try{procesar(String(m.message||'').slice(0,300));}catch(e){console.error(e);}
+  // 600: un domicilio (nombre + teléfono + dirección + productos) es más largo que un pedido de mesa.
+  try{procesar(String(m.message||'').slice(0,600));}catch(e){console.error(e);}
 }
 /* ---------- App de meseros (mesero.html) ----------
    Cada mesero usa la app en SU celular. Manda los pedidos por un canal privado de ntfy
@@ -14994,6 +15218,8 @@ async function pedirWakeLock(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!wakeLock)pedirWakeLock();});
 pedirWakeLock();
 function procesar(txt){
+  const dm=/^DOMICILIO\s*:?\s*([\s\S]*)$/i.exec(txt.trim());
+  if(dm){ domRecibir(dm[1]); if(navigator.vibrate)navigator.vibrate(200); return; }
   const m=/^(PEDIDO|CANCION|CUENTA)\s+MESA\s*(\d+)\s*:?\s*([\s\S]*)$/i.exec(txt.trim());if(!m)return;
   const tp=m[1].toUpperCase(),id=parseInt(m[2],10),cuerpo=m[3].trim().replace(/\s+/g,' ');
   if(!data.tables[id])return;
@@ -18391,6 +18617,10 @@ let fotosListas = false;
   try{ iniConta(); }catch(e){ mesoraLogError('arranque', 'Contabilidad: ' + e.message, ''); }
   try{ aplicarModoMesero(); }catch(e){}
   try{ aplicarMusica(); }catch(e){}
+  try{ domisBadge(); }catch(e){}
+  try{ aplicarDomicilios(); }catch(e){}
+  try{ iniDomicilios(); }catch(e){ mesoraLogError('arranque', 'Domicilios en línea: ' + e.message, ''); }
+  try{ iniDomIa(); }catch(e){ mesoraLogError('arranque', 'Pedido escrito con IA: ' + e.message, ''); }
   licCargar().then(licDesdeLink).catch(e => mesoraLogError('arranque', 'Licencia: ' + e.message, ''));
   window.addEventListener('hashchange', () => { licDesdeLink(); });   // link abierto con Mesora ya abierta
   fotosCargar().then(() => { fotosListas = true; try{ renderProductos(); }catch(e){} publicarFotosCarta(); });

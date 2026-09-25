@@ -388,6 +388,14 @@ body.easy-mode .t{min-height:56px}
       <button class="cta back" id="catBack" type="button">Volver a mi pedido</button>
     </div>
 
+    <div class="sec" id="domSec" hidden>
+      <h2 class="h2" id="domLbl">Datos para la entrega</h2>
+      <p class="hint" id="domHint">Para poderte llevar el pedido hasta donde estés.</p>
+      <input id="domNom" class="in" type="text" autocomplete="name" placeholder="Tu nombre" maxlength="40">
+      <input id="domTel" class="in" type="tel" inputmode="numeric" autocomplete="tel" placeholder="Tu teléfono / WhatsApp" maxlength="15" style="margin-top:8px">
+      <input id="domDir" class="in" type="text" autocomplete="street-address" placeholder="Dirección (barrio, calle, apto…)" maxlength="90" style="margin-top:8px">
+    </div>
+
     <div class="envio" id="envio">
       <button class="cta" id="b" type="button">Enviar pedido</button>
       <p id="m" role="status" aria-live="polite"></p>
@@ -446,7 +454,12 @@ const P=new URLSearchParams(location.search),
   v=(P.get('v')||'').replace(/[^\w]/g,''),
   nq=(P.get('nq')||'').replace(/\D/g,'').slice(0,10),
   nqn=(P.get('nqn')||'').slice(0,60);
-const MAX=10,V=15*6e4,K='canc_'+mesa,KR='rondas_'+mesa,KH='hist_'+mesa,VIDA_RONDA=12*36e5;
+/* Modo domicilio: el mismo link de pedidos pero sin mesa (se pone en la página web del
+   negocio, en Instagram o se manda por WhatsApp). Pide los datos de entrega y el pedido
+   le llega a la app como un domicilio, no como una mesa. */
+const dom=P.get('dom')==='1';
+const SUF=dom?'dom':mesa;
+const MAX=10,V=15*6e4,K='canc_'+SUF,KR='rondas_'+SUF,KH='hist_'+SUF,VIDA_RONDA=12*36e5;
 const $=i=>document.getElementById(i);
 const jget=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
 const jset=(k,x)=>{try{localStorage.setItem(k,JSON.stringify(x))}catch(e){}};
@@ -460,6 +473,15 @@ const LANGS=['es','en','pt','fr','zh','hi'];
 const DICT_SRC={
   subtitle:["Pide desde tu mesa, nosotros te lo llevamos.","Order from your table, we’ll bring it to you.","Peça pela sua mesa, a gente leva até você.","Commandez depuis votre table, on vous l’apporte.","在您的桌上点单，我们为您送上。","अपनी मेज़ से ऑर्डर करें, हम आपके पास लाएँगे।"],
   mesaLabel:["Mesa {n}","Table {n}","Mesa {n}","Table {n}","{n}号桌","मेज़ {n}"],
+  domLabel:["Pedido a domicilio","Delivery order","Pedido para entrega","Commande à livrer","外送订单","होम डिलीवरी ऑर्डर"],
+  domSubtitle:["Pide y te lo llevamos hasta donde estés.","Order and we’ll bring it to you.","Peça e levamos até você.","Commandez, on vous livre.","下单，我们送货上门。","ऑर्डर करें, हम आप तक पहुँचाएँगे।"],
+  domDatos:["Datos para la entrega","Delivery details","Dados para a entrega","Informations de livraison","配送信息","डिलीवरी की जानकारी"],
+  domHint:["Para poderte llevar el pedido hasta donde estés.","So we can bring your order to you.","Para levarmos seu pedido até você.","Pour vous apporter votre commande.","以便我们把订单送到您手中。","ताकि हम आपका ऑर्डर आप तक पहुँचा सकें।"],
+  domNombre:["Tu nombre","Your name","Seu nome","Votre nom","您的姓名","आपका नाम"],
+  domTel:["Tu teléfono / WhatsApp","Your phone / WhatsApp","Seu telefone / WhatsApp","Votre téléphone / WhatsApp","您的电话 / WhatsApp","आपका फ़ोन / WhatsApp"],
+  domDir:["Dirección (barrio, calle, apto…)","Address (street, apt…)","Endereço (bairro, rua, apto…)","Adresse (rue, appartement…)","地址（街道、门牌号…）","पता (गली, मकान नं…)"],
+  domEnviar:["Enviar pedido a domicilio","Send delivery order","Enviar pedido para entrega","Envoyer la commande","提交外送订单","डिलीवरी ऑर्डर भेजें"],
+  domFaltan:["Escribe tu nombre y la dirección de entrega.","Enter your name and delivery address.","Escreva seu nome e o endereço de entrega.","Indiquez votre nom et l’adresse de livraison.","请填写姓名和配送地址。","अपना नाम और डिलीवरी पता लिखें।"],
   tabPedido:["Pedido","Order","Pedido","Commande","订单","ऑर्डर"],
   tabCancion:["Canción","Song","Canção","Chanson","点歌","गाना"],
   tabCuenta:["Mi cuenta","My bill","Minha conta","Mon addition","我的账单","मेरा बिल"],
@@ -606,8 +628,8 @@ let lastMsg=null;
 function setMsg(builder,cl){ lastMsg={builder,cl}; msg(builder(),cl); }
 function clearMsg(){ lastMsg=null; msg('',''); }
 
-$('t').textContent=t('mesaLabel',{n:mesa||'?'});
-document.title=t('mesaLabel',{n:mesa||'?'});
+$('t').textContent=dom?t('domLabel'):t('mesaLabel',{n:mesa||'?'});
+document.title=dom?t('domLabel'):t('mesaLabel',{n:mesa||'?'});
 
 /* ---------- Texto predictivo ---------- */
 const NUM={un:1,uno:1,una:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12};
@@ -904,12 +926,12 @@ function rotulo(){
   let u=0;
   if(modo=='q')b.textContent=t('pedirCuenta');
   else if(modo=='c')b.textContent=t('pedirCancion');
-  else{u=lineas.reduce((a,l)=>a+l.q,0);b.textContent=u?t('enviarPedido')+' · '+u+' '+(u==1?t('producto'):t('productos')):t('enviarPedido')}
+  else{const base=dom?t('domEnviar'):t('enviarPedido');u=lineas.reduce((a,l)=>a+l.q,0);b.textContent=u?base+' · '+u+' '+(u==1?t('producto'):t('productos')):base}
   b.classList.toggle('lista',u>0);
 }
 /* El botón de enviar va justo debajo del campo de cada pestaña, para que se vea aunque esté el teclado abierto */
 function colocarEnvio(){
-  const e=$('envio'),ref=modo=='p'?$('sug'):modo=='c'?$('sugC'):null;
+  const e=$('envio'),ref=modo=='p'?(dom?$('domSec'):$('sug')):modo=='c'?$('sugC'):null;
   if(ref)ref.parentNode.insertBefore(e,ref.nextSibling);else $('vq').appendChild(e);
 }
 function pintarLineas(){
@@ -981,6 +1003,12 @@ function set(x){
   clearMsg();rotulo();info();
 }
 $('tp').onclick=()=>set('p');$('tc').onclick=()=>set('c');$('tq').onclick=()=>set('q');
+/* En modo domicilio solo existe la pestaña de pedido: no hay mesa que cobrar ni música que pedir. */
+if(dom){
+  $('tc').hidden=true;$('tq').hidden=true;
+  $('domSec').hidden=false;
+  set('p');
+}
 
 /* ---------- Cuenta en vivo (también alimenta las sugerencias) ---------- */
 function fila(a,b,cl){
@@ -1054,7 +1082,7 @@ $('nequiPaidBtn').onclick=async()=>{
   if(wa)location.href='https://wa.me/'+wa+'?text='+encodeURIComponent(msg);
 };
 $('b').onclick=async()=>{
-  if(!mesa||(!c&&!wa))return setMsg(()=>t('qrIncompleto'),'err');
+  if((!mesa&&!dom)||(!c&&!wa))return setMsg(()=>t('qrIncompleto'),'err');
   let txt='',env=null;
   if(modo=='p'){
     if($('p').value.trim()){agregarTexto($('p').value);$('p').value='';pintarSug()}
@@ -1065,9 +1093,17 @@ $('b').onclick=async()=>{
   if(!txt&&modo!='q')return setMsg(()=>t('escribeAlgo'),'err');
   if(modo=='c'&&usadas()>=MAX)return setMsg(()=>t('cancionLimite',{max:MAX,min:Math.ceil((Math.min(...recientes())+V-Date.now())/6e4)}),'err');
   const tipo={p:'PEDIDO',c:'CANCION',q:'CUENTA'}[modo];
-  ultimo=tipo+' MESA '+mesa+(txt?': '+txt:'');
+  if(dom){
+    // DOMICILIO: nombre | teléfono | dirección | productos
+    const nom=$('domNom').value.replace(/[|\n]/g,' ').replace(/\s+/g,' ').trim().slice(0,40);
+    const tel=$('domTel').value.replace(/[^\d+ ]/g,'').trim().slice(0,15);
+    const dir=$('domDir').value.replace(/[|\n]/g,' ').replace(/\s+/g,' ').trim().slice(0,90);
+    if(!nom||!dir)return setMsg(()=>t('domFaltan'),'err');
+    ultimo='DOMICILIO: '+nom+' | '+tel+' | '+dir+' | '+txt;
+  }
+  else ultimo=tipo+' MESA '+mesa+(txt?': '+txt:'');
   if(c){
-    if(ultimo.length>300)return setMsg(()=>t('pedidoLargo'),'err');
+    if(ultimo.length>(dom?500:300))return setMsg(()=>t('pedidoLargo'),'err');
     $('b').disabled=true;
     try{
       const r=await fetch('https://ntfy.sh/'+c,{method:'POST',body:ultimo});
@@ -1204,7 +1240,7 @@ setInterval(tickOrderClock,1000);
 /* Locales sin música: el catálogo trae mz:0 y se esconde la pestaña de pedir canción.
    Si el catálogo todavía no llegó (o es viejo, sin mz), se deja visible como siempre. */
 function aplicarMusicaCliente(){
-  const on=!(cat&&cat.mz===0),tab=$('tc');
+  const on=!dom&&!(cat&&cat.mz===0),tab=$('tc');
   if(!tab)return;
   tab.hidden=!on;
   if(!on&&modo=='c')set('p');
@@ -1349,7 +1385,7 @@ function applyTh(th){
 /* ---------- Aplicar idioma: textos fijos + repintar todo lo dinámico ---------- */
 function applyLangStatic(){
   document.documentElement.lang=LANG;
-  $('sub').textContent=t('subtitle');
+  $('sub').textContent=dom?t('domSubtitle'):t('subtitle');
   $('tpTxt').textContent=t('tabPedido');
   $('tcTxt').textContent=t('tabCancion');
   $('tqTxt').textContent=t('tabCuenta');
@@ -1375,12 +1411,19 @@ function applyLangStatic(){
   $('nequiCopyBtn').textContent=t('copiarNumero');
   $('nequiPaidBtn').textContent=t('yaPagueNequi');
   $('curr').setAttribute('aria-label',t('monedaLabel'));
+  if(dom){
+    $('domLbl').textContent=t('domDatos');
+    $('domHint').textContent=t('domHint');
+    $('domNom').placeholder=t('domNombre');
+    $('domTel').placeholder=t('domTel');
+    $('domDir').placeholder=t('domDir');
+  }
   applyEasyMode();
   updateCurNote();
 }
 function refrescarVista(){
-  $('t').textContent=t('mesaLabel',{n:mesa||'?'});
-  document.title=t('mesaLabel',{n:mesa||'?'});
+  $('t').textContent=dom?t('domLabel'):t('mesaLabel',{n:mesa||'?'});
+  document.title=dom?t('domLabel'):t('mesaLabel',{n:mesa||'?'});
   pintarLineas();pintarRonda();pintarChips();pintarSug();
   if(modo=='c')info();
   pintarCat(!$('carta').hidden);
