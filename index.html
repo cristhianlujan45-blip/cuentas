@@ -17886,9 +17886,12 @@ async function lngBind(){
   const sid = (t.match(/"c"\s*,\s*"([^"]+)"/) || [])[1], gs = (t.match(/"S"\s*,\s*"([^"]+)"/) || [])[1];
   if(!sid) throw new Error('El TV no respondió. Enciéndelo y abre la app de YouTube.');
   lng.sid = sid; lng.gs = gs || ''; lng.t = Date.now();
+  lng.recien = true;   // la sesión se acaba de (re)crear: la app del TV no necesariamente está reproduciendo,
+                        // así que la próxima canción debe forzar el arranque (setPlaylist), no solo agregarse.
 }
+async function lngAsegurar(){ if(!lng.sid || Date.now() - lng.t > 5 * 60000) await lngBind(); }
 async function lngCmd(sc, datos, reintento){
-  if(!lng.sid || Date.now() - lng.t > 5 * 60000) await lngBind();
+  await lngAsegurar();
   const tok = await lngToken();
   const body = { count: 1, ofs: lng.ofs++, req0__sc: sc };
   Object.keys(datos || {}).forEach(k => { body['req0_' + k] = datos[k]; });
@@ -17908,9 +17911,15 @@ async function lngSync(forzarInicio){
     const c = lngCfg();
     const pend = vm().ordenJusto(vm().cola()).filter(x => x.vid && !x.lng);
     for(const x of pend){
-      const nuevaCola = forzarInicio || !c.ultimo || Date.now() - c.ultimo > 45 * 60000;   // TV sin música de Mesora hace rato: empieza una cola nueva
+      // Si la sesión con el TV se acaba de (re)crear (perdió la conexión, se reinició, o pasó
+      // rato sin mandarle nada), «addVideo» solo se agregaría a una cola que ya no está sonando
+      // y nunca se reproduciría: hay que forzar «setPlaylist» para que arranque de verdad. Por
+      // eso se asegura la conexión ANTES de decidir, no después (si no, la reconexión pasaba
+      // dentro del envío y esta bandera llegaba tarde).
+      await lngAsegurar();
+      const nuevaCola = forzarInicio || lng.recien || !c.ultimo || Date.now() - c.ultimo > 45 * 60000;
       await lngCmd(nuevaCola ? 'setPlaylist' : 'addVideo', nuevaCola ? { videoId: x.vid, currentTime: 0, currentIndex: -1, audioOnly: false, listId: '' } : { videoId: x.vid });
-      forzarInicio = false;
+      forzarInicio = false; lng.recien = false;
       c.ultimo = Date.now(); SS(LNG_KEY, Object.assign(lngCfg(), { ultimo: c.ultimo }));
       const l = vm().cola(), it = l.find(y => y.id === x.id);
       if(it){ it.lng = true; it.done = true; it.lngAt = Date.now(); SS('vito_cola', l); }
