@@ -3415,7 +3415,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       <h2>📷 Producto nuevo</h2>
       <button class="rename-table-btn" id="qpCloseBtn" title="Cerrar">✕</button>
     </div>
-    <div class="modal-sub">No está en tu inventario. Tómale una foto (o súbela) y la IA — o el código de barras — completa lo que pueda. Revisa, ajusta el precio y se agrega a la mesa de una vez.</div>
+    <div class="modal-sub">No está en tu inventario. Tómale una foto (o súbela) y la IA — o el código de barras — completa lo que pueda. Esa misma foto queda como la foto del producto en la carta, con fondo blanco automático. Revisa, ajusta el precio y se agrega a la mesa de una vez.</div>
     <button type="button" class="btn-camera" id="qpCameraBtn" style="width:100%;margin-top:8px">📷 Tomar foto / subir imagen</button>
     <input type="file" id="qpCameraInput" accept="image/*" capture="environment" style="display:none">
     <div class="photo-preview" id="qpPhotoPreview">
@@ -9866,6 +9866,7 @@ function invoiceRowHtml(it, i){
         '<div><label>Margen de venta %</label><input type="number" class="iv-margin" min="0" max="90" step="1" value="' + Math.round(marginPct * 100) + '"></div>' +
         '<div><label>Utilidad por unidad (al sugerido)</label><span class="iv-profit">' + fmt(utilidad) + '</span></div>' +
         '<div class="iv-full"><label>Precio sugerido (el que se va a aplicar al inventario)</label><input type="number" class="iv-price" min="0" step="100" value="' + it.newPrice + '"></div>' +
+        '<div class="iv-full"><button type="button" class="btn-ghost iv-webprice">🌐 Ver a cómo lo tienen en el mercado</button><div class="iv-note iv-webprice-note">' + invEsc(it.webPriceNote || '') + '</div></div>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -10147,6 +10148,27 @@ document.getElementById('invoiceBody').addEventListener('change', e => {
   } else if(e.target.classList.contains('iv-inc')){
     const it = invoiceReadRow(row);
     row.classList.toggle('iv-skip', !it.include);
+  }
+});
+document.getElementById('invoiceBody').addEventListener('click', async e => {
+  const b = e.target.closest('.iv-webprice'); if(!b || !invoiceDraft) return;
+  const row = b.closest('.iv-item'); if(!row) return;
+  const i = +row.dataset.i, it = invoiceDraft.items[i]; if(!it) return;
+  const nm = it.name.trim(); if(!nm){ showToast('Escribe el nombre del producto primero.'); return; }
+  const lbl = b.textContent, note = row.querySelector('.iv-webprice-note');
+  b.disabled = true; b.textContent = '🌐 Buscando…'; if(note) note.textContent = '';
+  try{
+    const r = await pcWebPrice(nm);
+    if(!invoiceDraft || invoiceDraft.items[i] !== it) return;   // se canceló o se cambió la factura mientras buscaba
+    it.webPriceNote = (r && Number(r.price) > 0)
+      ? '🌐 En el mercado lo tienen alrededor de ' + fmt(Math.round(Number(r.price))) + (r.source ? ' (' + r.source + ')' : '') + '. Es un estimado de internet: verifícalo antes de usarlo.'
+      : 'No encontré un precio confiable en internet para comparar.';
+  }catch(err){
+    if(!invoiceDraft || invoiceDraft.items[i] !== it) return;
+    it.webPriceNote = err && err.message === 'NO_API_KEY' ? 'Configura la IA (⚙️ en Productos) para buscar precios en internet.' : '❌ ' + (err && err.message ? err.message : 'No se pudo buscar el precio.');
+  }finally{
+    b.disabled = false; b.textContent = lbl;
+    const freshNote = row.querySelector('.iv-webprice-note'); if(freshNote) freshNote.textContent = it.webPriceNote || '';
   }
 });
 function invoiceClose(){
@@ -12296,10 +12318,12 @@ document.getElementById('qsScanBtn').addEventListener('click', () => {
 // — igual que en Productos — y de una vez lo crea en el inventario y lo
 // agrega a la cuenta abierta.
 let qpBarcode = null;
+let qpFotoBlanca = null;   // la misma foto que se tomó para identificarlo, ya con fondo blanco, lista para guardarse como foto del producto
 function openQuickProductOverlay(prefillName, ctx){
   const ov = document.getElementById('quickProductOverlay');
   if(!ov) return;
   qpBarcode = ctx && ctx.barcode ? ctx.barcode : null;
+  qpFotoBlanca = null;
   document.getElementById('qpName').value = prefillName || '';
   document.getElementById('qpPrice').value = '';
   document.getElementById('qpCost').value = '';
@@ -12314,6 +12338,7 @@ function closeQuickProductOverlay(){
   if(ov) ov.classList.remove('show');
   const input = document.getElementById('qpCameraInput');
   if(input) input.value = '';
+  qpFotoBlanca = null;
 }
 document.getElementById('qpCloseBtn').addEventListener('click', closeQuickProductOverlay);
 document.getElementById('qpCancelBtn').addEventListener('click', closeQuickProductOverlay);
@@ -12330,9 +12355,14 @@ document.getElementById('qpCameraInput').addEventListener('change', async (e) =>
   btn.disabled = true; btn.textContent = '📷 Analizando…';
   preview.classList.add('show');
   status.textContent = 'Preparando la foto…';
+  qpFotoBlanca = null;
   try{
     const dataUrl = await scalePhotoForAI(file, 640, 0.7);
     previewImg.src = dataUrl;
+    // La misma foto que se tomó para identificar el producto queda lista para
+    // usarse como su foto en la carta, con fondo blanco automático (igual que
+    // al subir una foto desde Productos) — así no hay que repetir el paso.
+    try{ qpFotoBlanca = fotoFondoBlanco(await fotoLeerImagen(file)).blanco; }catch(e){ qpFotoBlanca = null; }
     status.textContent = 'Analizando imagen y completando la información del producto…';
     let info;
     try{
@@ -12380,10 +12410,21 @@ document.getElementById('qpAddBtn').addEventListener('click', async () => {
     return;
   }
   const size = sizeInput.value.trim();
+  const fotoLista = qpFotoBlanca;   // se pierde al cerrar el overlay, así que se guarda antes
+  const guardarFoto = async (p) => {
+    if(!fotoLista || p.foto) return;   // no pisa una foto que el producto ya tuviera
+    try{
+      fotosCache[p.id] = fotoLista; p.foto = Date.now();
+      await fotoSet(p.id, fotoLista);
+      renderProductos(); renderInventario();
+      setTimeout(() => { try{ publicarFotosCarta(); }catch(e){} }, 1500);
+    }catch(e){ if(window.mesoraLogError) mesoraLogError('fotos', 'No se pudo guardar la foto tomada al crear el producto: ' + (e && e.message || e), 'qpAddBtn'); }
+  };
   const existing = data.products.find(p => dupKey(p) === dupKey({ name, size }));
   if(existing){
     if(qpBarcode){ if(!Array.isArray(existing.barcodes)) existing.barcodes = []; if(!existing.barcodes.includes(qpBarcode)) existing.barcodes.push(qpBarcode); saveData(); }
     closeQuickProductOverlay();
+    guardarFoto(existing);
     addFavoriteToTable(existing.id);
     return;
   }
@@ -12403,6 +12444,7 @@ document.getElementById('qpAddBtn').addEventListener('click', async () => {
   renderProductos();
   renderInventario();
   closeQuickProductOverlay();
+  await guardarFoto(newProduct);
   addFavoriteToTable(newProduct.id);
 });
 
@@ -15206,6 +15248,51 @@ function qrFijoSync(){
   if(JSON.stringify(f)===JSON.stringify(data.qrFijo||null))return;
   data.qrFijo=f;saveData();
 }
+// Lee el QR de una foto, un PDF (cada página) o un Word .docx (cada imagen que
+// tenga adentro) — para "Fijar mis QR impresos" cuando la persona no tiene la
+// foto suelta sino, por ejemplo, la lista de mesas que le mandó el diseñador
+// en un PDF o en un Word.
+async function qrFijoCargarJSZip(){
+  if(window.JSZip) return window.JSZip;
+  return new Promise(ok=>{const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';sc.onload=()=>ok(window.JSZip||null);sc.onerror=()=>ok(null);document.head.appendChild(sc);});
+}
+const qrFijoEsDocx=f=>/\.docx$/i.test(f.name||'')||f.type==='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const qrFijoEsImagen=f=>/^image\//.test(f.type||'')||/\.(png|jpe?g|bmp|gif|webp)$/i.test(f.name||'');
+function qrFijoArchivoAImagen(f){
+  return new Promise((ok,no)=>{const r=new FileReader();r.onload=async()=>{try{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=r.result;}catch(e){no(e);}};r.onerror=no;r.readAsDataURL(f);});
+}
+async function qrFijoImagenesDeDocx(f){
+  const JSZip=await qrFijoCargarJSZip();if(!JSZip)return[];
+  try{
+    const zip=await JSZip.loadAsync(await f.arrayBuffer());
+    const medias=Object.keys(zip.files).filter(p=>/^word\/media\//i.test(p)&&/\.(png|jpe?g|bmp|gif)$/i.test(p));
+    const imgs=[];
+    for(const path of medias){
+      try{
+        const blob=await zip.files[path].async('blob');
+        const url=URL.createObjectURL(blob);
+        const img=await new Promise((ok2,no2)=>{const i=new Image();i.onload=()=>ok2(i);i.onerror=no2;i.src=url;});
+        imgs.push(img);
+      }catch(e){}
+    }
+    return imgs;
+  }catch(e){return[];}
+}
+async function qrFijoImagenesDePdf(f){
+  if(!window.VitoOfflineOCR||!window.VitoOfflineOCR.expandFilesWithPdfPages)return[];
+  try{
+    const paginas=await window.VitoOfflineOCR.expandFilesWithPdfPages([f]);
+    const imgs=[];
+    for(const pg of paginas){ try{ imgs.push(await qrFijoArchivoAImagen(pg)); }catch(e){} }
+    return imgs;
+  }catch(e){return[];}
+}
+async function qrFijoImagenesDe(f){
+  if(qrFijoEsImagen(f)){ try{ return [await qrFijoArchivoAImagen(f)]; }catch(e){ return []; } }
+  if((window.VitoOfflineOCR&&window.VitoOfflineOCR.isPdfFile&&window.VitoOfflineOCR.isPdfFile(f))||/\.pdf$/i.test(f.name||'')) return qrFijoImagenesDePdf(f);
+  if(qrFijoEsDocx(f)) return qrFijoImagenesDeDocx(f);
+  return [];
+}
 // Restaura los QR impresos desde sus links (uno o varios): ?mesa=N&w=…&c=CANAL&v=CODIGO
 function qrFijoDesdeLinks(texto){
   const urls=String(texto||'').match(/https?:\/\/[^\s"'<>]+/g)||[];
@@ -15241,9 +15328,9 @@ function qrFijoDialogo(){
   if(!ov){
     ov=document.createElement('div');ov.id='qrFijoOverlay';ov.className='overlay';
     ov.innerHTML='<div class="modal" style="max-width:460px"><h2>📌 Fijar mis QR impresos</h2>'+
-      '<div class="modal-sub">Sube una foto de un QR que ya tengas pegado en una mesa (o de varias, una por una) y Mesora lo lee solo — o pega aquí abajo los links, si los tienes copiados. En los dos casos se usa exactamente ese mismo link, sin generar uno nuevo: los QR que ya pegaste en las mesas siguen sirviendo tal cual.</div>'+
-      '<button type="button" class="btn-camera" id="qrFijoFotoBtn" style="width:100%;margin-top:8px">📷 Subir foto del QR de una mesa</button>'+
-      '<input type="file" id="qrFijoFoto" accept="image/*" multiple hidden>'+
+      '<div class="modal-sub">Sube una foto de un QR que ya tengas pegado en una mesa (o de varias, una por una), o un PDF o Word con esos QR, y Mesora lo lee solo — o pega aquí abajo los links, si los tienes copiados. En todos los casos se usa exactamente ese mismo link, sin generar uno nuevo: los QR que ya pegaste en las mesas siguen sirviendo tal cual.</div>'+
+      '<button type="button" class="btn-camera" id="qrFijoFotoBtn" style="width:100%;margin-top:8px">📷 Subir foto, PDF o Word del QR de una mesa</button>'+
+      '<input type="file" id="qrFijoFoto" accept="image/*,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple hidden>'+
       '<div class="modal-sub" id="qrFijoFotoMsg" style="margin-top:4px"></div>'+
       '<textarea id="qrFijoTxt" class="mz-in" style="width:100%;min-height:120px;box-sizing:border-box;font-size:12.5px;margin-top:8px" placeholder="https://…/?mesa=1&w=…&c=…&v=…"></textarea>'+
       '<div class="modal-sub" id="qrFijoMsg" style="margin-top:6px"></div>'+
@@ -15259,18 +15346,21 @@ function qrFijoDialogo(){
       for(const f of files){
         btn.textContent='📷 Leyendo '+(leidas+1)+' de '+files.length+'…';
         try{
-          const url=await new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=no;r.readAsDataURL(f);});
-          const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=url;});
-          const txt=window.leerTextoQR?await window.leerTextoQR(img):null;
-          if(txt&&/^https?:\/\//.test(txt)){
-            const ta=$('qrFijoTxt');ta.value=(ta.value.trim()?ta.value.trim()+'\n':'')+txt;
-            leidas++;
+          const imgs=await qrFijoImagenesDe(f);
+          let hallado=false;
+          for(const img of imgs){
+            const txt=window.leerTextoQR?await window.leerTextoQR(img):null;
+            if(txt&&/^https?:\/\//.test(txt)){
+              const ta=$('qrFijoTxt');ta.value=(ta.value.trim()?ta.value.trim()+'\n':'')+txt;
+              hallado=true;
+            }
           }
+          if(hallado)leidas++;
         }catch(err){}
       }
       btn.disabled=false;btn.textContent=origTxt;
-      msg.textContent=leidas?('✅ '+leidas+' de '+files.length+(files.length===1?' foto leída':' fotos leídas')+'. Revisa abajo y toca «Fijar» — es exactamente el mismo link, no se genera uno nuevo.')
-        :'⚠️ No pude leer el código en esa foto. Acércate más al QR, con buena luz, o pega el link a mano.';
+      msg.textContent=leidas?('✅ '+leidas+' de '+files.length+(files.length===1?' archivo leído':' archivos leídos')+'. Revisa abajo y toca «Fijar» — es exactamente el mismo link, no se genera uno nuevo.')
+        :'⚠️ No pude leer ningún código QR en esos archivos. En fotos, acércate más al QR con buena luz; en PDF o Word, revisa que el QR se vea nítido, o pega el link a mano.';
     };
     $('qrFijoOk').onclick=async()=>{
       const r=qrFijoDesdeLinks($('qrFijoTxt').value);
@@ -17966,7 +18056,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-25 · v39';
+const MESORA_VERSION = '2026-09-25 · v40';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 let presDisp = null, presConn = null;
