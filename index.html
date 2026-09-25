@@ -2677,7 +2677,11 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
         <button class="btn-primary cast-big" id="lngGo" type="button">🔗 Conectar con el YouTube del TV</button>
       </div></div>
       <div class="cast-devs" id="lngBox"><span class="cast-dot"></span><span id="lngEstado">Sin conectar.</span></div>
-      <div class="mz-actions"><button class="btn-ghost" id="lngPlay" type="button" hidden>▶ Poner la cola en el TV ahora</button><button class="btn-ghost" id="lngOff" type="button" hidden>Desconectar</button></div>
+      <div class="mz-actions"><button class="btn-ghost" id="lngPlay" type="button" hidden>▶ Poner la cola en el TV ahora</button><button class="btn-ghost" id="lngOff" type="button" hidden>Desconectar</button><button class="btn-ghost" id="lngVerLog" type="button">🔍 Ver qué pasó</button></div>
+      <div id="lngLogBox" hidden>
+        <pre id="lngLog" style="max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.5;background:rgba(0,0,0,.25);padding:10px;border-radius:10px;margin:8px 0 0"></pre>
+        <div class="mz-actions"><button class="btn-ghost" id="lngLogCopy" type="button">📋 Copiar el registro</button></div>
+      </div>
     </div>
     <div class="settings-group">
       <h2>📺 Transmitir al TV</h2>
@@ -17654,7 +17658,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-25 · v24';
+const MESORA_VERSION = '2026-09-25 · v25';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
@@ -18148,6 +18152,7 @@ async function lngBind(){
   if(!sid) throw new Error('El TV no respondió. Enciéndelo y abre la app de YouTube.');
   lng.sid = sid; lng.gs = gs || ''; lng.t = Date.now();
   lng.tvPlay = lngEstadoTV(t);
+  lngLog('saludo al TV: ok · el TV está ' + lngEstadoNombre(lng.tvPlay));
 }
 /* El TV cuenta en el saludo qué está haciendo ahora mismo (eventos «nowPlaying» /
    «onStateChange»). Códigos de YouTube: -1 sin empezar, 0 terminó, 1 reproduciendo,
@@ -18173,12 +18178,15 @@ async function lngCmd(sc, datos, reintento){
   const body = { count: 1, ofs: ofs, req0__sc: sc };
   Object.keys(datos || {}).forEach(k => { body['req0_' + k] = datos[k]; });
   try{
+    lngLog('→ ' + sc + (datos && datos.videoId ? ' (' + datos.videoId + ')' : '') + ' ofs=' + ofs);
     await lngFetch('bc/bind', Object.assign({ SID: lng.sid, gsessionid: lng.gs, RID: lng.rid++ }, lngBase(tok)), body, tok);
     // El ofs solo avanza si el envío salió bien: si avanzara igual, quedaría un hueco en la
     // numeración y YouTube rechazaría TODO lo que se mandara después (la canción 2 en adelante).
     lng.ofs = ofs + 1;
     lng.t = Date.now();
+    lngLog('   el TV aceptó ' + sc);
   }catch(e){
+    lngLog('   ⚠️ ' + sc + ' falló: ' + (e.status ? 'error ' + e.status + ' · ' : '') + (e.message || e));
     if(!reintento && e.status && e.status >= 400 && e.status < 500){
       // Sesión vencida o permiso viejo: se abre otra y se vuelve a intentar.
       lng.sid = null;
@@ -18190,6 +18198,25 @@ async function lngCmd(sc, datos, reintento){
     }
     throw e;
   }
+}
+/* No basta con mandar el comando: hay que comprobar que el TV de verdad se puso a sonar.
+   Si quedó detenido («video agregado» y nada más), se le dan las órdenes que daría una
+   persona con el control: primero «play»; si sigue quieto, «next» (reproducir a
+   continuación); y si ni así, se le pone la canción directa. Así no depende de haberle
+   acertado al comando la primera vez. */
+async function lngArrancar(videoId){
+  for(const paso of ['play', 'next', 'setPlaylist']){
+    await new Promise(r => setTimeout(r, 2500));
+    try{ await lngAsegurar(true); }catch(e){ lngLog('   no pude comprobar el TV: ' + (e.message || e)); return; }
+    if(lng.tvPlay !== false){ lngLog('   ✅ el TV quedó ' + lngEstadoNombre(lng.tvPlay)); return; }
+    lngLog('   el TV sigue detenido → ' + paso);
+    try{
+      if(paso === 'setPlaylist') await lngCmd('setPlaylist', { videoId: videoId, currentTime: 0, currentIndex: -1, audioOnly: false, listId: '' });
+      else await lngCmd(paso, {});
+    }catch(e){ lngLog('   ⚠️ ' + paso + ' falló: ' + (e.message || e)); return; }
+  }
+  await new Promise(r => setTimeout(r, 2500));
+  try{ await lngAsegurar(true); lngLog(lng.tvPlay === false ? '   ⚠️ el TV sigue sin arrancar' : '   ✅ el TV quedó ' + lngEstadoNombre(lng.tvPlay)); }catch(e){}
 }
 // Manda al TV, en orden justo, las canciones que ya tienen video y aún no se mandaron.
 async function lngSync(forzar){
@@ -18219,8 +18246,10 @@ async function lngSync(forzar){
       const arrancando = Date.now() - (lng.ultimoEnvio || 0) < 20000;
       const quedaCola = arrancando || (lng.tvPlay === null ? (c.hasta && Date.now() < c.hasta) : lng.tvPlay);
       const nuevaCola = forzarInicio || !quedaCola;
+      lngLog('«' + String(x.song || '').slice(0, 40) + '» · TV ' + lngEstadoNombre(lng.tvPlay) + ' → ' + (nuevaCola ? 'arrancar' : 'encolar'));
       await lngCmd(nuevaCola ? 'setPlaylist' : 'addVideo', nuevaCola ? { videoId: x.vid, currentTime: 0, currentIndex: -1, audioOnly: false, listId: '' } : { videoId: x.vid });
       forzarInicio = false; lng.forzar = false; lng.ultimoEnvio = Date.now();
+      await lngArrancar(x.vid);
       // Hasta cuándo se calcula que al TV le queda música de Mesora por sonar.
       const base = nuevaCola ? Date.now() : Math.max(c.hasta || 0, Date.now());
       c.hasta = base + LNG_CANCION_MS; c.ultimo = Date.now();
@@ -18233,6 +18262,18 @@ async function lngSync(forzar){
   }catch(e){ lng.error = e.message || String(e); }
   finally{ lng.ocupado = false; lngEstado(); try{ vm().renderMusica(); }catch(e){} }
 }
+/* ---------- Registro de lo que pasa con el TV ----------
+   Sin esto no hay forma de saber por qué el TV no arranca: queda lo que Mesora le mandó,
+   lo que el TV contestó y en qué estado quedó. Se puede copiar y mandar para revisarlo. */
+const LNG_LOG_MAX = 40;
+function lngLog(txt){
+  const h = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  lng.log = (lng.log || []); lng.log.push(h + '  ' + txt);
+  if(lng.log.length > LNG_LOG_MAX) lng.log = lng.log.slice(-LNG_LOG_MAX);
+  const box = document.getElementById('lngLog');
+  if(box){ box.textContent = lng.log.join('\n'); box.scrollTop = box.scrollHeight; }
+}
+const lngEstadoNombre = v => v === true ? 'sonando' : v === false ? 'detenido' : 'no se sabe';
 function lngEstado(){
   const e = document.getElementById('lngEstado'), box = document.getElementById('lngBox'); if(!e) return;
   const c = lngCfg();
@@ -18301,6 +18342,17 @@ function iniLounge(){
     finally{ b.disabled = false; b.textContent = '🔗 Conectar con el YouTube del TV'; lngEstado(); }
   };
   document.getElementById('lngPlay').onclick = () => lngSync(true);
+  document.getElementById('lngVerLog').onclick = () => {
+    const box = document.getElementById('lngLogBox');
+    box.hidden = !box.hidden;
+    if(!box.hidden) document.getElementById('lngLog').textContent = 'Mesora ' + MESORA_VERSION + '\n' + ((lng.log || []).join('\n') || 'Todavía no se ha mandado nada al TV.');
+  };
+  document.getElementById('lngLogCopy').onclick = async () => {
+    const txt = (lng.log || []).join('\n');
+    if(!txt) return showToast('Todavía no hay nada que copiar.');
+    try{ await navigator.clipboard.writeText('Mesora ' + MESORA_VERSION + ' · YouTube del TV\n' + txt); showToast('📋 Registro copiado.'); }
+    catch(e){ showToast('⚠️ No se pudo copiar.'); }
+  };
   document.getElementById('lngOff').onclick = () => { const c = lngCfg(); ['screenId', 'loungeToken', 'exp', 'nombre', 'on', 'ultimo', 'hasta'].forEach(k => delete c[k]); SS(LNG_KEY, c); lng.sid = null; lng.error = ''; lngEstado(); autoRestaurar(); showToast('Desconectado del YouTube del TV.'); };
   setInterval(() => { lngSync(); }, 4000);
   const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', lngEstado);
