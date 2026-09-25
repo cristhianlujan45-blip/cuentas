@@ -15234,12 +15234,37 @@ function qrFijoDialogo(){
   if(!ov){
     ov=document.createElement('div');ov.id='qrFijoOverlay';ov.className='overlay';
     ov.innerHTML='<div class="modal" style="max-width:460px"><h2>📌 Fijar mis QR impresos</h2>'+
-      '<div class="modal-sub">Pega aquí los links de tus QR impresos (uno o todos: al escanear un QR con la cámara, copia el link). Mesora usará exactamente ese canal, ese link y esos códigos, así los QR de las mesas nunca cambian.</div>'+
+      '<div class="modal-sub">Sube una foto de un QR que ya tengas pegado en una mesa (o de varias, una por una) y Mesora lo lee solo — o pega aquí abajo los links, si los tienes copiados. En los dos casos se usa exactamente ese mismo link, sin generar uno nuevo: los QR que ya pegaste en las mesas siguen sirviendo tal cual.</div>'+
+      '<button type="button" class="btn-camera" id="qrFijoFotoBtn" style="width:100%;margin-top:8px">📷 Subir foto del QR de una mesa</button>'+
+      '<input type="file" id="qrFijoFoto" accept="image/*" multiple hidden>'+
+      '<div class="modal-sub" id="qrFijoFotoMsg" style="margin-top:4px"></div>'+
       '<textarea id="qrFijoTxt" class="mz-in" style="width:100%;min-height:120px;box-sizing:border-box;font-size:12.5px;margin-top:8px" placeholder="https://…/?mesa=1&w=…&c=…&v=…"></textarea>'+
       '<div class="modal-sub" id="qrFijoMsg" style="margin-top:6px"></div>'+
       '<div class="modal-actions"><button class="btn-close" type="button" id="qrFijoNo">Cancelar</button><button class="btn-primary" type="button" id="qrFijoOk">Fijar</button></div></div>';
     document.body.appendChild(ov);
     $('qrFijoNo').onclick=()=>ov.classList.remove('show');
+    $('qrFijoFotoBtn').onclick=()=>$('qrFijoFoto').click();
+    $('qrFijoFoto').onchange=async e=>{
+      const files=Array.from(e.target.files||[]);e.target.value='';
+      if(!files.length)return;
+      const btn=$('qrFijoFotoBtn'),msg=$('qrFijoFotoMsg'),origTxt=btn.textContent;
+      btn.disabled=true;let leidas=0;
+      for(const f of files){
+        btn.textContent='📷 Leyendo '+(leidas+1)+' de '+files.length+'…';
+        try{
+          const url=await new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=no;r.readAsDataURL(f);});
+          const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=url;});
+          const txt=window.leerTextoQR?await window.leerTextoQR(img):null;
+          if(txt&&/^https?:\/\//.test(txt)){
+            const ta=$('qrFijoTxt');ta.value=(ta.value.trim()?ta.value.trim()+'\n':'')+txt;
+            leidas++;
+          }
+        }catch(err){}
+      }
+      btn.disabled=false;btn.textContent=origTxt;
+      msg.textContent=leidas?('✅ '+leidas+' de '+files.length+(files.length===1?' foto leída':' fotos leídas')+'. Revisa abajo y toca «Fijar» — es exactamente el mismo link, no se genera uno nuevo.')
+        :'⚠️ No pude leer el código en esa foto. Acércate más al QR, con buena luz, o pega el link a mano.';
+    };
     $('qrFijoOk').onclick=async()=>{
       const r=qrFijoDesdeLinks($('qrFijoTxt').value);
       if(r.err){$('qrFijoMsg').textContent='⚠️ '+r.err;return;}
@@ -15253,7 +15278,7 @@ function qrFijoDialogo(){
       showToast('📌 Listo: QR fijados ('+r.n+(r.n===1?' mesa':' mesas')+'). Los QR de las mesas no cambian.',7000);
     };
   }
-  $('qrFijoTxt').value='';$('qrFijoMsg').textContent='';
+  $('qrFijoTxt').value='';$('qrFijoMsg').textContent='';$('qrFijoFotoMsg').textContent='';
   ov.classList.add('show');
 }
 // Link de restauración: index.html#qrfijo=<datos> (lo arma el soporte a partir de los QR impresos).
@@ -17924,7 +17949,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-25 · v35';
+const MESORA_VERSION = '2026-09-25 · v36';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 let presDisp = null, presConn = null;
@@ -19709,6 +19734,7 @@ window.mesoraCelebrar = function(emojis){
     qpPintar();
   }
   window.qrPagoPublicar = qpPublicar;
+  window.leerTextoQR = leerTexto;   // reutilizado por «Fijar mis QR impresos» (subir foto del QR pegado en la mesa)
   const t0 = setInterval(() => { if(typeof data !== 'undefined' && data){ clearInterval(t0); qpIni(); qpPublicar(false); } }, 1000);
   setInterval(() => qpPublicar(false), 30 * 60000);
 })();
