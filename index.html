@@ -2677,6 +2677,8 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
         <button class="btn-primary cast-big" id="lngGo" type="button">🔗 Conectar con el YouTube del TV</button>
       </div></div>
       <div class="cast-devs" id="lngBox"><span class="cast-dot"></span><span id="lngEstado">Sin conectar.</span></div>
+      <div class="settings-desc" id="lngBusca" style="margin-top:6px"></div>
+      <div class="mz-actions"><button class="btn-ghost" id="lngCuenta" type="button">🔑 Conectar mi cuenta de YouTube</button></div>
       <div class="mz-actions"><button class="btn-ghost" id="lngPlay" type="button" hidden>▶ Poner la cola en el TV ahora</button><button class="btn-ghost" id="lngOff" type="button" hidden>Desconectar</button><button class="btn-ghost" id="lngVerLog" type="button">🔍 Ver qué pasó</button></div>
       <div id="lngLogBox" hidden>
         <pre id="lngLog" style="max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.5;background:rgba(0,0,0,.25);padding:10px;border-radius:10px;margin:8px 0 0"></pre>
@@ -15545,12 +15547,47 @@ const YT_BAD_KEY='vito_yt_bad', YT_REGION=((navigator.language||'').split('-')[1
 const ytBad=()=>LS(YT_BAD_KEY,[]);
 function ytMarcarBad(v){ if(!v)return; const b=ytBad(); if(!b.includes(v)){ b.push(v); SS(YT_BAD_KEY,b.slice(-400)); } }
 const SELLO_RE=/vevo|\s-\stopic$|warner|wmg|atlantic|elektra|parlophone|reprise|rhino|asylum|nonesuch|sire records/i;
+/* Buscar en YouTube, con respaldos. Antes, si la clave compartida se quedaba sin cupo del día
+   (la usan todos los locales), la búsqueda fallaba y NINGUNA canción llegaba al TV. Ahora:
+   1) la clave; 2) la cuenta de YouTube conectada (su propio cupo); 3) búsqueda libre sin clave. */
+let yFuente='';           // con qué se encontró la última canción
+window.ytFallo=null;      // último problema buscando (se muestra en Música)
+const Y_LIBRES=['https://pipedapi.kavin.rocks','https://inv.nadeko.net','https://invidious.nerdvpn.de','https://yewtu.be'];
+async function yLibre(u){
+  const q=(u.match(/[?&]q=([^&]*)/)||[])[1];if(!q)return undefined;
+  for(const base of Y_LIBRES){
+    const ctrl=new AbortController(),tm=setTimeout(()=>ctrl.abort(),4500);
+    try{
+      const piped=/piped/.test(base);
+      const r=await fetch(base+(piped?'/search?filter=videos&q=':'/api/v1/search?type=video&q=')+q,{signal:ctrl.signal});
+      if(!r.ok)continue;
+      const j=await r.json();
+      const items=(piped?(j.items||[]).map(x=>({v:(String(x.url||'').match(/v=([\w-]{11})/)||[])[1],t:x.title,c:x.uploaderName})):(Array.isArray(j)?j:[]).map(x=>({v:x.videoId,t:x.title,c:x.author}))).filter(x=>x.v);
+      if(items.length)return {items:items.map(x=>({id:{videoId:x.v},snippet:{title:x.t||'',channelTitle:x.c||''}})),_libre:true};
+    }catch(e){}finally{clearTimeout(tm);}
+  }
+  return undefined;
+}
 async function yGet(u){
-  const c=yCfg();let j;
-  if(c.key){const r=await fetch('https://www.googleapis.com/youtube/v3/'+u+'&key='+encodeURIComponent(c.key));j=await r.json();if(!r.ok)throw new Error((j.error&&j.error.message)||('Error '+r.status));}
-  else if(yTok())j=await yApi(u);
-  else return undefined;
-  return j;
+  const c=yCfg();let err=null;
+  if(c.key){
+    try{const r=await fetch('https://www.googleapis.com/youtube/v3/'+u+'&key='+encodeURIComponent(c.key));const j=await r.json();
+      if(r.ok){yFuente='clave';window.ytFallo=null;return j;}
+      err=new Error((j.error&&j.error.message)||('Error '+r.status));}
+    catch(e){err=e;}
+  }
+  if(yTok()){
+    try{const j=await yApi(u);yFuente='cuenta';window.ytFallo=null;return j;}catch(e){err=err||e;}
+  }
+  if(/^search\?/.test(u)){
+    const j=await yLibre(u);
+    if(j){yFuente='libre';window.ytFallo=null;return j;}
+  }
+  if(err){
+    window.ytFallo=/quota/i.test(err.message)?'Se acabó el cupo del día para buscar canciones. Conecta tu cuenta de YouTube (Música → YouTube del TV) o pon tu propia API key.':'No pude buscar la canción en YouTube: '+err.message;
+    throw err;
+  }
+  return undefined;
 }
 async function ySearch(q,excluir){
   const j=await yGet('search?part=snippet&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&maxResults=10&q='+encodeURIComponent(q));
@@ -15603,7 +15640,7 @@ async function ytUno(id){
     l=cola();it=l.find(x=>x.id===id);if(it){it.yt=true;it.done=true;it.ytAt=Date.now();it.ytItemId=r&&r.id;SS('vito_cola',l);}
     try{if(typeof castEstado==='function')castEstado();}catch(e){}
     const c=yCfg();c.len++;SS('vito_yt',c);
-  }catch(e){showToast('YouTube: '+e.message);}
+  }catch(e){ if(!window.ytAvisoT||Date.now()-window.ytAvisoT>600000){ window.ytAvisoT=Date.now(); showToast('YouTube: '+(window.ytFallo||e.message),8000); } }
   yEstado();
 }
 function yPendientes(){
@@ -15950,7 +15987,7 @@ async function publicarCatalogo(force){
 window.vitoPublicarCatalogo = publicarCatalogo;
 window.vitoQCfg = qCfg;   // lo usan los domicilios por web/WhatsApp, que viven fuera de este módulo
 // Lo que usan las fotos de la carta y la transmisión al TV (script del final).
-window.vitoMod = { linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena };
+window.vitoMod = { linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente };
 function publicarCuentas(){
   if(typeof data==='undefined'||!data)return;
   try{publicarCatalogo();}catch(e){}             // la carta se publica siempre (aunque "en vivo" esté apagado)
@@ -17821,7 +17858,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-25 · v29';
+const MESORA_VERSION = '2026-09-25 · v30';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 let presDisp = null, presConn = null;
@@ -18468,7 +18505,23 @@ function lngLog(txt){
   if(box){ box.textContent = lng.log.join('\n'); box.scrollTop = box.scrollHeight; }
 }
 const lngEstadoNombre = v => v === true ? 'sonando' : v === false ? 'detenido' : 'no se sabe';
+/* Las canciones solo llegan al TV si antes se les encontró el video en YouTube. Aquí se ve con
+   qué se busca (clave, tu cuenta o búsqueda libre), qué cuenta está conectada y, si hay
+   canciones atascadas sin video, por qué. */
+function lngBusca(){
+  const el = document.getElementById('lngBusca'); if(!el) return;
+  const m = vm(); if(!m.yCfg) return;
+  const y = m.yCfg(), tok = m.yTok && m.yTok(), f = m.yFuente ? m.yFuente() : '';
+  const atascadas = m.cola ? m.cola().filter(x => !x.done && !x.vid && !x.novid).length : 0;
+  const bCta = document.getElementById('lngCuenta');
+  if(bCta) bCta.textContent = tok ? '🔑 Cuenta conectada' + (y.who ? ': «' + y.who + '»' : '') + ' · tocar para cambiarla' : '🔑 Conectar mi cuenta de YouTube';
+  let t = '🔎 Las canciones se buscan con: ' + (f === 'cuenta' ? 'tu cuenta' + (y.who ? ' «' + y.who + '»' : '') : f === 'libre' ? 'búsqueda libre (sin clave)' : f === 'clave' ? 'la API key' : (tok ? 'tu cuenta' + (y.who ? ' «' + y.who + '»' : '') : 'la API key, y si se acaba el cupo, búsqueda libre')) + '.';
+  if(atascadas) t += '\n⚠️ ' + atascadas + (atascadas === 1 ? ' canción no ha encontrado' : ' canciones no han encontrado') + ' su video' + (window.ytFallo ? ': ' + window.ytFallo : ' todavía (se reintenta solo).');
+  el.style.whiteSpace = 'pre-line';
+  el.textContent = t;
+}
 function lngEstado(){
+  try{ lngBusca(); }catch(x){}
   const e = document.getElementById('lngEstado'), box = document.getElementById('lngBox'); if(!e) return;
   const c = lngCfg();
   box.classList.remove('ok', 'no');
@@ -18536,6 +18589,12 @@ function iniLounge(){
     finally{ b.disabled = false; b.textContent = '🔗 Conectar con el YouTube del TV'; lngEstado(); }
   };
   document.getElementById('lngPlay').onclick = () => lngSync(true);
+  document.getElementById('lngCuenta').onclick = () => {
+    const m = vm(), y = m.yCfg ? m.yCfg() : {};
+    if(!y.cid){ showToast('Para entrar con tu cuenta de YouTube primero hay que pegar el «Client ID de Google» en Música → ▶ YouTube Music automático (ahí están los pasos). Mientras tanto las canciones se buscan con la clave o con la búsqueda libre.', 10000); const k = document.getElementById('ytCid'); if(k){ k.scrollIntoView({ block: 'center', behavior: 'smooth' }); } return; }
+    m.yConectar(false);
+    setTimeout(lngEstado, 4000);
+  };
   document.getElementById('lngVerLog').onclick = () => {
     const box = document.getElementById('lngLogBox');
     box.hidden = !box.hidden;
@@ -18549,6 +18608,8 @@ function iniLounge(){
   };
   document.getElementById('lngOff').onclick = () => { const c = lngCfg(); ['screenId', 'loungeToken', 'exp', 'nombre', 'on', 'ultimo', 'hasta', 'visto', 'arranco'].forEach(k => delete c[k]); SS(LNG_KEY, c); lng.sid = null; lng.error = ''; lngEstado(); autoRestaurar(); showToast('Desconectado del YouTube del TV.'); };
   setInterval(() => { lngSync(); }, 4000);
+  // Canciones que quedaron sin video (búsqueda fallida): se reintentan cada 20 s mientras el TV esté conectado.
+  setInterval(() => { try{ if(!lngOn()) return; const m = vm(); m.cola().filter(x => !x.done && !x.vid && !x.novid).forEach(x => m.ytAgregar(x.id)); lngEstado(); }catch(e){} }, 20000);
   const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', lngEstado);
   lngEstado();
 }
