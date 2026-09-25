@@ -2644,7 +2644,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
         <button class="btn-primary" id="castOpenYT" type="button">▶ YouTube</button>
       </div>
       <div class="cast-devs" id="castDevs" hidden><span class="cast-dot"></span><span id="castDevsTxt"></span></div>
-      <button class="btn-ghost cast-big" id="castPres" type="button">📡 Solo si tienes Chromecast o Google TV: buscarlo</button>
+      <button class="btn-primary cast-big" id="castPres" type="button">📡 Chromecast / Google TV / Android TV: abrir YouTube en el TV</button>
       <div class="mz-actions">
         <button class="btn-ghost" id="castPair" type="button">🔗 Vincular con código de TV</button>
         <button class="btn-ghost" id="castHelp" type="button">¿No aparece tu TV?</button>
@@ -17352,12 +17352,10 @@ function abrirAppElegida(path){
 }
 function castBuscarYTransmitir(){ transmitirTV(); }
 
-/* Chromecast / Google TV / Android TV: Chrome busca en el wifi los dispositivos que reciben
-   transmisión y muestra su propia lista (Presentation API). Al elegir uno, el dispositivo abre
-   la Pantalla del TV de Mesora (tv.html) y reproduce la cola en vivo: cada canción que piden las
-   mesas entra sola. Los Smart TV LG/Samsung sin Chromecast no aparecen aquí (solo los ve la app
-   de YouTube): para esos están los botones de YouTube Music / YouTube. */
-const MESORA_VERSION = '2026-09-25 · v21';
+/* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
+   (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
+   conectan con «Vincular con código de TV» (sección YouTube del TV). */
+const MESORA_VERSION = '2026-09-25 · v22';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
@@ -17372,6 +17370,7 @@ function castEntorno(){
 function castDevsPintar(){
   const box = document.getElementById('castDevs'), t = document.getElementById('castDevsTxt');
   if(!box) return;
+  if(ccSes){ ccPintar(); return; }
   box.classList.remove('ok', 'no', 'busy');
   box.hidden = !((presConn && presConn.state === 'connected') || presDisp === true);
   if(presConn && presConn.state === 'connected'){ box.classList.add('ok'); t.textContent = '📡 Transmitiendo a tu dispositivo: la música de las mesas suena allá en vivo.'; return; }
@@ -17379,15 +17378,6 @@ function castDevsPintar(){
   if(presDisp === true){ box.classList.add('ok'); t.textContent = 'Hay un Chromecast / Google TV en tu wifi: toca «buscarlo» y elígelo.'; }
   else if(presDisp === false){ box.classList.add('no'); t.textContent = 'No hay Chromecast / Google TV en este wifi.'; }
   else { t.textContent = 'Toca «Buscar» para ver los Chromecast / Google TV / Android TV de tu wifi.'; }
-}
-function presVigilar(){
-  if(!presSoportado()) return;
-  const u = presUrl(); if(!u) return;
-  try{
-    const req = new PresentationRequest([u]);
-    navigator.presentation.defaultRequest = req;          // también aparece en el menú «Transmitir» de Chrome
-    req.getAvailability().then(av => { presDisp = av.value; av.onchange = () => { presDisp = av.value; castDevsPintar(); }; castDevsPintar(); }).catch(() => { presDisp = null; castDevsPintar(); });
-  }catch(e){}
 }
 // No hay Chromecast: su TV es un Smart TV (LG/Samsung) que solo ve la app de YouTube.
 function castSinChromecast(){
@@ -17407,30 +17397,107 @@ function castSinChromecast(){
   }
   ov.classList.add('show');
 }
-function presBuscar(){
+/* ---------- Chromecast / Google TV / Android TV con la APP de YouTube ----------
+   Se transmite con el sistema oficial de Chromecast pidiendo la app de YouTube del TV (no un
+   reproductor web). Al abrirse, la app de YouTube del TV dice su «screenId»; con él Mesora se
+   vuelve su control remoto (igual que el código de TV) y le manda la cola: cada canción que pidan
+   las mesas entra sola a la cola del YouTube del TV. */
+const YT_RECEIVER = '233637DE', MDX_NS = 'urn:x-cast:com.google.youtube.mdx';
+let castSdkP = null, ccSes = null, ccRespaldo = false;
+function castSdk(){
+  if(castSdkP) return castSdkP;
+  castSdkP = new Promise((res, rej) => {
+    if(window.cast && cast.framework) return res();
+    const tmo = setTimeout(() => rej(new Error('sdk')), 12000);
+    const prev = window.__onGCastApiAvailable;
+    window.__onGCastApiAvailable = ok => { clearTimeout(tmo); try{ prev && prev(ok); }catch(e){} ok ? res() : rej(new Error('nocast')); };
+    const sc = document.createElement('script');
+    sc.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
+    sc.onerror = () => { clearTimeout(tmo); rej(new Error('sdk')); };
+    document.head.appendChild(sc);
+  }).then(() => {
+    const ctx = cast.framework.CastContext.getInstance();
+    ctx.setOptions({ receiverApplicationId: YT_RECEIVER, autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED });
+    ctx.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED, ev => {
+      const S = cast.framework.SessionState;
+      if(ev.sessionState === S.SESSION_STARTED || ev.sessionState === S.SESSION_RESUMED) ccConectado(ctx.getCurrentSession());
+      if(ev.sessionState === S.SESSION_ENDED){ ccSes = null; ccRespaldo = false; ccPintar(); }
+    });
+    return ctx;
+  });
+  castSdkP.catch(() => { castSdkP = null; });
+  return castSdkP;
+}
+function ccPintar(txt, cls){
+  const box = document.getElementById('castDevs'), t = document.getElementById('castDevsTxt'); if(!box) return;
+  box.classList.remove('ok', 'no', 'busy');
+  if(!txt && !ccSes){ box.hidden = true; return; }
+  box.hidden = false;
+  if(!txt){ const n = ccSes.getCastDevice ? ccSes.getCastDevice().friendlyName : 'TV'; txt = '📺 YouTube abierto en «' + n + '».' + (lngOn() ? ' Las canciones de las mesas entran solas a su cola.' : ''); cls = 'ok'; }
+  if(cls) box.classList.add(cls);
+  t.textContent = txt;
+}
+async function ccTransmitir(){
   const env = castEntorno();
   if(env.bad){ showToast(env.t, 9000); return; }
-  if(!presSoportado()){ showToast('⚠️ Este navegador no puede buscar Chromecast/Google TV. Abre Mesora en Chrome, o usa los botones de YouTube.', 7000); return; }
-  const u = presUrl();
-  if(!u){ showToast('⚠️ Abre Mesora desde su dirección https para transmitir.'); return; }
-  // El dispositivo reproduce la cola: se enciende la Pantalla del TV (el celular le manda las canciones).
-  const sw = document.getElementById('tvpOn');
-  if(sw && !sw.checked){ sw.checked = true; sw.dispatchEvent(new Event('change')); }
-  let req;
-  try{ req = new PresentationRequest([presUrl()]); }catch(e){ showToast('⚠️ No se pudo iniciar la búsqueda: ' + e.message); return; }
-  req.start().then(conn => {
-    presConn = conn;
-    showToast('📡 Conectado. La música de las mesas va a sonar en tu TV.', 6000);
-    const upd = () => { castDevsPintar(); castEstado(); };
-    conn.onconnect = upd; conn.onclose = upd; conn.onterminate = () => { presConn = null; upd(); };
-    upd();
-  }).catch(e => {
-    const n = e && e.name;
-    if(n === 'NotAllowedError' || n === 'AbortError') return;           // cerró la lista sin elegir
-    if(n === 'NotFoundError'){ presDisp = false; castDevsPintar(); castSinChromecast(); return; }
-    showToast('⚠️ ' + (e && e.message ? e.message : 'No se pudo transmitir.'), 6000);
-  });
+  ccPintar('Buscando tus televisores…', 'busy');
+  let ctx;
+  try{ ctx = await castSdk(); }
+  catch(e){ ccPintar(''); showToast('⚠️ Este navegador no transmite a Chromecast. Abre Mesora en Chrome (Android o computador). Para Smart TV LG/Samsung usa el código de TV.', 9000); castSinChromecast(); return; }
+  try{ await ctx.requestSession(); }
+  catch(e){
+    ccPintar('');
+    if(e === 'cancel' || (e && e.code === 'cancel')) return;
+    if(e === 'receiver_unavailable' || (e && e.code === 'receiver_unavailable')){ castSinChromecast(); return; }
+    showToast('⚠️ No se pudo abrir YouTube en el TV (' + (e && e.code || e) + ').', 7000); return;
+  }
+  ccConectado(ctx.getCurrentSession());
 }
+function ccConectado(ses){
+  if(!ses || ses === ccSes) return;
+  ccSes = ses; ccRespaldo = false;
+  const nombre = ses.getCastDevice ? ses.getCastDevice().friendlyName : 'TV';
+  let listo = false;
+  ses.addMessageListener(MDX_NS, (ns, msg) => {
+    let m; try{ m = typeof msg === 'string' ? JSON.parse(msg) : msg; }catch(e){ return; }
+    if(m && m.type === 'mdxSessionStatus' && m.data && m.data.screenId && !listo){ listo = true; ccScreen(m.data.screenId, nombre); }
+  });
+  const pedir = () => { if(!listo && ccSes === ses) ses.sendMessage(MDX_NS, { type: 'getMdxSessionStatus' }).catch(() => {}); };
+  pedir(); setTimeout(pedir, 2500); setTimeout(pedir, 6000);
+  setTimeout(() => { if(!listo && ccSes === ses){ ccRespaldo = true; ccSiguiente(); } }, 9000);
+  ccPintar('📺 Abriendo YouTube en «' + nombre + '»…', 'busy');
+}
+async function ccScreen(screenId, nombre){
+  const c = lngCfg();
+  Object.assign(c, { screenId, nombre, on: true, ultimo: 0 }); delete c.loungeToken; delete c.exp;
+  SS(LNG_KEY, c); lng.sid = null; lng.error = '';
+  const a = document.getElementById('autoPlay'); if(a && a.checked){ a.checked = false; a.dispatchEvent(new Event('change')); }
+  const tv = document.getElementById('tvpOn'); if(tv && tv.checked){ tv.checked = false; tv.dispatchEvent(new Event('change')); }
+  try{ vm().cola().forEach(x => { if(!x.vid && !x.done) vm().ytAgregar(x.id); }); }catch(e){}
+  if(!c.relay){ ccRespaldo = true; ccSiguiente(); ccPintar('📺 YouTube abierto en «' + nombre + '». Para que las canciones entren solas a su cola falta el puente (Música → YouTube del TV, paso 1).', 'no'); lngEstado(); return; }
+  await lngSync(true);
+  lngEstado();
+  if(lng.error){ ccRespaldo = true; ccSiguiente(); ccPintar('⚠️ ' + lng.error, 'no'); return; }
+  ccPintar();
+  showToast('✅ YouTube abierto en «' + nombre + '»: las canciones de las mesas entran solas a su cola.', 7000);
+}
+// Respaldo sin puente: se le pide a la app de YouTube del TV que reproduzca la canción por el canal
+// normal de Chromecast; cuando termina, la siguiente.
+function ccSiguiente(){
+  if(!ccRespaldo || !ccSes || !window.chrome || !chrome.cast || !chrome.cast.media) return;
+  const ms = ccSes.getMediaSession && ccSes.getMediaSession();
+  if(ms && ms.playerState && ms.playerState !== 'IDLE') return;
+  const l = vm().cola ? vm().ordenJusto(vm().cola()) : [];
+  const x = l.find(y => y.vid && !y.lng && !y.done); if(!x) return;
+  const req = new chrome.cast.media.LoadRequest(new chrome.cast.media.MediaInfo(x.vid, 'x-youtube/video'));
+  req.autoplay = true;
+  ccSes.loadMedia(req).then(() => {
+    const cl = vm().cola(), it = cl.find(y => y.id === x.id);
+    if(it){ it.lng = true; it.done = true; it.lngAt = Date.now(); SS('vito_cola', cl); }
+    SS('vito_now', x); try{ vm().renderMusica(); }catch(e){}
+  }).catch(() => { ccRespaldo = false; if(!lngOn()) ccPintar('📺 YouTube está abierto en el TV. Para que suene la cola de las mesas conecta el puente (Música → YouTube del TV, paso 1).', 'no'); });
+}
+setInterval(ccSiguiente, 5000);
 /* Vincular con código de TV: sirve aunque el wifi no deje ver el TV (routers de negocio).
    El código lo muestra la app de YouTube del TV; el enlace lo hace la app de YouTube del
    celular (Configuración → Ver en TV → Ingresar código de TV). Esta pantalla guía los pasos,
@@ -17573,7 +17640,8 @@ function castAbrirApp(){
 }
 function iniCast(){
   if(!document.getElementById('castPres')) return;
-  document.getElementById('castPres').onclick = presBuscar;
+  document.getElementById('castPres').onclick = ccTransmitir;
+  setTimeout(() => { castSdk().catch(() => {}); }, 1500);   // se carga antes para que la lista de TV salga al instante
   document.getElementById('castRefresh').onclick = () => transmitirTV();
   // Al volver a Mesora (desde YouTube) con canciones nuevas: se ofrece mandarlas al TV de un toque.
   document.addEventListener('visibilitychange', () => {
@@ -17588,9 +17656,9 @@ function iniCast(){
   document.getElementById('castOpenYT').onclick = () => { SS(CAST_APP_KEY, { app: 'yt' }); castAbrirApp(); };
   const env = castEntorno(), ce = document.getElementById('castEnv');
   ce.textContent = env.t + ' · Versión ' + MESORA_VERSION; ce.classList.toggle('bad', !!env.bad);
-  presVigilar();
   document.getElementById('castHelp').onclick = castGuia;
-  document.getElementById('castPair').onclick = castVincular;
+  // «Vincular con código de TV» ahora es el de Mesora (sección YouTube del TV), que sí manda la cola sola.
+  document.getElementById('castPair').onclick = () => { const b = document.getElementById('lngCode'); if(b){ b.scrollIntoView({ block: 'center', behavior: 'smooth' }); setTimeout(() => b.focus(), 400); } };
 
   document.getElementById('castStop').onclick = () => { SS(CAST_KEY, {}); castEstado(); showToast('Transmisión terminada. En el TV puedes detenerla desde la app de YouTube.'); };
   const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', castEstado);
@@ -17721,7 +17789,9 @@ async function lngFetch(path, params, body, token){
 }
 const lngExp = v => { v = Number(v) || 0; return v && v < 1e12 ? v * 1000 : v; };
 async function lngParear(code){
-  const t = await lngFetch('pairing/get_screen', null, { pairing_code: code });
+  let t;
+  try{ t = await lngFetch('pairing/get_screen', null, { pairing_code: code }); }
+  catch(e){ if(e.status === 404 || e.status === 400) throw new Error('YouTube no reconoce ese código. En el TV vuelve a abrir «Vincular con código de TV» y escribe el código nuevo (cambia cada vez).'); throw e; }
   let j; try{ j = JSON.parse(t); }catch(e){ throw new Error('El código no funcionó. Revisa los 12 números (el código del TV cambia cada vez que lo abres).'); }
   const sc = j && j.screen;
   if(!sc || !sc.screenId) throw new Error('El código no funcionó. Revisa los 12 números.');
@@ -17739,22 +17809,27 @@ async function lngToken(){
   c.loungeToken = s0.loungeToken; c.exp = lngExp(s0.expiration); SS(LNG_KEY, c);
   return c.loungeToken;
 }
-function lngBase(tok){ return { VER: 8, CVER: 1, device: 'REMOTE_CONTROL', id: lngUuid(), name: 'Mesora', app: 'youtube-desktop', 'mdx-version': 3, loungeIdToken: tok }; }
+function lngBase(tok){ return { VER: 8, CVER: 1, device: 'REMOTE_CONTROL', id: lngUuid(), name: 'Mesora', app: 'web', 'mdx-version': 3, loungeIdToken: tok }; }
 async function lngBind(){
   const tok = await lngToken();
   lng.rid = 1; lng.ofs = 0;
-  const t = await lngFetch('bc/bind', Object.assign({ RID: lng.rid++ }, lngBase(tok)), { count: 0 }, tok);
+  // Mismo saludo que usan hoy los controles remotos de YouTube (los datos van en el cuerpo).
+  const t = await lngFetch('bc/bind', { RID: lng.rid++, VER: 8, CVER: 1, auth_failure_option: 'send_error' }, {
+    app: 'web', 'mdx-version': 3, name: 'Mesora', id: lngUuid(), device: 'REMOTE_CONTROL', capabilities: 'que,dsdtr,atp',
+    method: 'setPlaylist', magnaKey: 'cloudPairedDevice', ui: 'false', theme: 'cl', loungeIdToken: tok,
+    deviceContext: 'user_agent=dunno&window_width_points=&window_height_points=&os_name=android&ms='
+  }, tok);
   const sid = (t.match(/"c"\s*,\s*"([^"]+)"/) || [])[1], gs = (t.match(/"S"\s*,\s*"([^"]+)"/) || [])[1];
   if(!sid) throw new Error('El TV no respondió. Enciéndelo y abre la app de YouTube.');
   lng.sid = sid; lng.gs = gs || ''; lng.t = Date.now();
 }
 async function lngCmd(sc, datos, reintento){
-  if(!lng.sid || Date.now() - lng.t > 15 * 60000) await lngBind();
+  if(!lng.sid || Date.now() - lng.t > 5 * 60000) await lngBind();
   const tok = await lngToken();
   const body = { count: 1, ofs: lng.ofs++, req0__sc: sc };
   Object.keys(datos || {}).forEach(k => { body['req0_' + k] = datos[k]; });
   try{
-    await lngFetch('bc/bind', Object.assign({ SID: lng.sid, gsessionid: lng.gs, RID: lng.rid++, AID: 0 }, lngBase(tok)), body, tok);
+    await lngFetch('bc/bind', Object.assign({ SID: lng.sid, gsessionid: lng.gs, RID: lng.rid++ }, lngBase(tok)), body, tok);
     lng.t = Date.now();
   }catch(e){
     if(!reintento && e.status && e.status >= 400 && e.status < 500){ lng.sid = null; return lngCmd(sc, datos, true); }   // sesión vencida: se abre otra
