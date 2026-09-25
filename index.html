@@ -18096,7 +18096,8 @@ async function licDesdeLink(){
 const LNG_KEY = 'vito_ytlounge';
 const lngCfg = () => LS(LNG_KEY, {});
 function lngOn(){ const c = lngCfg(); return !!(c.on && c.relay && c.screenId); }
-const lng = { sid: null, gs: null, rid: 1, ofs: 0, t: 0, uuid: '', ocupado: false, error: '' };
+const lng = { sid: null, gs: null, rid: 1, ofs: 0, t: 0, uuid: '', ocupado: false, error: '', tvPlay: null };
+const LNG_CANCION_MS = 4 * 60000;   // lo que dura más o menos una canción en el TV
 function lngUuid(){ const c = lngCfg(); if(!c.uuid){ c.uuid = 'mesora' + Array.from(crypto.getRandomValues(new Uint8Array(10)), b => (b % 36).toString(36)).join(''); SS(LNG_KEY, c); } return c.uuid; }
 async function lngFetch(path, params, body, token){
   const c = lngCfg();
@@ -18146,41 +18147,84 @@ async function lngBind(){
   const sid = (t.match(/"c"\s*,\s*"([^"]+)"/) || [])[1], gs = (t.match(/"S"\s*,\s*"([^"]+)"/) || [])[1];
   if(!sid) throw new Error('El TV no respondió. Enciéndelo y abre la app de YouTube.');
   lng.sid = sid; lng.gs = gs || ''; lng.t = Date.now();
-  lng.recien = true;   // la sesión se acaba de (re)crear: la app del TV no necesariamente está reproduciendo,
-                        // así que la próxima canción debe forzar el arranque (setPlaylist), no solo agregarse.
+  lng.tvPlay = lngEstadoTV(t);
 }
-async function lngAsegurar(){ if(!lng.sid || Date.now() - lng.t > 5 * 60000) await lngBind(); }
+/* El TV cuenta en el saludo qué está haciendo ahora mismo (eventos «nowPlaying» /
+   «onStateChange»). Códigos de YouTube: -1 sin empezar, 0 terminó, 1 reproduciendo,
+   2 en pausa, 3 cargando, 5 en espera. Se mira el ÚLTIMO que venga, que es el más
+   reciente. Devuelve true (hay cola sonando), false (no hay nada sonando) o null
+   (no se pudo saber). Saberlo es lo que decide entre arrancar la reproducción o
+   solo agregar a la cola. */
+function lngEstadoTV(t){
+  let st = null, m, re = /"state"\s*:\s*"?(-?\d+)"?/g;
+  while((m = re.exec(t))) st = m[1];
+  if(st === null) return null;
+  return st === '1' || st === '2' || st === '3';
+}
+/* La sesión del TV se cae sola en menos de un minuto si nadie la sostiene (Mesora no
+   mantiene el canal de vuelta abierto). Por eso, antes de cada canción, se saluda de
+   nuevo: sale barato, garantiza que el envío no se pierda y de paso trae el estado real
+   del TV. Antes se esperaba 5 minutos y por eso la segunda canción ya no entraba. */
+async function lngAsegurar(fresca){ if(fresca || !lng.sid || Date.now() - lng.t > 60000) await lngBind(); }
 async function lngCmd(sc, datos, reintento){
   await lngAsegurar();
   const tok = await lngToken();
-  const body = { count: 1, ofs: lng.ofs++, req0__sc: sc };
+  const ofs = lng.ofs;
+  const body = { count: 1, ofs: ofs, req0__sc: sc };
   Object.keys(datos || {}).forEach(k => { body['req0_' + k] = datos[k]; });
   try{
     await lngFetch('bc/bind', Object.assign({ SID: lng.sid, gsessionid: lng.gs, RID: lng.rid++ }, lngBase(tok)), body, tok);
+    // El ofs solo avanza si el envío salió bien: si avanzara igual, quedaría un hueco en la
+    // numeración y YouTube rechazaría TODO lo que se mandara después (la canción 2 en adelante).
+    lng.ofs = ofs + 1;
     lng.t = Date.now();
   }catch(e){
-    if(!reintento && e.status && e.status >= 400 && e.status < 500){ lng.sid = null; return lngCmd(sc, datos, true); }   // sesión vencida: se abre otra
+    if(!reintento && e.status && e.status >= 400 && e.status < 500){
+      // Sesión vencida o permiso viejo: se abre otra y se vuelve a intentar.
+      lng.sid = null;
+      if(e.status === 401 || e.status === 403){ const c = lngCfg(); delete c.loungeToken; delete c.exp; SS(LNG_KEY, c); }
+      await lngAsegurar(true);
+      // Si el TV quedó sin nada sonando, «agregar» no se oiría: se arranca la reproducción.
+      if(sc === 'addVideo' && lng.tvPlay === false) return lngCmd('setPlaylist', { videoId: datos.videoId, currentTime: 0, currentIndex: -1, audioOnly: false, listId: '' }, true);
+      return lngCmd(sc, datos, true);
+    }
     throw e;
   }
 }
 // Manda al TV, en orden justo, las canciones que ya tienen video y aún no se mandaron.
-async function lngSync(forzarInicio){
+async function lngSync(forzar){
+  // El «arranca ya» (al conectar el TV o al tocar ▶) se guarda, no se gasta: cuando se pide,
+  // la canción todavía no tiene video buscado y la lista de pendientes está vacía, así que
+  // antes se perdía y la primera canción terminaba entrando solo como «agregada».
+  if(forzar) lng.forzar = true;
   if(!lngOn() || lng.ocupado || !vm().cola) return;
   lng.ocupado = true;
   try{
     const c = lngCfg();
+    let forzarInicio = lng.forzar;
     const pend = vm().ordenJusto(vm().cola()).filter(x => x.vid && !x.lng);
     for(const x of pend){
-      // Si la sesión con el TV se acaba de (re)crear (perdió la conexión, se reinició, o pasó
-      // rato sin mandarle nada), «addVideo» solo se agregaría a una cola que ya no está sonando
-      // y nunca se reproduciría: hay que forzar «setPlaylist» para que arranque de verdad. Por
-      // eso se asegura la conexión ANTES de decidir, no después (si no, la reconexión pasaba
-      // dentro del envío y esta bandera llegaba tarde).
-      await lngAsegurar();
-      const nuevaCola = forzarInicio || lng.recien || !c.ultimo || Date.now() - c.ultimo > 45 * 60000;
+      /* «addVideo» solo agrega a la cola: si el TV no está reproduciendo, la canción entra y
+         se queda callada («video agregado» y nada más). «setPlaylist» sí arranca de una.
+         Para elegir bien se saluda al TV primero (eso trae su estado real) y:
+           - si el TV dice que NO está sonando  -> setPlaylist (arranca);
+           - si dice que sí                     -> addVideo (no se corta lo que suena);
+           - si no se pudo saber                -> se mira si la cola que le mandamos ya debió
+             acabarse (unos 4 minutos por canción). Antes se daban 45 minutos y por eso una
+             canción pedida 10 minutos después caía en una cola ya terminada y no sonaba. */
+      await lngAsegurar(true);
+      // Recién mandada una canción, el TV puede reportar «cargando» o «sin empezar» por unos
+      // segundos: ahí no hay que creerle que está quieto, o se cortaría lo que acaba de arrancar
+      // (pasa cuando una mesa pide dos canciones seguidas).
+      const arrancando = Date.now() - (lng.ultimoEnvio || 0) < 20000;
+      const quedaCola = arrancando || (lng.tvPlay === null ? (c.hasta && Date.now() < c.hasta) : lng.tvPlay);
+      const nuevaCola = forzarInicio || !quedaCola;
       await lngCmd(nuevaCola ? 'setPlaylist' : 'addVideo', nuevaCola ? { videoId: x.vid, currentTime: 0, currentIndex: -1, audioOnly: false, listId: '' } : { videoId: x.vid });
-      forzarInicio = false; lng.recien = false;
-      c.ultimo = Date.now(); SS(LNG_KEY, Object.assign(lngCfg(), { ultimo: c.ultimo }));
+      forzarInicio = false; lng.forzar = false; lng.ultimoEnvio = Date.now();
+      // Hasta cuándo se calcula que al TV le queda música de Mesora por sonar.
+      const base = nuevaCola ? Date.now() : Math.max(c.hasta || 0, Date.now());
+      c.hasta = base + LNG_CANCION_MS; c.ultimo = Date.now();
+      SS(LNG_KEY, Object.assign(lngCfg(), { hasta: c.hasta, ultimo: c.ultimo }));
       const l = vm().cola(), it = l.find(y => y.id === x.id);
       if(it){ it.lng = true; it.done = true; it.lngAt = Date.now(); SS('vito_cola', l); }
       SS('vito_now', x);
@@ -18257,7 +18301,7 @@ function iniLounge(){
     finally{ b.disabled = false; b.textContent = '🔗 Conectar con el YouTube del TV'; lngEstado(); }
   };
   document.getElementById('lngPlay').onclick = () => lngSync(true);
-  document.getElementById('lngOff').onclick = () => { const c = lngCfg(); ['screenId', 'loungeToken', 'exp', 'nombre', 'on', 'ultimo'].forEach(k => delete c[k]); SS(LNG_KEY, c); lng.sid = null; lng.error = ''; lngEstado(); autoRestaurar(); showToast('Desconectado del YouTube del TV.'); };
+  document.getElementById('lngOff').onclick = () => { const c = lngCfg(); ['screenId', 'loungeToken', 'exp', 'nombre', 'on', 'ultimo', 'hasta'].forEach(k => delete c[k]); SS(LNG_KEY, c); lng.sid = null; lng.error = ''; lngEstado(); autoRestaurar(); showToast('Desconectado del YouTube del TV.'); };
   setInterval(() => { lngSync(); }, 4000);
   const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', lngEstado);
   lngEstado();
