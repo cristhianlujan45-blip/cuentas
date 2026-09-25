@@ -2678,7 +2678,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
     </div>
     <div class="settings-group">
       <h2>📺 YouTube del TV: canciones solas <span class="tvp-badge">Nuevo</span></h2>
-      <div class="settings-desc">Mesora se conecta a la <b>app de YouTube de tu televisor</b> (LG, Samsung, Android TV…) con el código del TV y le va <b>agregando cada canción que piden las mesas a su cola, en vivo</b>, sin tocar nada. Suena en el TV (no en el celular) y sin bloqueos de sello. Se configura una sola vez:</div>
+      <div class="settings-desc">Mesora se conecta a la <b>app de YouTube de tu televisor</b> (LG, Samsung, Android TV…) con el código del TV y le va <b>agregando cada canción que piden las mesas a su cola, en vivo</b>, sin tocar nada. Suena en el TV (no en el celular) y sin bloqueos de sello. <b>Esto NO usa ninguna cuenta de Google</b> — funciona igual que el control remoto de tu celular con la app de YouTube, sin iniciar sesión con nadie, así que no hay ninguna cuenta que confirmar aquí. Si quieres que las canciones se guarden en tu propia biblioteca/lista de YouTube Music, eso es la sección de abajo, <b>▶ YouTube Music automático</b>, con «Conectar con Google». Se configura una sola vez:</div>
       <div class="lng-step"><span class="pair-n">1</span><div><strong>Puente gratis (5 minutos, una sola vez)</strong>
         <p>YouTube no deja que una página web hable directo con el TV; el puente le pasa los mensajes. <a href="#" id="lngHow">Ver cómo se crea</a></p>
         <input id="lngRelay" class="mz-in" placeholder="https://mesora-tv.tu-usuario.workers.dev" autocapitalize="none" autocomplete="off" spellcheck="false">
@@ -17924,7 +17924,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-25 · v34';
+const MESORA_VERSION = '2026-09-25 · v35';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 let presDisp = null, presConn = null;
@@ -18677,6 +18677,16 @@ function iniLounge(){
   };
   document.getElementById('lngOff').onclick = () => { const c = lngCfg(); ['screenId', 'loungeToken', 'exp', 'nombre', 'on', 'ultimo', 'hasta', 'visto', 'arranco'].forEach(k => delete c[k]); SS(LNG_KEY, c); lng.sid = null; lng.error = ''; lngEstado(); autoRestaurar(); showToast('Desconectado del YouTube del TV.'); };
   setInterval(() => { lngSync(); }, 4000);
+  /* Latido: sin esto, mientras no hubiera canciones pendientes, la conexión con el TV nunca se
+     volvía a revisar — si el TV se apagaba o se desvinculaba, nadie se enteraba (ni un aviso)
+     hasta que llegara la próxima canción, que entonces tampoco sonaba. Ahora se comprueba sola
+     cada 30 s aunque no haya nada por mandar, y cualquier problema queda visible en el estado. */
+  setInterval(async () => {
+    if(!lngOn() || lng.ocupado) return;
+    try{ await lngAsegurar(false); if(lng.error){ lng.error = ''; lngLog('   ✅ conexión con el TV recuperada'); } }
+    catch(e){ const msg = e.message || String(e); if(lng.error !== msg){ lng.error = msg; lngLog('   ⚠️ latido: ' + msg); } }
+    lngEstado();
+  }, 30000);
   // Canciones que quedaron sin video (búsqueda fallida): se reintentan cada 20 s mientras el TV esté conectado.
   setInterval(() => { try{ if(!lngOn()) return; const m = vm(); m.cola().filter(x => !x.done && !x.vid && !x.novid).forEach(x => m.ytAgregar(x.id)); lngEstado(); }catch(e){} }, 20000);
   const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', lngEstado);
