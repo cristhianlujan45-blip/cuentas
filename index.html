@@ -14681,6 +14681,7 @@ function iniHist(){
 const qrFijoDe=()=>(typeof data!=='undefined'&&data&&data.qrFijo&&data.qrFijo.topic)?data.qrFijo:null;
 const qCfg=()=>{
   const c=Object.assign({url:'',wa:'',topic:'',live:true},LS('vito_qr',{}));
+  if(!c.url&&/\.github\.io$/.test(location.hostname))c.url=location.origin+location.pathname.replace(/[^/]*$/,'')+'pedido.html';   // todo desde GitHub: los QR nuevos apuntan a esta misma página
   if(!c.topic){
     const f=qrFijoDe();
     if(f){c.topic=f.topic;if(!c.url)c.url=f.url||'';if(!c.wa)c.wa=f.wa||'';c.v=Object.assign({},f.v||{},c.v||{});c.fijo=true;}
@@ -17356,7 +17357,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
    la Pantalla del TV de Mesora (tv.html) y reproduce la cola en vivo: cada canción que piden las
    mesas entra sola. Los Smart TV LG/Samsung sin Chromecast no aparecen aquí (solo los ve la app
    de YouTube): para esos están los botones de YouTube Music / YouTube. */
-const MESORA_VERSION = '2026-09-24 · v20';
+const MESORA_VERSION = '2026-09-25 · v21';
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }

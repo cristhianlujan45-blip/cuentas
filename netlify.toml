@@ -1,0 +1,11 @@
+# Los QR impresos de las mesas abren la dirección de Netlify (joyful-basbousa-0bc49b.netlify.app/?mesa=…).
+# Si ese sitio de Netlify se conecta a este repositorio de GitHub, se publica solo con cada cambio
+# y su página principal muestra la carta del cliente (pedido.html), con los mismos parámetros del QR.
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "/"
+  to = "/pedido.html"
+  status = 200
+  force = true
