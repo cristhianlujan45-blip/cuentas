@@ -40,7 +40,8 @@
   window.addEventListener('orientationchange', function(){ setTimeout(ajustar, 300); });
 })();
 </script>
-<style>html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; } body{ overflow-x:clip; max-width:100vw; }</style>
+<style>html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; } body{ overflow-x:clip; max-width:100vw; }.pcard .pdet{display:block;width:100%;font-size:11.5px;line-height:1.35;color:var(--ink);opacity:.62;margin-top:2px;overflow-wrap:anywhere}
+</style>
 <meta name="theme-color" content="#120d0a">
 <title>Mi mesa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1238,7 +1239,7 @@ function iconoDeCategoria(nombre){
   if(/caf[eé]|tinto/.test(n))return '☕';
   if(/postre|dulce|torta/.test(n))return '🍰';
   if(/papa|snack|pasaboca|picada|hamburgues|pizza|perro|comida|plato/.test(n))return '🍟';
-  return '🍽️';
+  return (cat&&cat.ip)?cat.ip:'🍽️';   // si no es comida, el dibujo del negocio (✈️ agencia, 🔧 ferretería…)
 }
 function pcardHtml(x){
   const r=h('div','pcard'+(x[3]==2?' ag':''));
@@ -1255,6 +1256,7 @@ function pcardHtml(x){
     if(x[4])r.appendChild(h('span','plo',t('promoAhorra',{n:x[4]})));
     else if(x[3]==1)r.appendChild(h('span','plo',t('ultimasUnidades')));
   }
+  if(x[5])r.appendChild(h('span','pdet',String(x[5]).slice(0,140)));   // detalles: qué incluye, personas, medida…
   if(x[3]!=2){
     const b=h('button','padd','+');b.type='button';b.setAttribute('aria-label',t('addAria')+': '+x[0]);
     b.onclick=()=>{agregar(1,x[0])};r.appendChild(b);
@@ -1329,11 +1331,14 @@ function pintarCat(fin){
   aplicarMusicaCliente();
   const box=$('cat');box.textContent='';
   const ps=cat&&Array.isArray(cat.p)?cat.p:[],esMenu=catT()==='Menú';
-  $('catT').textContent=t(esMenu?'tituloMenu':'tituloCarta');
+  // El título usa la palabra del negocio cuando la manda (Vuelos y planes, Tarifas, Servicios…)
+  const termino=(cat&&typeof cat.t==='string'&&cat.t)?cat.t:'';
+  const propio=termino&&termino!=='Menú'&&termino!=='Carta';
+  $('catT').textContent=propio?termino:t(esMenu?'tituloMenu':'tituloCarta');
   $('catIc').textContent=catIcon();
-  $('catBtnT').textContent=t(esMenu?'verMenu':'verCarta');
+  $('catBtnT').textContent=propio?('👀 '+termino):t(esMenu?'verMenu':'verCarta');
   $('catBtnS').textContent=ps.length?t('catCount',{n:ps.length}):t('catAunNoDisp');
-  $('cq').placeholder=t(esMenu?'buscarMenu':'buscarCarta');
+  $('cq').placeholder=propio?('🔎 Buscar en '+termino.toLowerCase()+'…'):t(esMenu?'buscarMenu':'buscarCarta');
   $('catBtn').hidden=!fin&&!ps.length;
   if(!ps.length){box.appendChild(h('p','hint',t(esMenu?'sinPublicarMenu':'sinPublicarCarta')));return}
   const qraw=$('cq').value.trim(),q=nrm(qraw),buscando=!!q;
