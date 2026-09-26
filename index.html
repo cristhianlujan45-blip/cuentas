@@ -3,6 +3,10 @@
 <head>
 <link rel="preconnect" href="https://generativelanguage.googleapis.com">
 <meta charset="UTF-8">
+<script>
+// Un QR de mesa o link de domicilio que cae en la app del negocio abre la carta del cliente.
+(function(){var q=location.search;if(/[?&]c=\w/.test(q)&&/[?&](mesa=\d|dom=1)/.test(q))location.replace(location.pathname.replace(/[^/]*$/,'')+'pedido.html'+q+location.hash);})();
+</script>
 <!-- Evita que el navegador (sobre todo en el celular, con la app agregada a la
      pantalla de inicio) se quede pegado con una versión vieja de esta página
      guardada en caché — cada visita revisa que sea la última. -->
@@ -4464,6 +4468,8 @@ function showConfirm({ title = '¿Estás seguro?', message = '¿Deseas continuar
   confirmIconEl.textContent = icon;
   confirmOkBtn.textContent = confirmText;
   confirmCancelBtn.textContent = cancelText;
+  // Al final del body: queda encima de las ventanas que se crean después (ej. «Fijar mis QR impresos»)
+  document.body.appendChild(confirmOverlay);
   confirmOverlay.classList.add('show');
   return new Promise(resolve=>{
     confirmResolver = resolve;
@@ -5972,7 +5978,7 @@ const VOICE_MESA_MARCAS = [
   'que diga','llamada','llamado','nombre','para el','para la','para','de el','de la','del','de'
 ].map(x => x.split(' '));
 const VOICE_MESA_NO_NOMBRE = /^(nueva|nuevo|otra|otro|numero|mas|aparte|adicional|extra|libre|vacia|grande|pequena|afuera|adentro|terraza|personas?|gente)$/;
-const voiceNormPalabra = w => w.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+const voiceNormPalabra = w => w.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
 function voiceCrearMesaConNombre(rawText){
   const rw = String(rawText || '').replace(/[,.;:!?¿¡"()]/g, ' ').split(/\s+/).filter(Boolean);
   const nw = rw.map(voiceNormPalabra);
@@ -6011,8 +6017,8 @@ function voiceCrearMesaConNombre(rawText){
   const pedidoTxt = rw.slice(q).join(' ');
   const bonito = nombre.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   // ¿Ya hay una mesa con ese nombre? Se usa esa en vez de crear otra.
-  const clave = bonito.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  let id = Object.keys(data.tables).map(Number).find(k => { const n = data.tables[k] && data.tables[k].name; return n && n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim() === clave; });
+  const clave = bonito.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  let id = Object.keys(data.tables).map(Number).find(k => { const n = data.tables[k] && data.tables[k].name; return n && n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() === clave; });
   let creada = false;
   if(!id){
     id = Math.max(0, ...Object.keys(data.tables).map(Number)) + 1;
@@ -18415,7 +18421,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v48';
+const MESORA_VERSION = '2026-09-26 · v49';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con

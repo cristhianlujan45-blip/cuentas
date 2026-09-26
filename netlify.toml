@@ -1,11 +1,8 @@
 # Los QR impresos de las mesas abren la dirección de Netlify (joyful-basbousa-0bc49b.netlify.app/?mesa=…).
-# Si ese sitio de Netlify se conecta a este repositorio de GitHub, se publica solo con cada cambio
-# y su página principal muestra la carta del cliente (pedido.html), con los mismos parámetros del QR.
+# Netlify solo publica la carpeta netlify-qr: un reenvío a GitHub Pages con los mismos datos del QR,
+# así la carta que ve el cliente es siempre la última versión subida a GitHub.
+# Solo se vuelve a publicar cuando cambia el reenvío (no con cada cambio de la app), para no
+# gastar los créditos gratis de Netlify.
 [build]
-  publish = "."
-
-[[redirects]]
-  from = "/"
-  to = "/pedido.html"
-  status = 200
-  force = true
+  publish = "netlify-qr"
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- netlify.toml netlify-qr"

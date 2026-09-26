@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#120d0a">
+<title>Abriendo el menú…</title>
+<script>
+// Los QR impresos apuntan a este sitio de Netlify: se reenvía a la versión de GitHub Pages
+// con los mismos datos del QR (mesa, canal y código), así cada cambio en GitHub llega solo.
+(function(){
+  var GH = 'https://cristhianlujan45-blip.github.io/cuentas/';
+  var ruta = location.pathname.replace(/^\/+/, '');
+  var q = location.search, esQR = /[?&](c|mesa|dom)=/.test(q);
+  var destino = (esQR || ruta === '' || ruta === 'pedido.html' || !/^[\w.-]+\.html$/.test(ruta)) ? 'pedido.html' : ruta;
+  var url = GH + destino + q + location.hash;
+  window.__destino = url;
+  location.replace(url);
+})();
+</script>
+<style>
+html,body{margin:0;height:100%;background:#120d0a;color:#f3e9d8;font:500 16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;box-sizing:border-box;text-align:center}
+a{color:#f2cf86}
+</style>
+</head>
+<body>
+<main>
+  <div>Abriendo el menú…</div>
+  <a id="ir" href="https://cristhianlujan45-blip.github.io/cuentas/pedido.html">Si no se abre solo, toca aquí</a>
+</main>
+<script>try{document.getElementById('ir').href=window.__destino;}catch(e){}</script>
+</body>
+</html>

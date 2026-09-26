@@ -95,11 +95,28 @@ Con GitHub Pages activado en este repositorio (`cuentas`):
 - App de meseros: https://cristhianlujan45-blip.github.io/cuentas/mesero.html
 - Música en el TV: https://cristhianlujan45-blip.github.io/cuentas/tv.html
 
-Cada cambio que se sube a GitHub se publica solo. Los QR que ya están
-pegados en las mesas **no cambian**: si están "fijados" (Ajustes → QR de las
-mesas → 📌 Fijar mis QR impresos), la app nunca les cambia el link sola.
-`version.txt` debe llevar el mismo texto que `MESORA_VERSION` en `index.html`
-(así la app avisa cuando hay una versión nueva sin volver a bajar los 14 MB).
+GitHub Pages publica la rama elegida en Settings → Pages; cada cambio que
+se sube a esa rama se publica solo en 1–2 minutos. `version.txt` debe llevar
+el mismo texto que `MESORA_VERSION` en `index.html` (así la app avisa cuando
+hay una versión nueva sin volver a bajar los 14 MB).
+
+## QR impresos (Netlify)
+
+Los QR que ya están pegados en las mesas abren
+`https://joyful-basbousa-0bc49b.netlify.app/?mesa=…&c=…&v=…`. **No hay que
+cambiarlos:** ese sitio de Netlify solo tiene la carpeta `netlify-qr`, que
+reenvía al `pedido.html` de GitHub Pages con los mismos datos del QR (mesa,
+canal y código). Así cada cambio subido a GitHub le llega solo al cliente.
+
+- Si el sitio de Netlify está conectado a este repositorio, `netlify.toml` ya
+  publica solo `netlify-qr` y no vuelve a publicar con cada cambio de la app
+  (para no gastar los créditos gratis de Netlify).
+- Si no está conectado, se sube una vez la carpeta `netlify-qr` (o su .zip)
+  en Netlify → el sitio → Deploys.
+
+En la app, **Ajustes → QR de las mesas → 📌 Fijar mis QR impresos** (con la
+foto de un QR de una mesa) deja la app usando el mismo canal de los QR
+pegados; los QR que se vuelvan a imprimir salen idénticos.
 
 ## Uso
 
