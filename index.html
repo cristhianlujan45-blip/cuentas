@@ -11563,8 +11563,13 @@ function asisGuia(t){
   // coincida con "escanear", "dividir", etc. del texto de la guía.
   const roots = words.map(w => w.length > 5 ? w.slice(0, w.length - 2) : w);
   GUIDE_ENTRIES.forEach(e => {
-    const hay = normVoiceText(e.title + ' ' + e.keywords + ' ' + e.body);
-    const score = roots.filter(r => hay.includes(r)).length;
+    // El título y las palabras clave son lo que de verdad identifica el tema;
+    // que el cuerpo lo mencione de pasada (ej. "Cocina" habla de WhatsApp
+    // porque ahí también llegan los pedidos) pesa mucho menos — si no, un
+    // tema ajeno con una sola mención le podía ganar al tema correcto.
+    const fuerte = normVoiceText(e.title + ' ' + e.keywords);
+    const debil = normVoiceText(e.body);
+    const score = roots.reduce((s, r) => s + (fuerte.includes(r) ? 2 : debil.includes(r) ? 0.5 : 0), 0);
     if(score > bestScore){ bestScore = score; best = e; }
   });
   if(!best || bestScore < Math.min(2, words.length)) return null;
@@ -11621,8 +11626,18 @@ function asisCommand(raw){
   if(/\b(agrega|agregale|agregame|anota|pon|ponle|sirve)\b/.test(t) && asisMesaNum(t)){
     return { text: 'Los pedidos de las mesas se anotan con el micrófono 🎤 de abajo a la derecha (por ejemplo: "tres Águilas para la mesa 1"). Yo te ayudo con consultas y cambios de productos.' };
   }
-  // ¿Cómo hago…? → la guía de uso
-  if(/^(como|donde|en donde|para que sirve)\b/.test(t) && !/\b(voy|va|vamos|van|estoy)\b/.test(t)){
+  // Guía de uso: antes solo se probaba si la pregunta empezaba con "cómo" o
+  // "dónde" ("¿cómo escaneo una factura?"), así que cosas como "cuéntame de
+  // la calculadora" o "ayuda con la libreta" no encontraban la guía (aunque
+  // sí exista) y terminaban esperando a la IA sin necesidad. Ahora reconoce
+  // más formas de preguntar, y también un tema suelto y corto ("calculadora",
+  // "libreta", "whatsapp con ia") — pero solo cuando NO suena a una pregunta
+  // de datos del negocio (ventas, mesas, deudas, precios…), para que esas
+  // sigan yendo por su camino normal (asisLocalMas / la IA) y no las tape la
+  // guía por error.
+  const pideGuia = /^(como|donde|en donde|para que sirve|que es|que son|cuentame|explica|explicame|ayuda con|ayuda de|informacion de|info de)\b/.test(t) && !/\b(voy|va|vamos|van|estoy)\b/.test(t);
+  const pareceTemaSuelto = nWords <= 4 && !/\b(venta|ventas|vendi|hoy|ayer|semana|mes|mesa|mesas|deuda|deben?|debe|precio|margen|costo|cuesta|stock|cliente|clientes|reclamo|reclamos|agotad\w*)\b/.test(t);
+  if(pideGuia || pareceTemaSuelto){
     const g = asisGuia(t);
     if(g) return { text: g };
   }
@@ -11938,21 +11953,24 @@ function asisMicStart(){
 }
 
 // Saludo de bienvenida: aparece solo cada vez que se abre el chat, según la hora
-// y con un vistazo rápido del negocio. No se guarda en el historial.
+// y con un vistazo rápido del negocio. No se guarda en el historial. Se pidió que
+// fuera más corto y rápido: antes juntaba hasta 3 datos del negocio en una frase
+// larga ("hoy llevas... hay... están agotados..."); ahora muestra solo el más
+// urgente (nunca más de uno), para que se lea de un vistazo y no haya que
+// esperar a que termine de hablar.
 function asisSaludo(){
   const h = new Date().getHours();
   const hola = h < 12 ? '¡Buenos días' : h < 19 ? '¡Buenas tardes' : '¡Buenas noches';
   const quien = (typeof authUser === 'string' && authUser) ? ', ' + authUser.charAt(0).toUpperCase() + authUser.slice(1) : '';
-  const lineas = [hola + quien + '! 👋 Soy Mesi, tu asistente.'];
+  const lineas = [hola + quien + '! Soy Mesi.'];
   try{
     const abiertas = Object.keys(data.tables || {}).filter(id => (data.tables[id].items || []).length).length;
     const s = asisSales();
-    const resumen = [];
-    if(s.nHoy) resumen.push('hoy llevas ' + fmt(s.hoy) + ' en ventas');
-    if(abiertas) resumen.push(abiertas === 1 ? 'hay 1 mesa abierta' : 'hay ' + abiertas + ' mesas abiertas');
     const agotados = (data.products || []).filter(p => invStatus(p) === 'out').length;
-    if(agotados) resumen.push(agotados === 1 ? '1 producto está agotado' : agotados + ' productos están agotados');
-    if(resumen.length) lineas.push('Te cuento: ' + resumen.join(', ') + '.');
+    // Un solo dato, el más útil ahora mismo (no los tres seguidos).
+    if(agotados) lineas.push(agotados === 1 ? '1 producto agotado.' : agotados + ' productos agotados.');
+    else if(abiertas) lineas.push(abiertas === 1 ? '1 mesa abierta.' : abiertas + ' mesas abiertas.');
+    else if(s.nHoy) lineas.push('Hoy: ' + fmt(s.hoy) + ' en ventas.');
   }catch(e){}
   const errs = (typeof mesoraErrores === 'function') ? mesoraErrores().filter(x => !x.visto && x.tipo !== 'recurso') : [];
   if(errs.length) lineas.push('⚠️ Vi ' + (errs.length === 1 ? 'un error' : errs.length + ' errores') + ' en la app. Toca "Arregla los errores" y lo soluciono.');
@@ -13543,7 +13561,7 @@ const GUIDE_ENTRIES = [
   { title: '🍽️ Abrir y cobrar una mesa', keywords: 'abrir mesa cobrar cuenta cerrar pagar cliente pedido', body: 'Toca una mesa libre para abrirla y empieza a agregar lo que van pidiendo. Cuando el cliente se va, toca "Cobrar", revisa el total y confirma el pago. La mesa vuelve a quedar libre automáticamente.' },
   { title: '🍳 Pantalla de cocina (KDS)', keywords: 'cocina kds pantalla pedidos barra despachar preparar listo', body: 'La pestaña "Cocina" muestra en tiempo real lo que hay pendiente en cada mesa y los pedidos nuevos que llegan por el QR o WhatsApp, para que cocina o barra los vea sin ir hasta la caja. Toca "Listo" en un ticket para marcarlo atendido, o "Aceptar"/"Rechazar" en un pedido nuevo.' },
   { title: '🧮 Calculadoras rápidas (NIT, descuento, prima, Rete-ICA)', keywords: 'calculadora nit digito verificacion descuento prima bonificacion reteica retencion ica', body: 'En Ajustes → Calculadoras rápidas tienes cuatro herramientas: el dígito de verificación del NIT, un cálculo de descuento, la prima o bonificación proporcional a los días trabajados, y la retención de ICA sobre un pago. No guardan nada, solo calculan al momento.' },
-  { title: '📒 La Libreta: fiados, pagos y calculadora por voz', keywords: 'libreta fiados deudas pagar empleados calculadora suma resta multiplicar dividir voz cuenta corrida corregir', body: 'La Libreta entiende lo que le digas o escribas, al instante, sin necesitar internet. Fiados y pagos: "Juan me debe 20 mil", "Juan me pagó 10 mil", "le fié a Carlos 15 lucas", "¿cuánto me debe Juan?", "¿quién me debe?", "le pagué a Pedro 50 mil" (para empleados), "borra lo último" (deshace el último movimiento). Cuentas de la casa: las mesas que quedan "debiendo" al cobrar aparecen solas en la Libreta con el nombre de quien debe, con su historial de cuándo debió y cuándo pagó. Calculadora suelta (no se guarda): "cuánto es 20 mil más 15 mil", "cuánto vale 45 por 3", "800 entre 4", "calcula 100 más 200 más 300". Calculadora de cuenta corrida (con memoria, para ir sumando varias cosas seguidas): "súmame 13.400", y luego, sin decir "más", otro comando aparte "súmame 15.200" — se van sumando una tras otra. También "réstame 2.000", "cuánto llevo" (dice el total), y para corregir si algo quedó mal, "corrige" o "réstame" sin decir ningún número (quita lo último que se metió y dice cuánto era). "nueva cuenta" la deja en cero para empezar otra. También hay una calculadora con botones grandes tocando "🧮 Calculadora" dentro de la Libreta, para quien prefiera usar el dedo en vez de la voz.' },
+  { title: '📒 La Libreta: fiados, pagos y calculadora por voz', keywords: 'libreta fiados deudas pagar empleados calculadora suma resta multiplicacion voz cuenta corrida corregir', body: 'La Libreta entiende lo que le digas o escribas, al instante, sin necesitar internet. Fiados y pagos: "Juan me debe 20 mil", "Juan me pagó 10 mil", "le fié a Carlos 15 lucas", "¿cuánto me debe Juan?", "¿quién me debe?", "le pagué a Pedro 50 mil" (para empleados), "borra lo último" (deshace el último movimiento). Cuentas de la casa: las mesas que quedan "debiendo" al cobrar aparecen solas en la Libreta con el nombre de quien debe, con su historial de cuándo debió y cuándo pagó. Calculadora suelta (no se guarda): "cuánto es 20 mil más 15 mil", "cuánto vale 45 por 3", "800 entre 4", "calcula 100 más 200 más 300". Calculadora de cuenta corrida (con memoria, para ir sumando varias cosas seguidas): "súmame 13.400", y luego, sin decir "más", otro comando aparte "súmame 15.200" — se van sumando una tras otra. También "réstame 2.000", "cuánto llevo" (dice el total), y para corregir si algo quedó mal, "corrige" o "réstame" sin decir ningún número (quita lo último que se metió y dice cuánto era). "nueva cuenta" la deja en cero para empezar otra. También hay una calculadora con botones grandes tocando "🧮 Calculadora" dentro de la Libreta, para quien prefiera usar el dedo en vez de la voz.' },
   { title: '💬 WhatsApp con IA: recibir y responder pedidos solo', keywords: 'whatsapp business api ia auto responder pedidos puente cloudflare worker webhook meta', body: 'En Ajustes → Negocio y facturación → "WhatsApp con IA" puedes conectar el WhatsApp Business de tu negocio para que Mesora reciba los pedidos y la IA los entienda y responda. Necesitas una app de WhatsApp Business en developers.facebook.com (la tramitas tú, con tu número; Meta te da un token de acceso y un número de prueba gratis para empezar) y publicar un "puente" gratis en Cloudflare (los pasos exactos están dentro de esa sección, con un botón para copiar el código). Cuando un cliente escribe, la IA lee el mensaje, saca el nombre, la dirección y los productos, y redacta una respuesta corta y personalizada. Si activas "Responder automáticamente" se envía sola por WhatsApp; si la dejas apagada, revisas cada respuesta y la envías con un toque. El botón "🛵 Armar domicilio" en cada mensaje lo deja listo para facturar, con el nombre y el teléfono ya puestos.' },
   { title: '🏷️ Código de barras / etiquetas de producto', keywords: 'codigo de barras etiqueta imprimir producto qr generar', body: 'En Productos, el botón "🏷️ Imprimir etiquetas" genera una hoja para imprimir con el código o QR y el precio de todos los productos visibles. Arriba puedes elegir si quieres código de barras o QR. El botón 🏷️ junto a cada producto imprime solo la etiqueta de ese producto.' },
   { title: '💜 Cobrar con Nequi desde el QR de la mesa', keywords: 'nequi pago pasarela cobrar transferencia cuenta', body: 'En Ajustes → Pasarela de pago (Nequi), activa "Aceptar pagos por Nequi" y escribe tu número. Cuando un cliente pida la cuenta desde el QR de su mesa, si queda saldo por pagar, le aparece tu número y el valor exacto para transferir, y un botón "Ya pagué por Nequi" que te avisa. Tú confirmas el pago cuando lo veas llegar — no es un cobro automático. Reimprime los QR de tus mesas después de activarlo para que lleven el número.' },
@@ -18172,7 +18190,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-25 · v42';
+const MESORA_VERSION = '2026-09-26 · v43';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 let presDisp = null, presConn = null;
