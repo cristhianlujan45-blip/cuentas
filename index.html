@@ -3400,6 +3400,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <button type="button" class="more-tile" data-mus="1" data-go="musica"><span class="more-ic">🎵</span><strong>Música</strong><small>Canciones que piden</small></button>
       <button type="button" class="more-tile" data-go="libreta"><span class="more-ic">📒</span><strong>Libreta</strong><small>Quién me debe y pagos a empleados</small></button>
       <button type="button" class="more-tile" data-go="ajustes"><span class="more-ic">⚙️</span><strong>Ajustes</strong><small>Configura tu negocio</small></button>
+      <button type="button" class="more-tile more-tile-salir" data-go="salir"><span class="more-ic">🚪</span><strong>Cerrar sesión</strong><small>Salir o entrar con otro usuario</small></button>
       <button type="button" class="more-tile more-tile-ia" data-go="ia"><span class="more-ic more-ic-mesi"><i class="mesi-wrap" data-mesi="static" style="width:30px;height:30px"></i></span><strong>Mesi (IA)</strong><small>Pregúntale lo que sea</small></button>
     </div>
   </div>
@@ -6895,6 +6896,15 @@ document.querySelectorAll('nav button').forEach(btn => btn.addEventListener('cli
   syncNavMore();
 }));
 document.getElementById('navMoreBtn').addEventListener('click', () => { syncNavMore(); navMoreSheet.classList.add('show'); });
+// Cerrar sesión: guarda todo, pregunta y vuelve a pedir usuario y contraseña. Los datos del negocio no se borran.
+async function cerrarSesion(){
+  const ok = await showConfirm({ title: '¿Cerrar sesión?', message: 'Tus datos quedan guardados. Para volver a entrar te pedirá usuario y contraseña (así puede entrar otra persona con su propio usuario).', confirmText: 'Sí, cerrar sesión', icon: '🚪' });
+  if(!ok) return;
+  try{ saveData(); }catch(e){}
+  localStorage.removeItem(AUTH_SESSION_KEY);
+  location.reload();
+}
+window.cerrarSesion = cerrarSesion;
 navMoreSheet.addEventListener('click', e => {
   if(e.target === navMoreSheet){ navMoreSheet.classList.remove('show'); return; }
   const tile = e.target.closest('.more-tile[data-go]');
@@ -6902,6 +6912,7 @@ navMoreSheet.addEventListener('click', e => {
   navMoreSheet.classList.remove('show');
   if(tile.dataset.go === 'ia'){ document.getElementById('asisFab').click(); return; }
   if(tile.dataset.go === 'libreta'){ if(window.libretaAbrir) window.libretaAbrir(); return; }
+  if(tile.dataset.go === 'salir'){ cerrarSesion(); return; }
   const b = document.querySelector('nav button[data-view="' + tile.dataset.go + '"]');
   if(b) b.click();
 });
@@ -11807,6 +11818,9 @@ function asisPideReparar(t){
 function asisCommand(raw){
   const t = normVoiceText(raw);
   if(!t) return null;
+  if(/\b(cierra|cierre|cerrar|cerra|cierrame|termina|terminar) (la |mi )?sesion\b|^(salir|salirme|me voy|cerrar)$|\bcambia(r)? de usuario\b|\bsalir de (la app|mi cuenta|la cuenta)\b/.test(t)){
+    return { text: 'Listo, te pregunto para cerrar la sesión. 🚪', run: () => { try{ asisClose(); }catch(e){} cerrarSesion(); } };
+  }
   const nWords = t.split(' ').length;
   if(/\b(que sabes hacer|que puedes hacer|que mas puedes hacer|que haces|comandos|como te uso|que te puedo (pedir|preguntar|decir)|en que me ayudas)\b/.test(t) || t === 'ayuda'){
     return { text: asisAyudaTexto(), extra: { quick: ASIS_AYUDA_CHIPS } };
@@ -14447,7 +14461,7 @@ function aplicarModoMesero(){
     if(!chip){
       chip = document.createElement('div'); chip.id = 'meseroChip'; chip.className = 'mesero-chip';
       chip.innerHTML = '<span></span><button type="button">Salir</button>';
-      chip.querySelector('button').onclick = () => { localStorage.removeItem(AUTH_SESSION_KEY); location.reload(); };
+      chip.querySelector('button').onclick = () => cerrarSesion();
       const row = document.getElementById('topActionsRow') || document.getElementById('topActions');
       if(row) row.appendChild(chip);
     }
@@ -14745,7 +14759,7 @@ function wireAccountUI(){
     document.getElementById('accWaOut').innerHTML = 'Tu código: <strong>' + r.code + '</strong> · <a href="' + r.url + '" target="_blank" rel="noopener" style="color:var(--ink)">📲 Enviármelo por WhatsApp</a><br>Envíatelo y guárdalo en tu chat contigo mismo. Si generas otro, este deja de servir.';
     document.getElementById('accWaNum').value = ''; waState();
   };
-  document.getElementById('accLogoutBtn').onclick = () => { localStorage.removeItem(AUTH_SESSION_KEY); location.reload(); };
+  document.getElementById('accLogoutBtn').onclick = () => cerrarSesion();
   accUsuariosPintar();
   const ai = document.getElementById('voiceAiToggle');
   ai.checked = voiceAiOn();
@@ -18553,7 +18567,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v53';
+const MESORA_VERSION = '2026-09-26 · v54';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -20278,7 +20292,7 @@ let fotosListas = false;
   function pgLeer(txt){
     const t = String(txt || '').replace(/\s+/g, ' ').trim();
     if(!t) return null;
-    const recibido = /(recibiste|te lleg(?:[oó]|aron)|te envi[oó]|te transfiri[oó]|te pag[oó]|te consign|te abon|consignaron|abonaron|entr[oó] plata|ingres[oó]|recibi[oó]|pago recibido|dinero recibido|transferencia recibida)/i.test(t);
+    const recibido = /(recibiste|te lleg(?:[oó]|aron)|te envi(?:[oó]|aron)|te transfiri(?:[oó]|eron)|te pag(?:[oó]|aron)|te consign|te abon|consignaron|abonaron|entr[oó] plata|ingres[oó]|recibi[oó]|recepci[oó]n|pago recibido|dinero recibido|transferencia recibida|abono a tu cuenta)/i.test(t);
     const salida = /(enviaste|pagaste|transferiste|retiraste|compraste|sacaste|c[oó]digo|clave din|otp|contrase)/i.test(t);
     if(!recibido || salida && !/(recibiste|te lleg)/i.test(t)) return null;
     const m = t.match(/\$\s?(\d{1,3}(?:[.,]\d{3})+|\d+)/);
