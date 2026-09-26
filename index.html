@@ -5946,6 +5946,7 @@ function moverMesa(origen, destino, lineas){
   }
   saveData();
   try{ renderMesas(); }catch(e){}
+  if(todo && estabaOcupada) try{ window.jimmyUnificacion && window.jimmyUnificacion({ juntada: true, lblO, lblD, destino }); }catch(e){}
   return { movidas, todo, juntada: estabaOcupada, origen, destino, lblO, lblD };
 }
 function movMensaje(r){
@@ -18548,7 +18549,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v51';
+const MESORA_VERSION = '2026-09-26 · v52';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -20721,6 +20722,168 @@ window.mesoraCelebrar = function(emojis){
   window.leerTextoQR = leerTexto;   // reutilizado por «Fijar mis QR impresos» (subir foto del QR pegado en la mesa)
   const t0 = setInterval(() => { if(typeof data !== 'undefined' && data){ clearInterval(t0); qpIni(); qpPublicar(false); } }, 1000);
   setInterval(() => qpPublicar(false), 30 * 60000);
+})();
+</script>
+<script>
+/* ================= JIMMY N AI — el cerebro de Mesora (actúa como «Jeff») =================
+   Corre siempre en segundo plano con los datos del propio negocio: predice ventas, avisa qué
+   comprar, mueve el inventario lento, mira qué mesas rinden más, propone precios y combos, da
+   alertas en vivo, arma un reporte de gerente y corrige errores solo. Con Gemini conectado
+   (⚙️ Configurar IA) el reporte lo redacta Gemini; sin internet lo arma solo con los números. */
+(function(){
+  const DIA = 864e5, DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const listo = () => typeof data !== 'undefined' && data && Array.isArray(data.history);
+  const plata = n => '$' + Math.round(n || 0).toLocaleString('es-CO');
+  const hist = (dias) => { const d = Date.now() - dias * DIA; return (data.history || []).filter(h => h.date && Date.parse(h.date) >= d); };
+  const propinaDe = h => (h.tip || 0) + (h.payments || []).filter(p => /propina/i.test((p.method || '') + ' ' + (p.note || ''))).reduce((s, p) => s + (p.amount || 0), 0);
+  const esc2 = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+
+  const J = {
+    // a) Qué se va a vender hoy: promedio de los mismos días de la semana (últimas 8 semanas).
+    predecirVentas(){
+      const hoy = new Date().getDay(), prod = {}, dias = new Set(); let total = 0;
+      hist(56).forEach(h => { const d = new Date(h.date); if(d.getDay() !== hoy) return; dias.add(d.toDateString()); total += h.total || 0; (h.items || []).forEach(it => { prod[it.name] = (prod[it.name] || 0) + (it.qty || 0); }); });
+      const n = Math.max(1, dias.size);
+      const top = Object.entries(prod).map(([k, v]) => [k, Math.round(v / n)]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 6);
+      return { dia: DIAS[hoy], ventas: Math.round(total / n), semanas: dias.size, top };
+    },
+    // b) Qué comprar: stock bajo + lo que se va a vender hoy.
+    recomendarCompras(){
+      const pred = Object.fromEntries(this.predecirVentas().top);
+      return (data.products || []).filter(p => p.stock != null).map(p => {
+        const falta = Math.max((pred[p.name] || 0) * 2, (p.minStock != null ? p.minStock : 5) * 2) - p.stock;
+        return { p: p.name, stock: p.stock, comprar: Math.ceil(falta), urgente: p.stock <= 0 };
+      }).filter(x => x.comprar > 0 && (x.urgente || typeof invStatus !== 'function' || invStatus(data.products.find(q => q.name === x.p)) !== 'ok')).sort((a, b) => a.stock - b.stock).slice(0, 8);
+    },
+    // c) Inventario: bajo, agotado y lo que no se mueve (con combo sugerido).
+    gestionInventarioInteligente(){
+      const vendidos = {}; hist(30).forEach(h => (h.items || []).forEach(it => { vendidos[it.name] = (vendidos[it.name] || 0) + (it.qty || 0); }));
+      const conStock = (data.products || []).filter(p => p.stock != null);
+      const bajos = conStock.filter(p => typeof invStatus === 'function' && invStatus(p) === 'low').map(p => p.name);
+      const agotados = conStock.filter(p => p.stock <= 0).map(p => p.name);
+      const lentos = conStock.filter(p => p.stock > 0 && (vendidos[p.name] || 0) <= 1).map(p => p.name).slice(0, 5);
+      const estrella = Object.entries(vendidos).sort((a, b) => b[1] - a[1])[0];
+      const combos = estrella ? lentos.map(l => 'Combo: ' + estrella[0] + ' + ' + l + ' con 10% menos') : [];
+      return { bajos, agotados, lentos, combos };
+    },
+    // d) Mesas que más rinden: venta, propina y tiempo.
+    analizarMesasRentables(){
+      const m = {};
+      hist(30).forEach(h => { const k = h.tableName || ('Mesa ' + h.table); const x = m[k] = m[k] || { mesa: k, ventas: 0, propina: 0, cuentas: 0 }; x.ventas += h.total || 0; x.propina += propinaDe(h); x.cuentas++; });
+      return Object.values(m).map(x => Object.assign(x, { ticket: Math.round(x.ventas / x.cuentas) })).sort((a, b) => b.ventas - a.ventas).slice(0, 6);
+    },
+    // e) Precios y promos basados en los datos (margen bajo, lo que más se vende, días flojos).
+    sugerirPreciosYPromos(){
+      const out = [];
+      (data.products || []).forEach(p => { if(p.cost > 0 && p.price > 0){ const mg = (p.price - p.cost) / p.price; if(mg < 0.25) out.push('Sube ' + p.name + ' a ' + plata(Math.ceil(p.cost / 0.7 / 100) * 100) + ': hoy solo ganas el ' + Math.round(mg * 100) + '%.'); } });
+      const porDia = [0,0,0,0,0,0,0]; hist(56).forEach(h => { porDia[new Date(h.date).getDay()] += h.total || 0; });
+      if(porDia.some(v => v > 0)){ const flojo = porDia.indexOf(Math.min(...porDia.filter(v => v > 0))); out.push('Los ' + DIAS[flojo] + ' vendes menos: haz una promo ese día (ej. 2x1 en la segunda ronda).'); }
+      this.gestionInventarioInteligente().combos.slice(0, 2).forEach(c => out.push(c + ' para mover lo que está quieto.'));
+      return out.slice(0, 6);
+    },
+    // f) Alertas en vivo: mesas quietas, stock agotado, cliente frecuente.
+    alertasInteligentes(){
+      const out = [], ahora = Date.now();
+      Object.keys(data.tables || {}).forEach(id => {
+        const t = data.tables[id]; if(!(t.items || []).length) return;
+        const ult = Math.max(...t.items.map(it => Math.max(0, ...((it.history || []).map(h => h.at || 0)), it.at || 0)));
+        const min = ult ? Math.round((ahora - ult) / 6e4) : 0;
+        if(min >= 25) out.push({ k: 'quieta-' + id, t: '⏰ ' + tableLabel(+id) + ' lleva ' + min + ' min sin pedir.' });
+      });
+      (data.products || []).filter(p => p.stock != null && p.stock <= 0).slice(0, 3).forEach(p => out.push({ k: 'agotado-' + p.id, t: '🚫 Se agotó ' + p.name + '.' }));
+      const frec = (data.loyalty && data.loyalty.clients) || data.frecuentes || [];
+      Object.keys(data.tables || {}).forEach(id => { const n = (data.tables[id].name || '').trim().toLowerCase(); if(n && Array.isArray(frec) && frec.some(c => String(c.name || c.nombre || '').trim().toLowerCase() === n)) out.push({ k: 'frec-' + id + '-' + n, t: '⭐ Cliente frecuente en ' + tableLabel(+id) + '.' }); });
+      return out;
+    },
+    // g) Reporte de gerente (con Gemini si está conectado; si no, en palabras claras con los números).
+    reporteLocal(){
+      const h7 = hist(7), h14 = hist(14).filter(h => Date.parse(h.date) < Date.now() - 7 * DIA);
+      const v7 = h7.reduce((s, h) => s + (h.total || 0), 0), v14 = h14.reduce((s, h) => s + (h.total || 0), 0);
+      const p = this.predecirVentas(), inv = this.gestionInventarioInteligente(), mesas = this.analizarMesasRentables(), promos = this.sugerirPreciosYPromos();
+      const cambio = v14 ? Math.round((v7 - v14) / v14 * 100) : null;
+      return [
+        v7 ? 'Esta semana vendiste ' + plata(v7) + (cambio == null ? '.' : ', ' + (cambio >= 0 ? cambio + '% más' : Math.abs(cambio) + '% menos') + ' que la anterior.') : 'Esta semana todavía no hay cuentas cerradas' + (v14 ? ' (la anterior vendiste ' + plata(v14) + ').' : '.'),
+        p.semanas ? 'Hoy es ' + p.dia + ': espero unos ' + plata(p.ventas) + (p.top.length ? '; lo que más va a salir: ' + p.top.slice(0, 3).map(x => x[0]).join(', ') + '.' : '.') : 'Todavía no tengo suficientes ventas para predecir el día.',
+        mesas[0] ? 'La mesa que más deja es ' + mesas[0].mesa + ' (' + plata(mesas[0].ventas) + ' en el mes, ticket de ' + plata(mesas[0].ticket) + ').' : '',
+        inv.agotados.length ? 'Ojo: se agotó ' + inv.agotados.slice(0, 3).join(', ') + '.' : inv.bajos.length ? 'Se está acabando ' + inv.bajos.slice(0, 3).join(', ') + '.' : 'El inventario está bien.',
+        promos[0] ? 'Mi consejo: ' + promos[0] : ''
+      ].filter(Boolean).join(' ');
+    },
+    async reporteGerencialInteligente(){
+      const base = this.reporteLocal();
+      if(typeof hasAIKey !== 'function' || !hasAIKey() || !navigator.onLine) return { texto: base, ia: false };
+      try{
+        const datos = { predicción: this.predecirVentas(), compras: this.recomendarCompras(), inventario: this.gestionInventarioInteligente(), mesas: this.analizarMesasRentables(), promos: this.sugerirPreciosYPromos(), resumen: base };
+        const t = await aiText({ prompt: 'Eres Jimmy N AI, el gerente de un negocio en Colombia. Con estos datos, habla como un gerente humano al dueño: máximo 6 frases cortas, en español sencillo, con lo más importante primero y 2 acciones concretas para hoy. No inventes números.\n' + JSON.stringify(datos), maxMs: 9000, timeoutMs: 9000, retries: 0 });
+        return { texto: String(t || '').trim() || base, ia: true };
+      }catch(e){ return { texto: base, ia: false }; }
+    },
+    // h) Autocorrección: datos dañados y errores registrados.
+    autocorreccion(){
+      let arreglos = 0;
+      if(!listo()) return 0;
+      Object.keys(data.tables || {}).forEach(id => { const t = data.tables[id]; if(!t || typeof t !== 'object'){ data.tables[id] = { items: [], people: [] }; arreglos++; return; } if(!Array.isArray(t.items)){ t.items = []; arreglos++; } t.items = t.items.filter(it => { const ok = it && it.name && Number(it.qty) > 0 && isFinite(Number(it.price)); if(!ok) arreglos++; return ok; }); if(!Array.isArray(t.people)){ t.people = []; arreglos++; } });
+      (data.products || []).forEach(p => { if(p.price != null && !isFinite(Number(p.price))){ p.price = 0; arreglos++; } if(p.stock != null && !isFinite(Number(p.stock))){ p.stock = null; arreglos++; } });
+      if(arreglos) try{ saveData(); }catch(e){}
+      try{ if(typeof window.mesoraReparar === 'function') window.mesoraReparar(true); }catch(e){}
+      J.ultimaRevision = { t: Date.now(), arreglos };
+      return arreglos;
+    }
+  };
+  window.JimmyNAI = window.JeffBrainService = J;
+
+  // ---------- Reporte de unificaciones (cada vez que se juntan dos mesas ocupadas) ----------
+  window.jimmyUnificacion = function(r){
+    if(!listo() || !r || !r.juntada) return;
+    data.unificaciones = data.unificaciones || [];
+    data.unificaciones.unshift({ t: Date.now(), mesas: [r.lblO, r.lblD], a: r.destino, empleado: (typeof authUser !== 'undefined' && authUser) || '—', total: typeof tableTotal === 'function' ? tableTotal(r.destino) : 0 });
+    try{ saveData(); }catch(e){}
+  };
+
+  // ---------- Siempre activo: alertas cada minuto, revisión cada 10 ---------------------
+  const avisadas = {};
+  setInterval(() => {
+    if(!listo()) return;
+    J.alertasInteligentes().forEach(a => { if(avisadas[a.k] && Date.now() - avisadas[a.k] < 25 * 6e4) return; avisadas[a.k] = Date.now(); try{ showToast('🧠 Jimmy: ' + a.t, 7000); }catch(e){} });
+  }, 60000);
+  setInterval(() => { try{ J.autocorreccion(); }catch(e){} }, 10 * 6e4);
+  setTimeout(() => { try{ J.autocorreccion(); }catch(e){} }, 15000);
+
+  // ---------- Panel en Ajustes (solo admin) ----------
+  function panel(){
+    const g = document.getElementById('jimmyGrupo'); if(!g || !listo()) return;
+    const p = J.predecirVentas(), c = J.recomendarCompras(), inv = J.gestionInventarioInteligente(), m = J.analizarMesasRentables(), pr = J.sugerirPreciosYPromos(), al = J.alertasInteligentes(), u = data.unificaciones || [];
+    const li = (arr, vacio) => arr.length ? '<ul class="jm-ul">' + arr.map(x => '<li>' + x + '</li>').join('') + '</ul>' : '<div class="settings-desc">' + vacio + '</div>';
+    g.querySelector('#jimmyCuerpo').innerHTML =
+      '<div class="jm-card"><b>📈 Ventas de hoy (' + p.dia + ')</b>' + (p.semanas ? '<div class="jm-big">' + plata(p.ventas) + '</div>' + li(p.top.map(x => esc2(x[0]) + ' · ~' + x[1]), '') : '<div class="settings-desc">Necesito unas semanas de ventas para predecir.</div>') + '</div>' +
+      '<div class="jm-card"><b>🛒 Qué comprar</b>' + li(c.map(x => (x.urgente ? '🚫 ' : '⚠️ ') + esc2(x.p) + ': quedan ' + x.stock + ', compra ' + x.comprar), 'Nada urgente. Para esto, ponle stock a los productos.') + '</div>' +
+      '<div class="jm-card"><b>📦 Inventario inteligente</b>' + li([].concat(inv.agotados.map(x => '🚫 Agotado: ' + esc2(x)), inv.bajos.map(x => '⚠️ Bajo: ' + esc2(x)), inv.lentos.map(x => '🐢 Quieto: ' + esc2(x)), inv.combos.map(esc2)), 'Todo en orden.') + '</div>' +
+      '<div class="jm-card"><b>🏆 Mesas que más rinden (30 días)</b>' + li(m.map(x => esc2(x.mesa) + ': ' + plata(x.ventas) + ' · ticket ' + plata(x.ticket) + (x.propina ? ' · propina ' + plata(x.propina) : '')), 'Aún no hay cuentas cerradas.') + '</div>' +
+      '<div class="jm-card"><b>💡 Precios y promociones</b>' + li(pr.map(esc2), 'Sin sugerencias por ahora (ponle el costo a tus productos para cuidar el margen).') + '</div>' +
+      '<div class="jm-card"><b>🔔 Alertas ahora</b>' + li(al.map(x => esc2(x.t)), 'Nada raro por ahora.') + '</div>' +
+      '<div class="jm-card"><b>🛠️ Autocorrección</b><div class="settings-desc">' + (J.ultimaRevision ? 'Última revisión: ' + new Date(J.ultimaRevision.t).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) + ' · ' + (J.ultimaRevision.arreglos ? J.ultimaRevision.arreglos + ' datos corregidos' : 'todo sano') : 'Revisa sola cada 10 minutos.') + '</div></div>' +
+      '<div class="jm-card"><b>🔀 Unificaciones de mesas</b>' + (u.length ? '<div class="jm-tabla">' + u.slice(0, 200).map(x => '<div><span>' + new Date(x.t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) + '</span><span>' + esc2(x.mesas.join(' + ')) + '</span><span>' + esc2(x.empleado) + '</span><b>' + plata(x.total) + '</b></div>').join('') + '</div>' : '<div class="settings-desc">Cuando alguien junte dos mesas, queda anotado aquí: fecha, mesas, quién lo hizo y la cuenta.</div>') + '</div>';
+  }
+  function crearPanel(){
+    const cats = document.getElementById('ajustesCats'); if(!cats || document.getElementById('jimmyGrupo')) return;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'ajustes-cat'; b.dataset.cat = 'cerebro';
+    b.innerHTML = '<span class="ac-icon">🧠</span><span class="ac-label">Jimmy N AI · cerebro del negocio</span><span class="ac-arrow">›</span>';
+    cats.insertBefore(b, cats.firstChild);
+    const g = document.createElement('div'); g.className = 'settings-group'; g.id = 'jimmyGrupo'; g.hidden = true; g.dataset.cat = 'cerebro';
+    g.innerHTML = '<h2>🧠 Jimmy N AI</h2><div class="settings-desc">Tu gerente inteligente: mira tus ventas, inventario y mesas, y te dice qué hacer. Trabaja solo en segundo plano' + ' — con Gemini conectado (⚙️ Configurar IA) redacta el reporte como una persona.</div>' +
+      '<button type="button" class="btn-camera cam-big" id="jimmyRep" style="width:100%;margin:10px 0"><span class="cam-ic">🧠</span><span class="cam-tx"><strong>Reporte del gerente <em class="cam-ia">IA</em></strong><small>Cómo va el negocio y qué hacer hoy, en palabras.</small></span></button>' +
+      '<div class="jm-rep" id="jimmyRepTxt" hidden></div><div id="jimmyCuerpo"></div>';
+    const ref = document.querySelector('#view-ajustes .settings-group[data-cat]'); ref.parentNode.insertBefore(g, ref);
+    b.addEventListener('click', () => { if(typeof mostrarCategoriaAjustes === 'function') mostrarCategoriaAjustes('cerebro'); panel(); });
+    g.querySelector('#jimmyRep').onclick = async () => {
+      const box = g.querySelector('#jimmyRepTxt'); box.hidden = false; box.textContent = '🧠 Pensando…';
+      const r = await J.reporteGerencialInteligente(); box.textContent = (r.ia ? '🧠 ' : '📊 ') + r.texto;
+    };
+  }
+  const st = document.createElement('style');
+  st.textContent = '.jm-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0;background:var(--surface)}.jm-card>b{display:block;margin-bottom:6px}.jm-big{font-size:24px;font-weight:800;margin:2px 0 6px}.jm-ul{margin:0;padding-left:18px;font-size:14px;line-height:1.5}.jm-rep{border:1px solid color-mix(in srgb,var(--amber) 45%,var(--line));border-radius:14px;padding:12px;margin:0 0 10px;line-height:1.5;background:color-mix(in srgb,var(--amber) 8%,var(--surface))}.jm-tabla div{display:grid;grid-template-columns:1.1fr 1.3fr .9fr auto;gap:6px;font-size:12.5px;padding:6px 0;border-bottom:1px dashed var(--line)}.jm-tabla span{min-width:0;overflow-wrap:anywhere}';
+  document.head.appendChild(st);
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', crearPanel); else crearPanel();
 })();
 </script>
 </body>
