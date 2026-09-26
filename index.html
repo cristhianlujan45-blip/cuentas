@@ -2495,6 +2495,10 @@ body:has(.overlay.show:not([hidden])){ overflow:hidden; }
 .ct-dos{ grid-template-columns:repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
 .more-tile{ min-width:0; overflow-wrap:anywhere; }
 .prod-photo-side{ min-width:0; overflow-wrap:anywhere; }
+.rc-lista{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(170px,100%),1fr)); gap:8px; margin-top:12px; }
+.rc-lista div{ display:flex; align-items:center; gap:8px; padding:10px; border:1px dashed var(--line); border-radius:10px; background:var(--surface); }
+.rc-lista small{ color:var(--ink-soft); } .rc-lista b{ font:700 15px ui-monospace,monospace; letter-spacing:.04em; user-select:all; }
+.rc-ok{ display:flex; align-items:center; gap:8px; margin-top:12px; font-weight:600; }
 body:has(.overlay.show:not(#overlay)) .voice-fab-wrap, body:has(.overlay.show:not(#overlay)) .voice-fab-tab{ visibility:hidden; pointer-events:none; }
 /* En la cuenta de la mesa el micrófono sigue a mano, pero se deja espacio al final para que
    «Cobrar saldo y liberar mesa» quede arriba del botón y nunca debajo. */
@@ -2906,12 +2910,8 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
         <select id="langSel" style="padding:9px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px"><option value="es">Español</option><option value="en">English</option><option value="pt">Português</option><option value="fr">Français</option><option value="zh">中文</option><option value="hi">हिन्दी</option></select>
       </div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch">
-        <div class="settings-row-text"><strong>Recuperar contraseña por WhatsApp</strong><span id="accWaState"></span></div>
-        <div class="acc-inline">
-          <input id="accWaNum" inputmode="numeric" placeholder="Tu WhatsApp (3001234567)" autocomplete="off">
-          <button class="btn-warn" id="accWaBtn" type="button">Generar código</button>
-        </div>
-        <div class="auth-hint" id="accWaOut" style="user-select:text"></div>
+        <div class="settings-row-text"><strong>🔐 Códigos de recuperación</strong><span>Si olvidas tu contraseña, entras con uno de estos códigos. Son 8, cada uno sirve <b>una sola vez</b>, y no viajan por WhatsApp ni por internet: los guardas tú, en papel.</span><span id="accRcState" style="margin-top:4px;font-weight:700"></span></div>
+        <button class="btn-warn" id="accRcBtn" type="button">🔐 Crear mis códigos</button>
       </div>
       <div class="settings-row">
         <div class="settings-row-text"><strong>Cerrar sesión</strong><span>Te pedirá usuario y contraseña al volver a entrar.</span></div>
@@ -4084,16 +4084,17 @@ export default {
     <label>Contraseña<input id="authPass" type="password" autocomplete="current-password"></label>
     <div class="auth-err" id="authErr"></div>
     <button class="btn-primary" type="submit" id="authBtn">Entrar</button>
-    <button type="button" class="auth-link" id="authForgot">¿Olvidaste tu contraseña? Recupérala con WhatsApp</button>
+    <button type="button" class="auth-link" id="authForgot">¿Olvidaste tu contraseña?</button>
     <button type="button" class="auth-link" id="authRestoreBtn">📥 ¿Ya tenías una cuenta? Restaura tu copia de respaldo</button>
     <input type="file" id="authRestoreFile" accept="application/json,.json" hidden>
   </form>
   <form class="auth-card" id="recForm" hidden>
     <h2>Recuperar contraseña</h2>
-    <div class="auth-hint">Escribe el código que te enviaste por WhatsApp (lo generas en Ajustes → Cuenta).</div>
+    <div class="auth-hint">Usa uno de tus <b>códigos de recuperación</b> (los que imprimiste o guardaste al crearlos en Ajustes → Negocio). Cada código sirve una sola vez.<br>¿No los tienes? Si hay <b>otro administrador</b>, pídele que te ponga una contraseña nueva en Ajustes → Usuarios (🔑).</div>
     <label>Usuario<input id="recUser" autocapitalize="none" autocomplete="username"></label>
-    <label>Código de WhatsApp<input id="recCode" placeholder="XXXX-XXXX-XXXX" autocapitalize="characters" autocomplete="off"></label>
+    <label>Código de recuperación<input id="recCode" placeholder="XXXX-XXXX-XXXX" autocapitalize="characters" autocomplete="off"></label>
     <label>Contraseña nueva<input id="recNew" type="password" autocomplete="new-password"></label>
+    <label>Repite la contraseña nueva<input id="recNew2" type="password" autocomplete="new-password"></label>
     <div class="auth-err" id="recErr"></div>
     <button class="btn-primary" type="submit">Cambiar contraseña</button>
     <button type="button" class="auth-link" id="recBack">Volver</button>
@@ -14516,17 +14517,6 @@ function authNewCode(){
   const c = [...r].map(x => A[x % 32]).join('');
   return c.slice(0, 4) + '-' + c.slice(4, 8) + '-' + c.slice(8);
 }
-async function authSetWaCode(user, waNum){
-  const n = authNorm(waNum);
-  if(!/^3\d{9}$/.test(n)) return { err: 'El WhatsApp debe tener 10 dígitos y empezar por 3 (ej. 3001234567).' };
-  const users = authUsers(), u = users.find(x => x.user === user);
-  if(!u) return { err: 'Usuario no encontrado.' };
-  const code = authNewCode();
-  u.wa = { h: await authHash(authNormCode(code), u.salt + 'wa'), tail: n.slice(-4) };
-  localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
-  const txt = 'Código de recuperación de Cuentas de mesa (usuario: ' + user + '): ' + code + '\nGuárdalo y no lo compartas.';
-  return { code, url: 'https://wa.me/57' + n + '?text=' + encodeURIComponent(txt) };
-}
 // ---------- Freno a intentos repetidos de inicio de sesión ----------
 // Igual idea que el bloqueo de recuperación por WhatsApp (cm-rec-lock), pero
 // por USUARIO: así alguien no puede probar contraseñas al puro intento con el
@@ -14551,20 +14541,68 @@ function authLoginClear(user){
   delete all[user];
   try{ localStorage.setItem('cm-login-lock', JSON.stringify(all)); }catch(e){}
 }
-async function authRecover(user, code, newPass){
+/* ---------- Códigos de recuperación (de un solo uso) ----------
+   8 códigos al azar (60 bits cada uno). Solo se guarda su huella (hash con la sal del usuario),
+   nunca el código: aunque alguien copie los datos del celular, no los puede leer. Cada uno sirve
+   una vez; crear códigos nuevos anula los anteriores (y el viejo código de WhatsApp). Para crearlos
+   se pide la contraseña actual, y los intentos fallidos bloquean cada vez por más tiempo. */
+async function authCrearCodigos(user, passActual){
+  const users = authUsers(), u = users.find(x => x.user === user);
+  if(!u) return { err: 'Usuario no encontrado.' };
+  if(await authHash(passActual || '', u.salt) !== u.hash) return { err: 'La contraseña actual no es correcta.' };
+  const codigos = Array.from({ length: 8 }, authNewCode);
+  u.rc = await Promise.all(codigos.map(async c => ({ h: await authHash(authNormCode(c), u.salt + 'rc'), usado: false })));
+  u.rcT = Date.now(); delete u.wa;
+  localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
+  return { codigos };
+}
+const authCodigosQuedan = u => u && Array.isArray(u.rc) ? u.rc.filter(x => !x.usado).length : 0;
+async function authRecover(user, code, newPass, newPass2){
   if((newPass || '').length < 6) return 'La contraseña nueva debe tener al menos 6 caracteres.';
-  let lock; try{ lock = JSON.parse(localStorage.getItem('cm-rec-lock')) || { n: 0, t: 0 }; }catch(e){ lock = { n: 0, t: 0 }; }
-  const fresh = Date.now() - lock.t < 10 * 60e3;
-  if(fresh && lock.n >= 5) return 'Demasiados intentos. Espera 10 minutos.';
+  if(newPass2 !== undefined && newPass !== newPass2) return 'Las dos contraseñas nuevas no son iguales.';
+  let lock; try{ lock = JSON.parse(localStorage.getItem('cm-rec-lock')) || { n: 0, t: 0, nivel: 0 }; }catch(e){ lock = { n: 0, t: 0, nivel: 0 }; }
+  const espera = [10, 60, 24 * 60][Math.min(lock.nivel || 0, 2)] * 60e3;   // 10 min, luego 1 hora, luego 1 día
+  if(lock.n >= 5 && Date.now() - lock.t < espera) return 'Demasiados intentos. Espera ' + (espera >= 864e5 ? 'un día' : espera >= 36e5 ? 'una hora' : '10 minutos') + ' para volver a intentar.';
+  if(lock.n >= 5) lock = { n: 0, t: 0, nivel: (lock.nivel || 0) + 1 };
   const users = authUsers(), u = users.find(x => x.user === String(user || '').trim().toLowerCase());
-  const ok = !!(u && u.wa) && await authHash(authNormCode(code), u.salt + 'wa') === u.wa.h;
-  if(!ok){
-    localStorage.setItem('cm-rec-lock', JSON.stringify({ n: (fresh ? lock.n : 0) + 1, t: Date.now() }));
-    return 'El código no coincide, o ese usuario no tiene recuperación por WhatsApp configurada.';
+  const huella = u ? await authHash(authNormCode(code), u.salt + 'rc') : '';
+  const cod = u && Array.isArray(u.rc) ? u.rc.find(x => !x.usado && x.h === huella) : null;
+  const viejoWa = !cod && !!(u && u.wa && !u.rc) && await authHash(authNormCode(code), u.salt + 'wa') === u.wa.h;   // código anterior, mientras no cree los nuevos
+  if(!cod && !viejoWa){
+    localStorage.setItem('cm-rec-lock', JSON.stringify({ n: (lock.n || 0) + 1, t: Date.now(), nivel: lock.nivel || 0 }));
+    return 'El código no sirve: está mal escrito, ya se usó, o no es de ese usuario.';
   }
+  if(cod){ cod.usado = true; cod.cuando = Date.now(); } else delete u.wa;
   u.hash = await authHash(newPass, u.salt);
   localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users)); localStorage.removeItem('cm-rec-lock');
-  return null;
+  const q = authCodigosQuedan(u);
+  return { ok: true, quedan: q };
+}
+function authCodigosDialogo(alTerminar){
+  let ov = document.getElementById('rcOverlay');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'rcOverlay'; ov.className = 'overlay'; document.body.appendChild(ov); }
+  const u = authUsers().find(x => x.user === authUser);
+  ov.innerHTML = '<div class="modal" style="max-width:420px"><h2>🔐 Códigos de recuperación</h2><div class="modal-sub">' + (u && u.rc ? '⚠️ Al crear códigos nuevos, <b>los anteriores dejan de servir</b>. ' : '') + 'Para protegerte, escribe tu contraseña actual.</div>' +
+    '<input id="rcPass" type="password" class="mz-in" style="width:100%" autocomplete="current-password" placeholder="Tu contraseña actual"><div class="auth-err" id="rcErr"></div>' +
+    '<div class="modal-actions"><button class="btn-close" type="button" id="rcNo">Cancelar</button><button class="btn-primary" type="button" id="rcSi">Crear códigos</button></div></div>';
+  ov.classList.add('show'); setTimeout(() => document.getElementById('rcPass').focus(), 100);
+  document.getElementById('rcNo').onclick = () => ov.classList.remove('show');
+  document.getElementById('rcSi').onclick = async () => {
+    const r = await authCrearCodigos(authUser, document.getElementById('rcPass').value);
+    if(r.err){ document.getElementById('rcErr').textContent = r.err; return; }
+    const neg = (typeof data !== 'undefined' && data && data.businessName) || 'Vento';
+    const texto = 'Códigos de recuperación de Vento\nNegocio: ' + neg + ' · Usuario: ' + authUser + '\nCreados: ' + new Date().toLocaleString('es-CO') + '\n\n' + r.codigos.map((c, i) => (i + 1) + '. ' + c).join('\n') + '\n\nCada código sirve UNA sola vez. Guárdalos en papel, en un lugar seguro. No los mandes por WhatsApp ni los compartas.';
+    ov.innerHTML = '<div class="modal" style="max-width:420px"><h2>🔐 Tus 8 códigos</h2><div class="modal-sub"><b>Solo se muestran esta vez.</b> Imprímelos o escríbelos en un papel y guárdalo lejos del celular. Cada uno sirve una sola vez para cambiar tu contraseña.</div>' +
+      '<div class="rc-lista">' + r.codigos.map((c, i) => '<div><small>' + (i + 1) + '</small><b>' + c + '</b></div>').join('') + '</div>' +
+      '<div class="mz-actions" style="margin-top:10px"><button class="btn-ghost" type="button" id="rcPrint">🖨️ Imprimir</button><button class="btn-ghost" type="button" id="rcDl">⬇️ Descargar</button></div>' +
+      '<label class="rc-ok"><input type="checkbox" id="rcGuarde"> Ya los guardé en un lugar seguro</label>' +
+      '<div class="modal-actions"><button class="btn-primary" type="button" id="rcListo" disabled>Listo</button></div></div>';
+    document.getElementById('rcGuarde').onchange = e => { document.getElementById('rcListo').disabled = !e.target.checked; };
+    document.getElementById('rcListo').onclick = () => { ov.innerHTML = ''; ov.classList.remove('show'); if(alTerminar) alTerminar(); showToast('✅ Códigos guardados. Si olvidas la contraseña: «¿Olvidaste tu contraseña?» en la entrada.'); };
+    document.getElementById('rcDl').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([texto], { type: 'text/plain;charset=utf-8' })); a.download = 'codigos-recuperacion-vento-' + authUser + '.txt'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); };
+    document.getElementById('rcPrint').onclick = () => { const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;width:0;height:0;border:0'; document.body.appendChild(f); const d = f.contentDocument; d.open(); d.write('<title>Códigos de recuperación</title><pre style="font:16px monospace;white-space:pre-wrap;margin:24px">' + texto.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])) + '</pre>'); d.close(); setTimeout(() => { f.contentWindow.focus(); f.contentWindow.print(); setTimeout(() => f.remove(), 2000); }, 300); };
+    if(alTerminar) alTerminar();
+  };
 }
 function fillTypeSelect(sel, value){
   sel.innerHTML = Object.keys(BUSINESS_TYPES).map(k => `<option value="${k}">${BUSINESS_TYPES[k]}</option>`).join('');
@@ -14606,6 +14644,14 @@ async function enterApp(user, setup){
   aplicarModoMesero();
   if(setup && window.ventoBienvenida) window.ventoBienvenida(true); else maybeShowTutorial();
   maybeShowLowStockAlert();
+  // Recordatorio (una vez al día) para que el administrador cree sus códigos de recuperación.
+  try{
+    const u = authUsers().find(x => x.user === user), hoy = new Date().toDateString();
+    if(authIsAdmin() && u && !authCodigosQuedan(u) && localStorage.getItem('vento-rc-aviso') !== hoy && !setup){
+      localStorage.setItem('vento-rc-aviso', hoy);
+      setTimeout(() => showToast('🔐 Crea tus códigos de recuperación (Ajustes → Negocio): si olvidas la contraseña, son tu forma segura de volver a entrar.', 9000), 7000);
+    }
+  }catch(e){}
 }
 
 // ---------- Aviso de stock bajo al entrar ----------
@@ -14707,11 +14753,12 @@ function showAuth(firstRun){
   };
   rf.onsubmit = async (e) => {
     e.preventDefault(); g('recErr').textContent = '';
-    const m = await authRecover(g('recUser').value, g('recCode').value, g('recNew').value);
-    if(m){ g('recErr').textContent = m; return; }
+    const m = await authRecover(g('recUser').value, g('recCode').value, g('recNew').value, g('recNew2').value);
+    if(typeof m === 'string'){ g('recErr').textContent = m; return; }
     g('authUser').value = g('recUser').value.trim().toLowerCase();
-    ['recCode','recNew'].forEach(i => g(i).value = '');
-    rf.hidden = true; af.hidden = false; g('authErr').textContent = '✅ Contraseña cambiada. Ya puedes entrar.';
+    ['recCode','recNew','recNew2'].forEach(i => g(i).value = '');
+    rf.hidden = true; af.hidden = false;
+    g('authErr').textContent = '✅ Contraseña cambiada. Ya puedes entrar. Ese código ya no sirve más' + (m.quedan ? ' (te quedan ' + m.quedan + ').' : ': crea códigos nuevos en Ajustes → Negocio.');
   };
   document.getElementById('authForm').onsubmit = async (e) => {
     e.preventDefault();
@@ -14765,14 +14812,15 @@ function wireAccountUI(){
     showToast('✅ Usuario agregado: ' + u.value.trim().toLowerCase() + ' (' + (rol === 'admin' ? 'Administrador' : 'Mesero') + ')'); u.value = ''; p.value = '';
     accUsuariosPintar();
   };
-  const waState = () => { const u = authUsers().find(x => x.user === authUser); document.getElementById('accWaState').textContent = u && u.wa ? '✅ Activa · WhatsApp terminado en ' + u.wa.tail : 'Sin configurar: genera un código y guárdalo en tu WhatsApp.'; };
-  waState();
-  document.getElementById('accWaBtn').onclick = async () => {
-    const r = await authSetWaCode(authUser, document.getElementById('accWaNum').value);
-    if(r.err){ showToast(r.err); return; }
-    document.getElementById('accWaOut').innerHTML = 'Tu código: <strong>' + r.code + '</strong> · <a href="' + r.url + '" target="_blank" rel="noopener" style="color:var(--ink)">📲 Enviármelo por WhatsApp</a><br>Envíatelo y guárdalo en tu chat contigo mismo. Si generas otro, este deja de servir.';
-    document.getElementById('accWaNum').value = ''; waState();
+  const rcState = () => {
+    const u = authUsers().find(x => x.user === authUser), q = authCodigosQuedan(u), el = document.getElementById('accRcState');
+    if(!el) return;
+    el.textContent = !u || !u.rc ? '⚠️ Todavía no tienes códigos: si olvidas la contraseña no podrás entrar.' : q ? '✅ Te quedan ' + q + ' de 8 códigos (creados el ' + new Date(u.rcT).toLocaleDateString('es-CO') + ').' : '⚠️ Ya usaste todos tus códigos: crea unos nuevos.';
+    el.style.color = u && q ? '' : '#f5a524';
+    document.getElementById('accRcBtn').textContent = u && u.rc ? '🔄 Crear códigos nuevos' : '🔐 Crear mis códigos';
   };
+  rcState();
+  document.getElementById('accRcBtn').onclick = () => authCodigosDialogo(rcState);
   document.getElementById('accLogoutBtn').onclick = () => cerrarSesion();
   accUsuariosPintar();
   const ai = document.getElementById('voiceAiToggle');
@@ -18581,7 +18629,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v58';
+const MESORA_VERSION = '2026-09-26 · v59';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
