@@ -3101,6 +3101,13 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
     </div>
 
     <div class="settings-group" hidden data-cat="pedidos">
+      <h2>🔔 Avisos dentro de la app</h2>
+      <div class="settings-desc">Controla, por separado, los mensajes y sonidos que aparecen mientras Mesora está abierta: los de pedidos (mesas, cuentas) y los de música (canciones pedidas, avisos del TV).</div>
+      <div class="settings-row"><div class="settings-row-text"><strong>Avisos de pedidos</strong><span>Cuando una mesa pide algo, pide la cuenta, o avisa que ya pagó.</span></div><label class="switch"><input type="checkbox" id="notifPedidosOn" checked><span class="switch-slider"></span></label></div>
+      <div class="settings-row"><div class="settings-row-text"><strong>Avisos de música</strong><span>Cuando piden una canción, o hay canciones nuevas para el TV.</span></div><label class="switch"><input type="checkbox" id="notifMusicaOn" checked><span class="switch-slider"></span></label></div>
+    </div>
+
+    <div class="settings-group" hidden data-cat="pedidos">
       <h2>🔔 Alertas con el celular bloqueado</h2>
       <div class="settings-desc">Un navegador no puede avisar con la pantalla apagada. Para eso usa la app gratuita <b>ntfy</b>: cada pedido, cuenta o canción te llega como notificación con sonido aunque esta app esté cerrada.</div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
@@ -6572,8 +6579,12 @@ function bottomBarHeight(){
   return (tb && getComputedStyle(tb).position === 'fixed') ? tb.offsetHeight + 8 : 0;
 }
 function clampFabPosition(left, top){
-  const maxLeft = Math.max(window.innerWidth - voiceFabWrap.offsetWidth, 0);
-  const maxTop = Math.max(window.innerHeight - voiceFabWrap.offsetHeight - bottomBarHeight(), 0);
+  // Si el botón todavía no se ha dibujado (offsetWidth/offsetHeight en 0), se usa su
+  // tamaño real (56px) en vez de 0 — si no, el límite quedaba mal calculado y el
+  // botón podía terminar colgando fuera de la pantalla o encima de otra cosa.
+  const w = voiceFabWrap.offsetWidth || 56, h = voiceFabWrap.offsetHeight || 56;
+  const maxLeft = Math.max(window.innerWidth - w, 0);
+  const maxTop = Math.max(window.innerHeight - h - bottomBarHeight(), 0);
   return {
     left: Math.min(Math.max(left, 0), maxLeft),
     top: Math.min(Math.max(top, 0), maxTop)
@@ -6593,8 +6604,19 @@ async function loadVoiceFabPos(){
     const res = await storageGet('voice-fab-pos');
     if(res && res.value){
       const pos = JSON.parse(res.value);
-      if(typeof pos.left === 'number' && typeof pos.top === 'number'){
+      // Si la posición guardada no tiene ningún sentido para la pantalla de
+      // ahora (por ejemplo, quedó de una pantalla mucho más grande, el
+      // celular cambió de orientación, o algo la dejó con un número raro),
+      // se ignora y el botón vuelve a su lugar de siempre en vez de
+      // quedar "perdido" o encimado con otra cosa — así nunca se ve loco.
+      const cabeEnPantalla = typeof pos.left === 'number' && typeof pos.top === 'number' &&
+        isFinite(pos.left) && isFinite(pos.top) &&
+        pos.left >= -10 && pos.top >= -10 &&
+        pos.left <= window.innerWidth - 20 && pos.top <= window.innerHeight - 20;
+      if(cabeEnPantalla){
         placeFabAt(pos.left, pos.top);
+      } else {
+        try{ await storageSet('voice-fab-pos', ''); }catch(e){}
       }
     }
   }catch(e){}
@@ -11628,6 +11650,18 @@ function asisCommand(raw){
     const nv = ASIS_NAV.find(x => x.re.test(t));
     if(nv) return { text: 'Listo, te llevo a ' + nv.name + '.', run: () => { asisClose(); asisGoView(nv.view); } };
   }
+  // Crear una mesa nueva (con nombre o no) SÍ se puede pedir por el chat — a diferencia de
+  // agregar productos a una mesa YA abierta (eso sigue siendo del micrófono, más abajo), crear
+  // la mesa es una acción de una sola vez. Reutiliza el mismo entendedor del micrófono de
+  // pedidos, así entiende exactamente las mismas frases: "agregar mesa Julián", "crea la mesa
+  // Carolina con tres Club Colombia", "nueva mesa para don Pedro", "abre una mesa a nombre de
+  // Ana", "agrega una mesa"…
+  if(/\bmesa\b/.test(t) && typeof voiceCrearMesaConNombre === 'function'){
+    // voiceCrearMesaConNombre ya avisa con su propio toast y voz si de verdad
+    // era una mesa nueva; aquí solo se cierra la conversación con un "Listo."
+    // breve para no repetir dos veces todo el mensaje.
+    if(voiceCrearMesaConNombre(raw)) return { text: 'Listo. 🪑' };
+  }
   // Pedidos de mesa: eso lo hace el micrófono de pedidos, no el chat.
   if(/\b(agrega|agregale|agregame|anota|pon|ponle|sirve)\b/.test(t) && asisMesaNum(t)){
     return { text: 'Los pedidos de las mesas se anotan con el micrófono 🎤 de abajo a la derecha (por ejemplo: "tres Águilas para la mesa 1"). Yo te ayudo con consultas y cambios de productos.' };
@@ -15173,14 +15207,18 @@ bootApp();
     }
     const nuevosPed=pendList.filter(x=>lastPendIds.indexOf(x.id)===-1);
     const nuevasCan=songList.filter(x=>lastSongIds.indexOf(x.id)===-1);
-    if(lastTotal>=0 && (nuevosPed.length||nuevasCan.length)){
+    // Avisos de pedidos y de música se pueden apagar por separado (Ajustes → Pedidos, QR y
+    // caja → Avisos dentro de la app); si ambos están apagados, ni siquiera suena la campana.
+    const avisaPed=(!window.notifPedidos||window.notifPedidos())&&nuevosPed.length;
+    const avisaMus=(!window.notifMusica||window.notifMusica())&&nuevasCan.length;
+    if(lastTotal>=0 && (avisaPed||avisaMus)){
       timbre();
       bell.classList.remove('sonando'); void bell.offsetWidth; bell.classList.add('sonando');
-      nuevosPed.forEach(it=>{
+      if(avisaPed)nuevosPed.forEach(it=>{
         try{showToast('📥 Pedido recibido · Mesa '+it.mesa+': '+previewPedido(it.items));}catch(e){}
         decir('Pedido recibido, mesa '+it.mesa);
       });
-      nuevasCan.forEach(it=>{
+      if(avisaMus)nuevasCan.forEach(it=>{
         try{showToast('🎵 Canción pedida: Mesa '+it.mesa);}catch(e){}
         decir('Canción pedida, mesa '+it.mesa);
       });
@@ -15692,7 +15730,7 @@ function procesar(txt){
   const m=/^(PEDIDO|CANCION|CUENTA)\s+MESA\s*(\d+)\s*:?\s*([\s\S]*)$/i.exec(txt.trim());if(!m)return;
   const tp=m[1].toUpperCase(),id=parseInt(m[2],10),cuerpo=m[3].trim().replace(/\s+/g,' ');
   if(!data.tables[id])return;
-  if(tp==='CANCION'){showToast(agregarCancion(id,cuerpo).msg);renderMusica();}
+  if(tp==='CANCION'){if(notifMusica())showToast(agregarCancion(id,cuerpo).msg);else agregarCancion(id,cuerpo);renderMusica();}
   else if(tp==='CUENTA'){
     /* Si el cliente avisó que ya pagó (botón "Ya pagué" del QR o de Nequi en pedido.html), el
        aviso trae el MONTO y la APP (Nequi, Bancolombia, Daviplata, Bre-B…) en el cuerpo — se
@@ -15700,24 +15738,41 @@ function procesar(txt){
        detectaba la palabra "nequi", así que pagar con cualquier otra app (Bancolombia,
        Daviplata) mostraba solo "pide la cuenta" sin el monto ni con qué pagó. */
     const avisoPago = /ya pag[oó]/i.test(cuerpo);
-    showToast(avisoPago ? (tableLabel(id) + ': ' + cuerpo) : ('🧾 ' + tableLabel(id) + ' pide la cuenta'));
-    if(avisoPago){ try{ speakVoice(tableLabel(id) + ' dice que ya pagó.'); }catch(e){} try{ window.pagosVerificarMesa && window.pagosVerificarMesa(id); }catch(e){} }
+    if(notifPedidos()){
+      showToast(avisoPago ? (tableLabel(id) + ': ' + cuerpo) : ('🧾 ' + tableLabel(id) + ' pide la cuenta'));
+      if(avisoPago) try{ speakVoice(tableLabel(id) + ' dice que ya pagó.'); }catch(e){}
+    }
+    if(avisoPago) try{ window.pagosVerificarMesa && window.pagosVerificarMesa(id); }catch(e){}
     try{openBillSummary(id);}catch(e){}
   }
   else{
     const p=parseVoiceCommand('mesa '+id+', '+m[3].replace(/\n+/g,', '));
-    if(!p.items||!p.items.length){showToast('⚠️ '+tableLabel(id)+' mandó un pedido que no entendí: '+cuerpo);}
+    if(!p.items||!p.items.length){if(notifPedidos())showToast('⚠️ '+tableLabel(id)+' mandó un pedido que no entendí: '+cuerpo);}
     else if(window.vitoRecibirPedido){window.vitoRecibirPedido(id,p.items);}
     else{
       const r=applyVoiceItems(id,p.items,'add');
-      if(r.added.length)showToast('🍺 '+tableLabel(id)+': '+r.added.map(a=>a.qty+' '+a.name).join(', '));
+      if(r.added.length&&notifPedidos())showToast('🍺 '+tableLabel(id)+': '+r.added.map(a=>a.qty+' '+a.name).join(', '));
       if(r.notFound.length)alert(tableLabel(id)+' pidió algo que no reconocí (agrégalo a mano): '+r.notFound.join(', '));
     }
   }
   if(navigator.vibrate)navigator.vibrate(200);
 }
+// Avisos (toasts/sonidos) dentro de la app, por separado para pedidos y música —
+// para no confundirlos con las alertas de ntfy (esas sí avisan con la pantalla
+// bloqueada; estas son mientras Mesora está abierta).
+const NOTIF_KEY='vito_notif';
+const notifCfg=()=>Object.assign({pedidos:true,musica:true},LS(NOTIF_KEY,{}));
+const notifPedidos=()=>notifCfg().pedidos;
+const notifMusica=()=>notifCfg().musica;
+window.notifPedidos=notifPedidos;window.notifMusica=notifMusica;   // para el módulo de la campana, que corre en otro cierre
 function iniQR(){
   const c=qCfg();
+  const np=$('notifPedidosOn'),nm=$('notifMusicaOn');
+  if(np&&nm){
+    const nc=notifCfg();np.checked=nc.pedidos;nm.checked=nc.musica;
+    np.onchange=()=>{const x=notifCfg();x.pedidos=np.checked;SS(NOTIF_KEY,x);};
+    nm.onchange=()=>{const x=notifCfg();x.musica=nm.checked;SS(NOTIF_KEY,x);};
+  }
   // Si esta misma app está servida desde GitHub Pages, el link de la página de
   // pedidos debe ser justo esta misma dirección. Se corrige sola si quedó
   // desactualizada (ej. cambió la rama que publica GitHub Pages) — esto NO
@@ -16356,7 +16411,7 @@ async function publicarCatalogo(force){
 window.vitoPublicarCatalogo = publicarCatalogo;
 window.vitoQCfg = qCfg;   // lo usan los domicilios por web/WhatsApp, que viven fuera de este módulo
 // Lo que usan las fotos de la carta y la transmisión al TV (script del final).
-window.vitoMod = { linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente, ytDur, ytPosicionSiguiente, ytTanda: () => ytTanda };
+window.vitoMod = { linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente, ytDur, ytPosicionSiguiente, ytTanda: () => ytTanda, procesar, notifPedidos, notifMusica };
 function publicarCuentas(){
   if(typeof data==='undefined'||!data)return;
   try{publicarCatalogo();}catch(e){}             // la carta se publica siempre (aunque "en vivo" esté apagado)
@@ -18227,7 +18282,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v45';
+const MESORA_VERSION = '2026-09-26 · v46';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -18245,7 +18300,9 @@ function mesoraAvisoVersionNueva(nueva){
   if(document.getElementById('mesoraNuevaVersion')) return;
   const b = document.createElement('div');
   b.id = 'mesoraNuevaVersion';
-  b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#2d7d46;color:#fff;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;font:600 14px system-ui;box-shadow:0 -4px 16px rgba(0,0,0,.3)';
+  // Arriba, no abajo: abajo es donde vive el botón flotante del micrófono (que además se
+  // puede arrastrar a cualquier lado), así este aviso nunca lo tapa ni se le monta encima.
+  b.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99999;background:#2d7d46;color:#fff;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;font:600 14px system-ui;box-shadow:0 4px 16px rgba(0,0,0,.3)';
   b.innerHTML = '<span>🔄 Hay una versión nueva de Mesora (' + String(nueva).split('·').pop().trim() + '). Actualízala para que todo funcione bien.</span>' +
     '<button type="button" style="background:#fff;color:#2d7d46;border:0;border-radius:8px;padding:8px 16px;font:700 14px system-ui;cursor:pointer">Actualizar ahora</button>';
   b.querySelector('button').onclick = () => location.reload();
@@ -18570,11 +18627,20 @@ function iniCast(){
   document.addEventListener('visibilitychange', () => {
     if(document.hidden) return;
     castEstado();
+    if(typeof lngOn === 'function' && lngOn()) return;   // el TV ya recibe las canciones solas por el código (YouTube del TV): no hace falta nada de esto
     const n = castNuevas().length;
     if(n && !vm().tvOn()) setTimeout(() => { if(!document.hidden && castNuevas().length) castLanzarNuevas(); }, 600);
   });
-  // Si una canción nueva entra mientras Mesora está abierta, también se avisa.
-  setInterval(() => { const n = castNuevas().length; if(n && n !== castAvisadas && !document.hidden){ castAvisadas = n; castEstado(); showToast('🎵 ' + (n === 1 ? 'Hay 1 canción nueva' : 'Hay ' + n + ' canciones nuevas') + ' para el TV: toca «Mandar al TV» en Música.', 6000); } }, 10000);
+  // Si una canción nueva entra mientras Mesora está abierta, también se avisa — PERO solo si
+  // hace falta que la persona haga algo. Si ya está conectado el «YouTube del TV» (con el
+  // código de 12 dígitos), las canciones ya entran solas a la cola del TV sin ningún botón que
+  // tocar: este aviso de «manda al TV» quedaba sonando de más y sin sentido, avisando de algo
+  // que ya había pasado automáticamente.
+  setInterval(() => {
+    if(typeof lngOn === 'function' && lngOn()) return;
+    if(window.notifMusica && !window.notifMusica()) return;
+    const n = castNuevas().length; if(n && n !== castAvisadas && !document.hidden){ castAvisadas = n; castEstado(); showToast('🎵 ' + (n === 1 ? 'Hay 1 canción nueva' : 'Hay ' + n + ' canciones nuevas') + ' para el TV: toca «Mandar al TV» en Música.', 6000); }
+  }, 10000);
   document.getElementById('castOpenMusic').onclick = () => { SS(CAST_APP_KEY, { app: 'music' }); castAbrirApp(); };
   document.getElementById('castOpenYT').onclick = () => { SS(CAST_APP_KEY, { app: 'yt' }); castAbrirApp(); };
   const env = castEntorno(), ce = document.getElementById('castEnv');
