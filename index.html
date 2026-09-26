@@ -18567,7 +18567,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v54';
+const MESORA_VERSION = '2026-09-26 · v55';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -20319,23 +20319,57 @@ let fotosListas = false;
     cands.sort((a, b) => b.avisada - a.avisada);
     return cands[0] ? cands[0].id : null;
   }
+  // ---------- ¿Qué tan confiable es el aviso? ----------
+  // MacroDroid manda «origen | título | texto». Una notificación de la APP del banco solo la puede
+  // mostrar esa app instalada en tu celular: un tercero no la puede falsificar → confirmado.
+  // Un SMS lo puede mandar cualquiera: si viene de un celular común (los bancos escriben desde
+  // códigos cortos de 5-6 dígitos) es falso; si viene de un código corto, hay que mirarlo en la app.
+  const PG_APPS_SMS = /^(sms|mensajes?|messages?|google messages|mensajes de samsung|samsung messages|mensajes de texto|textra)$/i;
+  function pgFuente(txt){
+    const partes = String(txt || '').split('|').map(x => x.trim());
+    const origen = partes[0] || '', t1 = partes[1] || '';
+    const esSms = PG_APPS_SMS.test(origen) || /^sms$/i.test(t1);
+    if(!esSms){
+      if(/nequi|daviplata|bancolombia|davivienda|movii|\bdale\b|bre-?b|banco|\bnu\b|lulo|rappipay|powwi|ual[aá]|bbva|scotiabank|av villas|colpatria|occidente|popular|caja social/i.test(origen)) return { nivel: 'app', txt: 'Confirmado por la app de ' + origen };
+      return { nivel: 'revisar', txt: 'Aviso de «' + (origen || 'otra app') + '»: confírmalo en la app del banco' };
+    }
+    const quien = /^sms$/i.test(t1) ? '' : t1;
+    const dig = quien.replace(/\D/g, '');
+    if(dig.length >= 7) return { nivel: 'falso', txt: 'SMS desde un número de celular (' + quien + '): los bancos no escriben desde celulares' };
+    return { nivel: 'revisar', txt: 'Llegó por SMS' + (quien ? ' (' + quien + ')' : '') + ': confírmalo en la app del banco antes de entregar' };
+  }
+  const pgConfirmado = x => !x.estado || x.estado === 'app' || x.estado === 'ok';
   function pgRecibir(txt, id){
     const g = PG();
     if(id){ if(g.vistos.includes(id)) return; g.vistos.push(id); g.vistos = g.vistos.slice(-300); }
     const p = pgLeer(txt);
     if(!p) return;
-    const mesa = pgMesaPara(p.monto);
-    const reg = { id: id || Date.now().toString(36), t: Date.now(), monto: p.monto, app: p.app, de: p.de, mesa: mesa ? Number(mesa) : null, txt: String(txt).slice(0, 200) };
+    const f = pgFuente(txt);
+    const mesa = f.nivel === 'falso' ? null : pgMesaPara(p.monto);
+    const reg = { id: id || Date.now().toString(36), t: Date.now(), monto: p.monto, app: p.app, de: p.de, mesa: mesa ? Number(mesa) : null, estado: f.nivel, fuente: f.txt, txt: String(txt).slice(0, 200) };
     g.lista.unshift(reg); g.lista = g.lista.slice(0, 200);
-    if(mesa) delete g.espera[mesa];
+    if(mesa && f.nivel === 'app') delete g.espera[mesa];
     saveData();
-    const msg = '💜 Llegó ' + p.app + ': ' + plata(p.monto) + (p.de ? ' de ' + p.de : '') + (mesa ? ' · coincide con ' + tableLabel(mesa) : '');
+    if(f.nivel === 'falso'){
+      try{ showToast('🚨 OJO, PAGO FALSO: un SMS dice que llegaron ' + plata(p.monto) + ', pero ' + f.txt + '. No entregues nada.', 15000); }catch(e){}
+      try{ speakVoice('Ojo. Llegó un mensaje de pago sospechoso por ' + p.monto + ' pesos. Parece falso. No entregues nada hasta revisar la aplicación del banco.'); }catch(e){}
+      if(navigator.vibrate) try{ navigator.vibrate([500, 150, 500, 150, 500]); }catch(e){}
+      pgPintar(); return;
+    }
+    if(f.nivel === 'revisar'){
+      try{ showToast('⚠️ ' + p.app + ': ' + plata(p.monto) + (p.de ? ' de ' + p.de : '') + (mesa ? ' (sería de ' + tableLabel(mesa) + ')' : '') + '. ' + f.txt + '. Luego toca «✅ Lo vi en la app».', 12000); }catch(e){}
+      try{ speakVoice('Llegó un aviso de ' + p.monto + ' pesos por mensaje de texto. Revísalo en la aplicación del banco antes de entregar.'); }catch(e){}
+      if(navigator.vibrate) try{ navigator.vibrate([150, 80, 150]); }catch(e){}
+      pgPintar(); return;
+    }
+    const msg = '✅ Llegó ' + p.app + ': ' + plata(p.monto) + (p.de ? ' de ' + p.de : '') + (mesa ? ' · coincide con ' + tableLabel(mesa) : '') + ' (confirmado por la app).';
     try{ showToast(msg, 9000); }catch(e){}
     try{ speakVoice('Llegó un ' + p.app + ' de ' + p.monto + ' pesos' + (p.de ? ' de ' + p.de : '') + (mesa ? ', es de la ' + tableLabel(mesa) : '')); }catch(e){}
     if(navigator.vibrate) try{ navigator.vibrate([150, 80, 150]); }catch(e){}
     try{ window.mesoraCelebrar && window.mesoraCelebrar(['💜', '💰', '✨']); }catch(e){}
     pgPintar();
   }
+  window.pagosFuente = pgFuente;
   window.pagosRecibirTexto = pgRecibir;   // también para pruebas
   window.pagosLeer = pgLeer;
 
@@ -20343,7 +20377,14 @@ let fotosListas = false;
   window.pagosVerificarMesa = function(mesa){
     if(!data || !data.pagos || !data.pagos.on) return;
     const g = PG(), saldo = tableTotal(mesa) - tablePaid(mesa), total = tableTotal(mesa);
-    const hay = g.lista.find(x => Date.now() - x.t < 3600e3 && (x.monto === saldo || x.monto === total) && (!x.mesa || x.mesa === Number(mesa)));
+    const cerca = x => Date.now() - x.t < 3600e3 && (x.monto === saldo || x.monto === total) && (!x.mesa || x.mesa === Number(mesa));
+    const hay = g.lista.find(x => cerca(x) && pgConfirmado(x));
+    const dudoso = !hay && g.lista.find(x => cerca(x) && x.estado === 'revisar');
+    if(dudoso){
+      g.espera[mesa] = Date.now(); saveData();
+      setTimeout(() => { try{ showToast('⚠️ ' + tableLabel(mesa) + ' dice que pagó ' + plata(dudoso.monto) + ', pero solo llegó por SMS. Míralo en la app del banco y toca «✅ Lo vi en la app».', 10000); }catch(e){} }, 1500);
+      return;
+    }
     if(hay){
       hay.mesa = Number(mesa); saveData(); pgPintar();
       const m = '✅ Verificado: ' + tableLabel(mesa) + ' pagó ' + plata(hay.monto) + ' por ' + hay.app + (hay.de ? ' (' + hay.de + ')' : '') + '.';
@@ -20392,11 +20433,12 @@ let fotosListas = false;
       '<input id="pgUrl" class="mz-in" style="width:100%" readonly onclick="this.select()"><div class="mz-actions"><button class="btn-primary" id="pgCopiar" type="button">📋 Copiar dirección</button><button class="btn-ghost" id="pgProbar" type="button">Probar</button><button class="btn-ghost" id="pgNueva" type="button">Cambiar dirección</button></div></div>' +
       '<details class="settings-desc" open><summary><b>Cómo configurarlo en el celular donde te llegan los pagos (una vez)</b></summary><ol style="margin:8px 0 0;padding-left:20px;line-height:1.55">' +
       '<li>Instala <b>MacroDroid</b> desde Play Store (gratis) y dale el permiso de <b>acceso a notificaciones</b> que te pide.</li>' +
-      '<li>Toca <b>Añadir macro</b>. En <b>Disparadores</b> elige <b>Notificación → Notificación recibida</b>, marca las apps <b>Nequi</b>, <b>DaviPlata</b> (y Bancolombia si quieres) y deja «Cualquier contenido».</li>' +
+      '<li>Toca <b>Añadir macro</b>. En <b>Disparadores</b> elige <b>Notificación → Notificación recibida</b>, marca las <b>apps</b> Nequi, DaviPlata (y Bancolombia si quieres) y deja «Cualquier contenido». <b>Usa las notificaciones de las apps, no los SMS:</b> esas solo las puede mostrar la app del banco, así que no se pueden falsificar.</li>' +
       '<li>En <b>Acciones</b> elige <b>Web / Conectividad → Solicitud HTTP</b>. Método <b>POST</b>. En URL pega la dirección de arriba.</li>' +
       '<li>En <b>Cuerpo del mensaje</b> (texto sin formato) usa el botón de <b>texto mágico</b> y agrega el <b>nombre de la app</b>, el <b>título de la notificación</b> y el <b>texto de la notificación</b>, separados por una raya «|».</li>' +
       '<li>Guarda la macro con el ✓. Pídele a alguien que te mande $1.000: acá debe salir el aviso. También puedes tocar <b>Probar</b>.</li></ol>' +
-      '<p style="margin:8px 0 0">Si tu Nequi te avisa por <b>mensaje de texto (SMS)</b>, haz lo mismo pero con el disparador <b>SMS recibido</b>. Mesora debe estar abierta en algún celular o computador para oír los avisos (en el negocio normalmente lo está).</p></details>' +
+      '<p style="margin:8px 0 0"><b>Qué significa cada aviso:</b> ✅ <b>Confirmado</b> = llegó por la notificación de la app del banco. ⚠️ <b>Revisar</b> = llegó por SMS: míralo en la app y toca «Lo vi en la app». 🚨 <b>FALSO</b> = un SMS desde un número de celular común (los bancos escriben desde códigos cortos): no cuenta como pago y Mesora te avisa en voz alta.</p>' +
+      '<p style="margin:8px 0 0">Si igual quieres reenviar los SMS, crea otra macro con el disparador <b>SMS recibido</b> y en el cuerpo pon: <b>SMS | [número que envía] | [texto del SMS]</b>. Mesora debe estar abierta en algún celular o computador para oír los avisos (en el negocio normalmente lo está).</p></details>' +
       '<div class="settings-row" style="flex-direction:column;align-items:stretch"><div class="settings-row-text"><strong>Últimos pagos que llegaron</strong></div><div id="pgLista"></div></div></div>';
     grupo.insertAdjacentElement('afterend', g);
     const on = $p('pgOn');
@@ -20414,7 +20456,14 @@ let fotosListas = false;
     const g = PG();
     $p('pgOn').checked = !!g.on; $p('pgCaja').hidden = !g.on; $p('pgUrl').value = url();
     $p('pgEstado').textContent = !g.on ? 'Apagado.' : (es && es.readyState === 1 ? '🟢 Escuchando los avisos de pagos.' : '🟠 Conectando…');
-    $p('pgLista').innerHTML = g.lista.length ? g.lista.slice(0, 15).map(x => '<div style="display:flex;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:14px"><span style="flex:1">' + escp(x.app) + (x.de ? ' · ' + escp(x.de) : '') + '<br><small style="opacity:.7">' + new Date(x.t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + (x.mesa ? ' · ' + escp(tableLabel(x.mesa)) : '') + '</small></span><b>' + plata(x.monto) + '</b></div>').join('') : '<div class="empty-note">Todavía no ha llegado ningún aviso.</div>';
+    const sello = x => x.estado === 'falso' ? '<span style="color:#e5484d;font-weight:800">🚨 FALSO</span>' : x.estado === 'revisar' ? '<span style="color:#f5a524;font-weight:800">⚠️ Revisar</span> <button type="button" class="btn-ghost" data-pgok="' + escp(x.id) + '" style="padding:2px 8px;font-size:12px">✅ Lo vi en la app</button>' : x.estado === 'ok' ? '<span style="color:#30a46c;font-weight:800">✅ Revisado</span>' : '<span style="color:#30a46c;font-weight:800">✅ Confirmado</span>';
+    $p('pgLista').innerHTML = g.lista.length ? g.lista.slice(0, 15).map(x => '<div style="display:flex;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:14px' + (x.estado === 'falso' ? ';opacity:.8;text-decoration:line-through' : '') + '"><span style="flex:1;min-width:0">' + escp(x.app) + (x.de ? ' · ' + escp(x.de) : '') + ' ' + sello(x) + '<br><small style="opacity:.7">' + new Date(x.t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + (x.mesa ? ' · ' + escp(tableLabel(x.mesa)) : '') + (x.fuente && x.estado !== 'app' ? ' · ' + escp(x.fuente) : '') + '</small></span><b>' + plata(x.monto) + '</b></div>').join('') : '<div class="empty-note">Todavía no ha llegado ningún aviso.</div>';
+    $p('pgLista').onclick = e => {
+      const b = e.target.closest('[data-pgok]'); if(!b) return;
+      const x = PG().lista.find(y => y.id === b.dataset.pgok); if(!x) return;
+      x.estado = 'ok'; if(x.mesa) delete PG().espera[x.mesa]; saveData(); pgPintar();
+      showToast('✅ Listo: ' + plata(x.monto) + ' de ' + (x.de || x.app) + ' quedó como revisado en la app.');
+    };
   }
   const arr = setInterval(() => { if(typeof data !== 'undefined' && data){ clearInterval(arr); pgPintar(); pgConectar(); } }, 1000);
 })();
