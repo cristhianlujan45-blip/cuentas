@@ -88,12 +88,12 @@ que crea el dueño de Mesora en `licencias.html` con su llave privada (que
 
 ## Links (GitHub Pages)
 
-Con GitHub Pages activado en este repositorio (`mesora`):
+Con GitHub Pages activado en este repositorio (`cuentas`):
 
-- App del negocio: https://cristhianlujan45-blip.github.io/mesora/
-- Pedidos del cliente (QR): https://cristhianlujan45-blip.github.io/mesora/pedido.html
-- App de meseros: https://cristhianlujan45-blip.github.io/mesora/mesero.html
-- Música en el TV: https://cristhianlujan45-blip.github.io/mesora/tv.html
+- App del negocio: https://cristhianlujan45-blip.github.io/cuentas/
+- Pedidos del cliente (QR): https://cristhianlujan45-blip.github.io/cuentas/pedido.html
+- App de meseros: https://cristhianlujan45-blip.github.io/cuentas/mesero.html
+- Música en el TV: https://cristhianlujan45-blip.github.io/cuentas/tv.html
 
 Cada cambio que se sube a GitHub se publica solo. Los QR que ya están
 pegados en las mesas **no cambian**: si están "fijados" (Ajustes → QR de las
