@@ -2848,6 +2848,13 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       </div>
       <div class="settings-row">
         <div class="settings-row-text">
+          <strong>Botón del micrófono</strong>
+          <span>Se puede deslizar a cualquier lado de la pantalla. Si quedó en un lugar incómodo, devuélvelo a su esquina de siempre.</span>
+        </div>
+        <button class="btn-ghost" id="voiceFabResetBtn" type="button">↘️ Devolver a su lugar</button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-text">
           <strong>Micrófono con IA, aparte (opcional)</strong>
           <span>Muestra un segundo botón «IA» junto al micrófono para dictar con tus palabras. El micrófono normal siempre usa la voz clásica, sin internet.</span>
         </div>
@@ -6638,7 +6645,9 @@ voiceFabWrap.addEventListener('pointerdown', (e) => {
     moved: false,
     pointerId: e.pointerId
   };
-  try{ voiceFabWrap.setPointerCapture(e.pointerId); }catch(err){}
+  // La captura del dedo se pide SOLO cuando de verdad empieza a arrastrar (abajo, en
+  // pointermove): si se pedía desde el primer toque, el "click" le llegaba al contenedor y
+  // no al micrófono, y a veces había que tocar dos veces para que escuchara.
 });
 
 voiceFabWrap.addEventListener('pointermove', (e) => {
@@ -6646,7 +6655,9 @@ voiceFabWrap.addEventListener('pointermove', (e) => {
   const dx = e.clientX - fabDrag.startX;
   const dy = e.clientY - fabDrag.startY;
   if(!fabDrag.moved && Math.hypot(dx, dy) < FAB_DRAG_THRESHOLD) return;
+  if(!fabDrag.moved){ try{ voiceFabWrap.setPointerCapture(fabDrag.pointerId); }catch(err){} }
   fabDrag.moved = true;
+  e.preventDefault();
   voiceFabWrap.classList.add('dragging');
   placeFabAt(fabDrag.origLeft + dx, fabDrag.origTop + dy);
 });
@@ -6655,7 +6666,11 @@ function endFabDrag(e){
   if(!fabDrag) return;
   voiceFabWrap.classList.remove('dragging');
   if(fabDrag.moved){
+    // Evita que al soltar se active el micrófono. Se apaga solo enseguida: si el navegador
+    // no manda ningún "click" al soltar, antes quedaba prendido y el SIGUIENTE toque de
+    // verdad se perdía (parecía que el botón "no respondía" después de moverlo).
     fabJustDragged = true;
+    setTimeout(() => { fabJustDragged = false; }, 350);
     const pos = { left: voiceFabWrap.offsetLeft, top: voiceFabWrap.offsetTop };
     storageSet('voice-fab-pos', JSON.stringify(pos));
   }
@@ -6670,6 +6685,13 @@ window.addEventListener('resize', () => {
     placeFabAt(voiceFabWrap.offsetLeft, voiceFabWrap.offsetTop);
   }
 });
+// Si el botón quedó en un lugar incómodo, Ajustes → «Devolver a su lugar» lo regresa a su esquina.
+function resetVoiceFabPos(){
+  voiceFabWrap.style.left = voiceFabWrap.style.top = voiceFabWrap.style.right = voiceFabWrap.style.bottom = '';
+  try{ storageSet('voice-fab-pos', ''); }catch(e){}
+}
+window.resetVoiceFabPos = resetVoiceFabPos;
+{ const rb = document.getElementById('voiceFabResetBtn'); if(rb) rb.addEventListener('click', () => { resetVoiceFabPos(); showToast('✅ El botón del micrófono volvió a su lugar.'); }); }
 
 document.getElementById('voiceFab').addEventListener('click', () => {
   if(fabJustDragged){ fabJustDragged = false; return; }
@@ -15779,7 +15801,7 @@ function iniQR(){
   // toca el canal ni los códigos de cada mesa, así que los QR ya pegados en
   // las mesas siguen sirviendo exactamente igual; solo actualiza a dónde
   // apuntan los QR nuevos que imprimas de ahora en adelante.
-  if(/\.github\.io$/.test(location.hostname)){
+  if(/\.github\.io$/.test(location.hostname)&&!c.fijo){   // QR fijados: su link NUNCA se cambia solo
     const actual=location.origin+location.pathname.replace(/[^/]*$/,'')+'pedido.html';
     if(c.url!==actual){
       const antes=c.url;
@@ -18282,7 +18304,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v46';
+const MESORA_VERSION = '2026-09-26 · v47';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -18290,11 +18312,18 @@ try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent =
 // app no carga bien" o "el diseño se ve raro", sin ningún aviso. Ahora, de vez en cuando, se
 // vuelve a pedir esta misma página (sin usar la caché) y se compara la versión que trae contra
 // la que está corriendo; si son distintas, aparece un aviso para actualizar con un toque.
+// Se consulta el archivo pequeñito version.txt (unos bytes) — antes se volvía a bajar la
+// app entera (más de 14 MB) cada vez que se abría, lo que la ponía lenta con datos móviles.
+let mesoraUltimaRevision = 0;
 function mesoraRevisarVersionNueva(){
-  fetch(location.href, { cache: 'no-store' }).then(r => r.text()).then(html => {
-    const m = /const MESORA_VERSION = '([^']+)'/.exec(html);
-    if(m && m[1] && m[1] !== MESORA_VERSION) mesoraAvisoVersionNueva(m[1]);
-  }).catch(() => {});
+  if(location.protocol === 'file:') return;
+  if(Date.now() - mesoraUltimaRevision < 60000) return;
+  mesoraUltimaRevision = Date.now();
+  fetch(new URL('version.txt', location.href).href + '?t=' + Date.now(), { cache: 'no-store' })
+    .then(r => r.ok ? r.text() : '').then(t => {
+      const v = String(t || '').trim();
+      if(v && v.length < 60 && v.indexOf('·') > 0 && v !== MESORA_VERSION) mesoraAvisoVersionNueva(v);
+    }).catch(() => {});
 }
 function mesoraAvisoVersionNueva(nueva){
   if(document.getElementById('mesoraNuevaVersion')) return;
