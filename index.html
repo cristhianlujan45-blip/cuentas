@@ -49,6 +49,10 @@
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script>
+// ¿Celular Android? Chrome en «sitio de computador» dice ser Linux: por eso YouTube Music se abría en el navegador.
+window.esAndroid = function(){ var ua = navigator.userAgent || ''; if(/Android/i.test(ua)) return true; try{ if(navigator.userAgentData && /android/i.test(navigator.userAgentData.platform || '')) return true; }catch(e){} return /Linux/i.test(ua) && !/CrOS|Windows|Macintosh/i.test(ua) && (navigator.maxTouchPoints || 0) > 0; };
+</script>
+<script>
 /* Pantalla siempre al ancho del celular: si Chrome abre la página como «sitio para computadoras»
    (o el celular la dibuja más ancha que la pantalla), se agranda sola para no tener que hacer zoom. */
 (function(){
@@ -2743,6 +2747,8 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
         <button class="btn-primary" id="mzNext" type="button">▶ Siguiente canción</button>
         <button class="btn-ghost" id="mzClear" type="button">Vaciar cola</button>
       </div>
+      <div class="settings-row"><div class="settings-row-text"><strong>⏱️ Siguiente canción sola</strong><span>Cuenta lo que dura cada canción y, al terminar, pone la siguiente de la cola en YouTube Music sin tocar nada.</span></div><label class="switch"><input type="checkbox" id="mzAutoNext"><span class="switch-slider"></span></label></div>
+      <div class="settings-desc" id="mzCrono" hidden style="font-weight:700"></div>
       <div id="mzList"></div>
     </div>
     <div class="settings-group">
@@ -3005,10 +3011,10 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
     </div>
 
     <div class="settings-group" hidden data-cat="negocio">
-      <h2>🎵 Música del local</h2>
+      <h2>🎵 Música y YouTube en el TV</h2>
       <div class="settings-desc">No todos los locales ponen música. Si la apagas, desaparece la sección de Música de tu app y a tus clientes no les aparece la pestaña de «Pedir canción» en el QR de la mesa: solo pueden pedir productos y la cuenta. Puedes volver a encenderla cuando quieras.</div>
       <div class="settings-row">
-        <div class="settings-row-text"><strong>Permitir música en el local</strong><span>Apágalo si en tu local no se pone música.</span></div>
+        <div class="settings-row-text"><strong>Activar Música / YouTube en TV</strong><span>Apagado: se esconde todo lo de música (clientes, cola y TV). Prendido: aparece la sección Música.</span></div>
         <label class="switch"><input type="checkbox" id="musicOnToggle"><span class="switch-slider"></span></label>
       </div>
     </div>
@@ -3622,7 +3628,6 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <span class="amount" id="modalTotal">$0</span>
     </div>
 
-    <button class="btn-settle" id="settleFullBtn">✅ Marcar cuenta como saldada</button>
 
     <div class="section-divider" id="loyaltyDivider" hidden>🎖️ Cliente frecuente</div>
     <div class="add-row" id="loyaltyRow" hidden>
@@ -4435,7 +4440,7 @@ function showToast(msg, ms){
 
 function tableLabel(id){
   const t = data.tables[id];
-  return (t && t.name && t.name.trim()) ? t.name.trim() : (i18nPut('Mesa') + ' ' + id);
+  return (t && t.name && t.name.trim()) ? t.name.trim() : (i18nPut(espacioN()) + ' ' + id);
 }
 
 /* ---------- Historial de horas por pedido ---------- */
@@ -6283,6 +6288,7 @@ let voiceModoIA = false;
 //   no existe, se separa en "mesa 1, 2 águilas" (se prueba el corte que deja una mesa que sí existe).
 function voiceNormalizarHabla(raw){
   let t = String(raw || '');
+  try{ const [sg, pl] = espacio(); if(sg !== 'Mesa'){ const q = w => w.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); const pat = w => q(w).split('').map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\\u0300-\\u036f]?').join(''); t = t.normalize('NFD').replace(new RegExp('(^|[^\\p{L}])(' + pat(pl) + '|' + pat(sg) + ')(?![\\p{L}])', 'giu'), (m, a, w) => a + (q(w) === q(pl) && q(pl) !== q(sg) ? 'mesas' : 'mesa')).normalize('NFC'); } }catch(e){}
   t = t.replace(/\bp[oó]quer(e?s)?\b/gi, 'póker').replace(/\bpoker(e?s)\b/gi, 'póker');
   t = t.replace(/\b(mesa|mesita)\s+(\d{2,3})\b(?=\s+[^\d\s])/gi, (all, w, num) => {
     if(data.tables[parseInt(num, 10)]) return all;
@@ -6961,7 +6967,7 @@ function renderCocina(){
     const t = data.tables[id], sig = kdsSig(id), isAck = ack[id] === sig;
     const items = t.items.map(it => '<div class="kds-item">' + it.qty + '× ' + invEsc(it.name) + (it.size ? ' (' + invEsc(it.size) + ')' : '') + '</div>').join('');
     return '<div class="kds-ticket' + (isAck ? ' kds-ack' : '') + '">'
-      + '<div class="kds-ticket-h">🍽️ ' + i18nPut('Mesa') + ' ' + id + (t.name ? ' · ' + invEsc(t.name) : '') + '</div>'
+      + '<div class="kds-ticket-h">🍽️ ' + i18nPut(espacioN()) + ' ' + id + (t.name ? ' · ' + invEsc(t.name) : '') + '</div>'
       + '<div class="kds-items">' + items + '</div>'
       + '<button type="button" class="btn-warn kds-ack-btn" data-tid="' + id + '">' + (isAck ? i18nPut('↩️ Reabrir') : i18nPut('✅ Listo')) + '</button>'
       + '</div>';
@@ -6970,7 +6976,7 @@ function renderCocina(){
   const pendHtml = pend.length ? '<h3 class="kds-section-title">' + i18nPut('📥 Pedidos nuevos por confirmar') + ' (' + pend.length + ')</h3>' + pend.slice().sort((a,b)=>a.ts-b.ts).map(p => {
     const itemsTxt = (p.items || []).map(it => (it.qty || 1) + ' ' + it.productText).join(', ');
     return '<div class="kds-ticket kds-pend">'
-      + '<div class="kds-ticket-h">🆕 ' + i18nPut('Mesa') + ' ' + p.mesa + '</div>'
+      + '<div class="kds-ticket-h">🆕 ' + i18nPut(espacioN()) + ' ' + p.mesa + '</div>'
       + '<div class="kds-items">' + invEsc(itemsTxt) + '</div>'
       + '<div class="kds-pend-actions">'
       + '<button type="button" class="btn-warn" data-pid="' + p.id + '" data-act="ok">' + i18nPut('✅ Aceptar') + '</button>'
@@ -7964,7 +7970,7 @@ document.getElementById('chargeBtn').addEventListener('click', async ()=>{
   showToast(entry.debt > 0 ? 'Cuenta cerrada. Queda debiendo ' + fmt(entry.debt) + '.' : 'Cuenta cobrada y mesa liberada.');
 });
 
-document.getElementById('settleFullBtn').addEventListener('click', async ()=>{
+document.getElementById('settleFullBtn')?.addEventListener('click', async ()=>{
   const t = data.tables[currentTable];
   if(!t) return;
   const balance = tableBalance(currentTable);
@@ -9774,7 +9780,7 @@ function renderStats(){
     const dt = new Date(h.date); hours[dt.getHours()] += h.total || 0;
     const tk = stPer === 'hoy' ? dt.getHours() : stPer === 'todo' ? dt.getFullYear() + '-' + dt.getMonth() : dt.toDateString();
     tl[tk] = (tl[tk] || 0) + (h.total || 0);
-    const mk = h.tableName || (h.table != null ? i18nPut('Mesa') + ' ' + h.table : '—'); mesas[mk] = (mesas[mk] || 0) + (h.total || 0);
+    const mk = h.tableName || (h.table != null ? i18nPut(espacioN()) + ' ' + h.table : '—'); mesas[mk] = (mesas[mk] || 0) + (h.total || 0);
     if(h.by){ const ek = h.by; emps[ek] = emps[ek] || { v: 0, n: 0 }; emps[ek].v += h.total || 0; emps[ek].n++; }
     (h.payments || []).forEach(p => { meth[p.method] = (meth[p.method] || 0) + (p.amount || 0); });
     (h.items || []).forEach(it => { const v = it.qty * it.price; units += it.qty; const nv = nombreVigente(it.name); const P = prod[nv] = prod[nv] || { q: 0, v: 0 }; P.q += it.qty; P.v += v; const c = catOf[cartaNrm(nv)] || 'Otros'; cats[c] = (cats[c] || 0) + v;
@@ -9831,6 +9837,7 @@ document.getElementById('stPer').addEventListener('click', e => { const b = e.ta
 const cartaTerm = () => { const t = data.businessType; return (t === 'restaurante' || t === 'cafeteria') ? 'Menú' : 'Carta'; };
 const cartaIcon = () => { const t = data.businessType; return (t === 'restaurante' || t === 'cafeteria') ? '🍽️' : t === 'cerveceria' ? '🍻' : '📖'; };
 function cartaLabel(){
+  try{ aplicarVocabulario(); }catch(e){}
   const b = document.getElementById('cartaTab'), l = b && b.querySelector('.nav-lbl');
   if(l) l.textContent = i18nPut(cartaTerm()); else if(b) b.textContent = i18nPut(cartaIcon() + ' ' + cartaTerm());
   const ml = document.getElementById('moreCartaLbl'), mi = document.getElementById('moreCartaIc');
@@ -13297,7 +13304,7 @@ function histFila(h, idx){
   row.innerHTML = `
       <div class="hist-row-top">
         <div class="hist-left">
-          <div class="hist-table">${h.tableName || (i18nPut('Mesa') + ' ' + h.table)}${h.person ? ' — ' + h.person : ''}${debt > 0 ? ' · <span class="hist-debt-flag">DEBE</span>' : ''}</div>
+          <div class="hist-table">${h.tableName || (i18nPut(espacioN()) + ' ' + h.table)}${h.person ? ' — ' + h.person : ''}${debt > 0 ? ' · <span class="hist-debt-flag">DEBE</span>' : ''}</div>
           <div class="hist-date">${dateStr}</div>
         </div>
         <div class="hist-total">${fmt(h.total)}</div>
@@ -14355,7 +14362,16 @@ function setupColorPickers(){
 
 /* ---------- Acceso: usuario y contraseña (local en este equipo) ---------- */
 const AUTH_USERS_KEY = 'cm-users', AUTH_SESSION_KEY = 'cm-session', VOICE_AI_KEY = 'cm-voice-ai';
-const BUSINESS_TYPES = { tienda:'Tienda', cafeteria:'Cafetería', restaurante:'Restaurante', cerveceria:'Cervecería / Bar' };
+const BUSINESS_TYPES = { tienda:'Tienda', cafeteria:'Cafetería', restaurante:'Restaurante', cerveceria:'Cervecería / Bar', billar:'Billar', licorera:'Licorera', panaderia:'Panadería / Pastelería', farmacia:'Farmacia / Droguería', ferreteria:'Ferretería', ropa:'Tienda de ropa', barberia:'Barbería / Peluquería', hotel:'Hotel', motel:'Motel', medico:'Médico / Clínica', veterinaria:'Veterinaria' };
+// Cómo se llama el «espacio» de cada cuenta según el negocio (en un consultorio no hay mesas).
+const ESPACIOS = { medico:['Consultorio','Consultorios','🩺'], veterinaria:['Cama','Camas','🐾'], hotel:['Habitación','Habitaciones','🛏️'], motel:['Habitación','Habitaciones','🛏️'], barberia:['Silla','Sillas','💈'], farmacia:['Cuenta','Cuentas','💊'], ferreteria:['Cuenta','Cuentas','🔧'], ropa:['Cuenta','Cuentas','👕'], licorera:['Cuenta','Cuentas','🍾'], billar:['Mesa','Mesas','🎱'] };
+const espacio = () => ESPACIOS[(typeof data !== 'undefined' && data && data.businessType) || ''] || ['Mesa','Mesas','🍽️'];
+const espacioN = () => espacio()[0];
+function aplicarVocabulario(){
+  const [, plural] = espacio();
+  const nb = document.querySelector('nav button[data-view="mesas"] .nav-lbl'); if(nb) nb.textContent = i18nPut(plural);
+  document.querySelectorAll('[data-go="mesas"] strong').forEach(e => { e.textContent = i18nPut(plural); });
+}
 const BUSINESS_PRESETS = {
   cafeteria: [
     ['Cafés', [['Tinto',2000],['Americano',3500],['Capuchino',5500],['Latte',6000],['Chocolate caliente',5000]]],
@@ -16056,7 +16072,7 @@ function ordenJusto(l){
 // Store para instalarla en vez de mandar al navegador.
 function ytOpenMusicPath(path){
   const ua = navigator.userAgent;
-  if(/Android/i.test(ua)) location.href = 'intent://music.youtube.com/' + path + '#Intent;package=com.google.android.apps.youtube.music;scheme=https;action=android.intent.action.VIEW;end';
+  if(window.esAndroid()) location.href = 'intent://music.youtube.com/' + path + '#Intent;package=com.google.android.apps.youtube.music;scheme=https;action=android.intent.action.VIEW;end';
   else if(/iPhone|iPad|iPod/i.test(ua)) location.href = 'youtubemusic://music.youtube.com/' + path;
   else window.open('https://music.youtube.com/' + path, '_blank');
 }
@@ -16066,9 +16082,62 @@ function ytOpenMusic(vid, song){
 function reproducir(x){
   const l=cola(),it=l.find(y=>y.id===x.id);if(it)it.done=true;
   SS('vito_cola',l);SS('vito_now',x);
-  ytOpenMusic(x.vid, x.song);
+  // Con Google conectado y la canción ya en tu lista: se abre DENTRO de la lista, así YouTube Music sigue solo con las demás.
+  const y=yCfg();
+  if(x.vid&&yTok()&&y.pl&&it&&it.yt===true)ytOpenMusicPath('watch?v='+encodeURIComponent(x.vid)+'&list='+encodeURIComponent(y.pl));
+  else ytOpenMusic(x.vid, x.song);
+  mzCronoIniciar(it||x);
   renderMusica();
 }
+/* ---------- Cronómetro: la siguiente canción sola ----------
+   Al abrir una canción se cuenta su duración real (la que da YouTube; si no se sabe, 4 min).
+   Cuando se acaba, se abre la siguiente de la cola sin tocar nada. Si el celular no deja
+   abrir YouTube Music solo (pasa si Mesora quedó atrás), apenas vuelvas a Mesora se abre;
+   y si tampoco, sale un botón grande con vibración. */
+const MZ_AUTO_KEY='vito_mzauto',MZ_T_KEY='vito_mzt';
+const mzAutoOn=()=>LS(MZ_AUTO_KEY,{on:true}).on!==false;
+async function mzCronoIniciar(x){
+  if(!mzAutoOn()){SS(MZ_T_KEY,null);return;}
+  let dur=x.dur||(x.vid&&ytDurCache[x.vid])||0;
+  if(!dur&&x.vid&&yCfg().key){try{const j=await yGet('videos?part=contentDetails&id='+encodeURIComponent(x.vid));const d=ytDur(j.items&&j.items[0]&&j.items[0].contentDetails.duration);if(d){dur=d;ytDurCache[x.vid]=d;}}catch(e){}}
+  SS(MZ_T_KEY,{id:x.id,song:x.song,fin:Date.now()+((dur||YT_DUR_DEFECTO)+4)*1000,sabe:!!dur});
+  mzCronoPintar();
+}
+function mzSiguiente(){ const o=ordenJusto(cola()); return o[0]||null; }
+async function mzCronoAvanzar(){
+  const sig=mzSiguiente();
+  if(!sig){SS(MZ_T_KEY,null);mzCronoPintar();return;}
+  // Sin video resuelto todavía: se busca antes de abrir (así va directo a la canción).
+  if(!sig.vid&&!sig.novid&&yCfg().key){try{const v=await ySearch(sig.song);const l=cola(),it=l.find(y=>y.id===sig.id);if(it){if(v){it.vid=v;if(ytDurCache[v])it.dur=ytDurCache[v];sig.vid=v;sig.dur=it.dur;}else it.novid=true;SS('vito_cola',l);}}catch(e){}}
+  SS(MZ_T_KEY,Object.assign({},LS(MZ_T_KEY,{}),{pend:sig.id}));
+  reproducir(sig);
+  setTimeout(()=>{ if(!document.hidden&&LS(MZ_T_KEY,{}).pend===sig.id) mzBotonGrande(sig); },1800);
+}
+function mzBotonGrande(sig){
+  let ov=$('mzGoOverlay');
+  if(!ov){ov=document.createElement('div');ov.id='mzGoOverlay';ov.className='overlay';
+    ov.innerHTML='<div class="modal" style="max-width:380px;text-align:center"><h2>🎵 Siguiente canción</h2><div class="modal-sub" id="mzGoTxt"></div><div class="modal-actions" style="flex-direction:column;gap:8px"><button class="btn-primary" id="mzGoBtn" type="button" style="width:100%;padding:16px;font-size:17px">▶ Ponerla en YouTube Music</button><button class="btn-close" id="mzGoNo" type="button">Ahora no</button></div></div>';
+    document.body.appendChild(ov); $('mzGoNo').onclick=()=>ov.classList.remove('show');}
+  $('mzGoTxt').textContent='«'+sig.song+'» · '+tableLabel(sig.mesa);
+  $('mzGoBtn').onclick=()=>{ov.classList.remove('show');ytOpenMusic(sig.vid,sig.song);};
+  ov.classList.add('show'); try{navigator.vibrate&&navigator.vibrate([200,100,200]);}catch(e){}
+}
+function mzCronoPintar(){
+  const e=$('mzCrono');if(!e)return;
+  const t=LS(MZ_T_KEY,null);
+  if(!mzAutoOn()||!t||!t.fin){e.hidden=true;return;}
+  const falta=Math.max(0,Math.round((t.fin-Date.now())/1000)),sig=mzSiguiente();
+  e.hidden=false;
+  e.textContent='⏱️ Suena «'+t.song+'» · '+(falta?'faltan '+Math.floor(falta/60)+':'+String(falta%60).padStart(2,'0'):'terminando')+(t.sabe?'':' (aprox.)')+' · '+(sig?'luego «'+sig.song+'»':'no hay más en la cola');
+}
+setInterval(()=>{
+  const t=LS(MZ_T_KEY,null);
+  mzCronoPintar();
+  if(!mzAutoOn()||!t||!t.fin||Date.now()<t.fin||t.pend)return;
+  if(document.hidden){ if(!t.espera) SS(MZ_T_KEY,Object.assign({},t,{espera:true})); return; }   // se abre apenas vuelvas a Mesora
+  mzCronoAvanzar();
+},1000);
+document.addEventListener('visibilitychange',()=>{ const t=LS(MZ_T_KEY,null); if(!document.hidden&&t&&t.espera&&!t.pend&&mzAutoOn()) mzCronoAvanzar(); });
 function renderMusica(){
   const L=$('mzList');if(!L||typeof data==='undefined'||!data)return;
   const o=ordenJusto(cola()),now=LS('vito_now',null);L.textContent='';
@@ -16083,6 +16152,7 @@ function renderMusica(){
 }
 function iniMusica(){
   $('mzNext').onclick=()=>{const o=ordenJusto(cola());if(!o.length)return showToast('No hay canciones en cola.');reproducir(o[0]);};
+  const ma=$('mzAutoNext');if(ma){ma.checked=mzAutoOn();ma.onchange=()=>{SS(MZ_AUTO_KEY,{on:ma.checked});if(!ma.checked)SS(MZ_T_KEY,null);mzCronoPintar();showToast(ma.checked?'⏱️ Listo: cuando se acabe cada canción pongo la siguiente sola.':'Cronómetro apagado: la siguiente la pones tú.');};}
   $('mzClear').onclick=()=>{if(confirm('¿Vaciar la cola de música?')){SS('vito_cola',cola().filter(x=>x.done));renderMusica();}};
   document.querySelector('nav button[data-view="musica"]').addEventListener('click',renderMusica);
 }
@@ -18397,7 +18467,7 @@ function castEstado(){
 const YT_ANDROID_PKG = 'com.google.android.youtube';
 function ytAppUrl(path){
   const ua = navigator.userAgent;
-  if(/Android/i.test(ua)) return { url: 'intent://www.youtube.com/' + path + '#Intent;scheme=https;package=' + YT_ANDROID_PKG + ';action=android.intent.action.VIEW;end', tipo: 'android' };
+  if(window.esAndroid()) return { url: 'intent://www.youtube.com/' + path + '#Intent;scheme=https;package=' + YT_ANDROID_PKG + ';action=android.intent.action.VIEW;end', tipo: 'android' };
   if(/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return { url: 'youtube://www.youtube.com/' + path, tipo: 'ios' };
   return { url: 'https://www.youtube.com/' + path, tipo: 'pc' };
 }
@@ -18466,7 +18536,7 @@ function abrirIntent(url){
 function abrirAppElegida(path){
   if(castApp() === 'yt') return abrirEnAppYouTube(path);
   const ua = navigator.userAgent;
-  if(/Android/i.test(ua)) abrirIntent('intent://music.youtube.com/' + path + '#Intent;scheme=https;package=com.google.android.apps.youtube.music;action=android.intent.action.VIEW;end');
+  if(window.esAndroid()) abrirIntent('intent://music.youtube.com/' + path + '#Intent;scheme=https;package=com.google.android.apps.youtube.music;action=android.intent.action.VIEW;end');
   else if(/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)){
     const t = setTimeout(() => { if(!document.hidden) location.href = 'https://apps.apple.com/app/youtube-music/id1017492454'; }, 2000);
     document.addEventListener('visibilitychange', () => clearTimeout(t), { once: true });
@@ -18478,7 +18548,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v50';
+const MESORA_VERSION = '2026-09-26 · v51';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -18522,7 +18592,7 @@ function castEntorno(){
   if(/; wv\)|FBAN|FBAV|Instagram|WhatsApp|Line\/|GSA\//.test(ua)) return { bad: true, t: '⚠️ Mesora está abierta DENTRO de otra app (no en Chrome). Así el celular no deja abrir YouTube ni buscar televisores. Ábrela en Chrome (copia su dirección y pégala en Chrome) o instálala desde el menú de Chrome.' };
   if(location.protocol === 'file:') return { bad: true, t: '⚠️ Mesora está abierta como archivo. Ábrela desde su dirección https para transmitir.' };
   if(/SamsungBrowser/.test(ua)) return { t: 'Samsung Internet: los botones de YouTube funcionan; para buscar Chromecast/Google TV abre Mesora en Chrome.' };
-  if(!/Android|iPhone|iPad/.test(ua)) return { t: 'Computador: aquí no hay app de YouTube (se abre youtube.com).' };
+  if(!/iPhone|iPad/.test(ua) && !window.esAndroid()) return { t: 'Computador: aquí no hay app de YouTube (se abre youtube.com).' };
   return { t: '✅ Listo para transmitir.' };
 }
 function castDevsPintar(){
