@@ -1222,8 +1222,8 @@ $('qpPague').onclick=async()=>{
 };
 let catTab=null;                                  // categoría elegida en las pestañas (null = la primera disponible)
 const PROMO_CAT_NAME='Promociones y combos';
-const catT=()=>{const y=cat&&cat.y;return (y==='restaurante'||y==='cafeteria')?'Menú':'Carta'};
-const catIcon=()=>{const y=cat&&cat.y;return (y==='restaurante'||y==='cafeteria')?'🍽️':y==='cerveceria'?'🍻':'📖'};
+const catT=()=>{const y=cat&&cat.y;if(cat&&typeof cat.t==='string'&&cat.t)return cat.t.slice(0,24);return (y==='restaurante'||y==='cafeteria')?'Menú':'Carta'};
+const catIcon=()=>{const y=cat&&cat.y;if(cat&&typeof cat.ic==='string'&&cat.ic)return cat.ic.slice(0,4);return (y==='restaurante'||y==='cafeteria')?'🍽️':y==='cerveceria'?'🍻':'📖'};
 const nrm=s=>String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 /* Icono por categoría: solo con el nombre, sin depender de datos nuevos que el local tenga que publicar */
 function iconoDeCategoria(nombre){
