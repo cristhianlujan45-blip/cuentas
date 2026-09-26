@@ -3732,10 +3732,13 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
     <input type="text" id="editProdName" placeholder="Nombre del producto">
     <label for="editProdPrice">Precio</label>
     <input type="number" id="editProdPrice" placeholder="Precio" min="0" step="100">
-    <label for="editProdCost">Costo (lo que te cuesta comprarlo)</label>
-    <input type="number" id="editProdCost" min="0" step="100" placeholder="Ej. 1200">
-    <div id="editProdMarginLine" class="margin-breakdown"></div>
-    <div id="editProdHistory"></div>
+    <details class="iv-rawtext-wrap" id="editProdCostWrap">
+      <summary>💰 Costo y margen (opcional)</summary>
+      <label for="editProdCost">Costo (lo que te cuesta comprarlo)</label>
+      <input type="number" id="editProdCost" min="0" step="100" placeholder="Ej. 1200">
+      <div id="editProdMarginLine" class="margin-breakdown"></div>
+      <div id="editProdHistory"></div>
+    </details>
     <label for="editProdSize">Tamaño / presentación</label>
     <input type="text" id="editProdSize" placeholder="Ej. 30 g, 300 ml, 1 litro, 500 g" autocomplete="off">
     <label for="editProdSpecs">Especificaciones (opcional)</label>
@@ -12957,6 +12960,7 @@ function openEditProductModal(productId){
   document.getElementById('editProdName').value = p.name;
   document.getElementById('editProdPrice').value = p.price;
   document.getElementById('editProdCost').value = p.cost != null ? p.cost : '';
+  document.getElementById('editProdCostWrap').open = p.cost != null;
   document.getElementById('editProdSize').value = p.size || '';
   document.getElementById('editProdSpecs').value = Array.isArray(p.specifications) ? p.specifications.join(', ') : (p.specifications || '');
   document.getElementById('editProdStock').value = p.stock != null ? p.stock : '';
@@ -14363,9 +14367,9 @@ function setupColorPickers(){
 
 /* ---------- Acceso: usuario y contraseña (local en este equipo) ---------- */
 const AUTH_USERS_KEY = 'cm-users', AUTH_SESSION_KEY = 'cm-session', VOICE_AI_KEY = 'cm-voice-ai';
-const BUSINESS_TYPES = { tienda:'Tienda', cafeteria:'Cafetería', restaurante:'Restaurante', cerveceria:'Cervecería / Bar', billar:'Billar', licorera:'Licorera', panaderia:'Panadería / Pastelería', farmacia:'Farmacia / Droguería', ferreteria:'Ferretería', ropa:'Tienda de ropa', barberia:'Barbería / Peluquería', hotel:'Hotel', motel:'Motel', medico:'Médico / Clínica', veterinaria:'Veterinaria' };
+const BUSINESS_TYPES = { tienda:'Tienda', cafeteria:'Cafetería', restaurante:'Restaurante', cerveceria:'Cervecería / Bar', billar:'Billar', licorera:'Licorera', panaderia:'Panadería / Pastelería', farmacia:'Farmacia / Droguería', ferreteria:'Ferretería', ropa:'Tienda de ropa', barberia:'Barbería / Peluquería', hotel:'Hotel', motel:'Motel', medico:'Médico / Clínica', veterinaria:'Veterinaria', evento:'Organización de eventos' };
 // Cómo se llama el «espacio» de cada cuenta según el negocio (en un consultorio no hay mesas).
-const ESPACIOS = { medico:['Consultorio','Consultorios','🩺'], veterinaria:['Cama','Camas','🐾'], hotel:['Habitación','Habitaciones','🛏️'], motel:['Habitación','Habitaciones','🛏️'], barberia:['Silla','Sillas','💈'], farmacia:['Cuenta','Cuentas','💊'], ferreteria:['Cuenta','Cuentas','🔧'], ropa:['Cuenta','Cuentas','👕'], licorera:['Cuenta','Cuentas','🍾'], billar:['Mesa','Mesas','🎱'] };
+const ESPACIOS = { medico:['Consultorio','Consultorios','🩺'], veterinaria:['Cama','Camas','🐾'], hotel:['Habitación','Habitaciones','🛏️'], motel:['Habitación','Habitaciones','🛏️'], barberia:['Silla','Sillas','💈'], farmacia:['Cuenta','Cuentas','💊'], ferreteria:['Cuenta','Cuentas','🔧'], ropa:['Cuenta','Cuentas','👕'], licorera:['Cuenta','Cuentas','🍾'], billar:['Mesa','Mesas','🎱'], evento:['Evento','Eventos','🎉'] };
 const espacio = () => ESPACIOS[(typeof data !== 'undefined' && data && data.businessType) || ''] || ['Mesa','Mesas','🍽️'];
 const espacioN = () => espacio()[0];
 function aplicarVocabulario(){
@@ -18549,7 +18553,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v52';
+const MESORA_VERSION = '2026-09-26 · v53';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
