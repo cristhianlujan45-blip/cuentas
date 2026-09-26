@@ -72,34 +72,34 @@ window.esAndroid = function(){ var ua = navigator.userAgent || ''; if(/Android/i
     decoracion: '🎈 Decoración', alimento_an: '🦴 Alimento para animales', medicamentos: '💉 Medicamentos y vacunas', combustible: '⛽ Combustible', mantenimiento_eq: '🛠️ Mantenimiento de equipos'
   };
   const F = {
-    comida:   { esp: ['Mesa', 'Mesas', '🍽️', 'f'], n: 8, fun: 'dp', mod: 'kpwdqv', carta: 'Menú', icCarta: '🍽️', gastos: ['insumos', 'gas', 'empaques', 'licencias'], cat: 'Platos',
+    comida:   { esp: ['Mesa', 'Mesas', '🍽️', 'f'], n: 8, fun: 'dp', mod: 'kpwdqv', prod: ['Producto', 'Productos'], carta: 'Menú', icCarta: '🍽️', gastos: ['insumos', 'gas', 'empaques', 'licencias'], cat: 'Platos',
       vento: 'Pedidos por mesa (voz, QR de la mesa o app de meseros) que llegan a Cocina, cobro y división de cuentas, domicilios, costo de cada plato e inventario de insumos.',
       falta: 'Recetas que descuenten insumos automáticamente.' },
-    bar:      { esp: ['Mesa', 'Mesas', '🍻', 'f'], n: 10, fun: 'mp', mod: 'kpwdq', carta: 'Carta', icCarta: '🍻', gastos: ['licores', 'licencias', 'musica'], cat: 'Bebidas',
+    bar:      { esp: ['Mesa', 'Mesas', '🍻', 'f'], n: 10, fun: 'mp', mod: 'kpwdq', prod: ['Producto', 'Productos'], carta: 'Carta', icCarta: '🍻', gastos: ['licores', 'licencias', 'musica'], cat: 'Bebidas',
       vento: 'Rondas por voz («otra ronda para la 3»), música que piden los clientes con el QR, juntar mesas, fiados en la libreta y control de cerveza y licor.',
       falta: '' },
-    tienda:   { esp: ['Cuenta', 'Cuentas', '🛒', 'f'], n: 3, fun: 'd', mod: 'vb', carta: 'Catálogo', icCarta: '🛒', gastos: ['mercancia', 'fletes', 'vencidos'], cat: 'Productos',
+    tienda:   { esp: ['Cuenta', 'Cuentas', '🛒', 'f'], n: 3, fun: 'd', mod: 'vb', prod: ['Producto', 'Productos'], carta: 'Catálogo', icCarta: '🛒', gastos: ['mercancia', 'fletes', 'vencidos'], cat: 'Productos',
       vento: 'Venta rápida con lector de código de barras, inventario con alertas de lo que se acaba, fiados en la libreta, domicilios por WhatsApp y facturas de proveedor por foto.',
       falta: 'Venta por peso con báscula conectada.' },
-    servicio: { esp: ['Silla', 'Sillas', '💺', 'f'], n: 4, fun: 'fp', mod: 'nv', carta: 'Servicios', icCarta: '💈', gastos: ['productos_srv', 'comisiones'], cat: 'Servicios',
+    servicio: { esp: ['Silla', 'Sillas', '💺', 'f'], n: 4, fun: 'fp', mod: 'nv', prod: ['Servicio', 'Servicios'], carta: 'Servicios', icCarta: '💈', gastos: ['productos_srv', 'comisiones'], cat: 'Servicios',
       vento: 'Una cuenta por silla o puesto, lista de servicios con precio, clientes frecuentes con puntos, propinas y lo que gana cada empleado.',
       falta: 'Agenda de citas con recordatorio al cliente.' },
-    orden:    { esp: ['Orden', 'Órdenes', '🧾', 'f'], n: 6, fun: 'fd', mod: 'n', carta: 'Servicios', icCarta: '🧾', gastos: ['repuestos', 'herramientas'], cat: 'Servicios',
+    orden:    { esp: ['Orden', 'Órdenes', '🧾', 'f'], n: 6, fun: 'fd', mod: 'n', prod: ['Servicio', 'Servicios'], carta: 'Servicios', icCarta: '🧾', gastos: ['repuestos', 'herramientas'], cat: 'Servicios',
       vento: 'Una orden por cada trabajo o cliente (con su nombre), abonos y saldo pendiente, recibo por WhatsApp con QR de pago y clientes frecuentes.',
       falta: 'Fecha de entrega con aviso automático al cliente cuando su trabajo esté listo.' },
-    salud:    { esp: ['Consultorio', 'Consultorios', '🩺', 'm'], n: 2, fun: 'f', mod: 'n', carta: 'Servicios', icCarta: '🩺', gastos: ['insumos_med', 'equipos', 'seguros'], cat: 'Consultas',
+    salud:    { esp: ['Consultorio', 'Consultorios', '🩺', 'm'], n: 2, fun: 'f', mod: 'n', prod: ['Servicio', 'Servicios'], carta: 'Servicios', icCarta: '🩺', gastos: ['insumos_med', 'equipos', 'seguros'], cat: 'Consultas',
       vento: 'Cuenta por consultorio, servicios con su precio, pacientes frecuentes, abonos, recibos y control de insumos.',
       falta: 'Agenda de citas e historia clínica.' },
-    aloja:    { esp: ['Habitación', 'Habitaciones', '🛏️', 'f'], n: 10, fun: '', mod: 'qn', carta: 'Tarifas', icCarta: '🛏️', gastos: ['lavanderia', 'aseo', 'plataformas'], cat: 'Tarifas',
+    aloja:    { esp: ['Habitación', 'Habitaciones', '🛏️', 'f'], n: 10, fun: '', mod: 'qn', prod: ['Tarifa', 'Tarifas'], carta: 'Tarifas', icCarta: '🛏️', gastos: ['lavanderia', 'aseo', 'plataformas'], cat: 'Tarifas',
       vento: 'Cuenta por habitación con noches y consumos (minibar, restaurante), cobro al salir y control de amenities.',
       falta: 'Reservas por fechas y calendario de ocupación.' },
-    ocio:     { esp: ['Mesa', 'Mesas', '🎯', 'f'], n: 6, fun: 'mp', mod: 'pwdq', carta: 'Tarifas', icCarta: '🎯', gastos: ['licores', 'licencias', 'mantenimiento_eq'], cat: 'Tarifas',
+    ocio:     { esp: ['Mesa', 'Mesas', '🎯', 'f'], n: 6, fun: 'mp', mod: 'pwdq', prod: ['Producto', 'Productos'], carta: 'Tarifas', icCarta: '🎯', gastos: ['licores', 'licencias', 'mantenimiento_eq'], cat: 'Tarifas',
       vento: 'Cuenta por mesa, cancha o estación con el tiempo alquilado y los consumos, música de los clientes y fiados.',
       falta: 'Cronómetro de tiempo de alquiler por mesa.' },
-    educa:    { esp: ['Grupo', 'Grupos', '📚', 'm'], n: 3, fun: 'f', mod: 'n', carta: 'Cursos', icCarta: '📚', gastos: ['material_did', 'docentes'], cat: 'Cursos',
+    educa:    { esp: ['Grupo', 'Grupos', '📚', 'm'], n: 3, fun: 'f', mod: 'n', prod: ['Curso', 'Cursos'], carta: 'Cursos', icCarta: '📚', gastos: ['material_did', 'docentes'], cat: 'Cursos',
       vento: 'Cobro de matrículas y mensualidades, abonos, quién debe en la libreta y recordatorio de pagos fijos.',
       falta: 'Lista de estudiantes con asistencia.' },
-    otro:     { esp: ['Cuenta', 'Cuentas', '🧾', 'f'], n: 3, fun: '', mod: 'v', carta: 'Lista de precios', icCarta: '📋', gastos: [], cat: 'Productos',
+    otro:     { esp: ['Cuenta', 'Cuentas', '🧾', 'f'], n: 3, fun: '', mod: 'v', prod: ['Producto', 'Productos'], carta: 'Lista de precios', icCarta: '📋', gastos: [], cat: 'Productos',
       vento: 'Cuentas por cliente, productos y servicios con precio, inventario, fiados, contabilidad y facturas.', falta: '' }
   };
   const E = {   // espacios que se repiten
@@ -111,95 +111,95 @@ window.esAndroid = function(){ var ua = navigator.userAgent || ''; if(/Android/i
   };
   // [clave, nombre, ícono, familia, palabras para buscar, cambios, necesita, productos «Nombre:precio|…»]
   const L = [
-    ['academia', 'Academia / Cursos', '🎓', 'educa', 'escuela, cursos, clases, instituto, capacitacion, taller de formacion', { mod: 'n' }, 'Matrículas, mensualidades, abonos de estudiantes y control de quién está al día.', 'Matrícula:100000|Mensualidad:150000|Curso corto:80000'],
-    ['agencia_viajes', 'Agencia de viajes', '✈️', 'orden', 'viajes, turismo, tours, paquetes, tiquetes', { esp: E.cliente, carta: 'Planes' }, 'Paquetes y tiquetes con abonos y saldo, datos del viajero y recibos.', 'Tour de un día:120000|Paquete 3 noches:850000|Asesoría:0'],
+    ['academia', 'Academia / Cursos', '🎓', 'educa', 'escuela, cursos, clases, instituto, capacitacion, taller de formacion, clases, estudiantes, profesor, matriculas, colegio', { mod: 'n', prod: ['Curso', 'Cursos'] }, 'Matrículas, mensualidades, abonos de estudiantes y control de quién está al día.', 'Matrícula:100000|Mensualidad:150000|Curso corto:80000'],
+    ['agencia_viajes', 'Agencia de viajes', '✈️', 'orden', 'viajes, turismo, tours, paquetes, tiquetes, vuelos, tiquetes, tiquetes aereos, pasajes, hospedaje y vuelos, plan turistico, excursiones, crucero', { esp: E.cliente, carta: 'Planes', prod: ['Plan', 'Vuelos y planes'], carta: 'Vuelos y planes' }, 'Paquetes y tiquetes con abonos y saldo, datos del viajero y recibos.', 'Tour de un día:120000|Paquete 3 noches:850000|Asesoría:0'],
     ['agropecuaria', 'Agropecuaria / Agroinsumos', '🌾', 'tienda', 'agro, insumos agricolas, concentrados, semillas, fertilizantes, veterinaria agricola', { gastos: ['mercancia', 'fletes', 'vencidos'], mod: 'vbn' }, 'Concentrados, semillas y químicos con fechas de vencimiento, venta a crédito a finqueros.', 'Bulto de concentrado:95000|Semillas (sobre):8000|Fertilizante 1 kg:15000'],
-    ['alquiler_mobiliario', 'Alquiler de mobiliario y sonido', '🪑', 'orden', 'alquiler de sillas, mesas, carpas, sonido, luces, menaje', { esp: E.evento, carta: 'Tarifas', gastos: ['alquiler', 'fletes', 'mantenimiento_eq'] }, 'Qué se alquila a quién, depósito, entrega y devolución, daños.', 'Silla Rimax (día):2500|Mesa redonda (día):12000|Carpa 6x6:250000|Sonido básico:300000'],
-    ['apartamentos', 'Apartamentos turísticos / Airbnb', '🏢', 'aloja', 'airbnb, aparta hotel, aparta estudio, alquiler por dias, apartamento turistico', { esp: E.apto, n: 3, mod: 'n' }, 'Noches, aseo entre huéspedes, comisión de plataformas y depósito.', 'Noche:180000|Aseo final:40000|Noche adicional:160000'],
+    ['alquiler_mobiliario', 'Alquiler de mobiliario y sonido', '🪑', 'orden', 'alquiler de sillas, mesas, carpas, sonido, luces, menaje', { esp: E.evento, carta: 'Tarifas', gastos: ['alquiler', 'fletes', 'mantenimiento_eq'], prod: ['Artículo', 'Artículos en alquiler'] }, 'Qué se alquila a quién, depósito, entrega y devolución, daños.', 'Silla Rimax (día):2500|Mesa redonda (día):12000|Carpa 6x6:250000|Sonido básico:300000'],
+    ['apartamentos', 'Apartamentos turísticos / Airbnb', '🏢', 'aloja', 'airbnb, aparta hotel, aparta estudio, alquiler por dias, apartamento turistico', { esp: E.apto, n: 3, mod: 'n', prod: ['Tarifa', 'Tarifas'] }, 'Noches, aseo entre huéspedes, comisión de plataformas y depósito.', 'Noche:180000|Aseo final:40000|Noche adicional:160000'],
     ['arepas', 'Arepería / Empanadas', '🫓', 'comida', 'arepas, empanadas, arepa de huevo, fritos, pasteles', { n: 4, mod: 'kv' }, 'Mucha venta rápida de mostrador y para llevar, insumos del día.', 'Arepa de queso:4000|Empanada:2000|Arepa con todo:9000|Gaseosa:3000'],
     ['asadero', 'Asadero de pollo', '🍗', 'comida', 'pollo asado, broaster, pollo apanado, rosticeria', {}, 'Domicilios en hora pico, combos por presas, pollos crudos en inventario.', 'Pollo entero:38000|Medio pollo:20000|Cuarto de pollo:12000|Combo familiar:55000'],
-    ['bar', 'Bar / Cervecería', '🍻', 'bar', 'cerveceria, bar, taberna, cantina, pub, tienda de cerveza', {}, 'Rondas rápidas, cuentas que se juntan, música, fiados y control de canasta.', ''],
-    ['barberia', 'Barbería / Peluquería', '💈', 'servicio', 'barberia, peluqueria, corte de pelo, barbero, estilista', { esp: E.silla }, 'Turnos por silla, comisión de cada barbero, productos a la venta.', 'Corte:20000|Corte + barba:30000|Barba:12000|Cejas:6000'],
-    ['billar', 'Billar', '🎱', 'ocio', 'billares, pool, carambola, snooker', { esp: E.mesaBillar }, 'Tiempo por mesa, cerveza, música y cuentas que se juntan.', 'Hora de mesa:8000|Cerveza:5000|Gaseosa:3000'],
-    ['bolera', 'Bolera', '🎳', 'ocio', 'bolos, boliche, bowling', { esp: E.pista, n: 8 }, 'Tiempo por pista, alquiler de zapatos, comida y bebida.', 'Línea por persona:12000|Alquiler de zapatos:4000|Hora de pista:60000'],
+    ['bar', 'Bar / Cervecería', '🍻', 'bar', 'cerveceria, bar, taberna, cantina, pub, tienda de cerveza, cervezas, rondas, tragos, licor, botellas', {}, 'Rondas rápidas, cuentas que se juntan, música, fiados y control de canasta.', ''],
+    ['barberia', 'Barbería / Peluquería', '💈', 'servicio', 'barberia, peluqueria, corte de pelo, barbero, estilista, corte, fade, peluquero, cortar el pelo', { esp: E.silla }, 'Turnos por silla, comisión de cada barbero, productos a la venta.', 'Corte:20000|Corte + barba:30000|Barba:12000|Cejas:6000'],
+    ['billar', 'Billar', '🎱', 'ocio', 'billares, pool, carambola, snooker, mesas de billar, tacos, pool', { esp: E.mesaBillar, prod: ['Producto', 'Productos'] }, 'Tiempo por mesa, cerveza, música y cuentas que se juntan.', 'Hora de mesa:8000|Cerveza:5000|Gaseosa:3000'],
+    ['bolera', 'Bolera', '🎳', 'ocio', 'bolos, boliche, bowling', { esp: E.pista, n: 8, prod: ['Tarifa', 'Tarifas'] }, 'Tiempo por pista, alquiler de zapatos, comida y bebida.', 'Línea por persona:12000|Alquiler de zapatos:4000|Hora de pista:60000'],
     ['cacharreria', 'Cacharrería / Miscelánea', '🧺', 'tienda', 'miscelanea, variedades, todo a mil, cacharro, bazar', { mod: 'vb' }, 'Miles de productos pequeños, código de barras y lo que más rota.', 'Pilas AA x2:4000|Cinta pegante:2500|Vasos desechables x25:3500|Bombillos:6000'],
-    ['cafeteria', 'Cafetería', '☕', 'comida', 'cafe, cafeteria, coffee shop, cafe de especialidad, tinto', { fun: 'dpf', gastos: ['insumos', 'empaques', 'licencias'], cat: 'Cafés' }, 'Venta rápida de mostrador, clientes frecuentes, insumos que se vencen.', ''],
-    ['cafe_internet', 'Café internet / Papelería con copias', '💻', 'ocio', 'internet, cafe internet, copias, impresiones, sala de computadores', { esp: E.equipo, n: 6, fun: '', carta: 'Tarifas', gastos: ['mantenimiento_eq', 'mercancia'], mod: 'v' }, 'Tiempo por computador, copias e impresiones, útiles.', 'Hora de internet:2000|Copia B/N:200|Impresión color:1000|Escaneo:1000'],
-    ['cancha', 'Cancha sintética', '⚽', 'ocio', 'futbol 5, cancha sintetica, microfutbol, padel, canchas', { esp: E.cancha, n: 2 }, 'Alquiler por hora, bebidas para los equipos, abonos de la reserva.', 'Hora de cancha:90000|Hora nocturna:110000|Hidratante:4000'],
+    ['cafeteria', 'Cafetería', '☕', 'comida', 'cafe, cafeteria, coffee shop, cafe de especialidad, tinto, capuchino, panaderia y cafe, desayunos', { fun: 'dpf', gastos: ['insumos', 'empaques', 'licencias'], cat: 'Cafés' }, 'Venta rápida de mostrador, clientes frecuentes, insumos que se vencen.', ''],
+    ['cafe_internet', 'Café internet / Papelería con copias', '💻', 'ocio', 'internet, cafe internet, copias, impresiones, sala de computadores', { esp: E.equipo, n: 6, fun: '', carta: 'Tarifas', gastos: ['mantenimiento_eq', 'mercancia'], mod: 'v', prod: ['Tarifa', 'Tarifas'] }, 'Tiempo por computador, copias e impresiones, útiles.', 'Hora de internet:2000|Copia B/N:200|Impresión color:1000|Escaneo:1000'],
+    ['cancha', 'Cancha sintética', '⚽', 'ocio', 'futbol 5, cancha sintetica, microfutbol, padel, canchas, futbol, alquiler de cancha, equipos, partidos', { esp: E.cancha, n: 2, prod: ['Tarifa', 'Tarifas'] }, 'Alquiler por hora, bebidas para los equipos, abonos de la reserva.', 'Hora de cancha:90000|Hora nocturna:110000|Hidratante:4000'],
     ['carniceria', 'Carnicería / Famas', '🥩', 'tienda', 'carniceria, fama, carne, res, cerdo, expendio de carnes', { gastos: ['mercancia', 'vencidos'], mod: 'vb' }, 'Venta por kilo y libra, cortes, cadena de frío y mermas.', 'Libra de carne de res:14000|Libra de cerdo:11000|Libra de costilla:10000'],
-    ['catering', 'Catering / Banquetes', '🍱', 'comida', 'banquetes, catering, comida para eventos, refrigerios, almuerzos empresariales', { esp: E.evento, n: 4, fun: 'd', gastos: ['insumos', 'personal_ev', 'alquiler'], mod: 'kn' }, 'Pedidos grandes por encargo, anticipos, personal por evento.', 'Plato por persona:28000|Refrigerio:8000|Mesero por evento:90000'],
-    ['celulares', 'Celulares y tecnología', '📱', 'tienda', 'celulares, accesorios, tecnologia, electronica, recargas, forros', { mod: 'vbn' }, 'Accesorios con código de barras, garantías y reparaciones.', 'Cargador:25000|Forro:15000|Vidrio templado:12000|Audífonos:30000'],
+    ['catering', 'Catering / Banquetes', '🍱', 'comida', 'banquetes, catering, comida para eventos, refrigerios, almuerzos empresariales, comida para eventos, banquete, refrigerios, almuerzos empresariales', { esp: E.evento, n: 4, fun: 'd', gastos: ['insumos', 'personal_ev', 'alquiler'], mod: 'kn', prod: ['Paquete', 'Paquetes'] }, 'Pedidos grandes por encargo, anticipos, personal por evento.', 'Plato por persona:28000|Refrigerio:8000|Mesero por evento:90000'],
+    ['celulares', 'Celulares y tecnología', '📱', 'tienda', 'celulares, accesorios, tecnologia, electronica, recargas, forros, telefonos, smartphones, accesorios, sim, planes', { mod: 'vbn' }, 'Accesorios con código de barras, garantías y reparaciones.', 'Cargador:25000|Forro:15000|Vidrio templado:12000|Audífonos:30000'],
     ['cerrajeria', 'Cerrajería', '🔑', 'orden', 'cerrajero, llaves, chapas, duplicado de llaves', {}, 'Duplicados al instante y servicios a domicilio.', 'Copia de llave:5000|Apertura de puerta:60000|Cambio de guarda:45000'],
     ['comidas_rapidas', 'Comidas rápidas', '🍔', 'comida', 'hamburguesas, perros calientes, salchipapas, comida rapida, picadas', {}, 'Muchos domicilios, combos y adiciones.', 'Hamburguesa:18000|Perro caliente:12000|Salchipapa:14000|Gaseosa:3500'],
-    ['consultorio', 'Consultorio médico / Clínica', '🩺', 'salud', 'medico, doctor, clinica, ips, consultorio, medicina general', { esp: E.consultorio }, 'Consultas y procedimientos con precio, pacientes frecuentes, insumos.', 'Consulta general:60000|Control:40000|Certificado médico:30000'],
+    ['consultorio', 'Consultorio médico / Clínica', '🩺', 'salud', 'medico, doctor, clinica, ips, consultorio, medicina general, citas, pacientes, medicina, enfermeria, salud', { esp: E.consultorio }, 'Consultas y procedimientos con precio, pacientes frecuentes, insumos.', 'Consulta general:60000|Control:40000|Certificado médico:30000'],
     ['cosmeticos', 'Cosméticos / Perfumería', '💄', 'tienda', 'maquillaje, perfumes, cosmeticos, productos de belleza, cuidado personal', { mod: 'vb' }, 'Mucho producto pequeño con código de barras, clientas frecuentes.', 'Labial:18000|Base de maquillaje:35000|Perfume 100 ml:90000|Crema corporal:22000'],
     ['dark_kitchen', 'Cocina oculta (solo domicilios)', '🛵', 'comida', 'dark kitchen, cocina oculta, solo domicilios, rappi, cocina virtual', { esp: E.pedido, n: 5, fun: 'd', gastos: ['insumos', 'empaques', 'plataformas'], mod: 'kvn' }, 'Solo domicilios por WhatsApp y apps, empaques y comisiones.', 'Combo hamburguesa:24000|Bowl de pollo:22000|Alitas x8:26000|Domicilio:5000'],
     ['deportes', 'Artículos deportivos', '👟', 'tienda', 'deportes, tenis, uniformes, balones, bicicletas', { mod: 'vbn' }, 'Tallas y colores, apartados con abono.', 'Balón de fútbol:60000|Camiseta deportiva:45000|Tenis:180000|Termo:25000'],
     ['deposito', 'Depósito de materiales', '🧱', 'tienda', 'deposito, materiales de construccion, cemento, ladrillo, arena', { gastos: ['mercancia', 'fletes', 'combustible'], mod: 'vbn' }, 'Ventas grandes a crédito, fletes y entregas a obra.', 'Bulto de cemento:32000|Ladrillo (unidad):900|Metro de arena:90000'],
     ['discoteca', 'Discoteca / Gastrobar', '🪩', 'bar', 'discoteca, gastrobar, rumba, club nocturno, lounge', { n: 15 }, 'Mucha gente a la vez, botellas y cover, música.', 'Cover:20000|Botella de aguardiente:90000|Cerveza:7000|Coctel:25000'],
-    ['distribuidora', 'Distribuidora / Mayorista', '🚚', 'tienda', 'distribuidora, mayorista, al por mayor, surtidora, bodega', { esp: E.cliente, n: 5, mod: 'vbn' }, 'Pedidos de tiendas a crédito, rutas de entrega, cartera por cobrar.', 'Paca de gaseosa:28000|Caja de aceite x12:110000|Bulto de arroz:120000'],
-    ['drogueria', 'Farmacia / Droguería', '💊', 'tienda', 'drogueria, farmacia, medicamentos, botica', { gastos: ['mercancia', 'vencidos', 'licencias'], mod: 'vb' }, 'Medicamentos con lote y vencimiento, código de barras, domicilios.', 'Acetaminofén x10:3000|Suero oral:4500|Curitas:2500'],
+    ['distribuidora', 'Distribuidora / Mayorista', '🚚', 'tienda', 'distribuidora, mayorista, al por mayor, surtidora, bodega, al por mayor, rutas, vendedores, cartera', { esp: E.cliente, n: 5, mod: 'vbn' }, 'Pedidos de tiendas a crédito, rutas de entrega, cartera por cobrar.', 'Paca de gaseosa:28000|Caja de aceite x12:110000|Bulto de arroz:120000'],
+    ['drogueria', 'Farmacia / Droguería', '💊', 'tienda', 'drogueria, farmacia, medicamentos, botica, pastillas, remedios, farmacia de barrio, formulas', { gastos: ['mercancia', 'vencidos', 'licencias'], mod: 'vb', prod: ['Producto', 'Productos'] }, 'Medicamentos con lote y vencimiento, código de barras, domicilios.', 'Acetaminofén x10:3000|Suero oral:4500|Curitas:2500'],
     ['electrodomesticos', 'Electrodomésticos y muebles', '🛋️', 'tienda', 'muebles, electrodomesticos, colchones, neveras, televisores', { esp: E.cliente, mod: 'vbn' }, 'Ventas a crédito con abonos y cartera.', 'Licuadora:180000|Colchón doble:650000|Nevera:1800000|Cuota mensual:150000'],
-    ['escuela_conduccion', 'Escuela de conducción', '🚦', 'educa', 'escuela de conduccion, pase, licencia de conduccion, curso de manejo', { esp: E.cliente, mod: 'n' }, 'Cursos por categoría, abonos y horas de práctica.', 'Curso B1:1200000|Curso A2 (moto):800000|Hora de práctica:60000'],
-    ['estanco', 'Estanco / Licorera', '🍾', 'tienda', 'licorera, estanco, licores, cigarrillos, venta de licor', { fun: 'd', gastos: ['licores', 'licencias'], mod: 'vb' }, 'Domicilios nocturnos, botellas y cervezas frías.', 'Aguardiente media:35000|Ron media:40000|Six pack de cerveza:22000'],
+    ['escuela_conduccion', 'Escuela de conducción', '🚦', 'educa', 'escuela de conduccion, pase, licencia de conduccion, curso de manejo', { esp: E.cliente, mod: 'n', prod: ['Curso', 'Cursos'] }, 'Cursos por categoría, abonos y horas de práctica.', 'Curso B1:1200000|Curso A2 (moto):800000|Hora de práctica:60000'],
+    ['estanco', 'Estanco / Licorera', '🍾', 'tienda', 'licorera, estanco, licores, cigarrillos, venta de licor, trago, cerveza fria, cigarrillos, botellas', { fun: 'd', gastos: ['licores', 'licencias'], mod: 'vb' }, 'Domicilios nocturnos, botellas y cervezas frías.', 'Aguardiente media:35000|Ron media:40000|Six pack de cerveza:22000'],
     ['estetica', 'Centro de estética / Spa', '💆', 'servicio', 'spa, estetica, masajes, facial, depilacion, cejas, pestañas', { esp: E.cabina, n: 3 }, 'Citas por cabina, paquetes de sesiones, clientas frecuentes.', 'Masaje relajante:80000|Limpieza facial:70000|Depilación cera:35000'],
-    ['evento', 'Organización de eventos', '🎉', 'orden', 'eventos, fiestas, bodas, quinces, decoracion de eventos, wedding planner', { esp: E.evento, n: 5, carta: 'Paquetes', gastos: ['alquiler', 'personal_ev', 'decoracion'] }, 'Cotizaciones, anticipos y saldo, proveedores por evento.', 'Decoración básica:500000|Paquete 50 personas:3500000|Hora loca:400000'],
-    ['ferreteria', 'Ferretería', '🔧', 'tienda', 'ferreteria, tornillos, pinturas, herramientas, electricos, plomeria', { mod: 'vbn' }, 'Miles de referencias, venta por metro o unidad, crédito a maestros de obra.', 'Tornillo (unidad):300|Galón de pintura:65000|Metro de cable:2500|Cinta aislante:3000'],
+    ['evento', 'Organización de eventos', '🎉', 'orden', 'eventos, fiestas, bodas, quinces, decoracion de eventos, wedding planner, fiestas, organizar eventos, quince años, celebraciones', { esp: E.evento, n: 5, carta: 'Paquetes', gastos: ['alquiler', 'personal_ev', 'decoracion'], prod: ['Paquete', 'Paquetes'] }, 'Cotizaciones, anticipos y saldo, proveedores por evento.', 'Decoración básica:500000|Paquete 50 personas:3500000|Hora loca:400000'],
+    ['ferreteria', 'Ferretería', '🔧', 'tienda', 'ferreteria, tornillos, pinturas, herramientas, electricos, plomeria, tornillos, pintura, herramienta, construccion, electricidad, plomeria', { mod: 'vbn' }, 'Miles de referencias, venta por metro o unidad, crédito a maestros de obra.', 'Tornillo (unidad):300|Galón de pintura:65000|Metro de cable:2500|Cinta aislante:3000'],
     ['fisioterapia', 'Fisioterapia / Rehabilitación', '🦵', 'salud', 'fisioterapia, terapia fisica, rehabilitacion, quiropractico', { esp: E.camilla, n: 3 }, 'Sesiones y paquetes, pacientes frecuentes.', 'Sesión:60000|Paquete 10 sesiones:500000'],
-    ['floristeria', 'Floristería', '💐', 'tienda', 'flores, arreglos florales, ramos, vivero', { fun: 'd', mod: 'vbn' }, 'Pedidos por encargo con fecha y domicilio, flores que se dañan.', 'Ramo de rosas:60000|Arreglo mediano:90000|Domicilio:8000'],
-    ['fotografia', 'Estudio fotográfico', '📸', 'orden', 'fotografia, fotografo, fotos, estudio de fotos, video', {}, 'Sesiones con anticipo, entrega de fotos y paquetes.', 'Foto documento:12000|Sesión en estudio:120000|Cubrimiento de evento:600000'],
+    ['floristeria', 'Floristería', '💐', 'tienda', 'flores, arreglos florales, ramos, vivero, flores, ramos, arreglos, rosas, funerarias', { fun: 'd', mod: 'vbn' }, 'Pedidos por encargo con fecha y domicilio, flores que se dañan.', 'Ramo de rosas:60000|Arreglo mediano:90000|Domicilio:8000'],
+    ['fotografia', 'Estudio fotográfico', '📸', 'orden', 'fotografia, fotografo, fotos, estudio de fotos, video, fotos, camara, sesiones, fotografo de eventos', {}, 'Sesiones con anticipo, entrega de fotos y paquetes.', 'Foto documento:12000|Sesión en estudio:120000|Cubrimiento de evento:600000'],
     ['frutas', 'Frutería / Jugos', '🍓', 'comida', 'fruteria, jugos, ensaladas de frutas, batidos, obleas', { n: 4, mod: 'kv' }, 'Venta rápida, fruta que se madura, domicilios.', 'Jugo en agua:5000|Jugo en leche:6500|Ensalada de frutas:9000'],
     ['fruver', 'Frutas y verduras (fruver)', '🥬', 'tienda', 'fruver, verduleria, plaza, frutas y verduras', { mod: 'vb' }, 'Venta por kilo y libra, mermas diarias.', 'Libra de tomate:2500|Libra de papa:1500|Kilo de banano:3500'],
-    ['gimnasio', 'Gimnasio', '🏋️', 'servicio', 'gimnasio, gym, crossfit, entrenamiento, fitness', { esp: E.cliente, n: 10, carta: 'Planes', gastos: ['mantenimiento_eq', 'docentes'], mod: 'n' }, 'Mensualidades con vencimiento, pases por día, suplementos.', 'Mensualidad:80000|Día:8000|Trimestre:210000|Proteína (scoop):5000'],
-    ['guarderia', 'Guardería / Jardín infantil', '🧸', 'educa', 'guarderia, jardin infantil, preescolar, cuidado de niños', { esp: E.cliente, n: 10, mod: 'n' }, 'Mensualidades por niño, pagos atrasados, recordatorios.', 'Mensualidad:450000|Matrícula:200000|Hora extra:10000'],
+    ['gimnasio', 'Gimnasio', '🏋️', 'servicio', 'gimnasio, gym, crossfit, entrenamiento, fitness, pesas, maquinas, entrenador, mensualidad de gym', { esp: E.cliente, n: 10, carta: 'Planes', gastos: ['mantenimiento_eq', 'docentes'], mod: 'n', prod: ['Plan', 'Planes'] }, 'Mensualidades con vencimiento, pases por día, suplementos.', 'Mensualidad:80000|Día:8000|Trimestre:210000|Proteína (scoop):5000'],
+    ['guarderia', 'Guardería / Jardín infantil', '🧸', 'educa', 'guarderia, jardin infantil, preescolar, cuidado de niños, niños, bebes, cuidado infantil, jardin', { esp: E.cliente, n: 10, mod: 'n', prod: ['Plan', 'Planes'] }, 'Mensualidades por niño, pagos atrasados, recordatorios.', 'Mensualidad:450000|Matrícula:200000|Hora extra:10000'],
     ['heladeria', 'Heladería', '🍦', 'comida', 'helados, heladeria, paletas, malteadas, postres', { n: 5, mod: 'kpdqv' }, 'Venta rápida, cadena de frío, domicilios.', 'Cono sencillo:5000|Copa especial:14000|Malteada:12000'],
-    ['hostal', 'Hostal', '🛌', 'aloja', 'hostal, hostel, posada, residencias', { n: 8 }, 'Camas o habitaciones por noche, extranjeros, desayunos.', 'Cama en dormitorio:45000|Habitación privada:110000|Desayuno:15000'],
-    ['hotel', 'Hotel', '🏨', 'aloja', 'hotel, hospedaje, alojamiento', { n: 15 }, 'Habitaciones, consumos del restaurante y minibar, comisión de Booking.', 'Habitación sencilla:120000|Habitación doble:180000|Desayuno:18000'],
-    ['imprenta', 'Imprenta / Publicidad', '🖨️', 'orden', 'litografia, imprenta, publicidad, pendones, avisos, estampados, tarjetas', {}, 'Trabajos por encargo con anticipo, diseño y fecha de entrega.', 'Pendón:45000|1000 tarjetas:60000|Volantes x1000:90000'],
+    ['hostal', 'Hostal', '🛌', 'aloja', 'hostal, hostel, posada, residencias, camas, mochileros, backpackers', { n: 8, prod: ['Tarifa', 'Tarifas y consumos'] }, 'Camas o habitaciones por noche, extranjeros, desayunos.', 'Cama en dormitorio:45000|Habitación privada:110000|Desayuno:15000'],
+    ['hotel', 'Hotel', '🏨', 'aloja', 'hotel, hospedaje, alojamiento, habitaciones, noches, huespedes, recepcion, booking', { n: 15, prod: ['Tarifa', 'Tarifas y consumos'] }, 'Habitaciones, consumos del restaurante y minibar, comisión de Booking.', 'Habitación sencilla:120000|Habitación doble:180000|Desayuno:18000'],
+    ['imprenta', 'Imprenta / Publicidad', '🖨️', 'orden', 'litografia, imprenta, publicidad, pendones, avisos, estampados, tarjetas, impresion, tarjetas, volantes, pendones, avisos', {}, 'Trabajos por encargo con anticipo, diseño y fecha de entrega.', 'Pendón:45000|1000 tarjetas:60000|Volantes x1000:90000'],
     ['joyeria', 'Joyería / Bisutería', '💍', 'tienda', 'joyeria, bisuteria, relojeria, accesorios, oro, plata', { mod: 'vbn' }, 'Piezas de valor, apartados con abonos y reparaciones.', 'Cadena de plata:90000|Anillo de oro:450000|Aretes:35000|Cambio de pila de reloj:10000'],
     ['jugueteria', 'Juguetería / Piñatería', '🧸', 'tienda', 'jugueteria, piñateria, fiestas infantiles, globos, cotillon', { mod: 'vb' }, 'Temporadas altas, muchas referencias.', 'Piñata:45000|Bolsa de globos x50:12000|Carro de juguete:25000|Muñeca:40000'],
     ['karaoke', 'Karaoke', '🎤', 'bar', 'karaoke, bar karaoke, canto', {}, 'Mesas, turnos de canciones, rondas.', ''],
     ['laboratorio', 'Laboratorio clínico', '🧪', 'salud', 'laboratorio, examenes, analisis clinicos, toma de muestras', { esp: E.cliente, n: 3, mod: 'n' }, 'Exámenes con precio, entrega de resultados.', 'Cuadro hemático:18000|Glicemia:12000|Parcial de orina:10000'],
-    ['lavadero', 'Lavadero de carros y motos', '🚿', 'orden', 'lavadero, lavado de carros, lavado de motos, car wash, polichado', { esp: E.vehiculo, n: 4, fun: 'fp', gastos: ['detergentes', 'comisiones', 'mantenimiento_eq'], mod: 'n' }, 'Turnos por vehículo, comisión de los lavadores, fidelidad.', 'Lavada de moto:12000|Lavada de carro:25000|Polichada:60000|Lavado de motor:20000'],
-    ['lavanderia', 'Lavandería / Tintorería', '🧺', 'orden', 'lavanderia, tintoreria, lavado de ropa, lavado en seco, planchado', { gastos: ['detergentes', 'mantenimiento_eq'], carta: 'Tarifas' }, 'Recibir la ropa con el nombre del cliente, cobrar por kilo o por prenda, abonos y entregar en la fecha prometida.', 'Lavado por kilo:5000|Lavado en seco (prenda):15000|Planchado (prenda):3000|Edredón:25000'],
-    ['libreria', 'Librería / Papelería', '📚', 'tienda', 'papeleria, libreria, utiles escolares, cuadernos, copias', { mod: 'vb' }, 'Temporada escolar, listas de útiles, código de barras.', 'Cuaderno 100 hojas:6000|Lapicero:1500|Copia:200'],
-    ['manicure', 'Uñas / Manicure', '💅', 'servicio', 'uñas, manicure, pedicure, nail, acrilicas', { esp: E.silla }, 'Citas, esmaltes y productos, comisión de manicuristas.', 'Manicure tradicional:15000|Semipermanente:35000|Acrílicas:70000'],
-    ['mascotas', 'Tienda de mascotas / Pet shop', '🐶', 'tienda', 'pet shop, mascotas, concentrado para perros, accesorios de mascotas', { gastos: ['alimento_an', 'mercancia'], mod: 'vb' }, 'Concentrado por kilo y bultos, clientes frecuentes, domicilios.', 'Concentrado perro 1 kg:12000|Collar:15000|Arena para gatos:18000'],
-    ['mecanico', 'Taller mecánico', '🚗', 'orden', 'taller, mecanica, mecanico, taller automotriz, taller de motos, motos, frenos, cambio de aceite, electricista automotriz', { esp: E.vehiculo, n: 5 }, 'Orden por vehículo con repuestos y mano de obra, abonos.', 'Cambio de aceite:120000|Revisión general:80000|Mano de obra (hora):50000'],
-    ['minimercado', 'Minimercado / Supermercado', '🛒', 'tienda', 'minimercado, supermercado, autoservicio, superete', { n: 4, mod: 'vb' }, 'Varias cajas, código de barras, mucho inventario y proveedores.', 'Arroz 1 kg:4500|Aceite 1 L:12000|Leche 1 L:4200|Huevos x30:18000'],
+    ['lavadero', 'Lavadero de carros y motos', '🚿', 'orden', 'lavadero, lavado de carros, lavado de motos, car wash, polichado, lavar carros, lavar motos, brillada, autolavado', { esp: E.vehiculo, n: 4, fun: 'fp', gastos: ['detergentes', 'comisiones', 'mantenimiento_eq'], mod: 'n' }, 'Turnos por vehículo, comisión de los lavadores, fidelidad.', 'Lavada de moto:12000|Lavada de carro:25000|Polichada:60000|Lavado de motor:20000'],
+    ['lavanderia', 'Lavandería / Tintorería', '🧺', 'orden', 'lavanderia, tintoreria, lavado de ropa, lavado en seco, planchado, lavar ropa, lavado por kilo, ropa sucia, tintoreria, planchado', { gastos: ['detergentes', 'mantenimiento_eq'], carta: 'Tarifas', prod: ['Servicio', 'Servicios'] }, 'Recibir la ropa con el nombre del cliente, cobrar por kilo o por prenda, abonos y entregar en la fecha prometida.', 'Lavado por kilo:5000|Lavado en seco (prenda):15000|Planchado (prenda):3000|Edredón:25000'],
+    ['libreria', 'Librería / Papelería', '📚', 'tienda', 'papeleria, libreria, utiles escolares, cuadernos, copias, papeleria, cuadernos, utiles, colegio, impresiones', { mod: 'vb' }, 'Temporada escolar, listas de útiles, código de barras.', 'Cuaderno 100 hojas:6000|Lapicero:1500|Copia:200'],
+    ['manicure', 'Uñas / Manicure', '💅', 'servicio', 'uñas, manicure, pedicure, nail, acrilicas, uñas, esmalte, manicurista, pedicura', { esp: E.silla }, 'Citas, esmaltes y productos, comisión de manicuristas.', 'Manicure tradicional:15000|Semipermanente:35000|Acrílicas:70000'],
+    ['mascotas', 'Tienda de mascotas / Pet shop', '🐶', 'tienda', 'pet shop, mascotas, concentrado para perros, accesorios de mascotas, concentrado, perros, gatos, juguetes para mascotas, pet', { gastos: ['alimento_an', 'mercancia'], mod: 'vb', prod: ['Producto', 'Productos'] }, 'Concentrado por kilo y bultos, clientes frecuentes, domicilios.', 'Concentrado perro 1 kg:12000|Collar:15000|Arena para gatos:18000'],
+    ['mecanico', 'Taller mecánico', '🚗', 'orden', 'taller, mecanica, mecanico, taller automotriz, taller de motos, motos, frenos, cambio de aceite, electricista automotriz, mecanica, arreglar carros, taller de carros, taller de motos, motos', { esp: E.vehiculo, n: 5 }, 'Orden por vehículo con repuestos y mano de obra, abonos.', 'Cambio de aceite:120000|Revisión general:80000|Mano de obra (hora):50000'],
+    ['minimercado', 'Minimercado / Supermercado', '🛒', 'tienda', 'minimercado, supermercado, autoservicio, superete, mercado, autoservicio, caja, surtido', { n: 4, mod: 'vb' }, 'Varias cajas, código de barras, mucho inventario y proveedores.', 'Arroz 1 kg:4500|Aceite 1 L:12000|Leche 1 L:4200|Huevos x30:18000'],
     ['montallantas', 'Montallantas', '🛞', 'orden', 'montallantas, llantas, despinchada, vulcanizadora', { esp: E.vehiculo, n: 3 }, 'Servicios rápidos, llantas y neumáticos en inventario.', 'Despinchada:10000|Balanceo:20000|Llanta nueva moto:120000'],
-    ['motel', 'Motel', '🛏️', 'aloja', 'motel, residencias por horas', { n: 12, fun: 'm' }, 'Tiempo por habitación (horas), consumos, discreción.', 'Rato (3 horas):45000|Noche:90000|Hora adicional:15000'],
-    ['odontologia', 'Odontología', '🦷', 'salud', 'odontologo, dentista, ortodoncia, consultorio odontologico', { esp: E.consultorio }, 'Tratamientos por abonos (ortodoncia), pacientes frecuentes.', 'Consulta:50000|Limpieza:90000|Control de ortodoncia:80000'],
-    ['optica', 'Óptica', '👓', 'salud', 'optica, gafas, lentes, optometria', { esp: E.cliente, n: 3, mod: 'n' }, 'Examen, monturas y lentes con abono y fecha de entrega.', 'Examen visual:30000|Montura:120000|Lentes:180000'],
-    ['panaderia', 'Panadería / Pastelería', '🥐', 'comida', 'panaderia, pasteleria, reposteria, tortas, pan, ponques', { n: 4, fun: 'd', gastos: ['insumos', 'gas', 'empaques'], cat: 'Panadería', mod: 'kv' }, 'Producción diaria, tortas por encargo con abono, desperdicio.', 'Pan francés:500|Pan de bono:2500|Torta de chocolate:45000|Tinto:1500'],
-    ['parqueadero', 'Parqueadero', '🅿️', 'otro', 'parqueadero, estacionamiento, parking, garaje', { esp: E.puesto, n: 20, carta: 'Tarifas', mod: 'n' }, 'Entrada y salida por placa, cobro por tiempo, mensualidades.', 'Hora carro:4000|Hora moto:2000|Mensualidad carro:150000'],
+    ['motel', 'Motel', '🛏️', 'aloja', 'motel, residencias por horas, habitaciones por horas, amoblados', { n: 12, fun: 'm', prod: ['Tarifa', 'Tarifas'] }, 'Tiempo por habitación (horas), consumos, discreción.', 'Rato (3 horas):45000|Noche:90000|Hora adicional:15000'],
+    ['odontologia', 'Odontología', '🦷', 'salud', 'odontologo, dentista, ortodoncia, consultorio odontologico, dientes, muelas, caries, brackets, sonrisa', { esp: E.consultorio }, 'Tratamientos por abonos (ortodoncia), pacientes frecuentes.', 'Consulta:50000|Limpieza:90000|Control de ortodoncia:80000'],
+    ['optica', 'Óptica', '👓', 'salud', 'optica, gafas, lentes, optometria, gafas, lentes, ver mal, formula de gafas', { esp: E.cliente, n: 3, mod: 'n', prod: ['Producto', 'Productos'] }, 'Examen, monturas y lentes con abono y fecha de entrega.', 'Examen visual:30000|Montura:120000|Lentes:180000'],
+    ['panaderia', 'Panadería / Pastelería', '🥐', 'comida', 'panaderia, pasteleria, reposteria, tortas, pan, ponques, pan, tortas, ponque, bizcochos, pandebono', { n: 4, fun: 'd', gastos: ['insumos', 'gas', 'empaques'], cat: 'Panadería', mod: 'kv' }, 'Producción diaria, tortas por encargo con abono, desperdicio.', 'Pan francés:500|Pan de bono:2500|Torta de chocolate:45000|Tinto:1500'],
+    ['parqueadero', 'Parqueadero', '🅿️', 'otro', 'parqueadero, estacionamiento, parking, garaje, parquear, carros, motos, placas, mensualidad de parqueo', { esp: E.puesto, n: 20, carta: 'Tarifas', mod: 'n', prod: ['Tarifa', 'Tarifas'] }, 'Entrada y salida por placa, cobro por tiempo, mensualidades.', 'Hora carro:4000|Hora moto:2000|Mensualidad carro:150000'],
     ['pasteleria', 'Repostería por encargo', '🎂', 'orden', 'tortas por encargo, reposteria, postres, cupcakes, mesa de postres', { esp: E.pedido, fun: 'd', gastos: ['insumos', 'empaques'], mod: 'kn' }, 'Pedidos con fecha, anticipo y saldo, domicilios.', 'Torta 20 porciones:90000|Cupcakes x12:48000|Mesa de postres:350000'],
     ['peluqueria_canina', 'Peluquería canina / Guardería de mascotas', '🐩', 'servicio', 'peluqueria canina, baño de perros, guarderia canina, spa de mascotas, paseador', { esp: E.mascota, n: 4 }, 'Turnos por mascota, datos del dueño, clientes frecuentes.', 'Baño perro pequeño:30000|Baño y corte:45000|Guardería (día):35000'],
     ['piqueteadero', 'Piqueteadero / Fritanga', '🍖', 'comida', 'piqueteadero, fritanga, picadas, chicharron, parrilla', { fun: 'dpm' }, 'Picadas por libras, cerveza, fines de semana llenos.', 'Picada para 2:40000|Chicharrón (porción):15000|Morcilla:5000'],
     ['pizzeria', 'Pizzería', '🍕', 'comida', 'pizza, pizzeria, pasta, italiano', { mod: 'kpwdqv' }, 'Domicilios, tamaños y adiciones.', 'Pizza personal:15000|Pizza mediana:32000|Pizza familiar:45000'],
     ['psicologia', 'Psicología / Terapias', '🧠', 'salud', 'psicologo, terapia, psicologia, coach, terapeuta', { esp: E.consultorio, n: 1 }, 'Sesiones y paquetes, pacientes frecuentes, confidencialidad.', 'Sesión:90000|Paquete 4 sesiones:320000'],
     ['repuestos', 'Repuestos de motos y carros', '⚙️', 'tienda', 'repuestos, autopartes, almacen de motos, lubricantes, llantas', { mod: 'vbn' }, 'Referencias por modelo, mecánicos a crédito.', 'Aceite 20W50:28000|Bujía:12000|Pastillas de freno:35000|Cadena de moto:70000'],
-    ['restaurante', 'Restaurante', '🍽️', 'comida', 'restaurante, almuerzos, corrientazo, comida casera, menu del dia, asadero', { n: 10 }, 'Mesas, comandas a cocina, almuerzo del día, domicilios y propina.', ''],
-    ['ropa', 'Tienda de ropa / Boutique', '👕', 'tienda', 'ropa, boutique, almacen de ropa, calzado, zapatos, moda', { mod: 'vbn' }, 'Tallas y colores, cambios, apartados con abono.', 'Camiseta:35000|Jean:90000|Vestido:120000|Medias:8000'],
-    ['salon_belleza', 'Salón de belleza', '💇‍♀️', 'servicio', 'salon de belleza, peluqueria de mujeres, tintes, cepillado, keratina', {}, 'Citas por estilista, tintes y productos, comisiones.', 'Cepillado:25000|Tinte:80000|Keratina:150000|Corte dama:30000'],
-    ['salon_eventos', 'Salón de eventos / Finca', '🏛️', 'aloja', 'salon de eventos, salon social, finca para eventos, recepciones', { esp: E.evento, n: 2, carta: 'Paquetes', gastos: ['aseo', 'personal_ev', 'decoracion'], mod: 'n' }, 'Reservas con anticipo, alquiler por horas, servicios extra.', 'Alquiler del salón (5 horas):800000|Hora adicional:120000'],
-    ['sastreria', 'Sastrería / Arreglos de ropa', '🧵', 'orden', 'sastreria, modisteria, arreglos de ropa, confeccion, costura', {}, 'Prendas recibidas con fecha de entrega, abonos.', 'Bota de pantalón:8000|Cambio de cremallera:10000|Ajuste de vestido:25000'],
-    ['servicio_tecnico', 'Servicio técnico (celulares y computadores)', '🛠️', 'orden', 'reparacion de celulares, servicio tecnico, computadores, pantallas, software', { esp: E.equipo }, 'Equipo recibido con diagnóstico, repuestos, abonos y garantía.', 'Diagnóstico:20000|Cambio de pantalla:150000|Formateo:50000'],
+    ['restaurante', 'Restaurante', '🍽️', 'comida', 'restaurante, almuerzos, corrientazo, comida casera, menu del dia, asadero, platos, almuerzo, comedor, cocina, mesas, meseros, carta del dia', { n: 10 }, 'Mesas, comandas a cocina, almuerzo del día, domicilios y propina.', ''],
+    ['ropa', 'Tienda de ropa / Boutique', '👕', 'tienda', 'ropa, boutique, almacen de ropa, calzado, zapatos, moda, vestidos, camisas, pantalones, tallas, almacen', { mod: 'vbn' }, 'Tallas y colores, cambios, apartados con abono.', 'Camiseta:35000|Jean:90000|Vestido:120000|Medias:8000'],
+    ['salon_belleza', 'Salón de belleza', '💇‍♀️', 'servicio', 'salon de belleza, peluqueria de mujeres, tintes, cepillado, keratina, peluqueria, tinte, cabello, peinados, alisado', {}, 'Citas por estilista, tintes y productos, comisiones.', 'Cepillado:25000|Tinte:80000|Keratina:150000|Corte dama:30000'],
+    ['salon_eventos', 'Salón de eventos / Finca', '🏛️', 'aloja', 'salon de eventos, salon social, finca para eventos, recepciones', { esp: E.evento, n: 2, carta: 'Paquetes', gastos: ['aseo', 'personal_ev', 'decoracion'], mod: 'n', prod: ['Paquete', 'Paquetes'] }, 'Reservas con anticipo, alquiler por horas, servicios extra.', 'Alquiler del salón (5 horas):800000|Hora adicional:120000'],
+    ['sastreria', 'Sastrería / Arreglos de ropa', '🧵', 'orden', 'sastreria, modisteria, arreglos de ropa, confeccion, costura, coser, arreglar ropa, modista, costurera, dobladillo', {}, 'Prendas recibidas con fecha de entrega, abonos.', 'Bota de pantalón:8000|Cambio de cremallera:10000|Ajuste de vestido:25000'],
+    ['servicio_tecnico', 'Servicio técnico (celulares y computadores)', '🛠️', 'orden', 'reparacion de celulares, servicio tecnico, computadores, pantallas, software, arreglar celulares, tecnico, computadores, portatiles, pantallas', { esp: E.equipo }, 'Equipo recibido con diagnóstico, repuestos, abonos y garantía.', 'Diagnóstico:20000|Cambio de pantalla:150000|Formateo:50000'],
     ['sushi', 'Sushi / Comida asiática', '🍣', 'comida', 'sushi, comida china, wok, asiatica, japonesa, arroz chino', { mod: 'kvdq' }, 'Domicilios, combos y productos frescos.', 'Rollo x10:28000|Arroz chino:22000|Combo para 2:60000'],
     ['tatuajes', 'Estudio de tatuajes', '🎨', 'servicio', 'tatuajes, tattoo, piercing, perforaciones', { esp: E.camilla, n: 2 }, 'Citas con anticipo, sesiones largas, diseños.', 'Tatuaje pequeño:120000|Sesión (hora):150000|Piercing:50000'],
-    ['tejo', 'Cancha de tejo / Minitejo', '🎯', 'ocio', 'tejo, minitejo, tejodromo, turmequé', { esp: E.cancha_tejo, n: 4 }, 'Cerveza por canasta, cuentas por cancha, fiados.', 'Canasta de cerveza:90000|Cerveza:4000|Mechas:2000'],
-    ['tienda', 'Tienda de barrio', '🏪', 'tienda', 'tienda, tienda de barrio, abarrotes, granero, mercado', { esp: ['Mesa', 'Mesas', '🪑', 'f'], n: 4, carta: 'Carta', icCarta: '📖', mod: 'vb' }, 'Fiados a los vecinos, pedidos a proveedores, productos que se vencen.', 'Cerveza:3500|Gaseosa:3000|Pan:500|Huevo:600|Arroz libra:2500'],
-    ['veterinaria', 'Veterinaria', '🐾', 'salud', 'veterinaria, veterinario, clinica veterinaria, vacunas mascotas', { esp: E.cama, n: 3, gastos: ['medicamentos', 'alimento_an', 'equipos'] }, 'Consultas y vacunas, dueño y mascota, hospitalización por días.', 'Consulta:45000|Vacuna:40000|Desparasitación:25000|Hospitalización (día):80000'],
-    ['videojuegos', 'Sala de videojuegos', '🎮', 'ocio', 'videojuegos, consolas, play, gamer, maquinitas, arcade', { esp: E.estacion, n: 6, fun: '', mod: 'v' }, 'Tiempo por consola, mecato y bebidas.', 'Hora de consola:4000|Media hora:2500|Gaseosa:3000'],
+    ['tejo', 'Cancha de tejo / Minitejo', '🎯', 'ocio', 'tejo, minitejo, tejodromo, turmequé', { esp: E.cancha_tejo, n: 4, prod: ['Producto', 'Productos'] }, 'Cerveza por canasta, cuentas por cancha, fiados.', 'Canasta de cerveza:90000|Cerveza:4000|Mechas:2000'],
+    ['tienda', 'Tienda de barrio', '🏪', 'tienda', 'tienda, tienda de barrio, abarrotes, granero, mercado, granero, minimarket, la tienda, esquina, fiado', { n: 4, mod: 'vb' }, 'Fiados a los vecinos, pedidos a proveedores, productos que se vencen.', 'Cerveza:3500|Gaseosa:3000|Pan:500|Huevo:600|Arroz libra:2500'],
+    ['veterinaria', 'Veterinaria', '🐾', 'salud', 'veterinaria, veterinario, clinica veterinaria, vacunas mascotas, perros, gatos, mascotas enfermas, vacunas, animales', { esp: E.cama, n: 3, gastos: ['medicamentos', 'alimento_an', 'equipos'], prod: ['Servicio', 'Servicios'] }, 'Consultas y vacunas, dueño y mascota, hospitalización por días.', 'Consulta:45000|Vacuna:40000|Desparasitación:25000|Hospitalización (día):80000'],
+    ['videojuegos', 'Sala de videojuegos', '🎮', 'ocio', 'videojuegos, consolas, play, gamer, maquinitas, arcade', { esp: E.estacion, n: 6, fun: '', mod: 'v', prod: ['Tarifa', 'Tarifas'] }, 'Tiempo por consola, mecato y bebidas.', 'Hora de consola:4000|Media hora:2500|Gaseosa:3000'],
     ['vivero', 'Vivero / Jardinería', '🪴', 'tienda', 'vivero, plantas, jardineria, materas, abonos', { mod: 'vbn' }, 'Plantas vivas, abonos, servicio de jardinería.', 'Planta en matera:25000|Bulto de abono:30000|Materas:12000|Jardinería (hora):35000'],
-    ['zapateria', 'Zapatería / Remontadora', '👞', 'orden', 'zapateria, remontadora, arreglo de zapatos, calzado', {}, 'Zapatos recibidos con fecha de entrega y abono.', 'Tapas:12000|Media suela:35000|Costura:10000'],
+    ['zapateria', 'Zapatería / Remontadora', '👞', 'orden', 'zapateria, remontadora, arreglo de zapatos, calzado, arreglar zapatos, suela, calzado, remontadora', {}, 'Zapatos recibidos con fecha de entrega y abono.', 'Tapas:12000|Media suela:35000|Costura:10000'],
     ['naturista', 'Tienda naturista', '🌿', 'tienda', 'naturista, productos naturales, suplementos, vitaminas, hierbas', { gastos: ['mercancia', 'vencidos'], mod: 'vb' }, 'Suplementos con vencimiento, asesoría y clientes frecuentes.', 'Colágeno:45000|Vitamina C:25000|Té de hierbas:12000'],
     ['queseria', 'Quesera / Lácteos', '🧀', 'tienda', 'queseria, lacteos, quesos, leche, cuajada, derivados lacteos', { gastos: ['mercancia', 'vencidos', 'fletes'], mod: 'vb' }, 'Venta por libra, producto fresco que se vence, pedidos de tiendas.', 'Libra de queso campesino:12000|Cuajada:8000|Litro de leche:3500|Kumis:4000'],
     ['uniformes', 'Uniformes / Confección', '🥼', 'orden', 'uniformes, confeccion, dotaciones, bordados, estampados de camisetas, taller de costura', { esp: E.pedido, gastos: ['mercancia', 'comisiones'] }, 'Pedidos por encargo de colegios y empresas con anticipo, tallas y fecha de entrega.', 'Camiseta estampada:25000|Uniforme escolar:85000|Bordado de logo:8000'],
-    ['wedding', 'Wedding / Decoración de bodas', '💒', 'orden', 'boda, wedding, decoracion de bodas, novias, matrimonio', { esp: E.evento, n: 3, carta: 'Paquetes', gastos: ['alquiler', 'decoracion', 'personal_ev'] }, 'Paquetes con anticipos grandes, proveedores y fecha fija del evento.', 'Decoración de ceremonia:1500000|Arco de flores:600000|Asesoría de boda:400000'],
-    ['yoga', 'Yoga / Pilates / Danza', '🧘', 'educa', 'yoga, pilates, danza, baile, meditacion, estudio de baile, zumba', { esp: E.cliente, n: 10, carta: 'Planes', mod: 'n' }, 'Clases sueltas y mensualidades, paquetes de clases, recordatorios de pago.', 'Clase suelta:25000|Mensualidad:150000|Paquete 8 clases:160000'],
+    ['wedding', 'Wedding / Decoración de bodas', '💒', 'orden', 'boda, wedding, decoracion de bodas, novias, matrimonio', { esp: E.evento, n: 3, carta: 'Paquetes', gastos: ['alquiler', 'decoracion', 'personal_ev'], prod: ['Paquete', 'Paquetes'] }, 'Paquetes con anticipos grandes, proveedores y fecha fija del evento.', 'Decoración de ceremonia:1500000|Arco de flores:600000|Asesoría de boda:400000'],
+    ['yoga', 'Yoga / Pilates / Danza', '🧘', 'educa', 'yoga, pilates, danza, baile, meditacion, estudio de baile, zumba', { esp: E.cliente, n: 10, carta: 'Planes', mod: 'n', prod: ['Plan', 'Planes'] }, 'Clases sueltas y mensualidades, paquetes de clases, recordatorios de pago.', 'Clase suelta:25000|Mensualidad:150000|Paquete 8 clases:160000'],
     ['xerox', 'Centro de copias / Xerox', '📠', 'tienda', 'xerox, fotocopias, copias, impresiones, plastificado, anillado', { n: 2, mod: 'vn' }, 'Muchas ventas pequeñas, papel y tinta, trabajos por encargo.', 'Copia B/N:200|Impresión color:1000|Anillado:4000|Plastificado:3000'],
-    ['abogado', 'Abogados / Contadores / Asesorías', '⚖️', 'orden', 'abogado, contador, asesoria, consultoria, tramites, notaria, oficina', { esp: E.cliente, n: 5, gastos: ['licencias', 'seguros'] }, 'Honorarios por caso con abonos, cuentas de cobro y recordatorio de pagos.', 'Consulta:80000|Declaración de renta:250000|Trámite:120000'],
+    ['abogado', 'Abogados / Contadores / Asesorías', '⚖️', 'orden', 'abogado, contador, asesoria, consultoria, tramites, notaria, oficina, asesoria legal, demandas, contratos, contaduria, impuestos', { esp: E.cliente, n: 5, gastos: ['licencias', 'seguros'], prod: ['Servicio', 'Honorarios y servicios'] }, 'Honorarios por caso con abonos, cuentas de cobro y recordatorio de pagos.', 'Consulta:80000|Declaración de renta:250000|Trámite:120000'],
     ['otro', 'Otro tipo de negocio', '🏷️', 'otro', 'otro, mi negocio, emprendimiento, venta por redes, negocio en casa', {}, 'Ventas, clientes, fiados y cuentas claras.', '']
   ];
   const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -207,7 +207,7 @@ window.esAndroid = function(){ var ua = navigator.userAgent || ''; if(/Android/i
   const CAT = L.map(([k, nombre, icono, fam, sin, o, necesita, prods]) => {
     const f = F[fam];
     return Object.assign({ k, nombre, icono, fam, sin, necesita, prods, buscar: norm(nombre + ' ' + k.replace(/_/g, ' ') + ' ' + sin) },
-      { esp: f.esp, n: f.n, fun: f.fun, mod: f.mod, carta: f.carta, icCarta: f.icCarta, gastos: f.gastos, cat: f.cat, vento: f.vento, falta: f.falta }, o);
+      { esp: f.esp, n: f.n, fun: f.fun, mod: f.mod, prod: f.prod, carta: f.carta, icCarta: f.icCarta, gastos: f.gastos, cat: f.cat, vento: f.vento, falta: f.falta }, o);
   });
   // Claves viejas que ya pueden estar guardadas en los negocios
   const ALIAS = { cerveceria: 'bar', farmacia: 'drogueria', licorera: 'estanco', medico: 'consultorio' };
@@ -272,6 +272,17 @@ window.esAndroid = function(){ var ua = navigator.userAgent || ''; if(/Android/i
 .tp-otro{border-style:dashed;grid-column:1/-1}.tp-nada{grid-column:1/-1;color:var(--ink-soft);font-size:13px;padding:6px}
 .tp-guia{margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--surface,var(--cream));border:1px solid var(--line);font-size:13px;line-height:1.45}
 .tp-guia p{margin:4px 0}.tp-guia b{color:var(--ink)}
+.tp-btn{display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;padding:12px;border-radius:14px;border:1px solid color-mix(in srgb,var(--amber) 45%,var(--line));background:color-mix(in srgb,var(--amber) 14%,var(--surface,var(--cream)));color:var(--ink);font:inherit;cursor:pointer;text-align:left;min-width:0}
+.tp-btn-ic{font-size:26px;flex:none}.tp-btn-tx{flex:1;min-width:0}.tp-btn-tx b{display:block;font-size:15px;overflow-wrap:anywhere}.tp-btn-tx small{display:block;color:var(--ink-soft);font-size:12px}
+.tp-btn-go{flex:none;font-size:12px;font-weight:700;color:var(--amber);border:1px solid var(--amber);border-radius:999px;padding:4px 10px}
+.tp-sheet{max-width:560px;width:100%}.tp-sheet .tp-lista{max-height:none;flex:1;min-height:120px}
+/* El buscador y el asistente: el cuerpo se desliza y los botones quedan siempre a la vista
+   (en celular el botón «Siguiente» quedaba abajo del todo y tocaba bajar a buscarlo). */
+#tipoSheet{z-index:10001}
+.overlay > .tp-sheet{display:flex;flex-direction:column;overflow:hidden}
+.tp-sheet .tp-box{flex:1;min-height:0;display:flex;flex-direction:column}
+.tp-sheet > h2, .tp-sheet > .modal-sub{flex:none}
+.tp-sheet > .modal-actions{flex:none;position:sticky;bottom:0;background:var(--surface,var(--cream));padding-top:10px}
 
 body:not(.mod-k) [data-mod~="k"], body:not(.mod-p) [data-mod~="p"], body:not(.mod-w) [data-mod~="w"],
 body:not(.mod-d) [data-mod~="d"], body:not(.mod-q) [data-mod~="q"], body:not(.mod-n) [data-mod~="n"],
@@ -2405,9 +2416,13 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   .paysel-actions{ display:flex; gap:8px; margin-top:12px; }
   .paysel-actions button{ flex:1; }
   /* ---------- Acceso (usuario y contraseña) ---------- */
-  .auth-overlay{ position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(0,0,0,.94); }
+  /* La entrada se ve completa en celular, tableta y computador: si no cabe, la pantalla
+     entera se desliza (antes el botón de entrar quedaba por fuera y no se alcanzaba). */
+  .auth-overlay{ position:fixed; inset:0; z-index:9999; display:flex; align-items:flex-start; justify-content:center;
+    padding:16px 16px calc(24px + env(safe-area-inset-bottom, 0px)); background:rgba(0,0,0,.94);
+    overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
   .auth-overlay[hidden]{ display:none; }
-  .auth-card{ width:100%; max-width:360px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:22px; display:flex; flex-direction:column; gap:12px; box-shadow:0 0 24px color-mix(in srgb, var(--amber) 15%, transparent); }
+  .auth-card{ width:100%; max-width:360px; margin:auto; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:22px; display:flex; flex-direction:column; gap:12px; box-shadow:0 0 24px color-mix(in srgb, var(--amber) 15%, transparent); }
   .auth-card h2{ margin:0 0 4px; color:var(--ink); font-size:20px; }
   .auth-card label{ display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--cream-soft); }
   .auth-card input, .auth-card select, .acc-inline input, .acc-inline select{ padding:11px 12px; font-size:16px; background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:8px; }
@@ -2415,6 +2430,13 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   .auth-err{ min-height:18px; color:var(--brick-soft); font-size:13px; }
   .auth-hint{ font-size:12px; color:var(--ink-soft); }
   .auth-card[hidden], .auth-card label[hidden]{ display:none !important; }
+  /* Tabletas y computadores: la tarjeta se ensancha y el buscador de negocios muestra más de una columna. */
+  @media (min-width: 700px){ .auth-card{ max-width:460px; padding:26px; } }
+  @media (min-width: 1024px){ .auth-card{ max-width:520px; } }
+  /* Pantallas bajitas (celular acostado, tableta horizontal): la lista de negocios se achica
+     para que el botón de entrar siempre quede a la vista. */
+  .auth-card .tp-lista{ max-height:min(30vh, 210px); }
+  @media (max-height: 720px){ .auth-card .tp-lista{ max-height:min(26vh, 160px); } }
   .auth-link{ background:none; border:0; color:var(--ink-soft); font-size:13px; text-decoration:underline; cursor:pointer; padding:4px; }
   .acc-inline{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
   .acc-inline input{ flex:1 1 130px; min-width:0; }
@@ -10085,12 +10107,19 @@ document.getElementById('stPer').addEventListener('click', e => { const b = e.ta
 // Cómo se llama la lista de precios según el negocio: Menú, Carta, Servicios, Tarifas, Catálogo…
 const cartaTerm = () => { const t = data.businessType && window.VENTO_NEGOCIOS.get(data.businessType); return t ? t.carta : 'Carta'; };
 const cartaIcon = () => { const t = data.businessType && window.VENTO_NEGOCIOS.get(data.businessType); return t ? t.icCarta : '📖'; };
+// La pestaña de la carta es «lo que ven tus clientes»: si se llamara igual que la de
+// productos (ej. Servicios y Servicios), se le pone «Lista de precios» para no repetir.
+function cartaTab(){
+  try{ const pr = (typeof producto1 === 'function') ? producto1()[1] : 'Productos';
+    if(cartaTerm().toLowerCase() === String(pr).toLowerCase()) return 'Lista de precios'; }catch(e){}
+  return cartaTerm();
+}
 function cartaLabel(){
   try{ aplicarVocabulario(); }catch(e){}
   const b = document.getElementById('cartaTab'), l = b && b.querySelector('.nav-lbl');
-  if(l) l.textContent = i18nPut(cartaTerm()); else if(b) b.textContent = i18nPut(cartaIcon() + ' ' + cartaTerm());
+  if(l) l.textContent = i18nPut(cartaTab()); else if(b) b.textContent = i18nPut(cartaIcon() + ' ' + cartaTab());
   const ml = document.getElementById('moreCartaLbl'), mi = document.getElementById('moreCartaIc');
-  if(ml) ml.textContent = i18nPut(cartaTerm());
+  if(ml) ml.textContent = i18nPut(cartaTab());
   if(mi) mi.textContent = cartaIcon();
 }
 const cartaNrm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -14674,26 +14703,39 @@ const VOCAB_ART = { el:['el','la'], la:['el','la'], los:['los','las'], las:['los
   todos:['todos','todas'], todas:['todos','todas'], mismo:['mismo','misma'], misma:['mismo','misma'], nuevo:['nuevo','nueva'], nueva:['nuevo','nueva'],
   cuantos:['cuántos','cuántas'], 'cuántos':['cuántos','cuántas'], 'cuántas':['cuántos','cuántas'], cuantas:['cuántos','cuántas'],
   varios:['varios','varias'], varias:['varios','varias'], algunos:['algunos','algunas'], algunas:['algunos','algunas'] };
-function vocabTexto(t){
-  if(!t || !/\bmesas?\b/i.test(t)) return t;
-  const e = espacio(); if(e[0] === 'Mesa') return t;
-  const masc = e[3] === 'm', sg = e[0], pl = e[1];
+const generoDe = sg => /(a|ción|sión|dad|tad|umbre)$/i.test(sg) ? 'f' : 'm';
+const producto1 = () => { const t = tipoNegocio(); return t && t.prod ? t.prod : ['Producto', 'Productos']; };
+// Cambia una palabra (mesa/mesas, producto/productos) por la del negocio, con su artículo.
+function vocabCambiar(t, base, basePl, sg, pl, srcMasc, destMasc){
+  if(destMasc == null) destMasc = generoDe(sg) === 'm';
   const cap = (nuevo, ref) => /^[A-ZÁÉÍÓÚÑ]/.test(ref) ? nuevo.charAt(0).toUpperCase() + nuevo.slice(1) : nuevo.toLowerCase();
   let r = t;
-  if(masc){
-    r = r.replace(/\b(de|a)\s+la\s+mesa\b/gi, (m, p) => cap(p.toLowerCase() === 'de' ? 'del' : 'al', p) + ' ' + sg.toLowerCase());
-    r = r.replace(/\b(de|a)\s+las\s+mesas\b/gi, (m, p) => cap(p.toLowerCase() === 'de' ? 'de los' : 'a los', p) + ' ' + pl.toLowerCase());
+  if(srcMasc && !destMasc){           // «del producto» → «de la tarifa»
+    r = r.replace(new RegExp('\\b(del|al)\\s+' + base + '\\b', 'gi'), (m, p) => cap(p.toLowerCase() === 'del' ? 'de la' : 'a la', p) + ' ' + sg.toLowerCase());
+    r = r.replace(new RegExp('\\b(de|a)\\s+los\\s+' + basePl + '\\b', 'gi'), (m, p) => cap(p.toLowerCase() === 'de' ? 'de las' : 'a las', p) + ' ' + pl.toLowerCase());
   }
-  r = r.replace(/\b([a-záéíóúñ]+)(\s+)(mesas?)\b/gi, (m, art, sp, n) => {
+  if(!srcMasc && destMasc){           // «de la mesa» → «del consultorio»
+    r = r.replace(new RegExp('\\b(de|a)\\s+la\\s+' + base + '\\b', 'gi'), (m, p) => cap(p.toLowerCase() === 'de' ? 'del' : 'al', p) + ' ' + sg.toLowerCase());
+    r = r.replace(new RegExp('\\b(de|a)\\s+las\\s+' + basePl + '\\b', 'gi'), (m, p) => cap(p.toLowerCase() === 'de' ? 'de los' : 'a los', p) + ' ' + pl.toLowerCase());
+  }
+  r = r.replace(new RegExp('\\b([a-záéíóúñ]+)(\\s+)(' + basePl + '|' + base + ')\\b', 'gi'), (m, art, sp, n) => {
     const par = VOCAB_ART[art.toLowerCase().normalize('NFC')];
     if(!par) return m;
-    return cap(masc ? par[0] : par[1], art) + sp + cap(/s$/i.test(n) ? pl : sg, n);
+    return cap(destMasc ? par[0] : par[1], art) + sp + cap(n.toLowerCase() === basePl ? pl : sg, n);
   });
-  return r.replace(/\bmesas\b/gi, m => cap(pl, m)).replace(/\bmesa\b/gi, m => cap(sg, m));
+  return r.replace(new RegExp('\\b' + basePl + '\\b', 'gi'), m => cap(pl, m)).replace(new RegExp('\\b' + base + '\\b', 'gi'), m => cap(sg, m));
 }
+function vocabTexto(t){
+  if(!t) return t;
+  let r = t;
+  if(/\bmesas?\b/i.test(r)){ const e = espacio(); if(e[0] !== 'Mesa') r = vocabCambiar(r, 'mesa', 'mesas', e[0], e[1], false, e[3] !== 'f'); }
+  if(/\bproductos?\b/i.test(r)){ const pr = producto1(); if(pr[0] !== 'Producto') r = vocabCambiar(r, 'producto', 'productos', pr[0], pr[1], true); }
+  return r;
+}
+const vocabHayQue = () => espacio()[0] !== 'Mesa' || producto1()[0] !== 'Producto';
 const VOCAB_SALTAR = { SCRIPT:1, STYLE:1, TEXTAREA:1, NOSCRIPT:1 };
 function vocabNodo(raiz){
-  if(espacio()[0] === 'Mesa') return;
+  if(!vocabHayQue()) return;
   if(raiz.nodeType === 3){ const v = vocabTexto(raiz.nodeValue); if(v !== raiz.nodeValue) raiz.nodeValue = v; return; }
   if(raiz.nodeType !== 1 || raiz.closest('[data-novocab]')) return;
   const it = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT, {
@@ -14716,7 +14758,8 @@ function aplicarVocabulario(){
   const tc = document.getElementById('tableCountToggle'); if(tc) tc.textContent = espacio()[2] + ' Número de ' + plural.toLowerCase();
   document.querySelectorAll('[data-go="mesas"] strong').forEach(e => { e.textContent = i18nPut(plural); });
   try{ aplicarModulos(); }catch(e){}
-  if(espacio()[0] === 'Mesa'){ if(vocabObs){ vocabObs.disconnect(); vocabObs = null; } return; }
+  const pnav = document.querySelector('nav button[data-view="productos"] .nav-lbl'); if(pnav) pnav.textContent = i18nPut(producto1()[1]);
+  if(!vocabHayQue()){ if(vocabObs){ vocabObs.disconnect(); vocabObs = null; } return; }
   try{ vocabNodo(document.body); }catch(e){}
   if(!vocabObs && window.MutationObserver){
     vocabObs = new MutationObserver(muts => {
@@ -14952,6 +14995,39 @@ function fillTypeSelect(sel, value){
 /* Buscador de tipo de negocio: el cliente escribe una palabra («lavandería», «uñas», «pollo»…)
    y salen los negocios que coinciden. Si no está, puede escribir el suyo («Mi negocio es…»).
    onPick(clave, nombrePropio) — nombrePropio solo viene cuando eligió «Otro» escribiendo el suyo. */
+/* En pantallas pequeñas la lista completa no cabe en la tarjeta de entrada: se muestra solo
+   el negocio elegido y, al tocarlo, el buscador se abre en una ventana aparte. */
+window.ventoTipoBoton = function(host, value, onPick, opt){
+  opt = opt || {};
+  let sel = (VN.ALIAS[value] || value || 'tienda'), propio = opt.nombrePropio || '';
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  host.classList.add('tp-host'); host.setAttribute('data-novocab', '');
+  const pinta = () => {
+    const t = VN.get(sel) || VN.get('otro');
+    host.innerHTML = '<button type="button" class="tp-btn"><span class="tp-btn-ic">' + t.icono + '</span>' +
+      '<span class="tp-btn-tx"><b>' + esc(sel === 'otro' && propio ? propio : t.nombre) + '</b><small>' + esc(t.esp[1]) + ' · ' + esc(t.carta) + '</small></span>' +
+      '<span class="tp-btn-go">Cambiar</span></button>';
+    host.querySelector('.tp-btn').onclick = abrir;
+  };
+  function abrir(){
+    let ov = document.getElementById('tipoSheet');
+    if(!ov){
+      ov = document.createElement('div'); ov.id = 'tipoSheet'; ov.className = 'overlay'; ov.setAttribute('data-novocab', '');
+      ov.innerHTML = '<div class="modal tp-sheet"><h2>¿Qué tipo de negocio tienes?</h2><div class="modal-sub">Escribe una palabra: lavandería, uñas, pollo, taller, vuelos…</div><div id="tipoSheetPick"></div><div class="modal-actions"><button type="button" class="btn-close" id="tipoSheetX">Cerrar</button></div></div>';
+      document.body.appendChild(ov);
+      ov.addEventListener('click', e => { if(e.target === ov) ov.classList.remove('show'); });
+      document.getElementById('tipoSheetX').onclick = () => ov.classList.remove('show');
+    }
+    window.ventoTipoPicker(document.getElementById('tipoSheetPick'), sel, (k, nom) => {
+      sel = k; propio = nom || ''; pinta(); onPick(sel, propio);
+      ov.classList.remove('show');
+    }, { nombrePropio: propio, max: 60 });
+    ov.classList.add('show');
+    setTimeout(() => { const q = ov.querySelector('.tp-q'); if(q) try{ q.focus(); }catch(e){} }, 120);
+  }
+  pinta();
+  return { get valor(){ return sel; }, get nombrePropio(){ return propio; }, abrir };
+};
 window.ventoTipoPicker = function(host, value, onPick, opt){
   opt = opt || {};
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -15102,7 +15178,7 @@ function showAuth(firstRun){
   document.getElementById('authPass').autocomplete = firstRun ? 'new-password' : 'current-password';
   fillTypeSelect(document.getElementById('authType'), 'tienda');
   authTipoPropio = '';
-  window.ventoTipoPicker(document.getElementById('authTypePick'), 'tienda', (k, propio) => { document.getElementById('authType').value = k; authTipoPropio = propio; }, { max: 12 });
+  window.ventoTipoBoton(document.getElementById('authTypePick'), 'tienda', (k, propio) => { document.getElementById('authType').value = k; authTipoPropio = propio; });
   ov.hidden = false;
   const af = document.getElementById('authForm'), rf = document.getElementById('recForm'), g = i => document.getElementById(i);
   g('authForgot').hidden = firstRun;
@@ -19048,7 +19124,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v62';
+const MESORA_VERSION = '2026-09-26 · v63';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -21737,7 +21813,14 @@ window.mesoraCelebrar = function(emojis){
     paso(); ov.classList.add('show');
   };
   const css = document.createElement('style');
-  css.textContent = '.onb-modal{max-width:520px}.onb-dots{display:flex;gap:6px;justify-content:center;margin-bottom:12px}.onb-dots i{width:34px;height:5px;border-radius:5px;background:var(--line)}.onb-dots i.on{background:var(--amber)}' +
+  css.textContent = '.onb-modal{max-width:520px}' +
+    /* Cuerpo que se desliza y botones fijos abajo: en cualquier pantalla se ve «Siguiente». */
+    '.overlay > .onb-modal{display:flex;flex-direction:column;overflow:hidden}' +
+    '#onbCuerpo{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}' +
+    '.onb-modal > .onb-dots{flex:none}' +
+    '.onb-modal > .modal-actions{flex:none;position:sticky;bottom:0;background:var(--surface,var(--cream));padding-top:10px;margin-top:0}' +
+    '@media (min-width:700px){.onb-modal{max-width:600px}}' +
+    '.onb-dots{display:flex;gap:6px;justify-content:center;margin-bottom:12px}.onb-dots i{width:34px;height:5px;border-radius:5px;background:var(--line)}.onb-dots i.on{background:var(--amber)}' +
     '.onb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(120px,100%),1fr));gap:8px;margin-top:12px}.onb-tile{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;cursor:pointer;text-align:center;min-width:0}.onb-tile span{font-size:28px}.onb-tile b{font-size:13px;overflow-wrap:anywhere}.onb-tile.on{border-color:var(--amber);background:color-mix(in srgb,var(--amber) 16%,var(--surface));box-shadow:0 0 0 2px color-mix(in srgb,var(--amber) 45%,transparent)}' +
     '.onb-modal label{display:block;font-size:13px;color:var(--ink-soft);margin:10px 0 4px}.onb-modal input.mz-in{width:100%}' +
     '.onb-num{display:flex;align-items:center;justify-content:center;gap:12px;margin:18px 0}.onb-num button{width:52px;height:52px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:26px;cursor:pointer}.onb-num input{width:90px;text-align:center;font-size:28px;font-weight:800;padding:8px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}' +
