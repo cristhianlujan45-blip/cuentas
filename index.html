@@ -537,7 +537,7 @@
     background-color: var(--paper-2);
     border: 1px dashed var(--line);
     border-radius: 12px;
-    touch-action: none;
+    touch-action: pan-x pan-y;   /* el dedo sobre el mapa sube y baja la pantalla; arrastrar solo lo bloquean las mesas en modo «Ubicar» */
     overflow: hidden;
   }
   .floor-table{
@@ -1561,16 +1561,48 @@
       width: 100%;
     }
   }
+  /* Botones de cámara / escáner / IA: tarjeta con ícono, título y una frase que dice qué hace. */
   .btn-camera{
-    background: var(--surface-2) !important;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--amber) 14%, var(--surface-2)), var(--surface-2)) !important;
     color: var(--cream) !important;
-    border: 1px solid var(--line) !important;
-    display:flex;
-    align-items:center;
-    gap:7px;
-    white-space:nowrap;
+    border: 1px solid color-mix(in srgb, var(--amber) 40%, var(--line)) !important;
+    border-radius: 14px !important;
+    display:flex; align-items:center; justify-content:center; gap:9px;
+    padding: 11px 14px !important; min-height: 46px;
+    font: 700 14.5px/1.25 var(--font-main); text-align:center;
+    white-space: normal; overflow-wrap:anywhere; cursor:pointer;
+    box-shadow: 0 3px 12px rgba(0,0,0,.16);
+    transition: transform .12s ease, border-color .15s ease, box-shadow .15s ease;
   }
-  .btn-camera:hover{ border-color: var(--amber) !important; }
+  .btn-camera:hover{ border-color: var(--amber) !important; box-shadow: 0 6px 18px color-mix(in srgb, var(--amber) 22%, transparent); }
+  .btn-camera:active{ transform: scale(.98); }
+  .btn-camera.cam-big{ justify-content:flex-start; text-align:left; padding: 12px 14px !important; min-height: 64px; }
+  .btn-camera .cam-ic{ flex:0 0 42px; height:42px; border-radius:12px; display:grid; place-items:center; font-size:22px; background: color-mix(in srgb, var(--amber) 22%, transparent); }
+  .btn-camera .cam-tx{ display:flex; flex-direction:column; gap:3px; min-width:0; }
+  .btn-camera .cam-tx strong{ font-size:15px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .btn-camera .cam-tx small{ font-weight:500; font-size:12.5px; line-height:1.35; color: var(--ink-soft); }
+  .cam-ia{ font-style:normal; font-size:10.5px; font-weight:800; letter-spacing:.06em; padding:2px 7px; border-radius:999px; background: var(--amber); color:#fff; }
+  .cam-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); gap:10px; flex: 1 1 100%; width:100%; }
+  .cam-config{ flex: 1 1 100%; }
+  .cam-card{ margin:10px 0; padding:12px; border-radius:16px; border:1px solid color-mix(in srgb, var(--amber) 30%, var(--line)); background: color-mix(in srgb, var(--amber) 6%, var(--surface)); }
+  .cam-card-head{ display:flex; gap:10px; align-items:flex-start; }
+  .cam-card-head .cam-ic{ flex:0 0 42px; height:42px; border-radius:12px; display:grid; place-items:center; font-size:22px; background: color-mix(in srgb, var(--amber) 22%, transparent); }
+  .cam-card-head .cam-tx{ display:flex; flex-direction:column; gap:3px; min-width:0; }
+  .cam-card-head strong{ font-size:15px; }
+  .cam-card-head small{ font-size:12.5px; line-height:1.35; color: var(--ink-soft); }
+  .cam-card-btns{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px; }
+  #view-inventario .inv-head .btn-camera.cam-big{ flex: 1 1 100%; }
+  /* Música en el TV: una sola sección, cada forma se abre y se cierra */
+  .tv-opt{ border:1px solid var(--line); border-radius:14px; margin:10px 0; background: var(--surface); overflow:hidden; }
+  .tv-opt[open]{ border-color: color-mix(in srgb, var(--amber) 45%, var(--line)); }
+  .tv-opt > summary{ list-style:none; cursor:pointer; padding:12px 40px 12px 14px; position:relative; display:flex; flex-direction:column; gap:3px; }
+  .tv-opt > summary::-webkit-details-marker{ display:none; }
+  .tv-opt > summary::after{ content:'›'; position:absolute; right:16px; top:50%; transform:translateY(-50%) rotate(90deg); font-size:22px; color:var(--ink-soft); transition:transform .15s; }
+  .tv-opt[open] > summary::after{ transform:translateY(-50%) rotate(-90deg); }
+  .tv-opt-t{ font-weight:800; font-size:15px; }
+  .tv-opt > summary small{ font-size:12.5px; color:var(--ink-soft); line-height:1.35; }
+  .tv-opt > :not(summary){ margin-left:14px; margin-right:14px; }
+  .tv-opt > :last-child{ margin-bottom:14px; }
   .btn-camera:disabled{ opacity:.5; cursor:wait; }
   .photo-preview{
     display:none;
@@ -2433,17 +2465,31 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
 }
 
 /* ---------- Pantalla bien dimensionada y scroll sin trabas ----------
-   - Las ventanas usan la altura REAL visible del celular (dvh): con "vh" el final de la ventana
-     quedaba escondido detrás de la barra del navegador y no se alcanzaban los últimos botones.
+   - Cada ventana mide como máximo el espacio que de verdad se ve (100% del fondo oscuro, que
+     ocupa justo la pantalla). Con medidas en "vh", la letra grande, el modo fácil o Chrome en
+     «sitio de computador» (zoom) la hacían más alta que la pantalla y, como iba centrada, el
+     principio quedaba cortado arriba sin poder subir a verlo.
+   - Si igual no cabe, se ve desde arriba (margin:auto en vez de centrar) y se desliza.
    - Con una ventana abierta, la página de atrás no se mueve (antes el dedo arrastraba el fondo).
    - El micrófono flotante no tapa los botones de las ventanas. */
 .overlay{ overflow-y:auto; overscroll-behavior:contain; padding-top:max(16px, env(safe-area-inset-top)); padding-bottom:max(16px, env(safe-area-inset-bottom)); }
 .modal{ overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
-@supports (height:100dvh){
-  .modal{ max-height:88dvh; }
-  .overlay .modal[style*="max-height:88vh"], .overlay .modal[style*="max-height:90vh"], .overlay .modal[style*="max-height:92vh"]{ max-height:90dvh !important; }
-}
-body:has(.overlay.show){ overflow:hidden; }
+.overlay:not(#navMoreSheet):not(#asisOverlay) > *{ margin:auto; max-height:100% !important; overflow-y:auto; overscroll-behavior:contain; }
+.more-panel{ max-height:100%; overflow-y:auto; overscroll-behavior:contain; }
+@media (min-width:600px){ #asisOverlay .asis-panel{ height:min(100%, 760px); } }
+body:has(.overlay.show:not([hidden])){ overflow:hidden; }
+/* Nada se sale por el lado (celulares angostos o letra grande): las filas bajan de renglón y los
+   textos largos se parten, en vez de empujar la ventana hacia los lados. */
+.modal-title-row{ flex-wrap:wrap; }
+.modal-title-row h2{ min-width:0; }
+.line-item{ gap:8px; }
+.line-item > :first-child{ min-width:0; overflow-wrap:anywhere; }
+.line-item .li-right{ flex-shrink:0; }
+.split-row, .paysel-actions, .cat-live{ flex-wrap:wrap; }
+.overlay .modal input, .overlay .modal select, .overlay .modal textarea{ max-width:100%; }
+.ct-dos{ grid-template-columns:repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
+.more-tile{ min-width:0; overflow-wrap:anywhere; }
+.prod-photo-side{ min-width:0; overflow-wrap:anywhere; }
 body:has(.overlay.show:not(#overlay)) .voice-fab-wrap, body:has(.overlay.show:not(#overlay)) .voice-fab-tab{ visibility:hidden; pointer-events:none; }
 /* En la cuenta de la mesa el micrófono sigue a mano, pero se deja espacio al final para que
    «Cobrar saldo y liberar mesa» quede arriba del botón y nunca debajo. */
@@ -2553,10 +2599,12 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
     </div>
 
     <div class="product-form">
-      <button type="button" class="btn-camera" id="cameraBtn">📷 Escanear con IA + web</button>
-      <button type="button" class="btn-camera" id="scanCodeAddBtn" title="Apunta la cámara al código de barras o QR de un producto">🔳 Escanear código</button>
-      <button type="button" class="btn-ghost" id="aiConfigBtn" title="Configurar la IA (Gemini gratis u OpenAI) para reconocer productos y entender mejor la voz">⚙️ Configurar IA</button>
-      <button type="button" class="btn-ghost" id="voiceProductBtn" title="Agregar producto diciendo nombre y precio">🎤 Producto por voz + IA</button>
+      <div class="cam-grid">
+        <button type="button" class="btn-camera cam-big" id="cameraBtn"><span class="cam-ic">📷</span><span class="cam-tx"><strong>Foto con IA <em class="cam-ia">IA</em></strong><small>Tómale foto al producto: la IA lo reconoce y busca su precio en internet.</small></span></button>
+        <button type="button" class="btn-camera cam-big" id="scanCodeAddBtn" title="Apunta la cámara al código de barras o QR de un producto"><span class="cam-ic">🔳</span><span class="cam-tx"><strong>Código de barras</strong><small>Apunta al código o QR del producto para buscarlo o crearlo.</small></span></button>
+        <button type="button" class="btn-camera cam-big" id="voiceProductBtn" title="Agregar producto diciendo nombre y precio"><span class="cam-ic">🎤</span><span class="cam-tx"><strong>Por voz <em class="cam-ia">IA</em></strong><small>Di el nombre y el precio: «Club Colombia a cinco mil».</small></span></button>
+      </div>
+      <button type="button" class="btn-ghost cam-config" id="aiConfigBtn" title="Configurar la IA (Gemini gratis u OpenAI) para reconocer productos y entender mejor la voz">⚙️ Configurar IA</button>
       <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
       <input type="text" id="prodName" placeholder="Nombre del producto (ej. Cerveza artesanal 330ml)">
       <input type="text" id="prodSize" placeholder="Tamaño / presentación (ej. 330 ml)" autocomplete="off">
@@ -2576,14 +2624,16 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <input type="search" id="prodBuscar" placeholder="🔎 Buscar producto: nombre, tamaño o categoría" autocomplete="off" enterkeyhint="search">
       <span id="prodBuscarN"></span>
     </div>
-    <div class="cat-live" id="catLive"><span id="catLiveTxt">La carta de los clientes se actualiza sola cuando cambias un producto.</span><button type="button" class="btn-ghost" id="catLiveBtn">📤 Actualizar carta ahora</button></div>
+    <div class="cat-live" id="catLive"><span id="catLiveTxt">La carta de los clientes se actualiza sola cuando cambias un producto.</span></div>
     <div class="product-list" id="productList"></div>
   </section>
 
   <section id="view-inventario">
-    <div class="inv-head"><h2>📦 Inventario</h2><button type="button" class="btn-camera" id="invScan">📷 Escanear para dar entrada</button><button type="button" class="btn-camera" id="invPriceBtn">🏷️ Escanear precio y margen</button><button type="button" class="btn-ghost" id="invDup">🧩 Unir repetidos</button></div>
-    <div class="inv-subcat"><span class="inv-subcat-label">🧾 Factura de proveedor · Con IA</span><button type="button" class="btn-camera" id="invInvoiceCamBtn" title="Tomar foto de la factura (con IA)">📷 Cámara</button><button type="button" class="btn-camera" id="invInvoiceGalBtn" title="Elegir foto o PDF ya guardado (con IA)">🖼️ Galería / PDF</button></div>
-    <div class="inv-subcat"><span class="inv-subcat-label">Sin internet</span><button type="button" class="btn-camera" id="invInvoiceOfflineCamBtn" title="Tomar foto de la factura (sin internet)">📷 Cámara</button><button type="button" class="btn-camera" id="invInvoiceOfflineGalBtn" title="Elegir foto o PDF ya guardado (sin internet)">🖼️ Galería / PDF</button></div>
+    <div class="inv-head"><h2>📦 Inventario</h2><button type="button" class="btn-camera cam-big" id="invPriceBtn"><span class="cam-ic">🏷️</span><span class="cam-tx"><strong>Precio y margen con foto <em class="cam-ia">IA</em></strong><small>Foto de la etiqueta o del producto: te dice el costo y a cuánto venderlo.</small></span></button><button type="button" class="btn-ghost" id="invDup">🧩 Unir repetidos</button></div>
+    <div class="cam-card">
+      <div class="cam-card-head"><span class="cam-ic">🧾</span><div class="cam-tx"><strong>Factura del proveedor</strong><small>Toma la foto o sube la foto o el PDF: se anotan cantidades y costos. Con internet la lee la IA; sin internet igual se lee. Siempre revisas antes de guardar.</small></div></div>
+      <div class="cam-card-btns"><button type="button" class="btn-camera cam-sm" id="invInvoiceCamBtn" title="Tomar foto de la factura">📷 Tomar foto</button><button type="button" class="btn-camera cam-sm" id="invInvoiceGalBtn" title="Elegir foto o PDF ya guardado">🖼️ Galería o PDF</button></div>
+    </div>
     <input type="file" id="invoiceCamInput" accept="image/*" capture="environment" style="display:none">
     <input type="file" id="invoiceGalInput" accept="image/*,application/pdf" multiple style="display:none">
     <input type="file" id="invoiceOfflineCamInput" accept="image/*" capture="environment" style="display:none">
@@ -2701,74 +2751,74 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <div class="settings-row"><div class="settings-row-text"><strong>Reproducir automáticamente</strong><span id="autoEstado"></span></div><label class="switch"><input type="checkbox" id="autoPlay"><span class="switch-slider"></span></label></div>
       <div id="ytBox" hidden><div id="ytPlayer"></div></div>
     </div>
-    <div class="settings-group">
-      <h2>📺 Pantalla del TV <span class="tvp-badge">Recomendado</span></h2>
-      <div class="settings-desc">El TV se vuelve el reproductor: abre un link en el <b>navegador del TV</b> (LG, Samsung, Android TV o TV Box) y suena la cola en orden, en vivo. Cada canción que piden las mesas entra sola, sin Google y sin transmitir. Solo se ponen versiones que ya se comprobó que se dejan reproducir.</div>
-      <div class="settings-row"><div class="settings-row-text"><strong>Usar el TV como reproductor</strong><span id="tvpEstado"></span></div><label class="switch"><input type="checkbox" id="tvpOn"><span class="switch-slider"></span></label></div>
-      <div id="tvpBox" hidden>
-        <input id="tvpLink" class="mz-in" readonly onclick="this.select()">
-        <div class="mz-actions"><button class="btn-primary" id="tvpCopy" type="button">📋 Copiar link del TV</button><button class="btn-ghost" id="tvpNew" type="button">Crear link nuevo</button></div>
-        <div class="settings-desc">En el TV: abre el <b>Navegador web</b> (en LG se llama «Web Browser»), escribe el link de arriba y guárdalo en favoritos. Toca <b>OK</b> en el control para empezar. Deja Mesora abierta en este celular: de aquí salen las canciones.</div>
-      </div>
-    </div>
-    <div class="settings-group">
-      <h2>📺 YouTube del TV: canciones solas <span class="tvp-badge">Nuevo</span></h2>
-      <div class="settings-desc">Mesora se conecta a la <b>app de YouTube de tu televisor</b> (LG, Samsung, Android TV…) con el código del TV y le va <b>agregando cada canción que piden las mesas a su cola, en vivo</b>, sin tocar nada. Suena en el TV (no en el celular) y sin bloqueos de sello. <b>Esto NO usa ninguna cuenta de Google</b> — funciona igual que el control remoto de tu celular con la app de YouTube, sin iniciar sesión con nadie, así que no hay ninguna cuenta que confirmar aquí. Si quieres que las canciones se guarden en tu propia biblioteca/lista de YouTube Music, eso es la sección de abajo, <b>▶ YouTube Music automático</b>, con «Conectar con Google». Se configura una sola vez:</div>
-      <div class="lng-step"><span class="pair-n">1</span><div><strong>Puente gratis (5 minutos, una sola vez)</strong>
-        <p>YouTube no deja que una página web hable directo con el TV; el puente le pasa los mensajes. <a href="#" id="lngHow">Ver cómo se crea</a></p>
-        <input id="lngRelay" class="mz-in" placeholder="https://mesora-tv.tu-usuario.workers.dev" autocapitalize="none" autocomplete="off" spellcheck="false">
-        <div class="mz-actions"><button class="btn-ghost" id="lngCopy" type="button">📋 Copiar código del puente</button><button class="btn-ghost" id="lngTest" type="button">Probar puente</button></div>
-      </div></div>
-      <div class="lng-step"><span class="pair-n">2</span><div style="flex:1;min-width:0"><strong>Código del TV</strong>
-        <p>En el TV: YouTube → Configuración → <b>Vincular con código de TV</b>. Escribe aquí los 12 números:</p>
-        <input id="lngCode" class="mz-in lng-code" inputmode="numeric" autocomplete="off" placeholder="000 000 000 000" maxlength="15">
-        <button class="btn-primary cast-big" id="lngGo" type="button">🔗 Conectar con el YouTube del TV</button>
-      </div></div>
-      <div class="cast-devs" id="lngBox"><span class="cast-dot"></span><span id="lngEstado">Sin conectar.</span></div>
-      <div class="settings-desc" id="lngBusca" style="margin-top:6px"></div>
-      <div class="mz-actions"><button class="btn-ghost" id="lngCuenta" type="button">🔑 Conectar mi cuenta de YouTube</button></div>
-      <div class="mz-actions"><button class="btn-ghost" id="lngPlay" type="button" hidden>▶ Poner la cola en el TV ahora</button><button class="btn-ghost" id="lngOff" type="button" hidden>Desconectar</button><button class="btn-ghost" id="lngVerLog" type="button">🔍 Ver qué pasó</button></div>
-      <div id="lngLogBox" hidden>
-        <pre id="lngLog" style="max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.5;background:rgba(0,0,0,.25);padding:10px;border-radius:10px;margin:8px 0 0"></pre>
-        <div class="mz-actions"><button class="btn-ghost" id="lngLogCopy" type="button">📋 Copiar el registro</button></div>
-      </div>
-    </div>
-    <div class="settings-group">
-      <h2>📺 Transmitir al TV</h2>
-      <div class="settings-desc">Los Smart TV (LG webOS, Samsung…) y «YouTube on TV» solo los encuentra la <b>app de YouTube</b>: por eso los botones de abajo abren YouTube Music o YouTube directo en tu celular, no el navegador. Con Google conectado (más abajo), las canciones que pidan las mesas se agregan solas a esa lista en tiempo real, sin volver a tocar nada.</div>
-      <div class="cast-env" id="castEnv"></div>
-      <div class="cast-or">Abre la app instalada en este celular con la lista puesta. Ahí toca el ícono de transmitir y elige tu TV (LG, Samsung, «YouTube on TV»…):</div>
-      <div class="cast-apps">
-        <button class="btn-primary" id="castOpenMusic" type="button">▶ YouTube Music</button>
-        <button class="btn-primary" id="castOpenYT" type="button">▶ YouTube</button>
-      </div>
-      <div class="cast-devs" id="castDevs" hidden><span class="cast-dot"></span><span id="castDevsTxt"></span></div>
-      <button class="btn-primary cast-big" id="castPres" type="button">📡 Chromecast / Google TV / Android TV: abrir YouTube en el TV</button>
-      <div class="mz-actions">
-        <button class="btn-ghost" id="castPair" type="button">🔗 Vincular con código de TV</button>
-        <button class="btn-ghost" id="castHelp" type="button">¿No aparece tu TV?</button>
-        <button class="btn-ghost" id="castStop" type="button" hidden>Terminar transmisión</button>
-      </div>
-      <button class="btn-primary cast-big" id="castRefresh" type="button" hidden>▶ Mandar las canciones nuevas al TV</button>
-      <div class="cast-state" id="castEstado"></div>
+    <div class="settings-group tv-hub">
+      <h2>📺 Música en el TV</h2>
+      <div class="settings-desc">Elige <b>una</b> forma de que la música suene en el TV. Si no sabes cuál, usa la primera.</div>
+      <details class="tv-opt" open><summary><span class="tv-opt-t">Pantalla del TV <span class="tvp-badge">Recomendado</span></span><small>Abres un link en el navegador del TV y suena la cola en orden, sola.</small></summary>
+        <div class="settings-desc">El TV se vuelve el reproductor: abre un link en el <b>navegador del TV</b> (LG, Samsung, Android TV o TV Box) y suena la cola en orden, en vivo. Cada canción que piden las mesas entra sola, sin Google y sin transmitir. Solo se ponen versiones que ya se comprobó que se dejan reproducir.</div>
+        <div class="settings-row"><div class="settings-row-text"><strong>Usar el TV como reproductor</strong><span id="tvpEstado"></span></div><label class="switch"><input type="checkbox" id="tvpOn"><span class="switch-slider"></span></label></div>
+        <div id="tvpBox" hidden>
+          <input id="tvpLink" class="mz-in" readonly onclick="this.select()">
+          <div class="mz-actions"><button class="btn-primary" id="tvpCopy" type="button">📋 Copiar link del TV</button><button class="btn-ghost" id="tvpNew" type="button">Crear link nuevo</button></div>
+          <div class="settings-desc">En el TV: abre el <b>Navegador web</b> (en LG se llama «Web Browser»), escribe el link de arriba y guárdalo en favoritos. Toca <b>OK</b> en el control para empezar. Deja Mesora abierta en este celular: de aquí salen las canciones.</div>
+        </div>
+      </details>
+      <details class="tv-opt"><summary><span class="tv-opt-t">YouTube del TV: canciones solas</span><small>Mesora le manda cada canción a la app de YouTube del TV con su código de 12 números.</small></summary>
+        <div class="settings-desc">Mesora se conecta a la <b>app de YouTube de tu televisor</b> (LG, Samsung, Android TV…) con el código del TV y le va <b>agregando cada canción que piden las mesas a su cola, en vivo</b>, sin tocar nada. Suena en el TV (no en el celular) y sin bloqueos de sello. <b>Esto NO usa ninguna cuenta de Google</b> — funciona igual que el control remoto de tu celular con la app de YouTube, sin iniciar sesión con nadie, así que no hay ninguna cuenta que confirmar aquí. Si quieres que las canciones se guarden en tu propia biblioteca/lista de YouTube Music, eso es la sección de abajo, <b>▶ YouTube Music automático</b>, con «Conectar con Google». Se configura una sola vez:</div>
+        <div class="lng-step"><span class="pair-n">1</span><div><strong>Puente gratis (5 minutos, una sola vez)</strong>
+          <p>YouTube no deja que una página web hable directo con el TV; el puente le pasa los mensajes. <a href="#" id="lngHow">Ver cómo se crea</a></p>
+          <input id="lngRelay" class="mz-in" placeholder="https://mesora-tv.tu-usuario.workers.dev" autocapitalize="none" autocomplete="off" spellcheck="false">
+          <div class="mz-actions"><button class="btn-ghost" id="lngCopy" type="button">📋 Copiar código del puente</button><button class="btn-ghost" id="lngTest" type="button">Probar puente</button></div>
+        </div></div>
+        <div class="lng-step"><span class="pair-n">2</span><div style="flex:1;min-width:0"><strong>Código del TV</strong>
+          <p>En el TV: YouTube → Configuración → <b>Vincular con código de TV</b>. Escribe aquí los 12 números:</p>
+          <input id="lngCode" class="mz-in lng-code" inputmode="numeric" autocomplete="off" placeholder="000 000 000 000" maxlength="15">
+          <button class="btn-primary cast-big" id="lngGo" type="button">🔗 Conectar con el YouTube del TV</button>
+        </div></div>
+        <div class="cast-devs" id="lngBox"><span class="cast-dot"></span><span id="lngEstado">Sin conectar.</span></div>
+        <div class="settings-desc" id="lngBusca" style="margin-top:6px"></div>
+        <div class="mz-actions"><button class="btn-ghost" id="lngCuenta" type="button">🔑 Conectar mi cuenta de YouTube</button></div>
+        <div class="mz-actions"><button class="btn-ghost" id="lngPlay" type="button" hidden>▶ Poner la cola en el TV ahora</button><button class="btn-ghost" id="lngOff" type="button" hidden>Desconectar</button><button class="btn-ghost" id="lngVerLog" type="button">🔍 Ver qué pasó</button></div>
+        <div id="lngLogBox" hidden>
+          <pre id="lngLog" style="max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.5;background:rgba(0,0,0,.25);padding:10px;border-radius:10px;margin:8px 0 0"></pre>
+          <div class="mz-actions"><button class="btn-ghost" id="lngLogCopy" type="button">📋 Copiar el registro</button></div>
+        </div>
+      </details>
+      <details class="tv-opt"><summary><span class="tv-opt-t">Transmitir al TV</span><small>Abres YouTube en el celular y lo mandas al TV (Chromecast, Google TV).</small></summary>
+        <div class="settings-desc">Los Smart TV (LG webOS, Samsung…) y «YouTube on TV» solo los encuentra la <b>app de YouTube</b>: por eso los botones de abajo abren YouTube Music o YouTube directo en tu celular, no el navegador. Con Google conectado (más abajo), las canciones que pidan las mesas se agregan solas a esa lista en tiempo real, sin volver a tocar nada.</div>
+        <div class="cast-env" id="castEnv"></div>
+        <div class="cast-or">Abre la app instalada en este celular con la lista puesta. Ahí toca el ícono de transmitir y elige tu TV (LG, Samsung, «YouTube on TV»…):</div>
+        <div class="cast-apps">
+          <button class="btn-primary" id="castOpenMusic" type="button">▶ YouTube Music</button>
+          <button class="btn-primary" id="castOpenYT" type="button">▶ YouTube</button>
+        </div>
+        <div class="cast-devs" id="castDevs" hidden><span class="cast-dot"></span><span id="castDevsTxt"></span></div>
+        <button class="btn-primary cast-big" id="castPres" type="button">📡 Chromecast / Google TV / Android TV: abrir YouTube en el TV</button>
+        <div class="mz-actions">
+          <button class="btn-ghost" id="castPair" type="button">🔗 Vincular con código de TV</button>
+          <button class="btn-ghost" id="castHelp" type="button">¿No aparece tu TV?</button>
+          <button class="btn-ghost" id="castStop" type="button" hidden>Terminar transmisión</button>
+        </div>
+        <button class="btn-primary cast-big" id="castRefresh" type="button" hidden>▶ Mandar las canciones nuevas al TV</button>
+        <div class="cast-state" id="castEstado"></div>
+      </details>
+      <details class="tv-opt"><summary><span class="tv-opt-t">YouTube Music automático</span><small>Copia las canciones a una lista de tu cuenta de Google.</small></summary>
+        <div class="settings-desc">⚠️ Esto copia las canciones a una lista <b>de tu cuenta de Google</b>. Para verlas en el TV, el TV tiene que estar con <b>esa misma cuenta</b>: si el TV está con otra (o sin cuenta), la lista no le aparece. Abajo se muestra con cuál quedó conectada la app, para que la compares con la del TV.<br><br>Si no quieres depender de la cuenta, usa <b>📺 YouTube del TV</b> (el del código de 12 números): ese <b>no necesita ninguna cuenta</b> ni que el TV y tú tengan la misma, porque le manda las canciones al TV como si fueras el control remoto.</div>
+        <div class="settings-desc" id="ytEstado"></div>
+        <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
+          <input id="ytKey" class="mz-in" placeholder="API key de YouTube (para buscar las canciones)" autocapitalize="none" autocomplete="off">
+          <input id="ytCid" class="mz-in" placeholder="Client ID de Google (termina en .apps.googleusercontent.com)" autocapitalize="none" autocomplete="off">
+          <input id="ytPl" class="mz-in" placeholder="ID de la lista (si lo dejas vacío, se crea sola)" autocapitalize="none" autocomplete="off">
+          <div class="mz-actions"><button class="btn-warn" id="ytConn" type="button">Conectar con Google</button><button class="btn-ghost" id="ytOpen" type="button">Abrir lista en YouTube Music</button></div>
+        </div>
+        <details class="settings-desc"><summary>Cómo obtener el Client ID (una sola vez)</summary>
+          1) En console.cloud.google.com crea un proyecto. 2) Habilita «YouTube Data API v3». 3) En «Pantalla de consentimiento de OAuth» elige Externo y agrega tu correo como usuario de prueba. 4) En Credenciales crea un «ID de cliente de OAuth» tipo Aplicación web y en «Orígenes de JavaScript autorizados» pon la dirección https donde tienes esta app (sin / al final). 5) Copia el Client ID aquí. Para que la app busque y reproduzca sola solo necesitas una «Clave de API» (Credenciales → Crear credencial → Clave de API, limitada a YouTube Data API v3): no caduca cada hora. El Client ID solo hace falta para copiar las canciones a la lista de YouTube Music. No funciona si abres la app como archivo del celular: debe estar en esa dirección https. La conexión dura cerca de 1 hora; después toca Conectar otra vez.
+        </details>
+      </details>
     </div>
     <div class="settings-group">
       <h2>Cómo se reparte</h2>
       <div class="settings-desc">Cada mesa puede pedir hasta 10 canciones; cada cupo se libera 15 minutos después de pedirlo. La cola va por turnos: suena una canción de cada mesa y luego vuelve a empezar, así nadie acapara la música. ▶ abre la canción en YouTube Music (si conectas Google abajo, ni falta te hace: se agregan solas a tu lista, de primeras, sin tocar lo que ya está sonando).</div>
-    </div>
-    <div class="settings-group">
-      <h2>▶ YouTube Music automático</h2>
-      <div class="settings-desc">⚠️ Esto copia las canciones a una lista <b>de tu cuenta de Google</b>. Para verlas en el TV, el TV tiene que estar con <b>esa misma cuenta</b>: si el TV está con otra (o sin cuenta), la lista no le aparece. Abajo se muestra con cuál quedó conectada la app, para que la compares con la del TV.<br><br>Si no quieres depender de la cuenta, usa <b>📺 YouTube del TV</b> (el del código de 12 números): ese <b>no necesita ninguna cuenta</b> ni que el TV y tú tengan la misma, porque le manda las canciones al TV como si fueras el control remoto.</div>
-      <div class="settings-desc" id="ytEstado"></div>
-      <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
-        <input id="ytKey" class="mz-in" placeholder="API key de YouTube (para buscar las canciones)" autocapitalize="none" autocomplete="off">
-        <input id="ytCid" class="mz-in" placeholder="Client ID de Google (termina en .apps.googleusercontent.com)" autocapitalize="none" autocomplete="off">
-        <input id="ytPl" class="mz-in" placeholder="ID de la lista (si lo dejas vacío, se crea sola)" autocapitalize="none" autocomplete="off">
-        <div class="mz-actions"><button class="btn-warn" id="ytConn" type="button">Conectar con Google</button><button class="btn-ghost" id="ytOpen" type="button">Abrir lista en YouTube Music</button></div>
-      </div>
-      <details class="settings-desc"><summary>Cómo obtener el Client ID (una sola vez)</summary>
-        1) En console.cloud.google.com crea un proyecto. 2) Habilita «YouTube Data API v3». 3) En «Pantalla de consentimiento de OAuth» elige Externo y agrega tu correo como usuario de prueba. 4) En Credenciales crea un «ID de cliente de OAuth» tipo Aplicación web y en «Orígenes de JavaScript autorizados» pon la dirección https donde tienes esta app (sin / al final). 5) Copia el Client ID aquí. Para que la app busque y reproduzca sola solo necesitas una «Clave de API» (Credenciales → Crear credencial → Clave de API, limitada a YouTube Data API v3): no caduca cada hora. El Client ID solo hace falta para copiar las canciones a la lista de YouTube Music. No funciona si abres la app como archivo del celular: debe estar en esa dirección https. La conexión dura cerca de 1 hora; después toca Conectar otra vez.
-      </details>
     </div>
   </section>
 
@@ -3074,7 +3124,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
 
     <div class="settings-group" hidden data-cat="pedidos">
       <h2>🛎️ Personalizar la página de pedidos</h2>
-      <div class="settings-desc">Esto lo ve el cliente en pedido.html: un mensaje tuyo, datos de contacto/info extra y el horario (con reloj y aviso de abierto/cerrado en vivo). Se publica junto con el catálogo — usa el botón "📤 Publicar catálogo" más abajo (o simplemente espera unos segundos) para que se actualice.</div>
+      <div class="settings-desc">Esto lo ve el cliente en pedido.html: un mensaje tuyo, datos de contacto/info extra y el horario (con reloj y aviso de abierto/cerrado en vivo). Se publica junto con el catálogo — se actualiza sola en unos segundos (o toca «📤 Publicar en QR» en Carta).</div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch">
         <div class="settings-row-text"><strong>Mensaje para tus clientes</strong><span>Aparece arriba en la página de pedidos. Ej: "¡Bienvenidos! Hoy 2x1 en cerveza hasta las 8pm."</span></div>
         <textarea id="orderMessageInput" class="mz-in" style="width:100%;min-height:50px;resize:vertical" maxlength="200" placeholder="Ej: ¡Bienvenidos a La Tienda de Vito!"></textarea>
@@ -3122,7 +3172,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
         <input id="qrUrl" class="mz-in" placeholder="🌐 Proveedor: dirección donde vive tu página de pedidos" autocapitalize="none" autocomplete="off">
         <input id="qrWa" class="mz-in" placeholder="WhatsApp de respaldo con indicativo (573001234567)" inputmode="numeric">
-        <div class="mz-actions"><button class="btn-warn" id="qrGen" type="button">Ver QR</button><button class="btn-warn" id="qrPrintBtn" type="button">🖨️ Imprimir todos</button><button class="btn-warn" id="catPubBtn" type="button">📤 Publicar catálogo</button></div>
+        <div class="mz-actions"><button class="btn-warn" id="qrGen" type="button">Ver QR</button><button class="btn-warn" id="qrPrintBtn" type="button">🖨️ Imprimir todos</button></div>
         <div class="auth-hint" id="catPubEstado">El catálogo o menú se publica solo mientras la app esté abierta.</div>
       </div>
       <div class="settings-row">
@@ -5810,6 +5860,7 @@ const VOICE_AYUDA = [
   ['Nombre de la mesa', ['cámbiale el nombre a la mesa 3 por Pedro', 'la mesa 2 se llama Martín', 'ponle Carolina a la mesa 4', 'renombra la mesa 1 como Lucía', 'quítale el nombre a la mesa 2']],
   ['Cambiar de mesa', ['pasa la mesa 3 a la 5', 'junta la mesa 1 con la 4 (se juntan las cuentas)', 'cambia la mesa Juan a la 2']],
   ['Corregir', ['quita una póker de la mesa 2', 'la mesa 4 son tres águilas (corrige la cantidad)', 'deshacer', 'quitar mesa 3']],
+  ['Libreta (lista negra)', ['agrégame a la lista negra 30 mil para Julián', 'agrégame a la lista que Julián quedó debiendo 30 mil', 'Julián quedó de pagar 20 mil', 'cárgale a Julián 12 mil', 'fíale 10 mil a Ana', 'Julián pagó 10 mil', 'bórrale 5 mil a Julián', 'saca a Julián de la lista negra (pagó todo)', '¿quién me debe?']],
   ['Recordar', ['recuérdame el pedido (el último, por voz o a mano)', 'recuérdame el pedido de la mesa 2', 'qué lleva la mesa 3']],
   ['Cuentas', ['cuenta de la mesa 2', 'cuánto debe la 4', 'total de todas las mesas', 'cuánto llevo vendido']],
   ['Abrir', ['mesa 4 (abre esa mesa)', 'mesa Juan']]
@@ -6267,8 +6318,8 @@ async function handleVoiceTranscript(rawText){
   rawText = voiceNormalizarHabla(rawText);
   try{
     if(isVoiceHelpCommand(rawText)){ voiceAyuda(); return; }
+    if(window.libretaVoz && window.libretaVoz(rawText)) return;   // «Juan me debe 20 mil», «agrégame a la lista negra…»
     if(/\b(libreta|cuaderno)\b/i.test(rawText) && window.libretaAbrir){ window.libretaAbrir(); return; }
-    if(window.libretaVoz && window.libretaVoz(rawText)) return;   // «Juan me debe 20 mil», «le pagué a Pedro…»
     if(handleSimpleVoiceCommands(rawText)) return;
     if(conIA){
       if(!hasAIKey()){ showToast('⚠️ La IA no está conectada (⚙️ Configurar IA). Usé la voz clásica.'); return handleVoiceTranscriptLocal(rawText); }
@@ -8371,7 +8422,7 @@ function startVoiceProductCreation(){
   voiceProductListening = true;
   const btn = document.getElementById('voiceProductBtn');
   const hint = document.getElementById('voiceProductHint');
-  if(btn){ btn.classList.add('active'); btn.textContent = '⏺ Escuchando…'; }
+  if(btn){ btn.dataset.html = btn.dataset.html || btn.innerHTML; btn.classList.add('active'); btn.textContent = '⏺ Escuchando…'; }
   if(hint){ hint.classList.add('show'); hint.textContent = '🎤 Di el nombre y el precio. Ejemplo: “agregar producto Póker, precio cinco mil”.'; }
   showToast('🎤 Dime el nombre del producto y su precio.');
 
@@ -8395,7 +8446,7 @@ function startVoiceProductCreation(){
   };
   rec.onerror = (e)=>{
     voiceProductListening = false;
-    if(btn){ btn.classList.remove('active'); btn.textContent = '🎤 Producto por voz'; }
+    if(btn){ btn.classList.remove('active'); btn.innerHTML = btn.dataset.html || '🎤 Producto por voz'; }
     if(hint) hint.classList.remove('show');
     if(e.error === 'no-speech') showToast('No escuché nada. Intenta de nuevo.');
     else if(e.error === 'not-allowed' || e.error === 'service-not-allowed') showToast('Necesitas dar permiso de micrófono para usar el comando por voz.');
@@ -8404,13 +8455,13 @@ function startVoiceProductCreation(){
   };
   rec.onend = ()=>{
     voiceProductListening = false;
-    if(btn){ btn.classList.remove('active'); btn.textContent = '🎤 Producto por voz'; }
+    if(btn){ btn.classList.remove('active'); btn.innerHTML = btn.dataset.html || '🎤 Producto por voz'; }
     if(hint) hint.classList.remove('show');
     rec.onresult = oldResult; rec.onerror = oldError; rec.onend = oldEnd;
   };
   try{ rec.start(); }catch(e){
     voiceProductListening = false;
-    if(btn){ btn.classList.remove('active'); btn.textContent = '🎤 Producto por voz'; }
+    if(btn){ btn.classList.remove('active'); btn.innerHTML = btn.dataset.html || '🎤 Producto por voz'; }
     if(hint) hint.classList.remove('show');
     rec.onresult = oldResult; rec.onerror = oldError; rec.onend = oldEnd;
   }
@@ -8425,7 +8476,7 @@ const photoPreview = document.getElementById('photoPreview');
 const photoPreviewImg = document.getElementById('photoPreviewImg');
 const photoStatus = document.getElementById('photoStatus');
 const aiConfigBtn = document.getElementById('aiConfigBtn');
-const cameraBtnLabel = cameraBtn.textContent;
+const cameraBtnLabel = cameraBtn.innerHTML;
 const OPENAI_KEY_STORAGE = 'bar-openai-api-key';
 const OPENAI_MODEL_STORAGE = 'bar-openai-model';
 // 🔑 OPCIONAL: pega aquí tu API key de OpenAI (sk-...) entre las comillas si quieres que la IA
@@ -9226,7 +9277,7 @@ cameraInput.addEventListener('change', async (e)=>{
     }
   }finally{
     cameraBtn.disabled = false;
-    cameraBtn.textContent = cameraBtnLabel;
+    cameraBtn.innerHTML = cameraBtnLabel;
     cameraInput.value = '';
   }
 });
@@ -9530,6 +9581,8 @@ function i18nAll(root){
    pegando texto con datos (nombre del negocio, período elegido…) y por eso no
    basta con barrer el DOM — hay que volver a generarlas para que también queden
    en el idioma elegido, estén o no visibles en este momento. */
+try{ const dets = document.querySelectorAll('.tv-opt'); let g = null; try{ g = JSON.parse(localStorage.getItem('vito_tvopt') || 'null'); }catch(e){}
+  dets.forEach((d, k) => { if(Array.isArray(g)) d.open = g.includes(k); d.addEventListener('toggle', () => { try{ localStorage.setItem('vito_tvopt', JSON.stringify([...dets].map((x, i) => x.open ? i : -1).filter(i => i >= 0))); }catch(e){} }); }); }catch(e){}
 function i18nRefreshDynamic(){
   try{ if(typeof data === 'undefined' || !data) return; }catch(e){ return; }
   try{ if(typeof cartaLabel === 'function') cartaLabel(); }catch(e){}
@@ -9958,7 +10011,6 @@ function renderInventario(){
 }
 document.getElementById('invList').addEventListener('click', e => { const b = e.target.closest('button[data-act]'); if(!b) return; if(b.dataset.act === 'setup') invSetup(); else if(b.dataset.act === 'dups') dupOpen(); else invAsk(b.dataset.id, b.dataset.act); });
 document.getElementById('invDup').addEventListener('click', dupOpen);
-document.getElementById('invScan').addEventListener('click', () => { document.querySelector('nav button[data-view="productos"]').click(); cameraBtn.click(); });
 setTimeout(invBadge, 1500);
 
 /* ---------- Escaneo de factura de proveedor ----------
@@ -10493,8 +10545,9 @@ document.getElementById('invInvoiceCamBtn').addEventListener('click', () => invo
 document.getElementById('invInvoiceGalBtn').addEventListener('click', () => invoiceGalInput.click());
 
 async function handleOnlineInvoiceFiles(files, triggerBtn, inputEl){
-  if(!files || !files.length) return;
-  const lbl = triggerBtn.textContent;
+  if(!files || !files.length) return false;
+  const lbl = triggerBtn.innerHTML;
+  let ok = true;
   triggerBtn.disabled = true; triggerBtn.textContent = '🧾 Leyendo…';
   document.getElementById('invoiceOverlay').classList.add('show');
   document.getElementById('invoiceSub').textContent = 'Analizando la factura…';
@@ -10529,27 +10582,35 @@ async function handleOnlineInvoiceFiles(files, triggerBtn, inputEl){
     }
     invoiceOpen(info);
   }catch(err){
+    ok = false;
     invoiceClose();
     if(err && err.message === 'NO_API_KEY') showToast('Configura la IA (⚙️ en Productos) para escanear facturas.');
     else showToast('❌ ' + (err && err.message ? err.message : 'No se pudo leer la factura.'));
   }finally{
-    triggerBtn.disabled = false; triggerBtn.textContent = lbl;
+    triggerBtn.disabled = false; triggerBtn.innerHTML = lbl;
     inputEl.value = '';
   }
+  return ok;
 }
-invoiceCamInput.addEventListener('change', e => handleOnlineInvoiceFiles(Array.from(e.target.files || []), document.getElementById('invInvoiceCamBtn'), invoiceCamInput));
-invoiceGalInput.addEventListener('change', e => handleOnlineInvoiceFiles(Array.from(e.target.files || []), document.getElementById('invInvoiceGalBtn'), invoiceGalInput));
+// Un solo par de botones: con IA si hay internet y está configurada; si no (o si la IA falla), sin internet.
+async function leerFactura(files, btn, input){
+  if(!files.length) return;
+  const conIA = hasAIKey() && navigator.onLine !== false;
+  if(conIA && await handleOnlineInvoiceFiles(files, btn, input)) return;
+  if(!window.VitoOfflineOCR){ if(!conIA) showToast('Configura la IA (⚙️ en Productos) para leer facturas.'); return; }
+  return handleOfflineInvoiceFiles(files, btn, input);
+}
+invoiceCamInput.addEventListener('change', e => leerFactura(Array.from(e.target.files || []), document.getElementById('invInvoiceCamBtn'), invoiceCamInput));
+invoiceGalInput.addEventListener('change', e => leerFactura(Array.from(e.target.files || []), document.getElementById('invInvoiceGalBtn'), invoiceGalInput));
 // ---------- Factura SIN internet (motor offline Precios Vito, ver <script> al final) ----------
 // Dos botones, igual que en Precios Vito: cámara (una foto directa) y
 // galería (elegir una o varias fotos ya guardadas, o un PDF).
 const invoiceOfflineCamInput = document.getElementById('invoiceOfflineCamInput');
 const invoiceOfflineGalInput = document.getElementById('invoiceOfflineGalInput');
-document.getElementById('invInvoiceOfflineCamBtn').addEventListener('click', () => invoiceOfflineCamInput.click());
-document.getElementById('invInvoiceOfflineGalBtn').addEventListener('click', () => invoiceOfflineGalInput.click());
 
 async function handleOfflineInvoiceFiles(files, triggerBtn, inputEl){
   if(!files || !files.length) return;
-  const lbl = triggerBtn.textContent;
+  const lbl = triggerBtn.innerHTML;
   if(!window.VitoOfflineOCR){ showToast('El lector sin internet no cargó — vuelve a abrir el archivo completo.'); inputEl.value = ''; return; }
   triggerBtn.disabled = true; triggerBtn.textContent = '📴 Leyendo…';
   document.getElementById('invoiceOverlay').classList.add('show');
@@ -10572,13 +10633,11 @@ async function handleOfflineInvoiceFiles(files, triggerBtn, inputEl){
       showToast('❌ ' + (err && err.message ? err.message : 'No se pudo leer la factura sin internet.'));
     }
   }finally{
-    triggerBtn.disabled = false; triggerBtn.textContent = lbl;
+    triggerBtn.disabled = false; triggerBtn.innerHTML = lbl;
     inputEl.value = '';
     window.__vitoOcrProgress = null;
   }
 }
-invoiceOfflineCamInput.addEventListener('change', e => handleOfflineInvoiceFiles(Array.from(e.target.files || []), document.getElementById('invInvoiceOfflineCamBtn'), invoiceOfflineCamInput));
-invoiceOfflineGalInput.addEventListener('change', e => handleOfflineInvoiceFiles(Array.from(e.target.files || []), document.getElementById('invInvoiceOfflineGalBtn'), invoiceOfflineGalInput));
 
 /* ---------- Escaneo de precio y margen ----------
    Foto del producto (o de su etiqueta de precio) -> la IA detecta el producto y lee el precio
@@ -10776,7 +10835,7 @@ const pricePhotoInput = document.getElementById('pricePhotoInput');
 document.getElementById('invPriceBtn').addEventListener('click', () => pricePhotoInput.click());
 pricePhotoInput.addEventListener('change', async e => {
   const file = e.target.files[0]; if(!file) return;
-  const btn = document.getElementById('invPriceBtn'), lbl = btn.textContent;
+  const btn = document.getElementById('invPriceBtn'), lbl = btn.innerHTML;
   const my = ++pcToken;
   pcDraft = null;
   btn.disabled = true; btn.textContent = '🏷️ Leyendo foto…';
@@ -10793,7 +10852,7 @@ pricePhotoInput.addEventListener('change', async e => {
     if(err && err.message === 'NO_API_KEY') showToast('Configura la IA (⚙️ en Productos) para escanear precios.');
     else showToast('❌ ' + (err && err.message ? err.message : 'No se pudo leer la foto.'));
   }finally{
-    btn.disabled = false; btn.textContent = lbl;
+    btn.disabled = false; btn.innerHTML = lbl;
     pricePhotoInput.value = '';
   }
 });
@@ -13051,7 +13110,6 @@ function saveEditedProduct(){
 }
 
 document.getElementById('prodBuscar').addEventListener('input', () => renderProductos());
-document.getElementById('catLiveBtn').addEventListener('click', () => { if(typeof window.vitoPublicarCatalogo === 'function'){ window.vitoPublicarCatalogo(true); showToast('📤 Publicando la carta…'); } });
 document.getElementById('editProdCancelBtn').addEventListener('click', closeEditProductModal);
 document.getElementById('editProdSaveBtn').addEventListener('click', saveEditedProduct);
 editProductOverlay.addEventListener('click', (e)=>{ if(e.target === editProductOverlay) closeEditProductModal(); });
@@ -15658,7 +15716,7 @@ function qrFijoDialogo(){
     $('qrFijoFoto').onchange=async e=>{
       const files=Array.from(e.target.files||[]);e.target.value='';
       if(!files.length)return;
-      const btn=$('qrFijoFotoBtn'),msg=$('qrFijoFotoMsg'),origTxt=btn.textContent;
+      const btn=$('qrFijoFotoBtn'),msg=$('qrFijoFotoMsg'),origTxt=btn.innerHTML;
       btn.disabled=true;let leidas=0;
       for(const f of files){
         btn.textContent='📷 Leyendo '+(leidas+1)+' de '+files.length+'…';
@@ -15675,7 +15733,7 @@ function qrFijoDialogo(){
           if(hallado)leidas++;
         }catch(err){}
       }
-      btn.disabled=false;btn.textContent=origTxt;
+      btn.disabled=false;btn.innerHTML=origTxt;
       msg.textContent=leidas?('✅ '+leidas+' de '+files.length+(files.length===1?' archivo leído':' archivos leídos')+'. Revisa abajo y toca «Fijar» — es exactamente el mismo link, no se genera uno nuevo.')
         :'⚠️ No pude leer ningún código QR en esos archivos. En fotos, acércate más al QR con buena luz; en PDF o Word, revisa que el QR se vea nítido, o pega el link a mano.';
     };
@@ -15959,7 +16017,6 @@ function iniQR(){
   qrFijoSync();qrFijoEstado();qrFijoDesdeHash();
   window.addEventListener('hashchange',qrFijoDesdeHash);
   $('qrPrintBtn').onclick=imprimirQR;
-  $('catPubBtn').onclick=()=>{catEstado('Publicando…');publicarCatalogo(true);};
   conectar();
 }
 
@@ -18421,7 +18478,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v49';
+const MESORA_VERSION = '2026-09-26 · v50';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -19788,11 +19845,35 @@ let fotosListas = false;
 
   // ---------- Entender lo que se dijo (al instante, sin IA) ----------
   // Devuelve { texto } con la respuesta, o null si no es algo de la libreta.
+  /* «Lista negra» = los que quedaron debiendo. Se traduce a la frase de siempre («Julián me debe
+     30000» / «Pedro me pagó 10000» / «Pedro pagó todo») ANTES de la calculadora, que si no se
+     quedaba con «agrégame…» o «descuéntale…» como si fuera una suma suelta. */
+  const LB_LISTA = /\b(lista negra|lista de (?:los )?(?:deudores|morosos|que (?:me )?deben|fiados?|pendientes)|(?:la|mi) lista|listica|libreta|cuaderno|cuenta de|deuda de|deudas de|fiados? de|los que me deben)\b/g;
+  const LB_FUERTE = /\b(quedo de pagar|quedo pendiente|quedo pendiente de|se llevo fiado|se lo llevo fiado|se llevo al fiado|llevo fiado|a credito|fiado de|cargale|carguele|cargarle|pendiente de pago|me quedo a deber|quedo a deber)\b/g;
+  const LB_ANOTAR = /\b(agrega|agregame|agregale|agregar|agregue|agreguele|anade|anademe|anadele|mete|meteme|metele|meter|pon|ponme|ponle|poner|ponga|pongale|suma|sumale|sumame|sumar|carga|cargale|cargar|cargue|apunta|apuntame|apuntale|anota|anotame|anotale|anotar|escribe|escribele|escribeme|registra|registrale|incluye|incluyele|debe|deben|debiendo|fiado|fiar|fiale)\b/g;
+  const LB_SACAR = /\b(saca|sacame|sacale|sacar|quita|quitale|quitar|borra|borrale|borrar|descuenta|descuentale|descontar|rebaja|rebajale|rebajar|resta|restale|tacha|tachale|tachar|elimina|eliminale)\b/g;
+  const LB_RELLENO = /\b(negra|nombre|anotado|anotada|apuntado|apuntada|llevo|lleva|llevaron|pendiente|credito|ahi|aqui|esta|este|eso|esto|porfa|porfavor|favor|gracias|dile|sale|tiene|tengo)\b/g;
+  function lbListaNegra(t){
+    if(/\b(cuanto|cuantos|quien|quienes|como va|historial|movimientos?)\b/.test(t)) return null;
+    const hay = rx => { rx.lastIndex = 0; const r = rx.test(t); rx.lastIndex = 0; return r; };
+    const lista = hay(LB_LISTA), fuerte = hay(LB_FUERTE), sacar = hay(LB_SACAR), anotar = hay(LB_ANOTAR);
+    if(!lista && !fuerte && !sacar) return null;
+    const { monto, resto } = lbMonto(t);
+    const limpio = resto.replace(LB_LISTA, ' ').replace(LB_FUERTE, ' ').replace(LB_SACAR, ' ').replace(LB_ANOTAR, ' ').replace(LB_RELLENO, ' ');
+    const persona = lbNombre(limpio);
+    if(!persona) return null;
+    const conocida = lbPersonas().some(p => lbNorm(p) === lbNorm(persona));
+    if(sacar && (lista || (conocida && lbSaldo(persona) > 0))) return monto >= 50 ? persona + ' me pago ' + monto : persona + ' pago todo';
+    if(fuerte || (lista && anotar)) return monto >= 50 ? persona + ' me debe ' + monto : null;
+    return null;
+  }
   function lbEntender(raw, soloSeguro){
     lbNombre.crudo = raw;
     const t = lbNorm(raw);
     if(!t) return null;
     if(/\bmesa\b/.test(t)) return null;   // eso es de las mesas, no de la libreta
+    const canon = lbListaNegra(t);
+    if(canon){ const r = lbEntender(canon, soloSeguro); lbNombre.crudo = raw; if(r) return r; }
     if(/^(borra|quita|cancela|elimina)( lo| el)? (ultimo|ultima)$|^me equivoque$|^deshacer$/.test(t)){
       if(soloSeguro) return null;
       const m = LB().movs.pop(); if(!m) return { texto: 'No hay nada que borrar.' };
@@ -19925,7 +20006,7 @@ let fotosListas = false;
     ov.className = 'overlay'; ov.id = 'libretaOverlay';
     ov.innerHTML = '<div class="modal lb-modal"><div class="modal-title-row"><h2>📒 Mi libreta</h2><button class="rename-table-btn" id="lbCerrar" title="Cerrar">✕</button></div>' +
       '<button type="button" class="lb-mic" id="lbMic">🎤 Toca y habla</button>' +
-      '<div class="lb-ej">Di, por ejemplo:<br>«Juan me debe 20 mil» · «Juan me pagó 10 mil»<br>«Le pagué a Pedro 50 mil» · «¿Quién me debe?»<br>«Cuánto es 20 mil más 15 mil» (cuenta suelta)<br>«Súmame 13.400», y después «súmame 15.200» (se va sumando solo)<br>«Cuánto llevo» · «Réstame» o «corrige» (si algo quedó mal)</div>' +
+      '<div class="lb-ej">Di, por ejemplo:<br>«Juan me debe 20 mil» · «Juan me pagó 10 mil»<br>«Agrégame a la lista negra 30 mil para Julián» · «Julián quedó debiendo 30 mil»<br>«Saca a Pedro de la lista negra» (pagó todo)<br>«Le pagué a Pedro 50 mil» · «¿Quién me debe?»<br>«Cuánto es 20 mil más 15 mil» (cuenta suelta)<br>«Súmame 13.400», y después «súmame 15.200» (se va sumando solo)<br>«Cuánto llevo» · «Réstame» o «corrige» (si algo quedó mal)</div>' +
       '<div class="lb-resp" id="lbRespuesta" hidden></div>' +
       '<div class="lb-btns"><button type="button" class="lb-b lb-debe" data-t="debe">📕 Alguien<br>me debe</button><button type="button" class="lb-b lb-abono" data-t="abono">✅ Me<br>pagaron</button><button type="button" class="lb-b lb-emp" data-t="emp">👷 Pagué a un<br>empleado</button></div>' +
       '<button type="button" class="lb-calc-btn" id="lbCalcAbrir">🧮 Calculadora</button>' +
