@@ -2427,6 +2427,27 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
   .splash-bar{animation:none; width:120px}
   .splash-tag{animation:none; opacity:.85}
 }
+
+/* ---------- Pantalla bien dimensionada y scroll sin trabas ----------
+   - Las ventanas usan la altura REAL visible del celular (dvh): con "vh" el final de la ventana
+     quedaba escondido detrás de la barra del navegador y no se alcanzaban los últimos botones.
+   - Con una ventana abierta, la página de atrás no se mueve (antes el dedo arrastraba el fondo).
+   - El micrófono flotante no tapa los botones de las ventanas. */
+.overlay{ overflow-y:auto; overscroll-behavior:contain; padding-top:max(16px, env(safe-area-inset-top)); padding-bottom:max(16px, env(safe-area-inset-bottom)); }
+.modal{ overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+@supports (height:100dvh){
+  .modal{ max-height:88dvh; }
+  .overlay .modal[style*="max-height:88vh"], .overlay .modal[style*="max-height:90vh"], .overlay .modal[style*="max-height:92vh"]{ max-height:90dvh !important; }
+}
+body:has(.overlay.show){ overflow:hidden; }
+body:has(.overlay.show:not(#overlay)) .voice-fab-wrap, body:has(.overlay.show:not(#overlay)) .voice-fab-tab{ visibility:hidden; pointer-events:none; }
+/* En la cuenta de la mesa el micrófono sigue a mano, pero se deja espacio al final para que
+   «Cobrar saldo y liberar mesa» quede arriba del botón y nunca debajo. */
+@media (max-width:760px){ #overlay .modal{ padding-bottom:120px; } }
+body:has(#overlay.show) .voice-fab-help{ display:none; }
+#loyaltyRow[hidden]{ display:none !important; }
+#loyaltyRow input{ min-width:0; flex:1 1 0; background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; font-size:14px; }
+.modal h2{ overflow-wrap:anywhere; }
 </style>
 </head>
 <body>
@@ -5779,7 +5800,8 @@ function isVoiceHelpCommand(rawText){
 const VOICE_AYUDA = [
   ['Rápido (lo más corto)', ['la 3, dos águilas', '3 dos águilas', 'regáleme una coca para la 5', 'otra la 3 (otra ronda igual)', 'cobra la 3', 'la 3 pagó', 'menos una águila la 3', 'borra lo último']],
   ['Pedidos', ['mesa 1, cinco águilas', 'dos póker y una Heineken para la mesa 3', 'agregar Heineken mesa 5', 'misma ronda para la mesa 2']],
-  ['Crear mesas', ['agrégame una mesa a nombre de Juan y agrégale dos cervezas y una póker', 'crea la mesa Carolina con tres Club Colombia', 'nueva mesa para don Pedro', 'agrega una mesa', 'agrega hasta la mesa 10']],
+  ['Crear mesas', ['agrégame una mesa que se llame Juan', 'agrégame mesa nueva Lucas', 'agrégame una mesa a nombre de Juan y agrégale dos cervezas y una póker', 'crea la mesa Carolina con tres Club Colombia', 'nueva mesa para don Pedro', 'ábreme una cuenta a nombre de Ana', 'quiero una mesa llamada María José', 'agrega una mesa', 'agrega hasta la mesa 10']],
+  ['Nombre de la mesa', ['cámbiale el nombre a la mesa 3 por Pedro', 'la mesa 2 se llama Martín', 'ponle Carolina a la mesa 4', 'renombra la mesa 1 como Lucía', 'quítale el nombre a la mesa 2']],
   ['Cambiar de mesa', ['pasa la mesa 3 a la 5', 'junta la mesa 1 con la 4 (se juntan las cuentas)', 'cambia la mesa Juan a la 2']],
   ['Corregir', ['quita una póker de la mesa 2', 'la mesa 4 son tres águilas (corrige la cantidad)', 'deshacer', 'quitar mesa 3']],
   ['Recordar', ['recuérdame el pedido (el último, por voz o a mano)', 'recuérdame el pedido de la mesa 2', 'qué lleva la mesa 3']],
@@ -5938,38 +5960,59 @@ function abrirCambioMesa(origen){
 // ---- Crear una mesa con nombre (y pedido) por voz ----
 // "agrégame una mesa con el nombre Juan y agrégale dos cervezas, una póker"
 // "crea la mesa Carolina con tres Club Colombia" · "nueva mesa para don Pedro" · "abre una mesa a nombre de Ana"
-const VOICE_MESA_VERBOS = /^(agrega|agregame|agregue|agregar|anade|anademe|anadir|crea|creame|crear|abre|abreme|abrir|abrime|pon|ponme|haz|hazme|arma|armame|monta|montame)$/;
-const VOICE_MESA_CORTE = new Set(['y','con','agregale','agregar','agrega','ponle','pon','anotale','anota','sirvele','sirve','dale','traele','traigale','llevale','que','mesa','por','favor','porfavor']);
+const VOICE_MESA_VERBOS = /^(agrega|agregame|agregue|agreguen|agregueme|agregar|agregale|anade|anademe|anadime|anadir|anada|crea|creame|crear|cree|creeme|abre|abreme|abrir|abrime|abra|abrame|pon|ponme|poner|ponga|pongame|haz|hazme|hacer|haga|hagame|arma|armame|armar|monta|montame|montar|mete|meteme|registra|registrame|registrar|inicia|iniciar|empieza|arranca|habilita|activa|dame|deme|quiero|necesito|necesitamos|ocupo|nueva|nuevo|otra)$/;
+const VOICE_MESA_PALABRA = /^(mesa|mesita|cuenta)$/;
+const VOICE_MESA_CORTE = new Set(['y','e','con','agregale','agregar','agrega','agregue','ponle','pon','anotale','anota','sirvele','sirve','dale','traele','traigale','llevale','que','mesa','por','favor','porfa','porfavor','plis','please','ya','ahora','rapido','gracias','le','para','en','al','a']);
 const VOICE_CANTIDAD = /^(\d+|un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|media|medio)$/;
+// Frases que anuncian el nombre de la mesa, de la más larga a la más corta.
+const VOICE_MESA_MARCAS = [
+  'y que se va a llamar','que se va a llamar','y que se llame','y que se llama','que se llame','que se llama','que se llamara','y se llama','y se llame','se llama','se llame',
+  'y ponle de nombre','y ponle el nombre de','y ponle el nombre','y ponle','ponle de nombre','ponle el nombre de','ponle el nombre','ponle','y llamala','llamala','y le pones','le pones',
+  'que tenga el nombre de','con el nombre de','con el nombre','con nombre de','con nombre','cuyo nombre es','el nombre es','de nombre','por nombre','a nombre de','a nombre del','a nombre',
+  'que diga','llamada','llamado','nombre','para el','para la','para','de el','de la','del','de'
+].map(x => x.split(' '));
+const VOICE_MESA_NO_NOMBRE = /^(nueva|nuevo|otra|otro|numero|mas|aparte|adicional|extra|libre|vacia|grande|pequena|afuera|adentro|terraza|personas?|gente)$/;
+const voiceNormPalabra = w => w.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
 function voiceCrearMesaConNombre(rawText){
-  const rw = String(rawText || '').replace(/[,.;:!?¿¡"]/g, ' ').split(/\s+/).filter(Boolean);
-  const nw = rw.map(w => w.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ''));
+  const rw = String(rawText || '').replace(/[,.;:!?¿¡"()]/g, ' ').split(/\s+/).filter(Boolean);
+  const nw = rw.map(voiceNormPalabra);
+  // Muletillas al inicio: "oye", "mesi", "por favor", "hola"...
   let i = 0;
-  while(i < nw.length && i < 3 && !VOICE_MESA_VERBOS.test(nw[i]) && nw[i] !== 'nueva') i++;
-  if(i >= nw.length || i >= 3) return false;
-  let m = i + 1;
-  while(m < nw.length && m < i + 4 && nw[m] !== 'mesa') m++;
-  if(nw[m] !== 'mesa') return false;
+  while(i < nw.length && i < 4 && !VOICE_MESA_VERBOS.test(nw[i]) && !VOICE_MESA_PALABRA.test(nw[i])) i++;
+  if(i >= nw.length || i >= 4) return false;
+  let m;
+  if(VOICE_MESA_PALABRA.test(nw[i])){
+    // "mesa nueva Juan" / "mesa para Juan": sin verbo solo vale si dice "nueva" o es lo primero.
+    if(!(nw[i + 1] === 'nueva' || nw[i + 1] === 'nuevo' || i === 0)) return false;
+    if(nw[i] === 'cuenta') return false;
+    m = i;
+  } else {
+    m = i + 1;
+    // Entre el verbo y "mesa" solo pueden ir palabras de relleno ("agrégame POR FAVOR una nueva
+    // mesa", "crea ya otra mesa"); así "agrega dos cervezas a la mesa Juan" sigue siendo un pedido.
+    const RELLENO = /^(una|un|la|el|otra|otro|nueva|nuevo|me|mi|porfa|por|favor|porfavor|ya|rapido|rapidito|ahi|aqui|tambien|de|pues|oye|mesi)$/;
+    while(m < nw.length && m < i + 5 && RELLENO.test(nw[m])) m++;
+    if(!VOICE_MESA_PALABRA.test(nw[m] || '')) return false;
+    // "cuenta" solo cuenta como mesa con abrir/crear ("ábreme una cuenta a nombre de Ana"), no con "dame la cuenta".
+    if(nw[m] === 'cuenta' && !/^(abre|abreme|abrir|abrime|abra|abrame|crea|creame|crear|cree|creeme|inicia|iniciar|arranca|nueva|otra)$/.test(nw[i]) && !/^(nueva|otra)$/.test(nw[m - 1])) return false;
+  }
   let p = m + 1;
-  if(nw[p] === 'nueva') p++;
-  // Marcador del nombre: "con (el) nombre (de)", "a nombre de", "de nombre", "para (el/la/don/doña)", "llamada", "que se llama", "de"
-  const seq = (...ws) => ws.every((w, k) => nw[p + k] === w);
-  if(seq('con', 'el', 'nombre', 'de')) p += 4; else if(seq('con', 'el', 'nombre')) p += 3; else if(seq('con', 'nombre', 'de')) p += 3; else if(seq('con', 'nombre')) p += 2;
-  else if(seq('a', 'nombre', 'de')) p += 3; else if(seq('de', 'nombre')) p += 2; else if(seq('que', 'se', 'llama')) p += 3;
-  else if(nw[p] === 'llamada' || nw[p] === 'nombre' || nw[p] === 'para' || nw[p] === 'de' || nw[p] === 'del') p += 1;
-  if(nw[p] === 'el' || nw[p] === 'la' || nw[p] === 'don' || nw[p] === 'dona' || nw[p] === 'senor' || nw[p] === 'senora') { if(nw[p] === 'don' || nw[p] === 'dona') {} else p++; }
+  while(/^(nueva|nuevo|mas|aparte|adicional|extra|otra)$/.test(nw[p] || '')) p++;
+  // Marcador del nombre ("que se llame", "a nombre de", "para", "llamada"…); se prueba el más largo primero.
+  for(const mk of VOICE_MESA_MARCAS){ if(mk.every((w, k) => nw[p + k] === w)){ p += mk.length; break; } }
+  if(nw[p] === 'el' || nw[p] === 'la' || nw[p] === 'senor' || nw[p] === 'senora' || nw[p] === 'senorita') p++;
   const ini = p;
-  while(p < nw.length && p - ini < 3 && !VOICE_MESA_CORTE.has(nw[p]) && !VOICE_CANTIDAD.test(nw[p])) p++;
+  while(p < nw.length && p - ini < 3 && nw[p] && !VOICE_MESA_CORTE.has(nw[p]) && !VOICE_CANTIDAD.test(nw[p]) && !VOICE_MESA_PALABRA.test(nw[p])) p++;
   const nombre = rw.slice(ini, p).join(' ').replace(/[^\p{L}\p{N} .'-]/gu, '').trim();
-  if(!nombre || /^\d+$/.test(nombre)) return false;
+  if(!nombre || /^\d+$/.test(nombre) || VOICE_MESA_NO_NOMBRE.test(nw[ini] || '')) return false;
   // Lo que sigue es el pedido: se quitan los conectores ("y agrégale", "con", "ponle"...).
   let q = p;
-  while(q < nw.length && (VOICE_MESA_CORTE.has(nw[q]) || nw[q] === 'le' || nw[q] === 'de')) q++;
+  while(q < nw.length && (VOICE_MESA_CORTE.has(nw[q]) || nw[q] === 'de') && !VOICE_CANTIDAD.test(nw[q])) q++;
   const pedidoTxt = rw.slice(q).join(' ');
   const bonito = nombre.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   // ¿Ya hay una mesa con ese nombre? Se usa esa en vez de crear otra.
-  const clave = bonito.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  let id = Object.keys(data.tables).map(Number).find(k => { const n = data.tables[k] && data.tables[k].name; return n && n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim() === clave; });
+  const clave = bonito.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  let id = Object.keys(data.tables).map(Number).find(k => { const n = data.tables[k] && data.tables[k].name; return n && n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim() === clave; });
   let creada = false;
   if(!id){
     id = Math.max(0, ...Object.keys(data.tables).map(Number)) + 1;
@@ -5992,6 +6035,45 @@ function voiceCrearMesaConNombre(rawText){
   showToast((creada ? '➕ ' : '✅ ') + msg + (noEncontre.length ? ' No encontré: ' + noEncontre.join(', ') + '.' : ''), 6000);
   speakVoice(msg + (noEncontre.length ? ' No encontré ' + noEncontre.join(', ') + '.' : ''));
   if(!pedidoTxt && !creada){ try{ openTableModal(id); }catch(e){} }
+  return true;
+}
+
+// ---- Cambiar el nombre de una mesa por voz o por el chat ----
+// "cámbiale el nombre a la mesa 3 por Juan" · "ponle Juan a la mesa 3" · "la mesa 3 se llama Juan"
+// "renombra la mesa 3 como Lucas" · "a la mesa 2 ponle de nombre Ana" · "quítale el nombre a la mesa Juan"
+function voiceRenombrarMesa(rawText){
+  const rw = String(rawText || '').replace(/[,.;:!?¿¡"()]/g, ' ').split(/\s+/).filter(Boolean);
+  const nw = rw.map(voiceNormPalabra);
+  const t = nw.join(' ');
+  if(!/\bmesa\b/.test(t)) return false;
+  const REF = '(\\d+|[a-z]+(?: [a-z]+)?)';
+  const NOM = '(?:el nombre de |el nombre |de nombre |nombre |como |por |a |para )?(.+)';
+  let ref = null, nom = null, quitar = false, mm;
+  if((mm = t.match(new RegExp('\\b(?:quita|quitale|borra|borrale|elimina|eliminale|saca|sacale)(?: el)? nombre (?:a|de) (?:la )?mesa ' + REF + '$')))){ ref = mm[1]; quitar = true; }
+  else if((mm = t.match(new RegExp('\\b(?:cambia|cambiale|cambiar|cambie|cambiele|pon|ponle|poner|ponga|pongale|coloca|colocale)(?: el)? nombre (?:a|de) (?:la )?mesa ' + REF + ' (?:por|a|como|para|que sea) ' + '(?:el nombre de |el nombre |de nombre )?(.+)$')))){ ref = mm[1]; nom = mm[2]; }
+  else if((mm = t.match(new RegExp('\\b(?:renombra|renombrar|renombrame|renombre|bautiza|bautizar)(?: la)? mesa ' + REF + ' ' + NOM + '$')))){ ref = mm[1]; nom = mm[2]; }
+  else if((mm = t.match(new RegExp('^(?:(?:oye|mesi|hola|porfa|por favor) )*(?:la )?mesa ' + REF + ' (?:ahora )?(?:se llama|se va a llamar|se llamara|es de|es para|a nombre de|ahora es) (?:el |la )?(.+)$')))){ ref = mm[1]; nom = mm[2]; }
+  else if((mm = t.match(new RegExp('\\b(?:ponle|pongale|dile|llama|llamale) (?:de nombre |el nombre (?:de )?)?(.+?) a la mesa ' + REF + '$')))){ ref = mm[2]; nom = mm[1]; }
+  else if((mm = t.match(new RegExp('\\ba la mesa ' + REF + ' (?:ponle|pongale|dile|llamala|cambiale el nombre (?:a|por)) (?:de nombre |el nombre (?:de )?)?(.+)$')))){ ref = mm[1]; nom = mm[2]; }
+  else return false;
+  // La referencia puede ser un número ("3", "tres") o el nombre que ya tiene ("la mesa Juan").
+  let id = movMesaDe(ref) || movMesaDe(ref.split(' ')[0]);
+  if(!id || !data.tables[id]){ const msg = 'No encontré la mesa ' + ref + '.'; showToast('⚠️ ' + msg); speakVoice(msg); return true; }
+  let bonito = '';
+  if(!quitar){
+    // Se toma el nombre tal como se dijo (con tildes y mayúsculas) buscando esas palabras en el texto original.
+    const nwNom = nom.split(' ').filter(Boolean);
+    let at = -1;
+    for(let k = nw.length - nwNom.length; k >= 0; k--){ if(nwNom.every((w, j) => nw[k + j] === w)){ at = k; break; } }
+    const crudo = at >= 0 ? rw.slice(at, at + nwNom.length).join(' ') : nom;
+    bonito = crudo.replace(/[^\p{L}\p{N} .'-]/gu, '').trim().split(' ').slice(0, 4).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    if(!bonito) return false;
+  }
+  const antes = tableLabel(id);
+  data.tables[id].name = quitar ? null : bonito;
+  saveData(); try{ renderMesas(); }catch(e){}
+  const msg = quitar ? 'Listo, ' + antes + ' volvió a llamarse Mesa ' + id + '.' : 'Listo, ' + antes + ' ahora se llama ' + bonito + '.';
+  showToast('✏️ ' + msg); speakVoice(msg);
   return true;
 }
 
@@ -6078,6 +6160,7 @@ function handleSimpleVoiceCommands(rawText){
   }
 
   if(voiceCambiarMesa(rawText)) return true;
+  if(voiceRenombrarMesa(rawText)) return true;
   if(voiceCrearMesaConNombre(rawText)) return true;
   if(voiceTableManagement(rawText)) return true;
 
@@ -11570,9 +11653,20 @@ function asisRawNumbers(raw){
 // "mesa 3" o "mesa tres" → 3
 function asisMesaNum(t){
   const m = t.match(/\bmesa (\d+|[a-z]+)\b/);
-  if(!m) return null;
-  const n = /^\d+$/.test(m[1]) ? Number(m[1]) : NUM_WORDS_VOICE[m[1]];
-  return n ? n : null;
+  if(m){
+    const n = /^\d+$/.test(m[1]) ? Number(m[1]) : NUM_WORDS_VOICE[m[1]];
+    if(n) return n;
+  }
+  // También por el nombre que tiene la mesa: "¿cuánto debe la mesa Juan?", "¿qué lleva la de Ana María?"
+  if(typeof data !== 'undefined' && data && data.tables){
+    const ids = Object.keys(data.tables).map(Number).filter(k => data.tables[k] && data.tables[k].name)
+      .sort((a, b) => String(data.tables[b].name).length - String(data.tables[a].name).length);   // "Juan Carlos" antes que "Juan"
+    for(const k of ids){
+      const nm = normVoiceText(data.tables[k].name);
+      if(nm && new RegExp('\\b(?:mesa|la de|el de|de|la|del)\\s+(?:de\\s+|del\\s+)?' + nm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(t)) return k;
+    }
+  }
+  return null;
 }
 function asisFindProduct(t){
   const words = t.split(' ').filter(w => w && !ASIS_STOP.has(w) && !/^\d+$/.test(w) && NUM_WORDS_VOICE[w] === undefined);
@@ -11595,6 +11689,7 @@ function asisAyudaTexto(){
     '• Moverme por la app: "abre inventario", "llévame a música", "abre la mesa 3", "abre clientes frecuentes"\n' +
     '• Ventas: "¿cuánto vendí hoy?", "¿y ayer?", "ventas de la semana", "ventas del mes", "¿qué es lo más vendido?"\n' +
     '• Mesas y deudas: "¿qué mesas están abiertas?", "¿cuánto debe la mesa 2?", "¿quién me debe?"\n' +
+    '• Crear y nombrar mesas: "agrégame una mesa que se llame Juan", "mesa nueva Lucas", "crea la mesa Ana con dos Águilas", "la mesa 3 se llama Pedro", "cámbiale el nombre a la mesa 2 por Sofía"\n' +
     '• Productos: "¿a cómo está la Póker?", "¿cuántas Águilas quedan?", "¿qué se está acabando?", "¿cuánto gano con la Club Colombia?"\n' +
     '• Cambios: "sube la Póker a 3.500", "llegaron 24 Águilas" (te pregunto antes de hacerlo)\n' +
     '• Clientes: "¿quiénes son mis mejores clientes?", "¿hay reclamos abiertos?"\n' +
@@ -11658,6 +11753,20 @@ function asisCommand(raw){
     const d = new Date();
     return { text: 'Son las ' + d.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) + ' del ' + d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' }) + '.' };
   }
+  // (Va ANTES de «llévame a…»: si no, «abre una mesa para Juan» solo abría la pantalla de Mesas.)
+  // Crear una mesa nueva (con nombre o no) SÍ se puede pedir por el chat — a diferencia de
+  // agregar productos a una mesa YA abierta (eso sigue siendo del micrófono, más abajo), crear
+  // la mesa es una acción de una sola vez. Reutiliza el mismo entendedor del micrófono de
+  // pedidos, así entiende exactamente las mismas frases: "agregar mesa Julián", "crea la mesa
+  // Carolina con tres Club Colombia", "nueva mesa para don Pedro", "abre una mesa a nombre de
+  // Ana", "agrega una mesa"…
+  if(/\b(mesa|mesita|cuenta)\b/.test(t) && typeof voiceCrearMesaConNombre === 'function'){
+    if(typeof voiceRenombrarMesa === 'function' && voiceRenombrarMesa(raw)) return { text: 'Listo. ✏️' };
+    // voiceCrearMesaConNombre ya avisa con su propio toast y voz si de verdad
+    // era una mesa nueva; aquí solo se cierra la conversación con un "Listo."
+    // breve para no repetir dos veces todo el mensaje.
+    if(voiceCrearMesaConNombre(raw)) return { text: 'Listo. 🪑' };
+  }
   const go = ASIS_GO_RE.test(t);
   // Abrir una mesa: "abre la mesa 3"
   const mesaN = asisMesaNum(t);
@@ -11671,18 +11780,6 @@ function asisCommand(raw){
     if(aj) return { text: 'Te llevo a Ajustes → ' + aj.name + '.', run: () => { asisClose(); asisGoView('ajustes'); if(typeof mostrarCategoriaAjustes === 'function') mostrarCategoriaAjustes(aj.cat); } };
     const nv = ASIS_NAV.find(x => x.re.test(t));
     if(nv) return { text: 'Listo, te llevo a ' + nv.name + '.', run: () => { asisClose(); asisGoView(nv.view); } };
-  }
-  // Crear una mesa nueva (con nombre o no) SÍ se puede pedir por el chat — a diferencia de
-  // agregar productos a una mesa YA abierta (eso sigue siendo del micrófono, más abajo), crear
-  // la mesa es una acción de una sola vez. Reutiliza el mismo entendedor del micrófono de
-  // pedidos, así entiende exactamente las mismas frases: "agregar mesa Julián", "crea la mesa
-  // Carolina con tres Club Colombia", "nueva mesa para don Pedro", "abre una mesa a nombre de
-  // Ana", "agrega una mesa"…
-  if(/\bmesa\b/.test(t) && typeof voiceCrearMesaConNombre === 'function'){
-    // voiceCrearMesaConNombre ya avisa con su propio toast y voz si de verdad
-    // era una mesa nueva; aquí solo se cierra la conversación con un "Listo."
-    // breve para no repetir dos veces todo el mensaje.
-    if(voiceCrearMesaConNombre(raw)) return { text: 'Listo. 🪑' };
   }
   // Pedidos de mesa: eso lo hace el micrófono de pedidos, no el chat.
   if(/\b(agrega|agregale|agregame|anota|pon|ponle|sirve)\b/.test(t) && asisMesaNum(t)){
@@ -11711,18 +11808,32 @@ function asisGoView(view){
 }
 
 // Consultas del negocio sin IA (se suman a las de asisLocal).
+// "mesa de Juan" si la mesa tiene nombre, "Mesa 3" si no (para que la frase suene bien).
+function asisMesaTxt(id){ const n = data.tables[id] && data.tables[id].name && String(data.tables[id].name).trim(); return n ? 'mesa de ' + n : tableLabel(id); }
 function asisLocalMas(raw){
   const t = normVoiceText(raw);
   const bullets = arr => arr.map(x => '• ' + x).join('\n');
   const mesaN = asisMesaNum(t);
-  if(mesaN && /\b(cuanto|total|debe|va|lleva|cuenta|saldo)\b/.test(t)){
+  if(mesaN && /\b(que (lleva|tiene|pidio|pidieron|ha pedido|han pedido|consumio|consumieron|hay en)|pedido de|detalle|lista de)\b/.test(t)){
     const id = mesaN;
     if(!data.tables[id]) return 'No tengo la mesa ' + id + '.';
     const items = (data.tables[id].items || []);
-    if(!items.length) return 'La ' + tableLabel(id) + ' está libre, sin cuenta abierta.';
-    return 'La ' + tableLabel(id) + ' lleva ' + fmt(tableTotal(id)) + ' en consumo y le falta pagar ' + fmt(tableBalance(id)) + ' (' + items.reduce((s, it) => s + (Number(it.qty) || 0), 0) + ' productos).';
+    if(!items.length) return 'La ' + asisMesaTxt(id) + ' está libre, sin nada anotado.';
+    return 'La ' + asisMesaTxt(id) + ' lleva:\n' + bullets(items.map(it => (it.qty || 1) + ' × ' + it.name)) + '\nTotal ' + fmt(tableTotal(id)) + ', falta pagar ' + fmt(tableBalance(id)) + '.';
   }
-  if(/\b(mesas (abiertas|ocupadas)|que mesas|cuantas mesas (hay|tengo|estan))\b/.test(t)){
+  if(mesaN && /\b(cuanto|total|debe|deben|va|van|lleva|llevan|cuenta|saldo|falta|consumo)\b/.test(t)){
+    const id = mesaN;
+    if(!data.tables[id]) return 'No tengo la mesa ' + id + '.';
+    const items = (data.tables[id].items || []);
+    if(!items.length) return 'La ' + asisMesaTxt(id) + ' está libre, sin cuenta abierta.';
+    return 'La ' + asisMesaTxt(id) + ' lleva ' + fmt(tableTotal(id)) + ' en consumo y le falta pagar ' + fmt(tableBalance(id)) + ' (' + items.reduce((s, it) => s + (Number(it.qty) || 0), 0) + ' productos).';
+  }
+  if(/\b(mesas (libres|desocupadas|vacias|disponibles)|que mesas (estan|hay) (libres|desocupadas|disponibles)|hay mesas? (libres?|disponibles?))\b/.test(t)){
+    const lib = Object.keys(data.tables).map(Number).filter(id => !(data.tables[id].items || []).length).sort((a, b) => a - b);
+    if(!lib.length) return 'Todas las mesas están ocupadas. Si llega alguien, dime "agrégame una mesa que se llame…" y la creo.';
+    return 'Tienes ' + lib.length + (lib.length === 1 ? ' mesa libre: ' : ' mesas libres: ') + lib.map(id => tableLabel(id)).join(', ') + '.';
+  }
+  if(/\b(mesas (abiertas|ocupadas|activas|llenas|con gente)|que mesas|cuantas mesas (hay|tengo|estan)|como van las mesas|estado de las mesas|resumen de (las )?mesas)\b/.test(t)){
     const ab = Object.keys(data.tables).map(Number).filter(id => (data.tables[id].items || []).length);
     if(!ab.length) return 'Ahora no hay mesas abiertas. Todo libre.';
     const tot = ab.reduce((s, id) => s + tableBalance(id), 0);
@@ -18304,7 +18415,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v47';
+const MESORA_VERSION = '2026-09-26 · v48';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
