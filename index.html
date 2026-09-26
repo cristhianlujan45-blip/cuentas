@@ -50,6 +50,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script>
 // ¿Celular Android? Chrome en «sitio de computador» dice ser Linux: por eso YouTube Music se abría en el navegador.
+// Cada cuenta aparte (otro negocio en el mismo equipo) guarda sus ajustes con su propia clave:
+// así no comparte canal de pedidos, meseros ni música con la cuenta principal.
+window.ventoClave = (function(){ let ck = null, cv = ''; return function(k){ try{ const sid = localStorage.getItem('bar-current-sede') || 'default', raw = localStorage.getItem('bar-sedes-list') || '[]'; if(ck !== sid + raw){ ck = sid + raw; const s = (JSON.parse(raw) || []).find(x => x.id === sid); cv = s && s.cuenta && s.cuenta !== 'principal' ? '@' + s.cuenta : ''; } return k + cv; }catch(e){ return k; } }; })();
 window.esAndroid = function(){ var ua = navigator.userAgent || ''; if(/Android/i.test(ua)) return true; try{ if(navigator.userAgentData && /android/i.test(navigator.userAgentData.platform || '')) return true; }catch(e){} return /Linux/i.test(ua) && !/CrOS|Windows|Macintosh/i.test(ua) && (navigator.maxTouchPoints || 0) > 0; };
 </script>
 <script>
@@ -2495,6 +2498,7 @@ body:has(.overlay.show:not([hidden])){ overflow:hidden; }
 .ct-dos{ grid-template-columns:repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
 .more-tile{ min-width:0; overflow-wrap:anywhere; }
 .prod-photo-side{ min-width:0; overflow-wrap:anywhere; }
+.auth-nueva{ width:100%; margin-top:10px; padding:12px; border-radius:12px; font-weight:700; }
 .rc-lista{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(170px,100%),1fr)); gap:8px; margin-top:12px; }
 .rc-lista div{ display:flex; align-items:center; gap:8px; padding:10px; border:1px dashed var(--line); border-radius:10px; background:var(--surface); }
 .rc-lista small{ color:var(--ink-soft); } .rc-lista b{ font:700 15px ui-monospace,monospace; letter-spacing:.04em; user-select:all; }
@@ -4084,6 +4088,7 @@ export default {
     <label>Contraseña<input id="authPass" type="password" autocomplete="current-password"></label>
     <div class="auth-err" id="authErr"></div>
     <button class="btn-primary" type="submit" id="authBtn">Entrar</button>
+    <button type="button" class="btn-ghost auth-nueva" id="authNueva" hidden>➕ Crear cuenta nueva</button>
     <button type="button" class="auth-link" id="authForgot">¿Olvidaste tu contraseña?</button>
     <button type="button" class="auth-link" id="authRestoreBtn">📥 ¿Ya tenías una cuenta? Restaura tu copia de respaldo</button>
     <input type="file" id="authRestoreFile" accept="application/json,.json" hidden>
@@ -4340,18 +4345,23 @@ const SEDES_KEY = 'bar-sedes-list';
 const CURRENT_SEDE_KEY = 'bar-current-sede';
 function rawSedesList(){ try{ return JSON.parse(localStorage.getItem(SEDES_KEY)) || []; }catch(e){ return []; } }
 function persistSedesList(list){ try{ localStorage.setItem(SEDES_KEY, JSON.stringify(list)); }catch(e){} }
+// Cuenta de cada usuario: 'principal' (la de siempre) o una cuenta aparte creada en la entrada.
+function authGrupoDe(user){ const u = authUsers().find(x => x.user === user); return (u && u.cuenta) || 'principal'; }
+function grupoActual(){ return (typeof authUser !== 'undefined' && authUser) ? authGrupoDe(authUser) : ((rawSedesList().find(s => s.id === currentSedeId()) || {}).cuenta || 'principal'); }
 function sedesList(){
-  const list = rawSedesList();
-  if(list.length) return list;
-  return [{ id: 'default', name: (data && data.businessName) || 'Principal', key: 'bar-data' }];
+  const list = rawSedesList(), g = grupoActual();
+  const mias = list.filter(s => (s.cuenta || 'principal') === g);
+  if(mias.length) return mias.map(x => x.id === 'default' && g === 'principal' && typeof data !== 'undefined' && data && data.businessName && STORAGE_KEY === 'bar-data' ? Object.assign({}, x, { name: data.businessName }) : x);
+  return g === 'principal' ? [{ id: 'default', name: (data && data.businessName) || 'Principal', key: 'bar-data' }] : [];
 }
 function currentSedeId(){ try{ return localStorage.getItem(CURRENT_SEDE_KEY) || 'default'; }catch(e){ return 'default'; } }
-async function addSede(name){
+async function addSede(name, cuenta){
   let list = rawSedesList();
-  if(!list.length) list = [{ id: 'default', name: (data && data.businessName) || 'Principal', key: 'bar-data' }];
+  if(!list.some(s => s.id === 'default')) list.unshift({ id: 'default', name: (typeof data !== 'undefined' && data && data.businessName) || 'Principal', key: 'bar-data' });
   const id = 'sede-' + Date.now();
   const key = 'bar-data-' + id;
   const sede = { id, name, key };
+  const g = cuenta || grupoActual(); if(g !== 'principal') sede.cuenta = g;
   list.push(sede);
   persistSedesList(list);
   return sede;
@@ -14427,7 +14437,7 @@ let authUser = null;
 // Lista de usuarios en Ajustes → Cuenta: rol, cambiar rol, nueva contraseña y quitar (solo el admin).
 function accUsuariosPintar(){
   const box = document.getElementById('accUsersList'); if(!box) return;
-  const us = authUsers(), admin = authIsAdmin(), nAdmins = us.filter(u => u.role === 'admin').length;
+  const gr = grupoActual(), us = authUsers().filter(u => (u.cuenta || 'principal') === gr), admin = authIsAdmin(), nAdmins = us.filter(u => u.role === 'admin').length;
   box.innerHTML = '';
   us.forEach(u => {
     const row = document.createElement('div'); row.className = 'acc-user';
@@ -14499,14 +14509,15 @@ async function authHash(pass, salt){
     return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2,'0')).join('');
   }catch(e){ let h = 5381; for(const c of str) h = ((h << 5) + h + c.charCodeAt(0)) >>> 0; return 'x' + h.toString(16); }
 }
-async function authAddUser(user, pass, role){
+async function authAddUser(user, pass, role, cuenta){
   user = (user || '').trim().toLowerCase();
   if(user.length < 3) return 'El usuario debe tener al menos 3 caracteres.';
   if((pass || '').length < 6) return 'La contraseña debe tener al menos 6 caracteres.';
   const users = authUsers();
   if(users.some(u => u.user === user)) return 'Ese usuario ya existe.';
   const salt = Math.random().toString(36).slice(2) + Date.now().toString(36);
-  users.push({ user, salt, hash: await authHash(pass, salt), role: role || 'staff' });
+  const g = cuenta || ((typeof authUser !== 'undefined' && authUser) ? authGrupoDe(authUser) : 'principal');
+  users.push(Object.assign({ user, salt, hash: await authHash(pass, salt), role: role || 'staff' }, g !== 'principal' ? { cuenta: g } : {}));
   localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
   return null;
 }
@@ -14627,9 +14638,10 @@ async function enterApp(user, setup){
   localStorage.setItem(AUTH_SESSION_KEY, user);
   document.getElementById('authOverlay').hidden = true;
   try{
-    const sid = currentSedeId();
-    const sede = sedesList().find(s => s.id === sid);
-    if(sede) STORAGE_KEY = sede.key;
+    // Cada usuario entra a SU cuenta: si el equipo quedó en el negocio de otra cuenta, se cambia al suyo.
+    const sid = currentSedeId(), lista = sedesList();
+    const sede = lista.find(s => s.id === sid) || lista[0];
+    if(sede){ STORAGE_KEY = sede.key; localStorage.setItem(CURRENT_SEDE_KEY, sede.id); }
   }catch(e){}
   await loadData();
   if(setup){
@@ -14724,6 +14736,23 @@ function showAuth(firstRun){
   ov.hidden = false;
   const af = document.getElementById('authForm'), rf = document.getElementById('recForm'), g = i => document.getElementById(i);
   g('authForgot').hidden = firstRun;
+  // «Crear cuenta nueva» en la entrada: otro negocio en este equipo, con sus propios datos y usuarios.
+  let modoNueva = false;
+  const hintSetup = document.querySelector('#authSetup .auth-hint');
+  const ponerModo = nueva => {
+    modoNueva = nueva;
+    g('authTitle').textContent = nueva ? 'Crear cuenta nueva' : 'Iniciar sesión';
+    g('authBtn').textContent = nueva ? 'Crear cuenta y empezar' : 'Entrar';
+    g('authSetup').hidden = !nueva; g('authSetup').style.display = nueva ? 'flex' : 'none';
+    if(hintSetup) hintSetup.innerHTML = nueva ? 'Para <b>otro negocio</b>: tendrá sus propios datos y usuarios, separados de los que ya están aquí. Luego te hacemos unas preguntas para que Vento se adapte a tu negocio.<br>¿Eres empleado de un negocio que ya está aquí? Pídele al administrador que te cree el usuario.' : 'Primera vez: crea el usuario administrador de este equipo.';
+    g('authPass').autocomplete = nueva ? 'new-password' : 'current-password';
+    g('authForgot').hidden = nueva; g('authRestoreBtn').hidden = nueva;
+    const ch = document.getElementById('authUsers'); if(ch){ ch.hidden = nueva || !authUsers().length; ch.style.display = ch.hidden ? 'none' : ''; }
+    g('authNueva').textContent = nueva ? '← Ya tengo cuenta: iniciar sesión' : '➕ Crear cuenta nueva';
+    g('authErr').textContent = ''; if(nueva){ g('authUser').value = ''; g('authPass').value = ''; g('authBiz').focus(); }
+  };
+  g('authNueva').hidden = firstRun;
+  g('authNueva').onclick = () => ponerModo(!modoNueva);
   // Usuarios de este equipo: se tocan para no tener que escribir el nombre.
   let chips = document.getElementById('authUsers');
   if(!chips){ chips = document.createElement('div'); chips.id = 'authUsers'; chips.className = 'auth-users'; g('authUser').closest('label').before(chips); }
@@ -14769,6 +14798,15 @@ function showAuth(firstRun){
       const msg = await authAddUser(user, pass, 'admin');
       if(msg){ err.textContent = msg; return; }
       await enterApp(user, { biz: document.getElementById('authBiz').value.trim(), type: document.getElementById('authType').value });
+    }else if(modoNueva){
+      const biz = document.getElementById('authBiz').value.trim();
+      if(!biz){ err.textContent = 'Escribe el nombre del negocio.'; return; }
+      const cuenta = 'c' + Date.now().toString(36);
+      const msg = await authAddUser(user, pass, 'admin', cuenta);
+      if(msg){ err.textContent = msg; return; }
+      const sede = await addSede(biz, cuenta);
+      localStorage.setItem(CURRENT_SEDE_KEY, sede.id);
+      await enterApp(user, { biz, type: document.getElementById('authType').value });
     }else{
       const waitMin = authLoginLocked(user);
       if(waitMin){ err.textContent = '🔒 Demasiados intentos con "' + user + '". Espera ' + waitMin + ' min. e intenta de nuevo.'; return; }
@@ -15547,8 +15585,8 @@ bootApp();
 (function(){
 'use strict';
 const $=id=>document.getElementById(id);
-const LS=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
-const SS=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const LS=(k,d)=>{try{return JSON.parse(localStorage.getItem(window.ventoClave(k)))||d}catch(e){return d}};
+const SS=(k,v)=>{try{localStorage.setItem(window.ventoClave(k),JSON.stringify(v))}catch(e){}};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const dkey=(d=new Date())=>d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
 const btn=(t,f)=>{const e=document.createElement('button');e.className='btn-ghost';e.type='button';e.textContent=t;e.onclick=f;return e;};
@@ -18269,8 +18307,8 @@ window.__VITO_PDFJS_WORKER_B64__ = "LyoqCiAqIEBsaWNzdGFydCBUaGUgZm9sbG93aW5nIGlz
    ================================================================ */
 // Funciones del módulo de QR/música (vive dentro de su propia función; ver window.vitoMod).
 const vm = () => window.vitoMod || {};
-const LS = (k, d) => { try{ return JSON.parse(localStorage.getItem(k)) || d; }catch(e){ return d; } };
-const SS = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+const LS = (k, d) => { try{ return JSON.parse(localStorage.getItem(window.ventoClave(k))) || d; }catch(e){ return d; } };
+const SS = (k, v) => { try{ localStorage.setItem(window.ventoClave(k), JSON.stringify(v)); }catch(e){} };
 
 /* ---------- Fotos de productos ----------
    Las fotos se guardan en IndexedDB (no en los datos principales): así no
@@ -18629,7 +18667,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v59';
+const MESORA_VERSION = '2026-09-26 · v60';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
