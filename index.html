@@ -3078,11 +3078,11 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
 
     <div class="settings-group" hidden data-cat="pedidos">
       <h2>QR de las mesas (permanentes)</h2>
-      <div class="settings-desc">Imprímelos una sola vez. El QR de cada mesa no cambia mientras no cambies el link, el WhatsApp ni el número de mesa.</div>
+      <div class="settings-desc">Imprímelos una sola vez. Una vez los "Fijas" abajo, los QR que ya pegaste en las mesas SIGUEN SIRVIENDO PARA SIEMPRE, aunque después cambies de proveedor (por ejemplo, sigas usando GitHub Pages, gratis, o te pases a otro): eso solo cambia a dónde apuntan los QR que imprimas de ahora en adelante, nunca los que ya están pegados.</div>
       <div class="lic-plan" id="qrFijoEstado"></div>
       <div class="mz-actions" style="margin-bottom:8px"><button class="btn-primary" id="qrFijoBtn" type="button">📌 Fijar mis QR impresos</button></div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
-        <input id="qrUrl" class="mz-in" placeholder="Link donde subiste pedido.html" autocapitalize="none" autocomplete="off">
+        <input id="qrUrl" class="mz-in" placeholder="🌐 Proveedor: dirección donde vive tu página de pedidos" autocapitalize="none" autocomplete="off">
         <input id="qrWa" class="mz-in" placeholder="WhatsApp de respaldo con indicativo (573001234567)" inputmode="numeric">
         <div class="mz-actions"><button class="btn-warn" id="qrGen" type="button">Ver QR</button><button class="btn-warn" id="qrPrintBtn" type="button">🖨️ Imprimir todos</button><button class="btn-warn" id="catPubBtn" type="button">📤 Publicar catálogo</button></div>
         <div class="auth-hint" id="catPubEstado">El catálogo o menú se publica solo mientras la app esté abierta.</div>
@@ -15454,7 +15454,7 @@ function qrFijoEstado(){
   const e=$('qrFijoEstado');if(!e)return;
   const c=qCfg(),n=Object.keys(c.v||{}).length;
   e.innerHTML=c.fijo
-    ?'📌 <b>QR impresos fijos.</b> Canal <b>'+esc(c.topic)+'</b> · '+n+(n===1?' mesa guardada':' mesas guardadas')+' · link <b>'+esc(c.url||'—')+'</b>. Los QR pegados en las mesas siguen sirviendo aunque cambies de celular: esto va en tus respaldos. Si reimprimes, salen idénticos.'
+    ?'📌 <b>QR impresos fijos.</b> Canal <b>'+esc(c.topic)+'</b> · '+n+(n===1?' mesa guardada':' mesas guardadas')+' · link <b>'+esc(c.url||'—')+'</b>. Los QR pegados en las mesas siguen sirviendo aunque cambies de celular o de proveedor (arriba puedes seguir actualizando la dirección de tu página de pedidos): esto va en tus respaldos. Si reimprimes, salen idénticos.'
     :'¿Ya tienes QR impresos en las mesas? Tócalo en «Fijar mis QR impresos» para que nunca cambien.';
 }
 function qrFijoDialogo(){
@@ -15711,7 +15711,22 @@ function procesar(txt){
   if(navigator.vibrate)navigator.vibrate(200);
 }
 function iniQR(){
-  const c=qCfg();$('qrUrl').value=c.url;$('qrWa').value=c.wa;$('liveOn').checked=c.live;
+  const c=qCfg();
+  // Si esta misma app está servida desde GitHub Pages, el link de la página de
+  // pedidos debe ser justo esta misma dirección. Se corrige sola si quedó
+  // desactualizada (ej. cambió la rama que publica GitHub Pages) — esto NO
+  // toca el canal ni los códigos de cada mesa, así que los QR ya pegados en
+  // las mesas siguen sirviendo exactamente igual; solo actualiza a dónde
+  // apuntan los QR nuevos que imprimas de ahora en adelante.
+  if(/\.github\.io$/.test(location.hostname)){
+    const actual=location.origin+location.pathname.replace(/[^/]*$/,'')+'pedido.html';
+    if(c.url!==actual){
+      const antes=c.url;
+      c.url=actual;SS('vito_qr',c);
+      if(antes)showToast('🔄 Actualicé el link de tu página de pedidos al de GitHub: '+actual+'. Los QR ya pegados en las mesas siguen sirviendo igual.',8000);
+    }
+  }
+  $('qrUrl').value=c.url;$('qrWa').value=c.wa;$('liveOn').checked=c.live;
   const g=(k,v)=>{const x=qCfg();x[k]=v;SS('vito_qr',x);};
   $('qrUrl').oninput=e=>g('url',e.target.value.trim());
   $('qrWa').oninput=e=>g('wa',e.target.value.replace(/\D/g,''));
@@ -15740,7 +15755,7 @@ function iniQR(){
   }
   $('qrGen').onclick=()=>pintarQR($('qrGrid'));
   $('qrFijoBtn').onclick=qrFijoDialogo;
-  $('qrUrl').addEventListener('change',()=>{const f=qrFijoDe();if(f&&f.url&&$('qrUrl').value.trim()!==f.url)showToast('⚠️ Tus QR impresos apuntan a '+f.url+'. Los impresos siguen sirviendo, pero los QR nuevos que imprimas saldrán distintos.',9000);});
+  $('qrUrl').addEventListener('change',()=>{const f=qrFijoDe();if(f&&f.url&&$('qrUrl').value.trim()!==f.url)showToast('✅ Cambiaste de proveedor: los QR que YA pegaste en las mesas (con «'+f.url+'») siguen sirviendo exactamente igual. Esto solo define a dónde apuntan los QR NUEVOS que imprimas de aquí en adelante.',9000);});
   qrFijoSync();qrFijoEstado();qrFijoDesdeHash();
   window.addEventListener('hashchange',qrFijoDesdeHash);
   $('qrPrintBtn').onclick=imprimirQR;
@@ -15909,6 +15924,21 @@ function ytDur(iso){
   return (parseInt(m[1]||0,10)*3600)+(parseInt(m[2]||0,10)*60)+parseInt(m[3]||0,10);
 }
 const ytDurCache={};
+// Cuando piden varias canciones casi seguidas mientras suena una sola, cada una se insertaba
+// en la posición 1 (justo después de la que suena) — eso hacía que la ÚLTIMA pedida terminara
+// sonando primero y las demás quedaran atrás, al revés del orden en que las pidieron. Ahora se
+// lleva una posición que solo AVANZA mientras dure la "tanda" (usando la duración real de cada
+// canción, cuando se sabe, o ~4 min si no) y se reinicia sola a 1 en cuanto ya pasó tiempo de
+// sobra para que lo de antes haya sonado — así entran en orden, una detrás de otra.
+const YT_DUR_DEFECTO=240;
+let ytTanda={n:0,libreDesde:0};
+function ytPosicionSiguiente(durSeg){
+  const ahora=Date.now();
+  if(ahora>=ytTanda.libreDesde){ytTanda.n=0;ytTanda.libreDesde=ahora;}
+  ytTanda.n++;
+  ytTanda.libreDesde+=(durSeg||YT_DUR_DEFECTO)*1000;
+  return ytTanda.n;
+}
 async function ySearch(q,excluir){
   const j=await yGet('search?part=snippet&type=video&videoCategoryId=10&videoEmbeddable=true&videoSyndicated=true&maxResults=10&q='+encodeURIComponent(q));
   if(j===undefined)return undefined;
@@ -15949,14 +15979,15 @@ async function ytUno(id){
     // posición 1 y hace que "la próxima" termine siendo la MISMA canción
     // que ya sonó (se repite) en vez de la nueva. Insertando en 1 la actual
     // queda intacta en 0 y la nueva pedida sí queda como la siguiente real.
-    // Si llegan varias seguidas mientras suena una sola canción, cada una
-    // nueva vuelve a tomar la posición 1, así que la última pedida es la
-    // que queda más próxima a sonar.
+    // Si llegan varias seguidas mientras suena una sola canción, ytPosicionSiguiente
+    // les da posiciones 1, 2, 3... (no siempre 1), para que queden EN EL ORDEN en que
+    // se pidieron y no al revés; se reinicia sola cuando, según la duración real de
+    // las canciones ya puestas, ya debieron sonar.
     // Transmitiendo al TV con la app de YouTube, la lista se reproduce de principio a fin:
     // las canciones nuevas van al FINAL (en el orden en que las pidieron) para no saltar
     // una que ya sonó.
     const sn={playlistId:pl,resourceId:{kind:'youtube#video',videoId:it.vid}};
-    if(!(typeof castOn==='function'&&castOn()))sn.position=1;
+    if(!(typeof castOn==='function'&&castOn()))sn.position=ytPosicionSiguiente(it.dur);
     const r=await yApi('playlistItems?part=snippet',{method:'POST',body:JSON.stringify({snippet:sn})});
     l=cola();it=l.find(x=>x.id===id);if(it){it.yt=true;it.done=true;it.ytAt=Date.now();it.ytItemId=r&&r.id;SS('vito_cola',l);}
     try{if(typeof castEstado==='function')castEstado();}catch(e){}
@@ -16319,7 +16350,7 @@ async function publicarCatalogo(force){
 window.vitoPublicarCatalogo = publicarCatalogo;
 window.vitoQCfg = qCfg;   // lo usan los domicilios por web/WhatsApp, que viven fuera de este módulo
 // Lo que usan las fotos de la carta y la transmisión al TV (script del final).
-window.vitoMod = { linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente, ytDur };
+window.vitoMod = { linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente, ytDur, ytPosicionSiguiente, ytTanda: () => ytTanda };
 function publicarCuentas(){
   if(typeof data==='undefined'||!data)return;
   try{publicarCatalogo();}catch(e){}             // la carta se publica siempre (aunque "en vivo" esté apagado)
@@ -18190,7 +18221,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v43';
+const MESORA_VERSION = '2026-09-26 · v44';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 let presDisp = null, presConn = null;
