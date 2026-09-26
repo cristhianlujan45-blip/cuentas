@@ -2885,7 +2885,8 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
 
     <div class="settings-group" hidden data-cat="negocio">
       <h2>Cuenta y negocio</h2>
-      <div class="settings-desc">Sesión iniciada como <strong id="accUserLabel"></strong>. Sirve para tiendas, cafeterías, restaurantes y bares.</div>
+      <div class="settings-desc">Sesión iniciada como <strong id="accUserLabel"></strong>. Sirve para cualquier tipo de negocio.</div>
+      <button type="button" class="btn-camera cam-big" style="width:100%;margin:8px 0" onclick="window.ventoBienvenida && window.ventoBienvenida(false)"><span class="cam-ic">🧭</span><span class="cam-tx"><strong>Configurar mi negocio</strong><small>Tipo de negocio, datos básicos, cuántos espacios y qué funciones usar. Vento se adapta a lo que necesitas.</small></span></button>
       <div class="settings-row">
         <div class="settings-row-text"><strong>Tipo de negocio</strong><span>Solo cambia la etiqueta del negocio; tus productos no se tocan.</span></div>
         <select id="accType" class="acc-inline" style="padding:10px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px"></select>
@@ -14603,7 +14604,7 @@ async function enterApp(user, setup){
   wireAccountUI();
   wireSedesUI();
   aplicarModoMesero();
-  maybeShowTutorial();
+  if(setup && window.ventoBienvenida) window.ventoBienvenida(true); else maybeShowTutorial();
   maybeShowLowStockAlert();
 }
 
@@ -18580,7 +18581,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v57';
+const MESORA_VERSION = '2026-09-26 · v58';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -21161,6 +21162,115 @@ window.mesoraCelebrar = function(emojis){
   document.addEventListener('visibilitychange', () => { if(!document.hidden) revisar(false); });
   const nb = document.querySelector('nav button[data-view="contabilidad"]'); if(nb) nb.addEventListener('click', pintar);
   document.addEventListener('click', e => { if(e.target.closest('[data-go="contabilidad"]')) setTimeout(pintar, 50); });
+})();
+</script>
+<script>
+/* ================= Bienvenida: Vento se adapta a cada negocio =================
+   Sale justo después de «Crear cuenta» (y se puede repetir en Ajustes → Negocio → Configurar mi negocio).
+   4 pasos cortos: tipo de negocio, datos básicos, cuántos espacios (mesas, consultorios, habitaciones…)
+   y qué funciones va a usar. Con eso Vento prende o apaga música, domicilios, propina, clientes
+   frecuentes y cobro por QR, crea los espacios y deja la carta de ejemplo del tipo de negocio. */
+(function(){
+  const $b = id => document.getElementById(id);
+  const escb = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const ICON = { tienda:'🏪', cafeteria:'☕', restaurante:'🍽️', cerveceria:'🍻', billar:'🎱', licorera:'🍾', panaderia:'🥐', farmacia:'💊', ferreteria:'🔧', ropa:'👕', barberia:'💈', hotel:'🏨', motel:'🛏️', medico:'🩺', veterinaria:'🐾', evento:'🎉' };
+  const ESPACIOS_DEF = { restaurante:10, cafeteria:8, cerveceria:10, billar:6, hotel:12, motel:10, medico:3, veterinaria:4, barberia:4, evento:5 };
+  const FUNCIONES = [
+    ['musica', '🎵', 'Música de los clientes', 'Piden canciones desde el QR y suenan en el TV', ['cerveceria','billar','restaurante','licorera']],
+    ['domicilios', '🛵', 'Domicilios', 'Pedidos a domicilio por tu link y WhatsApp', ['restaurante','cafeteria','panaderia','farmacia','licorera','ferreteria','tienda','cerveceria']],
+    ['propina', '💵', 'Propina al cobrar', 'Ofrece el 10% de servicio', ['restaurante','cafeteria','cerveceria','billar','barberia']],
+    ['frecuentes', '🎖️', 'Clientes frecuentes', 'Guarda a tus clientes y sus puntos', ['barberia','veterinaria','medico','cafeteria','ropa']],
+    ['nequi', '💜', 'Cobrar con QR (Nequi / Bre-B)', 'El cliente ve tu QR y paga desde su celular', Object.keys(ICON)]
+  ];
+  const CAMPO = { musica: 'musicOn', domicilios: 'domiciliosOn', propina: 'tipsOn', frecuentes: 'loyaltyOn', nequi: 'nequiOn' };
+  let st = null, primera = false;
+
+  function tiposHtml(){
+    return '<div class="onb-grid">' + Object.keys(BUSINESS_TYPES).map(k => '<button type="button" class="onb-tile' + (st.tipo === k ? ' on' : '') + '" data-tipo="' + k + '"><span>' + (ICON[k] || '🏷️') + '</span><b>' + escb(BUSINESS_TYPES[k]) + '</b></button>').join('') + '</div>';
+  }
+  const nombreEsp = () => (ESPACIOS[st.tipo] || ['Mesa', 'Mesas', '🍽️']);
+  function paso(){
+    const ov = $b('onbOv'), cuerpo = $b('onbCuerpo'), n = st.paso;
+    ov.querySelectorAll('.onb-dots i').forEach((d, k) => d.classList.toggle('on', k <= n));
+    $b('onbAtras').hidden = n === 0; $b('onbSig').textContent = n === 3 ? '✅ Listo, empezar' : 'Siguiente →';
+    if(n === 0){
+      cuerpo.innerHTML = '<h2>👋 ¡Bienvenido a Vento!</h2><div class="modal-sub">¿Qué tipo de negocio tienes? Así Vento usa tus palabras (mesas, consultorios, habitaciones…) y te deja listo lo que necesitas.</div>' + tiposHtml();
+      cuerpo.querySelector('.onb-grid').onclick = e => { const b = e.target.closest('[data-tipo]'); if(!b) return; st.tipo = b.dataset.tipo; st.espacios = ESPACIOS_DEF[st.tipo] || 3; st.funciones = defFunciones(st.tipo); paso(); };
+    } else if(n === 1){
+      cuerpo.innerHTML = '<h2>' + (ICON[st.tipo] || '🏷️') + ' Datos de tu negocio</h2><div class="modal-sub">Salen en tus facturas y en la carta de tus clientes. Solo el nombre es necesario.</div>' +
+        '<label>Nombre del negocio</label><input id="onbNom" class="mz-in" maxlength="40" value="' + escb(st.nombre) + '" placeholder="Ej. Café La Esquina">' +
+        '<label>Ciudad</label><input id="onbCiu" class="mz-in" maxlength="40" value="' + escb(st.ciudad) + '" placeholder="Ej. Medellín">' +
+        '<label>WhatsApp del negocio</label><input id="onbWa" class="mz-in" inputmode="tel" maxlength="16" value="' + escb(st.wa) + '" placeholder="Ej. 3001234567">' +
+        '<label>Dirección (opcional)</label><input id="onbDir" class="mz-in" maxlength="80" value="' + escb(st.dir) + '">' +
+        '<label>NIT o cédula (opcional, para facturas)</label><input id="onbNit" class="mz-in" maxlength="20" value="' + escb(st.nit) + '">';
+    } else if(n === 2){
+      const [sg, pl, ic] = nombreEsp();
+      cuerpo.innerHTML = '<h2>' + ic + ' ¿' + (/(a|ón)$/i.test(sg) ? 'Cuántas' : 'Cuántos') + ' ' + escb(pl.toLowerCase()) + ' tienes?</h2><div class="modal-sub">' + (sg === 'Cuenta' ? 'Son las cuentas que puedes tener abiertas al mismo tiempo (ej. clientes que están comprando). ' : '') + 'Luego puedes agregar o quitar cuando quieras.</div>' +
+        '<div class="onb-num"><button type="button" id="onbMenos">−</button><input id="onbEsp" type="number" inputmode="numeric" min="1" max="200" value="' + st.espacios + '"><button type="button" id="onbMas">+</button></div>' +
+        '<div class="onb-prev">' + Array.from({ length: Math.min(st.espacios, 12) }, (_, i) => '<span>' + ic + ' ' + escb(sg) + ' ' + (i + 1) + '</span>').join('') + (st.espacios > 12 ? '<span>… y ' + (st.espacios - 12) + ' más</span>' : '') + '</div>';
+      const upd = v => { st.espacios = Math.max(1, Math.min(200, v || 1)); paso(); };
+      $b('onbMenos').onclick = () => upd(st.espacios - 1); $b('onbMas').onclick = () => upd(st.espacios + 1);
+      $b('onbEsp').onchange = e => upd(parseInt(e.target.value, 10));
+    } else {
+      cuerpo.innerHTML = '<h2>⚙️ ¿Qué vas a usar?</h2><div class="modal-sub">Te dejamos prendido lo típico de tu negocio. Cámbialo si quieres; todo se puede prender o apagar después en Ajustes.</div>' +
+        FUNCIONES.map(f => '<label class="onb-fun"><span class="onb-fic">' + f[1] + '</span><span class="onb-ftx"><b>' + f[2] + '</b><small>' + f[3] + '</small></span><span class="switch"><input type="checkbox" data-fun="' + f[0] + '"' + (st.funciones[f[0]] ? ' checked' : '') + '><span class="switch-slider"></span></span></label>').join('');
+      cuerpo.querySelectorAll('[data-fun]').forEach(c => c.onchange = () => { st.funciones[c.dataset.fun] = c.checked; });
+    }
+    cuerpo.scrollTop = 0; ov.querySelector('.modal').scrollTop = 0;
+  }
+  function guardarPaso(){
+    if(st.paso === 1){
+      st.nombre = $b('onbNom').value.trim(); st.ciudad = $b('onbCiu').value.trim(); st.wa = $b('onbWa').value.replace(/[^\d+]/g, '');
+      st.dir = $b('onbDir').value.trim(); st.nit = $b('onbNit').value.trim();
+      if(!st.nombre){ showToast('⚠️ Escribe el nombre de tu negocio.'); return false; }
+    }
+    if(st.paso === 2){ const v = parseInt($b('onbEsp').value, 10); if(v > 0) st.espacios = Math.min(200, v); }
+    return true;
+  }
+  function defFunciones(tipo){ const o = {}; FUNCIONES.forEach(f => { o[f[0]] = f[4].includes(tipo); }); return o; }
+  async function aplicar(){
+    const cambioTipo = data.businessType !== st.tipo;
+    data.businessType = st.tipo; data.businessName = st.nombre; data.ciudad = st.ciudad; data.bizWhatsapp = st.wa;
+    if(st.dir) data.bizAddress = st.dir; if(st.nit) data.nit = st.nit;
+    Object.keys(CAMPO).forEach(k => { data[CAMPO[k]] = !!st.funciones[k]; });
+    if(cambioTipo) try{ seedBusinessMenu(st.tipo); }catch(e){}
+    // Espacios: se crean los que falten y se quitan solo los vacíos que sobran (nunca una cuenta abierta).
+    for(let i = 1; i <= st.espacios; i++) if(!data.tables[i]) data.tables[i] = { items: [], people: [] };
+    Object.keys(data.tables).map(Number).filter(id => id > st.espacios && !((data.tables[id].items || []).length)).forEach(id => { delete data.tables[id]; });
+    data.tableCount = st.espacios;
+    data.onboarding = { t: Date.now(), tipo: st.tipo };
+    // El WhatsApp también queda como respaldo de los pedidos por QR.
+    try{ if(st.wa && window.vitoMod){ const c = window.vitoMod.qCfg(); if(!c.wa){ c.wa = st.wa.replace(/\D/g, '').replace(/^3/, '573'); window.vitoMod.SS('vito_qr', c); } } }catch(e){}
+    await saveData();
+    showToast('✅ ¡Listo! Vento quedó configurado para tu ' + BUSINESS_TYPES[st.tipo].toLowerCase() + '.', 4000);
+    setTimeout(() => location.reload(), 900);   // se vuelve a abrir ya con todo adaptado (la sesión sigue abierta)
+  }
+  window.ventoBienvenida = function(esPrimera){
+    primera = !!esPrimera;
+    const f = {}; FUNCIONES.forEach(x => { f[x[0]] = !!data[CAMPO[x[0]]]; });
+    st = { paso: primera ? 0 : 0, tipo: data.businessType || 'tienda', nombre: data.businessName || '', ciudad: data.ciudad || '', wa: data.bizWhatsapp || '', dir: data.bizAddress || '', nit: data.nit || '',
+      espacios: primera ? (ESPACIOS_DEF[data.businessType] || Object.keys(data.tables || {}).length || 3) : (Object.keys(data.tables || {}).length || data.tableCount || 3), funciones: primera ? defFunciones(data.businessType || 'tienda') : f };
+    let ov = $b('onbOv');
+    if(!ov){
+      ov = document.createElement('div'); ov.id = 'onbOv'; ov.className = 'overlay';
+      ov.innerHTML = '<div class="modal onb-modal"><div class="onb-dots"><i></i><i></i><i></i><i></i></div><div id="onbCuerpo"></div>' +
+        '<div class="modal-actions"><button type="button" class="btn-close" id="onbAtras">← Atrás</button><button type="button" class="btn-close" id="onbSaltar">Ahora no</button><button type="button" class="btn-primary" id="onbSig">Siguiente →</button></div></div>';
+      document.body.appendChild(ov);
+      $b('onbAtras').onclick = () => { if(st.paso > 0){ guardarPaso(); st.paso--; paso(); } };
+      $b('onbSaltar').onclick = () => { ov.classList.remove('show'); if(primera) try{ maybeShowTutorial(); }catch(e){} };
+      $b('onbSig').onclick = () => { if(!guardarPaso()) return; if(st.paso < 3){ st.paso++; paso(); } else { ov.classList.remove('show'); aplicar(); } };
+    }
+    paso(); ov.classList.add('show');
+  };
+  const css = document.createElement('style');
+  css.textContent = '.onb-modal{max-width:520px}.onb-dots{display:flex;gap:6px;justify-content:center;margin-bottom:12px}.onb-dots i{width:34px;height:5px;border-radius:5px;background:var(--line)}.onb-dots i.on{background:var(--amber)}' +
+    '.onb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(120px,100%),1fr));gap:8px;margin-top:12px}.onb-tile{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;cursor:pointer;text-align:center;min-width:0}.onb-tile span{font-size:28px}.onb-tile b{font-size:13px;overflow-wrap:anywhere}.onb-tile.on{border-color:var(--amber);background:color-mix(in srgb,var(--amber) 16%,var(--surface));box-shadow:0 0 0 2px color-mix(in srgb,var(--amber) 45%,transparent)}' +
+    '.onb-modal label{display:block;font-size:13px;color:var(--ink-soft);margin:10px 0 4px}.onb-modal input.mz-in{width:100%}' +
+    '.onb-num{display:flex;align-items:center;justify-content:center;gap:12px;margin:18px 0}.onb-num button{width:52px;height:52px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:26px;cursor:pointer}.onb-num input{width:90px;text-align:center;font-size:28px;font-weight:800;padding:8px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}' +
+    '.onb-prev{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}.onb-prev span{font-size:12.5px;padding:5px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line)}' +
+    '.onb-fun{display:flex !important;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:12px;margin:8px 0 !important;background:var(--surface);color:var(--ink) !important;cursor:pointer}.onb-fic{font-size:24px}.onb-ftx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.onb-ftx b{font-size:14.5px}.onb-ftx small{font-size:12.5px;color:var(--ink-soft)}' +
+    '.onb-modal .modal-actions{flex-wrap:wrap}';
+  document.head.appendChild(css);
 })();
 </script>
 </body>
