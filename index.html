@@ -3,6 +3,12 @@
 <head>
 <link rel="preconnect" href="https://generativelanguage.googleapis.com">
 <meta charset="UTF-8">
+<!-- Evita que el navegador (sobre todo en el celular, con la app agregada a la
+     pantalla de inicio) se quede pegado con una versión vieja de esta página
+     guardada en caché — cada visita revisa que sea la última. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <script>
 /* Registro de errores (va primero para no perder los que pasen al abrir la app).
    Cada error queda con un código corto (ej. E-1K9Z) en localStorage; Mesi los lee,
@@ -18221,9 +18227,33 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v44';
+const MESORA_VERSION = '2026-09-26 · v45';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
+// Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
+// una versión vieja guardada, antes no había forma de saberlo desde adentro — parecía que "la
+// app no carga bien" o "el diseño se ve raro", sin ningún aviso. Ahora, de vez en cuando, se
+// vuelve a pedir esta misma página (sin usar la caché) y se compara la versión que trae contra
+// la que está corriendo; si son distintas, aparece un aviso para actualizar con un toque.
+function mesoraRevisarVersionNueva(){
+  fetch(location.href, { cache: 'no-store' }).then(r => r.text()).then(html => {
+    const m = /const MESORA_VERSION = '([^']+)'/.exec(html);
+    if(m && m[1] && m[1] !== MESORA_VERSION) mesoraAvisoVersionNueva(m[1]);
+  }).catch(() => {});
+}
+function mesoraAvisoVersionNueva(nueva){
+  if(document.getElementById('mesoraNuevaVersion')) return;
+  const b = document.createElement('div');
+  b.id = 'mesoraNuevaVersion';
+  b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#2d7d46;color:#fff;padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;font:600 14px system-ui;box-shadow:0 -4px 16px rgba(0,0,0,.3)';
+  b.innerHTML = '<span>🔄 Hay una versión nueva de Mesora (' + String(nueva).split('·').pop().trim() + '). Actualízala para que todo funcione bien.</span>' +
+    '<button type="button" style="background:#fff;color:#2d7d46;border:0;border-radius:8px;padding:8px 16px;font:700 14px system-ui;cursor:pointer">Actualizar ahora</button>';
+  b.querySelector('button').onclick = () => location.reload();
+  document.body.appendChild(b);
+}
+setInterval(() => { if(document.visibilityState === 'visible') mesoraRevisarVersionNueva(); }, 5 * 60000);
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') mesoraRevisarVersionNueva(); });
+setTimeout(mesoraRevisarVersionNueva, 4000);
 let presDisp = null, presConn = null;
 function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.replace('tv.html#', 'tv.html?auto=1#') : ''; }
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
