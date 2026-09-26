@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; } body{ overflow-x:clip; max-width:100vw; }</style>
-<title>Mesora · Música en el TV</title>
+<title>Vento · Música en el TV</title>
 <style>
   /* Pantalla del TV: se abre en el navegador del televisor (LG webOS, Samsung, Android TV,
-     TV Box) con tv.html#código. Reproduce la cola de canciones que le manda Mesora desde
+     TV Box) con tv.html#código. Reproduce la cola de canciones que le manda Vento desde
      el celular por ntfy. Código sencillo a propósito: los navegadores de los TV son viejos. */
   :root{ --bg:#0b0a12; --card:#16151f; --line:#2a2838; --ink:#f4f2fb; --soft:#a19dba; --acc:#8b5cf6; --ok:#34d399; --bad:#fb7185; }
   *{ box-sizing:border-box; }
@@ -53,7 +53,7 @@
   <div class="side">
     <h2>Siguen</h2>
     <ol id="next"></ol>
-    <div class="state"><span class="dot" id="dot"></span><span id="state">Conectando con Mesora…</span></div>
+    <div class="state"><span class="dot" id="dot"></span><span id="state">Conectando con Vento…</span></div>
   </div>
 </div>
 <div id="start">
@@ -67,7 +67,7 @@
   var code = (location.hash || '').replace(/[^a-z0-9]/gi, '');
   var TOPIC = 'mesoratv' + code;
   var $ = function(id){ return document.getElementById(id); };
-  if(!code){ $('err').textContent = 'Falta el código del link. Copia de nuevo el link desde Mesora → Música → Pantalla del TV.'; $('go').style.display = 'none'; return; }
+  if(!code){ $('err').textContent = 'Falta el código del link. Copia de nuevo el link desde Vento → Música → Pantalla del TV.'; $('go').style.display = 'none'; return; }
 
   var cola = [], tocadas = {}, actual = null, player = null, listo = false, empezado = false, cargadoEn = 0, ultimoMsg = 0;
   try{ tocadas = JSON.parse(localStorage.getItem('tv_tocadas_' + code) || '{}') || {}; }catch(e){ tocadas = {}; }
@@ -88,7 +88,7 @@
     if(actual){ $('nowSong').textContent = actual.s; $('nowMesa').textContent = actual.m; }
     var vivo = Date.now() - ultimoMsg < 6 * 60000;
     $('dot').className = 'dot ' + (vivo ? 'ok' : 'bad');
-    $('state').textContent = vivo ? 'Conectado con Mesora' : 'Sin noticias del celular: deja Mesora abierta en la sección Música.';
+    $('state').textContent = vivo ? 'Conectado con Vento' : 'Sin noticias del celular: deja Vento abierta en la sección Música.';
   }
   function siguiente(){
     if(!listo || !empezado) return;

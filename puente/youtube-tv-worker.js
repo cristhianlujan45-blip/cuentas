@@ -1,7 +1,7 @@
-/* Puente de Mesora para YouTube en el TV (Cloudflare Worker, gratis).
-   Mesora (una página web) no puede hablar directo con el sistema de YouTube que controla la
+/* Puente de Vento para YouTube en el TV (Cloudflare Worker, gratis).
+   Vento (una página web) no puede hablar directo con el sistema de YouTube que controla la
    app del TV («Vincular con código de TV»): el navegador lo bloquea (CORS). Este puente solo
-   reenvía esas llamadas a www.youtube.com/api/lounge/… y le devuelve la respuesta a Mesora.
+   reenvía esas llamadas a www.youtube.com/api/lounge/… y le devuelve la respuesta a Vento.
    No guarda nada y no sirve para nada más que para esa dirección.
 
    Cómo publicarlo: dash.cloudflare.com → Workers & Pages → Create → Create Worker →
@@ -17,7 +17,7 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
     const u = new URL(req.url);
     if (req.method !== 'POST' || !u.pathname.startsWith('/api/lounge/')) {
-      return new Response('Mesora: puente de YouTube TV funcionando ✔', { status: u.pathname === '/' ? 200 : 404, headers: { ...cors, 'Content-Type': 'text/plain; charset=utf-8' } });
+      return new Response('Vento: puente de YouTube TV funcionando ✔', { status: u.pathname === '/' ? 200 : 404, headers: { ...cors, 'Content-Type': 'text/plain; charset=utf-8' } });
     }
     const headers = { 'Content-Type': req.headers.get('Content-Type') || 'application/x-www-form-urlencoded' };
     const tok = req.headers.get('X-YouTube-LoungeId-Token');

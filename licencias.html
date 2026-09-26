@@ -42,9 +42,9 @@
 </script>
 <style>html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; } body{ overflow-x:clip; max-width:100vw; }</style>
 <meta name="robots" content="noindex">
-<title>Mesora · Licencias</title>
+<title>Vento · Licencias</title>
 <style>
-  /* Herramienta del DUEÑO de Mesora: crea los códigos de activación de sedes adicionales.
+  /* Herramienta del DUEÑO de Vento: crea los códigos de activación de sedes adicionales.
      Necesita la llave privada (archivo LLAVE-PRIVADA-MESORA-NO-COMPARTIR.json), que NO está en
      GitHub: sin ella esta página no puede crear códigos. */
   :root{ --bg:#0f0f16; --card:#17171f; --card2:#1e1e29; --line:#2a2a38; --ink:#f2f1f7; --soft:#9a97ad; --acc:#7c3aed; --acc2:#c4b5fd; --ok:#34d399; --bad:#fb7185; }
@@ -73,7 +73,7 @@
 </head>
 <body>
 <main>
-  <h1>🔑 Licencias de Mesora</h1>
+  <h1>🔑 Licencias de Vento</h1>
   <p class="sub">Crea el código de activación de las sedes adicionales de un cliente después de que pague. Solo funciona con tu llave privada.</p>
 
   <section>
@@ -97,7 +97,7 @@
     <input id="cliente" placeholder="Ej: Bar La 70 · Carlos">
     <label for="wa">WhatsApp del cliente (opcional, para enviarle el link)</label>
     <input id="wa" inputmode="tel" placeholder="3001234567">
-    <label for="base">Dirección de Mesora</label>
+    <label for="base">Dirección de Vento</label>
     <input id="base" autocomplete="off">
     <button class="primary" type="button" id="gen">Crear código de activación</button>
     <div id="res" hidden>
@@ -121,7 +121,7 @@
   function b64u(bytes){ var s = ''; bytes = new Uint8Array(bytes); for(var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
   async function cargarJwk(jwk, recordar){
     try{
-      if(!jwk || jwk.kty !== 'EC' || !jwk.d) throw new Error('Ese archivo no es la llave privada de Mesora.');
+      if(!jwk || jwk.kty !== 'EC' || !jwk.d) throw new Error('Ese archivo no es la llave privada de Vento.');
       var clean = { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y, d: jwk.d };
       privKey = await crypto.subtle.importKey('jwk', clean, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
       if(recordar){ try{ localStorage.setItem(KEY_LS, JSON.stringify(clean)); }catch(e){} }
@@ -150,7 +150,7 @@
     var link = $('base').value.trim().replace(/#.*$/, '') + '#licencia=' + code;
     ultimo = { code: code, link: link, p: p };
     $('res').hidden = false;
-    $('resTxt').textContent = '✅ ' + s + ' sede(s) adicional(es) para el equipo ' + eq + (p.v ? ' · vence el ' + new Date(p.v).toLocaleDateString('es-CO') : ' · sin vencimiento') + '. El cliente solo tiene que abrir el link en el celular donde usa Mesora.';
+    $('resTxt').textContent = '✅ ' + s + ' sede(s) adicional(es) para el equipo ' + eq + (p.v ? ' · vence el ' + new Date(p.v).toLocaleDateString('es-CO') : ' · sin vencimiento') + '. El cliente solo tiene que abrir el link en el celular donde usa Vento.';
     $('resLink').textContent = link;
     var h = []; try{ h = JSON.parse(localStorage.getItem(HIST_LS) || '[]'); }catch(e){}
     h.unshift({ at: Date.now(), eq: eq, s: s, v: p.v || 0, n: p.n || '' }); try{ localStorage.setItem(HIST_LS, JSON.stringify(h.slice(0, 200))); }catch(e){}
@@ -162,7 +162,7 @@
   $('sendWa').onclick = function(){
     if(!ultimo) return;
     var n = $('wa').value.replace(/\D/g, ''); if(n.length === 10) n = '57' + n;
-    var txt = '¡Gracias por tu pago! 🎉 Abre este link en el celular donde usas Mesora para activar tus sedes:\n' + ultimo.link;
+    var txt = '¡Gracias por tu pago! 🎉 Abre este link en el celular donde usas Vento para activar tus sedes:\n' + ultimo.link;
     window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(txt), '_blank');
   };
   function pintarHist(){

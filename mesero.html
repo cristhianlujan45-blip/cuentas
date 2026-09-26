@@ -91,11 +91,11 @@ function fxSet(kind){
 </script>
 <style>html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; } body{ overflow-x:clip; max-width:100vw; }</style>
 <meta name="theme-color" content="#0f0f16">
-<title>Mesora Meseros</title>
+<title>Vento Meseros</title>
 <link rel="preconnect" href="https://ntfy.sh">
 <style>
   /* App de meseros: cada mesero la usa en SU celular. Recibe el estado de las mesas y la carta
-     del celular principal (Mesora, index.html) y le manda los pedidos por un canal privado de
+     del celular principal (Vento, index.html) y le manda los pedidos por un canal privado de
      ntfy. El celular principal los aplica con el mismo entendedor de la voz clásica. */
   :root{ --bg:#0f0f16; --card:#17171f; --card2:#1e1e29; --line:#2a2a38; --ink:#f2f1f7; --soft:#9a97ad; --acc:#7c3aed; --acc2:#c4b5fd; --ok:#34d399; --bad:#fb7185; --font:-apple-system,'Segoe UI',Roboto,sans-serif; }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -156,7 +156,7 @@ function fxSet(kind){
   .setup input{ width:100%; height:50px; padding:0 14px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit; font-size:17px; text-align:center; margin:14px 0 10px; }
   .setup button{ width:100%; height:50px; border-radius:12px; border:0; background:var(--acc); color:#fff; font-weight:800; font-size:16px; }
   .hint{ color:var(--soft); font-size:13px; text-align:center; margin:4px 0 12px; }
-/* ---------- Animaciones de Mesora (las mismas en las 3 apps) ---------- */
+/* ---------- Animaciones de Vento (las mismas en las 3 apps) ---------- */
 @keyframes mzIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @keyframes mzPop{0%{opacity:0;transform:scale(.9)}65%{opacity:1;transform:scale(1.02)}100%{opacity:1;transform:none}}
 @keyframes mzBurst{0%{opacity:0;transform:translate(0,0) scale(.4)}15%{opacity:1}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.25) rotate(var(--r))}}
@@ -179,7 +179,7 @@ button:not(:disabled):active{transform:scale(.95);filter:brightness(1.08)}
 <div id="setup" class="setup" hidden></div>
 <div id="app" hidden>
   <header>
-    <div class="biz"><b id="biz">Mesora</b><small><span class="dot" id="dot"></span><span id="estado">Conectando…</span></small></div>
+    <div class="biz"><b id="biz">Vento</b><small><span class="dot" id="dot"></span><span id="estado">Conectando…</span></small></div>
     <button class="chip" id="yo" type="button"></button>
   </header>
   <main>
@@ -218,7 +218,7 @@ button:not(:disabled):active{transform:scale(.95);filter:brightness(1.08)}
   var link = h && /^[a-z0-9]+\.[a-z0-9]+$/i.test(h) ? h : (localStorage.getItem('mes_link') || '');
   if(!link){
     $('setup').hidden = false;
-    $('setup').innerHTML = '<div style="font-size:54px">🧑‍🍳</div><h1>App de meseros</h1><p>Pídele al administrador el link de meseros (Mesora → Ajustes → Pedidos, QR y caja → App de meseros) y ábrelo aquí.</p>';
+    $('setup').innerHTML = '<div style="font-size:54px">🧑‍🍳</div><h1>App de meseros</h1><p>Pídele al administrador el link de meseros (Vento → Ajustes → Pedidos, QR y caja → App de meseros) y ábrelo aquí.</p>';
     return;
   }
   var CANAL = link.split('.')[0], COD = link.split('.')[1];
@@ -241,7 +241,7 @@ button:not(:disabled):active{transform:scale(.95);filter:brightness(1.08)}
     toast('📤 Enviando: ' + texto);
     fetch('https://ntfy.sh/' + T_MES, { method: 'POST', body: JSON.stringify({ k: 'voz', texto: texto, mesero: yo, id: id }) })
       .catch(function(){ delete pendientes[id]; toast('⚠️ Sin internet: no se envió. Intenta de nuevo.', 5000); });
-    setTimeout(function(){ if(pendientes[id]){ delete pendientes[id]; toast('⚠️ El celular principal no respondió. Revisa que Mesora esté abierta allá (y con internet). Tu pedido llegará cuando se abra.', 7000); } }, 15000);
+    setTimeout(function(){ if(pendientes[id]){ delete pendientes[id]; toast('⚠️ El celular principal no respondió. Revisa que Vento esté abierta allá (y con internet). Tu pedido llegará cuando se abra.', 7000); } }, 15000);
   }
 
   function recibir(txt){
@@ -273,7 +273,7 @@ button:not(:disabled):active{transform:scale(.95);filter:brightness(1.08)}
 
   function pintarMesas(){
     if(!estado) return;
-    $('biz').textContent = estado.b || 'Mesora';
+    $('biz').textContent = estado.b || 'Vento';
     pintarEstado();
     var g = $('mesas'); g.innerHTML = '';
     // Las mesas entran con animación solo la primera vez (luego se repintan en vivo sin parpadear).

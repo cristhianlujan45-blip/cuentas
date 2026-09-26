@@ -1,4 +1,4 @@
-# Mesora — Cuentas de mesa, pedidos por QR y márgenes de precio (offline)
+# Vento — Cuentas de mesa, pedidos por QR y márgenes de precio (offline)
 
 Dos páginas independientes, sin backend ni instalación: cada una es un solo
 archivo HTML que corre entero en el navegador (los datos quedan en
@@ -54,14 +54,14 @@ ambos archivos al mismo lugar (el mismo hosting) y configurar en
 
 Se abre en el **navegador del TV** (LG webOS, Samsung, Android TV o TV Box) con
 el link de **Música → Pantalla del TV**. El TV reproduce la cola de canciones
-en orden y en vivo: el celular (con Mesora abierta) le manda cada canción que
+en orden y en vivo: el celular (con Vento abierta) le manda cada canción que
 piden las mesas, sin Google y sin transmitir. Solo se envían versiones que ya
 se comprobó que se dejan reproducir fuera de YouTube; si alguna igual falla, el
 TV avisa y el celular busca otra versión.
 
 ## `puente/youtube-tv-worker.js` — canciones solas en el YouTube del TV
 
-Con **Música → YouTube del TV: canciones solas**, Mesora se conecta a la app de
+Con **Música → YouTube del TV: canciones solas**, Vento se conecta a la app de
 YouTube del televisor con el código «Vincular con código de TV» y le agrega
 cada canción que piden las mesas a su cola, en vivo. Usa el mismo sistema que
 los celulares al vincular un TV (no es una API pública de Google; YouTube
@@ -75,14 +75,14 @@ Cada mesero la abre en su propio celular con el link de **Ajustes → Pedidos,
 QR y caja → App de meseros**. Ve las mesas y lo que lleva cada una, anota
 pedidos tocando los productos o dictando (los mismos comandos de la voz
 clásica), pide la misma ronda y crea mesas con nombre. Los pedidos llegan
-directo al celular principal (con Mesora abierta) por un canal privado que
+directo al celular principal (con Vento abierta) por un canal privado que
 los clientes no conocen. En el mismo equipo del negocio, un usuario con rol
 **Mesero** entra en modo mesero: solo mesas, cocina y música.
 
 ## `licencias.html` — códigos para sedes adicionales
 
 La sede principal va incluida; cada sede adicional se activa con un código
-que crea el dueño de Mesora en `licencias.html` con su llave privada (que
+que crea el dueño de Vento en `licencias.html` con su llave privada (que
 **no** está en este repositorio). El cliente lo abre como link
 (`index.html#licencia=…`) y la app comprueba la firma con la llave pública.
 
