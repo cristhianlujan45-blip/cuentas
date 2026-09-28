@@ -1,0 +1,7 @@
+{
+  "base": "V65",
+  "build": "V66-Laya",
+  "branch": "claude/precio-margen-productos-tabla-mioclt",
+  "qr": "sin cambios",
+  "laya": "0.3.21"
+}

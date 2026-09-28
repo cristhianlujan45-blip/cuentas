@@ -1,0 +1,1 @@
+#layaMic.on{background:var(--gold-hi)!important;color:#1a1108!important;animation:layaPulse 1.1s infinite}@keyframes layaPulse{0%{box-shadow:0 0 0 0 rgba(242,207,134,.55)}70%{box-shadow:0 0 0 10px rgba(242,207,134,0)}100%{box-shadow:0 0 0 0 rgba(242,207,134,0)}}
