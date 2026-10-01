@@ -192,7 +192,7 @@ window.esAndroid = function(){ var ua = navigator.userAgent || ''; if(/Android/i
     ['imprenta', 'Imprenta / Publicidad', '🖨️', 'orden', 'litografia, imprenta, publicidad, pendones, avisos, estampados, tarjetas, impresion, tarjetas, volantes, pendones, avisos', { icE: 'orden', icP: 'camara', campos: [['cantidad','Cantidad mínima','num','100'],['formato','Tamaño o material','txt','Ej. 9x5 cm, propalcote'],['entrega','Días de entrega','num','3']] }, 'Trabajos por encargo con anticipo, diseño y fecha de entrega.', 'Pendón:45000|1000 tarjetas:60000|Volantes x1000:90000'],
     ['joyeria', 'Joyería / Bisutería', '💍', 'tienda', 'joyeria, bisuteria, relojeria, accesorios, oro, plata', { mod: 'vbn', icE: 'orden', icP: 'maleta' }, 'Piezas de valor, apartados con abonos y reparaciones.', 'Cadena de plata:90000|Anillo de oro:450000|Aretes:35000|Cambio de pila de reloj:10000'],
     ['jugueteria', 'Juguetería / Piñatería', '🧸', 'tienda', 'jugueteria, piñateria, fiestas infantiles, globos, cotillon', { mod: 'vb', icE: 'orden', icP: 'caja' }, 'Temporadas altas, muchas referencias.', 'Piñata:45000|Bolsa de globos x50:12000|Carro de juguete:25000|Muñeca:40000'],
-    ['karaoke', 'Karaoke', '🎤', 'bar', 'karaoke, bar karaoke, canto', {}, 'Mesas, turnos de canciones, rondas.', ''],
+    ['karaoke', 'Karaoke', '🎤', 'bar', 'karaoke, bar karaoke, canto, salas de karaoke', { esp: ['Sala', 'Salas', '🎤', 'f'],}, 'Mesas, turnos de canciones, rondas.', ''],
     ['laboratorio', 'Laboratorio clínico', '🧪', 'salud', 'laboratorio, examenes, analisis clinicos, toma de muestras', { esp: E.cliente, n: 3, mod: 'n', icE: 'persona', icP: 'salud' }, 'Exámenes con precio, entrega de resultados.', 'Cuadro hemático:18000|Glicemia:12000|Parcial de orina:10000'],
     ['lavadero', 'Lavadero de carros y motos', '🚿', 'orden', 'lavadero, lavado de carros, lavado de motos, car wash, polichado, lavar carros, lavar motos, brillada, autolavado', { esp: E.vehiculo, n: 4, fun: 'fp', gastos: ['detergentes', 'comisiones', 'mantenimiento_eq'], mod: 'n', icE: 'carro', icP: 'carro' }, 'Turnos por vehículo, comisión de los lavadores, fidelidad.', 'Lavada de moto:12000|Lavada de carro:25000|Polichada:60000|Lavado de motor:20000'],
     ['lavanderia', 'Lavandería / Tintorería', '🧺', 'orden', 'lavanderia, tintoreria, lavado de ropa, lavado en seco, planchado, lavar ropa, lavado por kilo, ropa sucia, tintoreria, planchado', { gastos: ['detergentes', 'mantenimiento_eq'], carta: 'Tarifas', prod: ['Servicio', 'Servicios'], icE: 'orden', icP: 'lavadora', campos: [['unidad','Se cobra por','txt','kilo, prenda, docena'],['dias','Días de entrega','num','2'],['incluye','Incluye','txt','Ej. lavado, secado y doblado']] }, 'Recibir la ropa con el nombre del cliente, cobrar por kilo o por prenda, abonos y entregar en la fecha prometida.', 'Lavado por kilo:5000|Lavado en seco (prenda):15000|Planchado (prenda):3000|Edredón:25000'],
@@ -244,7 +244,7 @@ window.esAndroid = function(){ var ua = navigator.userAgent || ''; if(/Android/i
       { esp: f.esp, n: f.n, fun: f.fun, mod: f.mod, prod: f.prod, icE: f.icE, icP: f.icP, campos: f.campos, inv: f.inv, carta: f.carta, icCarta: f.icCarta, gastos: f.gastos, cat: f.cat, vento: f.vento, falta: f.falta }, o);
   });
   // Claves viejas que ya pueden estar guardadas en los negocios
-  const ALIAS = { cerveceria: 'bar', farmacia: 'drogueria', licorera: 'estanco', medico: 'consultorio' };
+  const ALIAS = { cerveceria: 'bar', farmacia: 'drogueria', licorera: 'estanco', medico: 'consultorio', spa: 'estetica' };
   const buscarTipo = k => CAT.find(x => x.k === (ALIAS[k] || k)) || null;
   window.VENTO_NEGOCIOS = { CAT, G, F, IC, ALIAS, norm, get: buscarTipo,
     buscar(q){
@@ -2316,6 +2316,10 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
     cursor: pointer;
   }
   .toast.show{ opacity:1; transform: translate(-50%, 0) scale(1); pointer-events:auto; }
+  /* Avisos que nunca se salen ni se cortan: márgenes seguros (muesca, bordes redondeados), texto
+     largo con su propio scroll y, con el teclado abierto, encima del teclado (ver showToast). */
+  .toast{ max-width: min(440px, calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right))); margin-bottom: var(--kb, 0px); }
+  .toast-tx{ max-height: min(38vh, 260px); overflow-y: auto; min-width: 0; }
   .toast-ic{ width:32px; height:32px; flex-shrink:0; border-radius:10px; display:grid; place-items:center; font-size:17px; line-height:1;
     background: color-mix(in srgb, var(--amber) 24%, transparent); }
   .toast-ok .toast-ic{ background: color-mix(in srgb, var(--paid) 24%, transparent); }
@@ -3268,6 +3272,11 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
         <div class="settings-row-text" data-novocab><strong>Tipo de negocio</strong><span>Escribe una palabra para buscarlo. Cambia cómo se llaman tus espacios (mesas, sillas, órdenes…), tu lista de precios y los gastos típicos; tus productos no se tocan.</span></div>
         <select id="accType" hidden></select><div id="accTypePick"></div>
         <div id="accTipoGuia" class="tp-guia" data-novocab></div>
+        <div class="settings-row" data-novocab style="flex-direction:column;align-items:stretch;gap:6px">
+          <div class="settings-row-text"><strong>¿Cómo se llaman tus unidades de atención?</strong><span>Lo que atiendes: mesas, sillas, cabinas, habitaciones, salas, puestos… Se usa en toda la app, en los avisos, el QR, la preparación y Laya. Puedes escribir el que quieras (ej. «Puesto VIP»).</span></div>
+          <select id="unidadSel" class="mz-in"></select>
+          <div id="unidadOtro" hidden style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><input id="unidadSg" class="mz-in" maxlength="24" placeholder="Singular (ej. Puesto VIP)"><input id="unidadPl" class="mz-in" maxlength="26" placeholder="Plural (ej. Puestos VIP)"></div>
+        </div>
         <div class="settings-row" data-novocab>
           <div class="settings-row-text"><strong>Mostrar todas las funciones</strong><span>Normalmente Vento esconde lo que tu negocio no usa (por ejemplo, la pantalla de Cocina en una floristería). Actívalo si quieres verlo todo.</span></div>
           <label class="switch"><input type="checkbox" id="modoCompletoToggle"><span class="switch-slider"></span></label>
@@ -3960,6 +3969,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <button class="rename-table-btn mov-btn" id="moveTableBtn" title="Cambiar de mesa" type="button">🔀 Cambiar de mesa</button>
     </div>
     <div class="modal-sub" id="modalSub">Cuenta abierta</div>
+    <div id="grupoBar" data-novocab></div>
 
     <div class="add-row" id="clienteRow" data-mod="n" data-novocab>
       <input type="text" id="clienteNombre" placeholder="¿A nombre de quién? (ej. Ana Pérez)" autocomplete="off" maxlength="40">
@@ -4852,6 +4862,7 @@ function showToast(msg, ms){
   const tipo = /^(⚠|❌|🔴|🟠|⛔|🚫)/.test(icon) || /^(error|no se pudo|no hay|falta|no encontr|no entend|no escuch)/i.test(text) ? 'warn' : /^(✅|🟢|🎉|✔)/.test(icon) ? 'ok' : 'info';
   const dur = ms || Math.min(7000, Math.max(2600, text.length * 45));
   t.className = 'toast toast-' + tipo;
+  try{ const vv = window.visualViewport; t.style.setProperty('--kb', vv ? Math.max(0, Math.round(innerHeight - vv.height - vv.offsetTop)) + 'px' : '0px'); }catch(e){}
   t.textContent = '';
   const ic = document.createElement('span'); ic.className = 'toast-ic'; ic.textContent = icon;
   const tx = document.createElement('span'); tx.className = 'toast-tx'; tx.textContent = text;
@@ -6772,7 +6783,9 @@ async function handleVoiceTranscript(rawText){
     if(/^\s*(oye\s+|hola\s+)?laya\b/i.test(rawText) && !window.__pedidoOrigen){
       let ly = null; try{ ly = window.Laya && window.Laya.responder(rawText); }catch(e){}
       if(ly){ showToast('🧠 ' + ly.text.split('\n').slice(0, 4).join(' · '), 9000); speakVoice(ly.text.replace(/[•🧠📦🧾🛒🧮💰🆕🚫⚠️📈📉🏭🛎️🍳🎵✅🔎🔗⏭▶🗑]/gu, ' ').slice(0, 400)); if(ly.actions && ly.actions.length || ly.run){ asisOpen(); asisAsk(rawText); } return; }
-      asisOpen(); asisAsk(rawText.replace(/^\s*(oye\s+|hola\s+)?laya\b[ ,]*/i, '')); return;
+      // No es una pregunta para Laya: se quita su nombre y la frase sigue como un pedido o comando de voz normal.
+      rawText = rawText.replace(/^\s*(oye\s+|hola\s+)?laya\b[\s,]*/i, '');
+      if(!rawText.trim()) return;
     }
     if(isVoiceHelpCommand(rawText)){ voiceAyuda(); return; }
     if(window.libretaVoz && window.libretaVoz(rawText)) return;   // «Juan me debe 20 mil», «agrégame a la lista negra…»
@@ -7391,6 +7404,39 @@ document.getElementById('tableCountToggle').addEventListener('click', ()=>{
   if(!row.hidden) document.getElementById('tableCountInput').focus();
 });
 // Mesas o Cuentas (solo comida y bebida). Se recarga para que todos los textos cambien de palabra.
+// Nombre de la unidad de atención (Ajustes → Cuenta y negocio). Se recarga para que todos los textos ya
+// escritos cambien de palabra (igual que al elegir Mesas o Cuentas).
+function iniUnidadNombre(){
+  const sel = document.getElementById('unidadSel'); if(!sel || sel.dataset.ok) return; sel.dataset.ok = '1';
+  const otro = document.getElementById('unidadOtro'), sg = document.getElementById('unidadSg'), pl = document.getElementById('unidadPl');
+  const pintar = () => {
+    const tipo = (ESPACIOS[(data && data.businessType) || ''] || ['Mesa', 'Mesas'])[1];
+    sel.innerHTML = '<option value="">Según el tipo de negocio (' + tipo + ')</option>' + UNIDAD_PRESETS.map((x, i) => '<option value="' + i + '">' + x[1] + '</option>').join('') + '<option value="otro">Otro nombre…</option>';
+    const u = data && data.unidad;
+    if(!u || !u.sg){ sel.value = ''; otro.hidden = true; return; }
+    const i = UNIDAD_PRESETS.findIndex(x => x[0] === u.sg && x[1] === u.pl);
+    if(i >= 0){ sel.value = String(i); otro.hidden = true; } else { sel.value = 'otro'; otro.hidden = false; sg.value = u.sg; pl.value = u.pl || ''; }
+  };
+  const aplicar = u => {
+    if(u) data.unidad = u; else delete data.unidad;
+    if(u) delete data.atencion;
+    saveData();
+    showToast('✅ Ahora se llaman «' + getServiceUnitNamePlural() + '». Actualizo la pantalla…');
+    setTimeout(() => location.reload(), 900);
+  };
+  sel.onchange = () => {
+    if(sel.value === 'otro'){ otro.hidden = false; sg.focus(); return; }
+    otro.hidden = true;
+    if(sel.value === '') return aplicar(null);
+    const x = UNIDAD_PRESETS[+sel.value]; aplicar({ sg: x[0], pl: x[1], ic: x[2], g: x[3] });
+  };
+  const libre = () => { const a = sg.value.replace(/[<>"]/g, '').trim().slice(0, 24), b = pl.value.replace(/[<>"]/g, '').trim().slice(0, 26);
+    if(a) aplicar({ sg: a, pl: b || (/[aeiouáéó]$/i.test(a) ? a + 's' : a + 'es'), ic: '📍', g: 'm' }); };
+  sg.onchange = () => { if(pl.value.trim()) libre(); }; pl.onchange = libre;
+  pintar();
+}
+document.addEventListener('click', e => { if(e.target.closest('.ajustes-cat[data-cat="negocio"]')) setTimeout(iniUnidadNombre, 60); });
+setTimeout(() => { try{ iniUnidadNombre(); }catch(e){} }, 3000);
 function pintarAtencion(){
   const box = document.getElementById('atencionSel'); if(!box) return;
   box.hidden = !puedeElegirMesas();
@@ -7456,7 +7502,7 @@ function renderCocina(){
   const ticket = p => {
     const tarde = p.estado !== 'listo' && min(p) >= 15;
     return '<div class="kds-ticket e-' + p.estado + (tarde ? ' tarde' : '') + '" data-pid="' + invEsc(p.id) + '">' +
-      '<div class="kds-ticket-h">' + invEsc(tableLabel(p.mesa)) + '</div>' +
+      '<div class="kds-ticket-h">' + invEsc(window.vitoGrupos ? window.vitoGrupos.etiquetaDe(p.mesa) : tableLabel(p.mesa)) + (window.vitoGrupos && window.vitoGrupos.de(p.mesa) ? ' <small>(de ' + invEsc(tableLabel(p.mesa)) + ')</small>' : '') + '</div>' +
       '<div class="kds-meta"><span>' + (p.origen === 'qr' ? '📱 QR' : p.origen === 'whatsapp' ? '💬 WhatsApp' : '🧑‍🍳 ' + invEsc(String(p.origen || '').replace(/^mesero:/, ''))) + '</span><b>' + (min(p) ? 'hace ' + min(p) + ' min' : 'ahora') + '</b></div>' +
       '<div class="kds-items">' + p.items.map(it => '<div class="kds-item">' + it.qty + '× ' + invEsc(it.name) + (it.ok ? '' : ' ⚠️') + '</div>').join('') + '</div>' +
       (p.nota ? '<div class="kds-nota">📝 ' + invEsc(p.nota) + '</div>' : '') +
@@ -7616,6 +7662,7 @@ function renderMesasList(){
       <div class="num"><svg class="tk-ic" viewBox="0 0 24 24" aria-hidden="true">${iconoEsp()}</svg>${tableLabel(id)}</div>
       <div class="status ${isOpen ? '' : 'empty'}">${isOpen ? fmt(balance) : 'Vacía'}</div>
       <div class="items-count">${subLine}</div>
+      ${window.vitoGrupos && window.vitoGrupos.de(id) ? '<div class="grp-tag">🔗 ' + invEsc(window.vitoGrupos.etiqueta(window.vitoGrupos.de(id))) + ' · ' + fmt(window.vitoGrupos.total(window.vitoGrupos.de(id))) + '</div>' : ''}
     `;
     card.addEventListener('click', ()=> openTableModal(id));
     grid.appendChild(card);
@@ -7952,6 +7999,7 @@ function openTableModal(id){
   // Negocios de órdenes, vehículos, mascotas o pacientes: cada cuenta va a nombre de alguien.
   const cli = document.getElementById('clienteNombre');
   if(cli){ const t = data.tables[id] || {}; cli.value = (t.name || '').trim(); cli.placeholder = '¿A nombre de quién? (ej. Ana Pérez)'; }
+  try{ window.grupoBarPintar && window.grupoBarPintar(id); }catch(e){}
   overlay.classList.add('show');
   if(cli && usaMod('n') && !cli.value) setTimeout(() => { try{ cli.focus(); }catch(e){} }, 250);
 }
@@ -8237,6 +8285,7 @@ document.addEventListener('click', (e)=>{
 });
 
 function renderModalItems(){
+  try{ if(currentTable != null && window.grupoBarPintar) setTimeout(() => window.grupoBarPintar(currentTable), 0); }catch(e){}
   const t = data.tables[currentTable];
   const container = document.getElementById('itemsContainer');
   container.innerHTML = '';
@@ -11162,6 +11211,10 @@ function fiValidar(draft){
     if(!ok) av.push({ tipo: 'total', txt: 'Hay una diferencia entre los valores detectados. Revise la factura. (Suma de productos ' + fmt(Math.round(sumaLineas)) + ' · total impreso ' + fmt(h.total) + ')' });
   }
   if(!h.invoiceNumber) av.push({ tipo: 'dato', txt: 'Falta el número de factura: revisar dato.' });
+  // ¿Ya se aplicó esta misma factura? (mismo proveedor y número, o mismo proveedor, fecha y total)
+  const provN = String(h.supplier || draft.supplier || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const ya = (data.purchases || []).find(f => String(f.supplier || '').toLowerCase().replace(/[^a-z0-9]/g, '') === provN && ((h.invoiceNumber && f.invoiceNumber === h.invoiceNumber) || (h.total > 0 && Math.round(f.total || 0) === Math.round(h.total) && (f.date || '') === (h.issueDate || draft.date || ''))));
+  if(ya && provN) av.push({ tipo: 'dup', txt: 'Esta factura parece ya aplicada (' + (ya.invoiceNumber ? 'n.º ' + ya.invoiceNumber : 'mismo total y fecha') + ', ' + new Date(ya.procesadaEn || ya.at).toLocaleDateString('es-CO') + '). Aplicarla otra vez duplicaría el inventario.' });
   if(!h.issueDate && !draft.date) av.push({ tipo: 'dato', txt: 'Falta la fecha de la factura: revisar dato.' });
   if(!(h.supplier || draft.supplier)) av.push({ tipo: 'dato', txt: 'Falta el proveedor: revisar dato.' });
   items.forEach(it => {
@@ -11933,7 +11986,7 @@ document.getElementById('invoiceApplyBtn').addEventListener('click', async () =>
   if(!toApply.length){ showToast('No hay productos marcados para aplicar.'); invoiceClose(); return; }
   // Nada incorrecto se guarda en silencio: si algo no cuadra (totales, cantidad × precio, IVA, precios
   // muy distintos) se muestra la lista y tú decides si corriges o aplicas igual.
-  const probs = fiValidar(invoiceDraft).filter(a => ['total', 'cant', 'precio', 'iva'].includes(a.tipo));
+  const probs = fiValidar(invoiceDraft).filter(a => ['dup', 'total', 'cant', 'precio', 'iva'].includes(a.tipo));
   if(probs.length && !(await showConfirm({ title: 'Laya encontró ' + probs.length + (probs.length === 1 ? ' cosa por revisar' : ' cosas por revisar'),
     message: probs.slice(0, 6).map(a => '• ' + a.txt).join('\n') + (probs.length > 6 ? '\n• …y ' + (probs.length - 6) + ' más' : '') + '\n\n¿Aplicar de todas formas?', confirmText: 'Sí, aplicar', cancelText: 'Revisar', icon: '🧮' }))) return;
   const draft = invoiceDraft, compraId = Date.now().toString(), fechaFact = (draft.header && draft.header.issueDate) || draft.date || '';
@@ -13573,7 +13626,8 @@ async function asisAsk(text){
   // con los datos reales y al instante (también sin internet).
   if(!ASIS_NEEDS_AI.test(normVoiceText(text))){
     let ly = null; try{ ly = window.Laya && window.Laya.responder(text); }catch(e){ console.error(e); }
-    if(ly){ asisBot(ly.text, ly.actions && ly.actions.length ? { actions: ly.actions } : (ly.extra || null)); if(ly.run) setTimeout(ly.run, 700); return; }
+    if(ly){ try{ window.Laya.registrar(ly.actions && ly.actions.length ? 'sugerencia' : 'consulta', text + ' → ' + String(ly.text).split('\n')[0]); }catch(e){}
+      asisBot(ly.text, ly.actions && ly.actions.length ? { actions: ly.actions } : (ly.extra || null)); if(ly.run) setTimeout(ly.run, 700); return; }
   }
   const cmd = asisCommand(text);
   if(cmd){
@@ -16036,12 +16090,27 @@ const tipoNombre = k => (k === 'otro' && typeof data !== 'undefined' && data && 
 // tiendas de barrio, licoreras…) pueden elegir si atienden por «Mesas» o por «Cuentas». Los demás no.
 const ATENCION_TIENDAS = ['tienda', 'estanco', 'minimercado', 'queseria'];
 const puedeElegirMesas = () => { const t = tipoNegocio(); return !!t && (['comida', 'bar'].includes(t.fam) || ATENCION_TIENDAS.includes(t.k)); };
+/* ---------- Terminología central de la unidad de atención ----------
+   Toda la app (textos, menú, avisos, QR, preparación, Laya y voz) toma el nombre de aquí:
+     1) el nombre que el administrador escribió (Ajustes → Cuenta y negocio → «¿Cómo se llaman…?»),
+     2) Mesas/Cuentas en negocios de comida y bebida,
+     3) el del tipo de negocio (Restaurante → Mesas, Barbería → Sillas, Spa → Cabinas, Hotel → Habitaciones…).
+   getServiceUnitName() / getServiceUnitNamePlural() / serviceUnitLabel(id) son la forma de pedirlo. */
+const UNIDAD_PRESETS = [['Mesa', 'Mesas', '🍽️', 'f'], ['Cuenta', 'Cuentas', '🧾', 'f'], ['Silla', 'Sillas', '💈', 'f'], ['Puesto', 'Puestos', '📍', 'm'], ['Cabina', 'Cabinas', '💆', 'f'],
+  ['Habitación', 'Habitaciones', '🛏️', 'f'], ['Sala', 'Salas', '🎤', 'f'], ['Pista', 'Pistas', '🎳', 'f'], ['Consultorio', 'Consultorios', '🩺', 'm'], ['Estación', 'Estaciones', '🎮', 'f'],
+  ['Caja', 'Cajas', '🧾', 'f'], ['Orden', 'Órdenes', '📋', 'f'], ['Pedido', 'Pedidos', '📦', 'm'], ['Espacio', 'Espacios', '📍', 'm'], ['Reserva', 'Reservas', '📅', 'f'], ['Cancha', 'Canchas', '⚽', 'f']];
 const espacio = () => {
+  const u = typeof data !== 'undefined' && data && data.unidad;
+  if(u && String(u.sg || '').trim()) return [String(u.sg).trim(), String(u.pl || u.sg + 's').trim(), u.ic || '📍', u.g === 'm' ? 'm' : 'f'];
   const a = typeof data !== 'undefined' && data && data.atencion;
   if(a && puedeElegirMesas()) return a === 'cuenta' ? ['Cuenta', 'Cuentas', '🧾', 'f'] : ['Mesa', 'Mesas', tipoNegocio().fam === 'bar' ? '🍻' : '🍽️', 'f'];
   return ESPACIOS[(typeof data !== 'undefined' && data && data.businessType) || ''] || ['Mesa','Mesas','🍽️'];
 };
 const espacioN = () => espacio()[0];
+const getServiceUnitName = () => espacio()[0];
+const getServiceUnitNamePlural = () => espacio()[1];
+const serviceUnitLabel = id => tableLabel(id);
+Object.assign(window, { getServiceUnitName, getServiceUnitNamePlural, serviceUnitLabel });
 /* ---------- La app se acomoda al negocio ----------
    Cada tipo trae en el catálogo las letras de lo que SÍ usa:
      k = pantalla de cocina   p = mapa del local   w = app de meseros   d = dividir cuenta entre personas
@@ -17282,7 +17351,8 @@ bootApp();
       '.vito-np-body{font-size:14px;margin-top:3px;}'+
       '.vito-np-vacio{font-size:13px;opacity:.7;padding:4px 2px;}'+
       '.vito-campana-menu button{padding:10px 12px;border-radius:8px;border:1px solid #6b5a44;background:#2b241c;color:#f3e9d8;font-size:14px;text-align:left;}'+
-      '.vito-pedidos-cards{position:fixed;top:10px;right:10px;z-index:10002;display:flex;flex-direction:column;gap:8px;max-width:300px;width:calc(100% - 20px);}'+
+      '.vito-pedidos-cards{position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));z-index:10002;display:flex;flex-direction:column;gap:8px;max-width:300px;width:calc(100% - 20px - env(safe-area-inset-left) - env(safe-area-inset-right));max-height:calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain;}'+
+      '.vito-pedido-card,.vito-np-item{overflow-wrap:anywhere;min-width:0;flex-shrink:0;}'+
       '.vito-pedido-card{background:#221c16;border:2px solid #ff8c00;border-radius:12px;padding:10px 12px;color:#f3e9d8;font-family:system-ui;box-shadow:0 4px 16px rgba(0,0,0,.55);}'+
       '.vito-pedido-card-h{font-weight:bold;margin-bottom:4px;}'+
       '.vito-pedido-card-b{font-size:14px;opacity:.9;margin-bottom:8px;}'+
@@ -17291,6 +17361,8 @@ bootApp();
       '.vito-np-item .vito-pedido-card-acts{margin-top:8px;}'+
       '.vito-pedido-card-acts .vito-ok{background:#3fa34d;color:#fff;}'+
       '.vito-pedido-card-acts .vito-no{background:#b0392f;color:#fff;}'+
+      '.vito-campana-menu{max-height:min(72vh,calc(100dvh - 24px));box-sizing:border-box;}'+
+      '.vito-ajustes{max-width:calc(100vw - 20px);box-sizing:border-box;}'+
       '.vito-ajustes{position:fixed;z-index:10000;background:#221c16;color:#f3e9d8;border:1px solid #6b5a44;border-radius:12px;padding:14px;display:none;flex-direction:column;gap:10px;min-width:230px;font-family:system-ui;}'+
       '.vito-ajustes label{display:flex;align-items:center;gap:8px;font-size:14px;}'+
       '.vito-ajustes input[type=range]{width:100%;}';
@@ -17436,17 +17508,18 @@ bootApp();
       timbre();
       bell.classList.remove('sonando'); void bell.offsetWidth; bell.classList.add('sonando');
       if(avisaPed)nuevosPed.forEach(it=>{
-        try{showToast('📥 Pedido recibido · Mesa '+it.mesa+': '+previewPedido(it.items));}catch(e){}
-        decir('Pedido recibido, mesa '+it.mesa);
+        try{showToast('📥 Pedido recibido · '+tableLabel(it.mesa)+': '+previewPedido(it.items));}catch(e){}
+        decir('Pedido recibido, '+tableLabel(it.mesa));
       });
       if(avisaMus)nuevasCan.forEach(it=>{
-        try{showToast('🎵 Canción pedida: Mesa '+it.mesa);}catch(e){}
-        decir('Canción pedida, mesa '+it.mesa);
+        try{showToast('🎵 Canción pedida: '+tableLabel(it.mesa));}catch(e){}
+        decir('Canción pedida, '+tableLabel(it.mesa));
       });
     }
     lastTotal=total; lastPendIds=pendList.map(x=>x.id); lastSongIds=songList.map(x=>x.id);
   }
   window.vitoDecir=decir;
+  window.vitoTimbre=()=>{try{timbre();if(bell){bell.classList.remove('sonando');void bell.offsetWidth;bell.classList.add('sonando');}}catch(e){}};
   window.vitoCheckNotif=()=>{ try{ if(bell) check(); }catch(e){} };
   window.vitoRefrescarNotif=()=>{ try{ refrescarPanel(); }catch(e){} };
   function init(){
@@ -17876,7 +17949,7 @@ function prepPublicar(force){
   prepT=setTimeout(()=>{
     if(typeof data==='undefined'||!data||!prepOn())return;
     const act=pedidosLista().filter(p=>['nuevo','recibido','preparacion','listo'].includes(p.estado)).slice(-30);
-    const m={t:'prep',n:prepNombre(),b:String(data.businessName||'').slice(0,40),o:act.map(p=>({i:p.id,m:String(tableLabel(p.mesa)).slice(0,24),e:p.estado,a:p.recibidoEn||p.at,g:String(p.origen||'').slice(0,20),x:String(p.nota||'').slice(0,80),it:p.items.slice(0,15).map(i=>[String(i.name).slice(0,30),i.qty])})),at:Date.now()};
+    const m={t:'prep',n:prepNombre(),b:String(data.businessName||'').slice(0,40),o:act.map(p=>({i:p.id,m:String(window.vitoGrupos?window.vitoGrupos.etiquetaDe(p.mesa):tableLabel(p.mesa)).slice(0,40),e:p.estado,a:p.recibidoEn||p.at,g:String(p.origen||'').slice(0,20),x:String(p.nota||'').slice(0,80),it:p.items.slice(0,15).map(i=>[String(i.name).slice(0,30),i.qty])})),at:Date.now()};
     let s2=JSON.stringify(m);
     while(s2.length>3800&&m.o.length){m.o.shift();s2=JSON.stringify(m);}
     if(!force&&s2.replace(/"at":\d+/,'')===prepHash)return;
@@ -18087,11 +18160,13 @@ function pedidoEntrante(o,origen){
   const p={id,mesa,mesaNombre:tableLabel(mesa),items,total:items.reduce((s,i)=>s+i.qty*i.price,0),nota:String(o.nota||'').slice(0,140),
     at:Number(o.at)||Date.now(),recibidoEn:Date.now(),estado:'nuevo',origen:origen||'qr',negocio:qCfg().topic,hist:[{e:'nuevo',at:Date.now()}]};
   pedidosLista().push(p);
+  try{const g=window.vitoGrupos&&window.vitoGrupos.de(mesa);if(g&&window.ventoAuditar)window.ventoAuditar('pedido en grupo','Nuevo pedido de '+tableLabel(mesa)+' agregado al grupo '+window.vitoGrupos.etiqueta(g)+': '+items.map(i=>i.qty+' '+i.name).join(', '),[mesa]);}catch(e){}
   if(pedidosAuto()){pedidoAplicar(p);p.estado='recibido';p.hist.push({e:'recibido',at:Date.now()});}
   pedidosGuardar();pedidoPublicar(p);
   const txt=items.map(i=>i.qty+' '+i.name+(i.ok?'':' ⚠️')).join(', ');
   try{window.vitoLogNotif&&window.vitoLogNotif(p.estado==='nuevo'?'recibido':'enviado',mesa,items.map(i=>({productText:i.name,qty:i.qty})),id);}catch(e){}
-  if(notifPedidos())showToast((p.estado==='nuevo'?'🆕 Pedido por aceptar · ':'🍺 ')+tableLabel(mesa)+': '+txt,6000);
+  if(notifPedidos()){showToast((p.estado==='nuevo'?'🆕 Pedido por aceptar · ':'🍺 ')+tableLabel(mesa)+': '+txt,6000);
+    if(p.estado!=='nuevo'){try{window.vitoTimbre&&window.vitoTimbre();window.vitoDecir&&window.vitoDecir('Pedido recibido, '+tableLabel(mesa));}catch(e){}}}
   const malos=items.filter(i=>!i.ok);
   if(malos.length)showToast('⚠️ '+tableLabel(mesa)+' pidió algo que no está en tus productos: '+malos.map(i=>i.name).join(', ')+'. Agrégalo a mano.',9000);
   return p;
@@ -20906,7 +20981,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-01 · v1.8';
+const MESORA_VERSION = '2026-10-01 · v1.9';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -23165,6 +23240,197 @@ window.mesoraCelebrar = function(emojis){
 })();
 </script>
 <script>
+/* ================= Unidades combinadas, reinicio seguro y auditoría =================
+   COMBINAR (mesas, sillas, cabinas… según el negocio): un grupo tiene una unidad principal y unidades
+   vinculadas ({id, principal, miembros}). NO se mueve nada: cada unidad conserva sus productos, sus
+   pedidos y su origen; el grupo solo se muestra y se suma junto («Mesa 4 + 5 + 6», total = suma real).
+   Así separar nunca pierde ni duplica nada. Al «Cobrar el grupo» los productos pasan a la principal
+   marcados con su origen (it.origen) y se cobra con el flujo de siempre; el inventario no se toca
+   (esos productos ya se habían descontado al pedirlos).
+   REINICIAR: vacía el estado operativo de las unidades elegidas (productos, cantidades, abonos,
+   nombres, pedidos activos) sin tocar inventario, catálogo, facturas, proveedores, historial,
+   configuración, usuarios ni QR. Solo el administrador. Lo que se descartó queda en la auditoría
+   (no se registra como venta, cobro ni devolución).
+   AUDITORÍA: data.auditoria guarda quién, cuándo, qué acción y qué unidades. */
+(function(){
+  const esc4 = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const listo = () => typeof data !== 'undefined' && data && data.tables;
+  const U = () => getServiceUnitName(), UP = () => getServiceUnitNamePlural();
+  const art = () => espacio()[3] === 'm' ? 'el' : 'la', arts = () => espacio()[3] === 'm' ? 'los' : 'las';
+  // ---------- Auditoría ----------
+  function auditar(accion, detalle, unidades, extra){
+    if(!listo()) return;
+    data.auditoria = Array.isArray(data.auditoria) ? data.auditoria : [];
+    data.auditoria.push(Object.assign({ t: Date.now(), usuario: (typeof authUser !== 'undefined' && authUser) || '—', accion, detalle: String(detalle || '').slice(0, 300), unidades: (unidades || []).slice(0, 60) }, extra || {}));
+    if(data.auditoria.length > 1500) data.auditoria = data.auditoria.slice(-1200);
+  }
+  window.ventoAuditar = (a, d, u, x) => { auditar(a, d, u, x); try{ saveData(); }catch(e){} };
+  const esAdmin = () => { try{ return typeof authIsAdmin !== 'function' || authIsAdmin(); }catch(e){ return true; } };
+  // ---------- Grupos ----------
+  const grupos = () => { if(!Array.isArray(data.grupos)) data.grupos = []; data.grupos = data.grupos.filter(g => g && Array.isArray(g.miembros) && g.miembros.filter(id => data.tables[id]).length >= 2); return data.grupos; };
+  const grupoDe = id => grupos().find(g => g.miembros.includes(+id)) || null;
+  const num = id => { const t = data.tables[id]; return t && t.name && t.name.trim() ? t.name.trim() : String(id); };
+  function etiqueta(g){ const o = [g.principal].concat(g.miembros.filter(x => x !== g.principal)); return U() + ' ' + o.map(num).join(' + '); }
+  const etiquetaDe = id => { const g = grupoDe(id); return g ? etiqueta(g) : tableLabel(id); };
+  const totalGrupo = g => g.miembros.reduce((s, id) => s + tableTotal(id), 0);
+  const saldoGrupo = g => g.miembros.reduce((s, id) => s + tableBalance(id), 0);
+  function combinar(ids, principal){
+    ids = [...new Set((ids || []).map(Number).filter(id => id > 0))];
+    if(ids.length < 2) return { error: 'Elige al menos dos ' + UP().toLowerCase() + '.' };
+    const faltan = ids.filter(id => !data.tables[id]); if(faltan.length) return { error: 'No existe: ' + faltan.map(id => U() + ' ' + id).join(', ') + '.' };
+    // Si alguna ya está en un grupo, se suman a ese grupo (no se crean grupos que se pisen).
+    const previos = [...new Set(ids.map(grupoDe).filter(Boolean))];
+    let g = previos[0];
+    const todos = [...new Set(ids.concat(...previos.map(x => x.miembros)))];
+    if(g){ data.grupos = grupos().filter(x => !previos.includes(x) || x === g); g.miembros = todos; }
+    else { g = { id: 'g' + Date.now().toString(36), principal: principal || ids[0], miembros: todos, at: Date.now(), usuario: (typeof authUser !== 'undefined' && authUser) || '' }; grupos().push(g); }
+    if(principal && todos.includes(+principal)) g.principal = +principal;
+    auditar('combinar', 'Se combinaron: ' + etiqueta(g) + ' (total ' + fmt(totalGrupo(g)) + ')', g.miembros);
+    saveData(); try{ renderMesas(); renderCocina(); window.prepPublicar && window.prepPublicar(true); }catch(e){}
+    return { grupo: g, etiqueta: etiqueta(g) };
+  }
+  function separar(id){
+    const g = grupoDe(id); if(!g) return { error: tableLabel(id) + ' no está combinada.' };
+    const et = etiqueta(g);
+    data.grupos = grupos().filter(x => x !== g);
+    auditar('separar', 'Se separó ' + et + '. Cada ' + U().toLowerCase() + ' conserva sus productos y pedidos.', g.miembros);
+    saveData(); try{ renderMesas(); renderCocina(); window.prepPublicar && window.prepPublicar(true); }catch(e){}
+    return { etiqueta: et, miembros: g.miembros };
+  }
+  // Cobrar el grupo: todo pasa a la principal, línea por línea y con su origen (sin sumar líneas de
+  // distintas unidades), y se abre la cuenta para cobrar con el flujo normal.
+  function cobrar(id){
+    const g = grupoDe(id); if(!g) return null;
+    const p = data.tables[g.principal]; p.items = p.items || []; p.people = p.people || []; p.payments = p.payments || [];
+    p.items.forEach(it => { if(it.origen == null) it.origen = g.principal; });
+    g.miembros.filter(x => x !== g.principal).forEach(mid => {
+      const o = data.tables[mid]; if(!o) return;
+      const mapa = {};
+      (o.people || []).forEach(pe => { const n = Object.assign({}, pe, { id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: pe.name + ' (' + num(mid) + ')' }); mapa[pe.id] = n.id; p.people.push(n); });
+      (o.items || []).forEach(it => p.items.push(Object.assign({}, it, { origen: it.origen != null ? it.origen : mid, personId: it.personId != null ? (mapa[it.personId] || null) : null })));
+      (o.payments || []).forEach(pg => p.payments.push(Object.assign({}, pg, { personId: pg.personId != null ? (mapa[pg.personId] || null) : pg.personId, origen: mid })));
+      o.items = []; o.payments = []; o.people = []; delete o.ultimaRonda;
+    });
+    const et = etiqueta(g);
+    p.grupoCobro = { etiqueta: et, miembros: g.miembros.slice(), at: Date.now() };
+    data.grupos = grupos().filter(x => x !== g);
+    auditar('cobrar grupo', 'Se juntó la cuenta de ' + et + ' en ' + tableLabel(g.principal) + ' para cobrar (total ' + fmt(tableTotal(g.principal)) + '). Cada producto conserva su origen.', g.miembros);
+    saveData(); try{ renderMesas(); }catch(e){}
+    return g.principal;
+  }
+  window.vitoGrupos = { lista: grupos, de: grupoDe, etiqueta, etiquetaDe, total: totalGrupo, saldo: saldoGrupo, combinar, separar, cobrar };
+
+  // ---------- Ventana: combinar con otras unidades ----------
+  function dialogoCombinar(id){
+    let ov = document.getElementById('grupoOv');
+    if(!ov){ ov = document.createElement('div'); ov.id = 'grupoOv'; ov.className = 'overlay'; ov.setAttribute('data-novocab', ''); document.body.appendChild(ov); ov.addEventListener('click', e => { if(e.target === ov) ov.classList.remove('show'); }); }
+    const ids = Object.keys(data.tables).map(Number).sort((a, b) => a - b).filter(x => x !== id);
+    const g = grupoDe(id);
+    ov.innerHTML = '<div class="modal" style="max-width:440px;max-height:90vh;overflow:auto"><h2>🔗 Combinar ' + esc4(UP().toLowerCase()) + '</h2>' +
+      '<div class="modal-sub">' + esc4(tableLabel(id)) + ' será la principal. Elige con cuáles se combina: sus pedidos y cuentas se muestran como una operación conjunta, pero cada ' + esc4(U().toLowerCase()) + ' conserva lo suyo y se puede separar sin perder nada.</div>' +
+      '<div class="grp-list">' + ids.map(x => { const gx = grupoDe(x), oc = (data.tables[x].items || []).length;
+        return '<label><input type="checkbox" value="' + x + '"' + (g && g.miembros.includes(x) ? ' checked' : '') + '> <b>' + esc4(tableLabel(x)) + '</b> <small>' + (oc ? fmt(tableBalance(x)) : 'libre') + (gx && !(g && gx === g) ? ' · en ' + esc4(etiqueta(gx)) : '') + '</small></label>'; }).join('') + '</div>' +
+      '<div class="modal-actions"><button type="button" class="btn-close" id="grpNo">Cancelar</button><button type="button" class="btn-primary" id="grpOk">Confirmar</button></div></div>';
+    ov.classList.add('show');
+    ov.querySelector('#grpNo').onclick = () => ov.classList.remove('show');
+    ov.querySelector('#grpOk').onclick = async () => {
+      const sel = [...ov.querySelectorAll('input:checked')].map(i => +i.value);
+      if(!sel.length) return showToast('Elige al menos un' + (espacio()[3] === 'm' ? 'o' : 'a') + ' ' + U().toLowerCase() + '.');
+      const todos = [id].concat(sel), activas = todos.filter(x => (data.tables[x].items || []).length);
+      if(activas.length && !(await showConfirm({ title: 'Combinar ' + UP().toLowerCase(), message: '¿Quieres combinar ' + arts() + ' ' + UP().toLowerCase() + ' ' + todos.map(num).join(', ') + '? Sus pedidos y cuentas se mostrarán como una operación conjunta.', confirmText: 'Confirmar', cancelText: 'Cancelar', icon: '🔗' }))) return;
+      const r = combinar(todos, id); ov.classList.remove('show');
+      if(r.error) return showToast('⚠️ ' + r.error);
+      showToast('🔗 ' + r.etiqueta + ' combinadas. Total: ' + fmt(totalGrupo(r.grupo)) + '.'); pintarBarra(id);
+    };
+  }
+  // ---------- Barra del grupo y reinicio individual dentro de la cuenta ----------
+  function pintarBarra(id){
+    const box = document.getElementById('grupoBar'); if(!box) return;
+    const g = grupoDe(id);
+    box.innerHTML = (g ? '<div class="grp-info">🔗 <b>' + esc4(etiqueta(g)) + '</b> · total ' + fmt(totalGrupo(g)) + ' · falta ' + fmt(saldoGrupo(g)) +
+        '<small>' + g.miembros.map(m => esc4(num(m)) + ': ' + fmt(tableTotal(m))).join(' · ') + '</small></div>' : '') +
+      '<div class="grp-acts">' + (g ? '<button type="button" class="btn-ghost" data-g="cobrar">💵 Cobrar el grupo</button><button type="button" class="btn-ghost" data-g="separar">✂️ Separar</button>' : '') +
+      '<button type="button" class="btn-ghost" data-g="combinar">🔗 ' + (g ? 'Cambiar grupo' : 'Combinar') + '</button><button type="button" class="btn-ghost" data-g="reiniciar">♻️ Reiniciar</button></div>';
+    box.onclick = async e => {
+      const b = e.target.closest('[data-g]'); if(!b) return; const a = b.dataset.g;
+      if(a === 'combinar') dialogoCombinar(id);
+      if(a === 'separar'){ const r = separar(id); showToast(r.error ? '⚠️ ' + r.error : '✂️ Separé ' + r.etiqueta + '. Cada ' + U().toLowerCase() + ' conserva sus productos y pedidos.'); pintarBarra(id); }
+      if(a === 'cobrar'){ const g2 = grupoDe(id); if(!(await showConfirm({ title: 'Cobrar el grupo', message: 'Se junta la cuenta de ' + etiqueta(g2) + ' (' + fmt(saldoGrupo(g2)) + ' por pagar) en ' + tableLabel(g2.principal) + ' para cobrarla. Cada producto conserva de qué ' + U().toLowerCase() + ' vino. No se cobra nada todavía.', confirmText: 'Juntar y cobrar', icon: '💵' }))) return;
+        const pid = cobrar(id); if(pid != null){ openTableModal(pid); showToast('💵 Cuenta del grupo lista en ' + tableLabel(pid) + ': cóbrala como siempre.'); } }
+      if(a === 'reiniciar') dialogoReinicio([id]);
+    };
+  }
+  window.grupoBarPintar = pintarBarra;
+
+  // ---------- Reinicio seguro ----------
+  function estadoUnidad(id){
+    const t = data.tables[id] || {}, its = t.items || [];
+    const P = window.vitoPedidos ? window.vitoPedidos.lista().filter(p => p.mesa === id && ['nuevo', 'recibido', 'preparacion', 'listo'].includes(p.estado)) : [];
+    return { items: its.length, total: tableTotal(id), saldo: tableBalance(id), abonado: tablePaid(id), pedidos: P.filter(p => p.estado === 'nuevo' || p.estado === 'recibido').length, prep: P.filter(p => p.estado === 'preparacion' || p.estado === 'listo').length, grupo: grupoDe(id), nombre: t.name };
+  }
+  function reiniciar(ids){
+    if(!esAdmin()) return { error: 'Solo un administrador puede reiniciar ' + UP().toLowerCase() + '.' };
+    const snap = [];
+    ids.forEach(id => {
+      const t = data.tables[id]; if(!t) return;
+      const e = estadoUnidad(id);
+      snap.push({ id, nombre: t.name || null, items: (t.items || []).map(i => ({ n: i.name, q: i.qty, p: i.price })), total: e.total, abonado: e.abonado, saldo: e.saldo });
+      t.items = []; t.people = []; t.payments = []; t.name = null; delete t.ultimaRonda; delete t.grupoCobro;
+      if(window.vitoPedidos) window.vitoPedidos.lista().filter(p => p.mesa === id && ['nuevo', 'recibido', 'preparacion', 'listo'].includes(p.estado)).forEach(p => { p.estado = 'cancelado'; p.hist.push({ e: 'cancelado', at: Date.now(), nota: 'reinicio' }); });
+      const g = grupoDe(id); if(g){ g.miembros = g.miembros.filter(x => x !== id); if(g.principal === id) g.principal = g.miembros[0]; }
+    });
+    grupos();
+    try{ const ack = JSON.parse(localStorage.getItem('vito_kds_ack') || '{}'); ids.forEach(id => delete ack[id]); localStorage.setItem('vito_kds_ack', JSON.stringify(ack)); }catch(e){}
+    auditar('reiniciar', 'Reinicio de ' + (ids.length === Object.keys(data.tables).length ? 'todas ' + arts() + ' ' + UP().toLowerCase() : ids.map(id => U() + ' ' + id).join(', ')) + '. Se descartó: ' + (snap.filter(x => x.items.length).map(x => U() + ' ' + x.id + ' (' + fmt(x.total) + ')').join(', ') || 'nada'), ids, { descartado: snap.filter(x => x.items.length || x.nombre) });
+    saveData(); try{ renderMesas(); renderCocina(); window.prepPublicar && window.prepPublicar(true); if(window.vitoCheckNotif) window.vitoCheckNotif(); }catch(e){}
+    return { ok: true, n: ids.length };
+  }
+  async function dialogoReinicio(pre){
+    if(!esAdmin()){ showToast('🔒 Solo un administrador puede reiniciar ' + UP().toLowerCase() + '.'); auditar('reinicio denegado', 'Intento sin permiso', pre || []); saveData(); return; }
+    let ov = document.getElementById('reinicioOv');
+    if(!ov){ ov = document.createElement('div'); ov.id = 'reinicioOv'; ov.className = 'overlay'; ov.setAttribute('data-novocab', ''); document.body.appendChild(ov); ov.addEventListener('click', e => { if(e.target === ov) ov.classList.remove('show'); }); }
+    const ids = Object.keys(data.tables).map(Number).sort((a, b) => a - b), sel = new Set(pre && pre.length ? pre : ids);
+    const pintar = () => {
+      ov.innerHTML = '<div class="modal" style="max-width:460px;max-height:92vh;overflow:auto"><h2>♻️ Reiniciar ' + esc4(UP().toLowerCase()) + '</h2>' +
+        '<div class="mov-modo"><button type="button" data-s="todas">Todas</button><button type="button" data-s="ninguna">Ninguna</button></div>' +
+        '<div class="grp-list">' + ids.map(id => { const e = estadoUnidad(id);
+          return '<label><input type="checkbox" value="' + id + '"' + (sel.has(id) ? ' checked' : '') + '> <b>' + esc4(tableLabel(id)) + '</b> <small>' + (e.items ? fmt(e.saldo) + ' por cobrar' : 'libre') + (e.pedidos ? ' · ' + e.pedidos + ' pedido(s) pendiente(s)' : '') + (e.prep ? ' · ' + e.prep + ' en preparación' : '') + (e.grupo ? ' · 🔗 ' + esc4(etiqueta(e.grupo)) : '') + '</small></label>'; }).join('') + '</div>' +
+        '<div class="rst-info"><b>Se borra del estado actual:</b> pedidos activos, productos anotados, cantidades, totales, abonos, nombres puestos y combinaciones de ' + esc4(arts() + ' ' + UP().toLowerCase()) + ' elegid' + (espacio()[3] === 'm' ? 'os' : 'as') + '.<br><b>NO se borra:</b> inventario, productos, proveedores, facturas, historial y contabilidad, configuración, usuarios ni los QR. No se registra como venta, cobro ni devolución; lo descartado queda en la auditoría.</div>' +
+        '<div class="modal-actions"><button type="button" class="btn-close" id="rstNo">Cancelar</button><button type="button" class="btn-danger-outline" id="rstOk">Sí, reiniciar</button></div></div>';
+      ov.querySelectorAll('input[type=checkbox]').forEach(i => i.onchange = () => { if(i.checked) sel.add(+i.value); else sel.delete(+i.value); });
+      ov.querySelector('[data-s="todas"]').onclick = () => { ids.forEach(i => sel.add(i)); pintar(); };
+      ov.querySelector('[data-s="ninguna"]').onclick = () => { sel.clear(); pintar(); };
+      ov.querySelector('#rstNo').onclick = () => { ov.classList.remove('show'); };
+      ov.querySelector('#rstOk').onclick = async () => {
+        const el = [...sel]; if(!el.length) return showToast('Elige al menos un' + (espacio()[3] === 'm' ? 'o' : 'a') + ' ' + U().toLowerCase() + '.');
+        const av = [];
+        el.forEach(id => { const e = estadoUnidad(id); if(e.saldo > 0) av.push(tableLabel(id) + ': ' + fmt(e.saldo) + ' sin pagar'); if(e.abonado > 0) av.push(tableLabel(id) + ': ya abonó ' + fmt(e.abonado)); if(e.pedidos) av.push(tableLabel(id) + ': ' + e.pedidos + ' pedido(s) pendiente(s)'); if(e.prep) av.push(tableLabel(id) + ': ' + e.prep + ' pedido(s) en ' + prepNombre()); });
+        ov.classList.remove('show');
+        if(av.length && !(await showConfirm({ title: '⚠️ Hay operaciones activas', message: 'Si reinicias, esto se descarta (no se cobra ni se registra como venta):\n• ' + av.slice(0, 10).join('\n• ') + (av.length > 10 ? '\n• …y ' + (av.length - 10) + ' más' : '') + '\n\n¿Reiniciar de todas formas?', confirmText: 'Sí, reiniciar', cancelText: 'Cancelar', icon: '♻️' }))) { auditar('reinicio cancelado', 'Se canceló al ver operaciones activas', el); saveData(); return; }
+        const r = reiniciar(el);
+        showToast(r.error ? '🔒 ' + r.error : '♻️ Listo: ' + r.n + ' ' + (r.n === 1 ? U() : UP()).toLowerCase() + ' reiniciad' + (espacio()[3] === 'm' ? 'o' : 'a') + (r.n === 1 ? '' : 's') + '. Inventario, facturas e historial intactos.');
+      };
+    };
+    pintar(); ov.classList.add('show');
+  }
+  window.vitoReinicio = { abrir: dialogoReinicio, reiniciar, estado: estadoUnidad };
+
+  // ---------- Botón «Reiniciar [unidades]» en la pantalla principal ----------
+  function botonInicio(){
+    let b = document.getElementById('resetUnitsBtn');
+    const fila = document.getElementById('tableCountToggle'); if(!fila) return;
+    if(!b){ b = document.createElement('button'); b.type = 'button'; b.className = 'btn-ghost'; b.id = 'resetUnitsBtn'; b.setAttribute('data-novocab', ''); fila.parentNode.insertBefore(b, fila.nextSibling); b.onclick = () => dialogoReinicio(); }
+    b.textContent = '♻️ Reiniciar ' + UP().toLowerCase();
+  }
+  setTimeout(botonInicio, 1500); setInterval(botonInicio, 10000);
+  const st = document.createElement('style');
+  st.textContent = '.grp-list{display:flex;flex-direction:column;gap:6px;margin:10px 0}.grp-list label{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}.grp-list small{color:var(--ink-soft);margin-left:auto;text-align:right}' +
+    '#grupoBar{margin:4px 0 8px}.grp-info{border:1px solid var(--amber);border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:14px}.grp-info small{display:block;color:var(--ink-soft);font-size:12px;margin-top:3px}.grp-acts{display:flex;flex-wrap:wrap;gap:6px}.grp-acts button{padding:7px 10px;font-size:13px}' +
+    '.rst-info{font-size:13px;line-height:1.45;border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0;background:var(--surface)}.ticket .grp-tag{font-size:11.5px;color:var(--amber);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}';
+  document.head.appendChild(st);
+})();
+</script>
+<script>
 /* ================= LAYA IA — el asistente y el cerebro de Vento =================
    Laya responde y actúa con los DATOS REALES del negocio: facturas, inventario, proveedores, costos,
    IVA, pedidos, pantalla de preparación y música. Nunca inventa: si un dato no está, lo dice.
@@ -23323,12 +23589,181 @@ window.mesoraCelebrar = function(emojis){
     general(r){ return [INFORMES.inventario(), INFORMES.compras(r || rango('este mes')), INFORMES.precios(), INFORMES.pedidos(), INFORMES.preparacion(), INFORMES.musica()].join('\n\n'); }
   };
 
+  const U = () => getServiceUnitName(), UP = () => getServiceUnitNamePlural();
+  const art = () => espacio()[3] === 'm' ? 'el' : 'la', arts = () => espacio()[3] === 'm' ? 'los' : 'las';
+  // ---------- Terminología: «silla 4», «cabina 2», «habitación 3», «puesto VIP 1» → mesa N ----------
+  // (Por dentro las unidades se llaman igual; así Laya y la voz entienden el nombre que use el negocio.)
+  function normUnidad(t){
+    const sg = N(getServiceUnitName()), pl = N(getServiceUnitNamePlural());
+    const seguros = ['silla', 'cabina', 'habitacion', 'sala', 'pista', 'puesto', 'consultorio', 'estacion', 'cancha', 'espacio'];
+    const esc5 = x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if(pl && pl !== 'mesas') t = t.replace(new RegExp('\\b' + esc5(pl) + '\\b', 'g'), 'mesas');
+    if(sg && sg !== 'mesa') t = t.replace(new RegExp('\\b' + esc5(sg) + '\\b', 'g'), 'mesa');
+    t = t.replace(new RegExp('\\b(' + seguros.join('|') + ')s?\\b(?=\\s+(\\d+|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\\b)', 'g'), 'mesa');
+    t = t.replace(new RegExp('\\b(' + seguros.map(x => x + 's').concat(['habitaciones', 'estaciones']).join('|') + ')\\b', 'g'), 'mesas');
+    if(['cuenta', 'pedido', 'orden', 'caja', 'reserva'].includes(sg)) t = t.replace(new RegExp('\\b' + esc5(sg) + 's?\\s+(\\d+)', 'g'), 'mesa $1');
+    return t;
+  }
+  // Números de unidad nombrados en la frase: «mesa 4 con la 5», «mesas 4, 5 y 6», «la de Juan»
+  function unidadesDe(t){
+    const NW = typeof NUM_WORDS_VOICE !== 'undefined' ? NUM_WORDS_VOICE : {};
+    const out = [], i = t.search(/\bmesas?\b/); if(i < 0) return out;
+    t.slice(i).replace(/\b(\d+|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince)\b/g, (m, w) => { const n = /^\d+$/.test(w) ? +w : NW[w]; if(n && !out.includes(n)) out.push(n); return m; });
+    if(!out.length){ const n = asisMesaNum(t); if(n) out.push(n); }
+    return out;
+  }
+  const G = () => window.vitoGrupos;
+  // ---------- Registro de actividad de Laya (trazabilidad) ----------
+  function registrar(clase, txt){
+    if(!listo()) return;
+    data.layaLog = Array.isArray(data.layaLog) ? data.layaLog : [];
+    data.layaLog.push({ t: Date.now(), clase, txt: String(txt || '').slice(0, 240), usuario: (typeof authUser !== 'undefined' && authUser) || '—' });
+    if(data.layaLog.length > 800) data.layaLog = data.layaLog.slice(-600);
+    try{ saveData(); }catch(e){}
+  }
+  const esAdminL = () => { try{ return typeof authIsAdmin !== 'function' || authIsAdmin(); }catch(e){ return true; } };
+  // ---------- Estimación de agotamiento (consumo de los últimos 14 días) ----------
+  function prediccion(){
+    const desde = Date.now() - 14 * DIA, vendido = {};
+    (data.history || []).forEach(h => { if(Date.parse(h.date) >= desde) (h.items || []).forEach(i => { vendido[N(i.name)] = (vendido[N(i.name)] || 0) + (Number(i.qty) || 0); }); });
+    Object.values(data.tables || {}).forEach(t => (t.items || []).forEach(i => { vendido[N(i.name)] = (vendido[N(i.name)] || 0) + (Number(i.qty) || 0); }));
+    return data.products.filter(p => p.stock != null && !p.combo).map(p => { const v = vendido[N(p.name)] || 0, porDia = v / 14; if(!(porDia > 0)) return null;
+      return { p, porDia, dias: p.stock / porDia }; }).filter(Boolean).sort((a, b) => a.dias - b.dias);
+  }
+  // ---------- Tiempos de los pedidos ----------
+  function tiempos(){
+    const durs = [];
+    pedidos().forEach(p => { const a = p.hist.find(h => h.e === 'recibido'), b = p.hist.find(h => h.e === 'listo'); if(a && b && b.at > a.at) durs.push((b.at - a.at) / 6e4); });
+    durs.sort((a, b) => a - b); const med = durs.length ? durs[Math.floor(durs.length / 2)] : null;
+    const act = activos().map(p => { const ult = p.hist[p.hist.length - 1] || { at: p.at }; const total = (Date.now() - (p.recibidoEn || p.at)) / 6e4;
+      return { p, enEstado: Math.round((Date.now() - ult.at) / 6e4), total: Math.round(total), lento: med != null ? total > Math.max(10, med * 2) : total > 20 }; }).sort((a, b) => b.total - a.total);
+    return { med, act };
+  }
+  // ---------- Auditoría inteligente ----------
+  function auditoria(){
+    const out = [];
+    const fs = data.purchases || [], vistas = {};
+    fs.forEach(f => { const k1 = N(f.supplier) + '|' + N(f.invoiceNumber), k2 = N(f.supplier) + '|' + Math.round(f.total || 0) + '|' + (f.date || '');
+      if(f.invoiceNumber && vistas[k1]) out.push('🧾 Factura posiblemente duplicada: ' + (f.supplier || 'proveedor') + ' #' + f.invoiceNumber + ' (aplicada dos veces).');
+      else if(vistas[k2] && f.total > 0) out.push('🧾 Dos facturas de ' + (f.supplier || 'proveedor') + ' con el mismo total (' + plata(f.total) + ') y fecha: ¿es la misma?');
+      vistas[k1] = vistas[k2] = 1;
+      (f.items || []).forEach(i => { if(!(i.qty > 0) || !(i.cost > 0)) out.push('🧾 ' + (f.supplier || '') + ': «' + i.name + '» quedó con cantidad o costo en cero.');
+        if(i.qty > 2000) out.push('🧾 Cantidad extraña: «' + i.name + '» × ' + i.qty + ' en ' + (f.invoiceNumber || 'una factura') + '.'); });
+      (f.avisos || []).filter(a => /no cuadra|diferencia/i.test(a)).slice(0, 1).forEach(a => out.push('🧮 ' + (f.invoiceNumber || f.supplier || 'Factura') + ': ' + a));
+    });
+    const ps = pedidos(); ps.forEach((p, i) => { const dup = ps.slice(Math.max(0, i - 15), i).find(q => q.mesa === p.mesa && q.estado !== 'cancelado' && p.estado !== 'cancelado' && Math.abs(q.at - p.at) < 3 * 6e4 && JSON.stringify(q.items.map(x => [x.name, x.qty])) === JSON.stringify(p.items.map(x => [x.name, x.qty])));
+      if(dup) out.push('🛎️ Pedido posiblemente repetido en ' + tableLabel(p.mesa) + ': ' + p.items.map(x => x.qty + ' ' + x.name).join(', ') + '.'); });
+    ps.filter(p => !data.tables[p.mesa] && p.estado !== 'cancelado').forEach(p => out.push('🛎️ Pedido de ' + U() + ' ' + p.mesa + ' que ya no existe.'));
+    ps.filter(p => ['recibido', 'preparacion', 'listo', 'entregado'].includes(p.estado) && !p.aplicado).forEach(p => out.push('🛎️ Pedido de ' + tableLabel(p.mesa) + ' marcado «' + P().EST[p.estado] + '» pero no está en la cuenta.'));
+    activos().filter(p => p.items.some(i => !i.ok)).forEach(p => out.push('🛎️ ' + tableLabel(p.mesa) + ' pidió algo que no existe en tus productos: ' + p.items.filter(i => !i.ok).map(i => i.name).join(', ') + '.'));
+    (G() ? G().lista() : []).forEach(g => { if(g.miembros.some(id => !data.tables[id])) out.push('🔗 El grupo ' + G().etiqueta(g) + ' tiene ' + UP().toLowerCase() + ' que ya no existen.'); });
+    duplicados().filter(x => x.conf >= 90).slice(0, 3).forEach(x => out.push('📦 Productos duplicados: ' + x.productos.map(p => p.name).join(' = ') + '.'));
+    data.products.filter(p => p.stock != null && p.stock < 0).forEach(p => out.push('📦 ' + p.name + ' tiene stock negativo (' + p.stock + ').'));
+    data.products.filter(p => p.cost > 0 && p.price > 0 && p.price < p.cost).forEach(p => out.push('💰 ' + p.name + ' se vende por debajo del costo (' + plata(p.price) + ' < ' + plata(p.cost) + ').'));
+    if(window.__ventoSinConexionDesde) out.push('📶 Sin conexión desde ' + new Date(window.__ventoSinConexionDesde).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) + ': los pedidos esperan en ntfy (hasta 12 h).');
+    return [...new Set(out)];
+  }
+  // ---------- Centro de control ----------
+  function centro(){
+    const a = activos(), g = G() ? G().lista() : [], ocup = Object.keys(data.tables).filter(id => (data.tables[id].items || []).length).length;
+    const b = bajos().length, ag = agotados().length, aud = auditoria().length, t = tiempos().act.filter(x => x.lento).length;
+    const c = resumenCompras(rango('este mes'));
+    return '🧠 ' + [a.length + ' pedido' + (a.length === 1 ? '' : 's') + ' pendiente' + (a.length === 1 ? '' : 's') + (prepOn() ? ' en ' + prepNombre() : ''),
+      ocup + ' ' + (ocup === 1 ? U() : UP()).toLowerCase() + ' con cuenta abierta', g.length + ' grupo' + (g.length === 1 ? '' : 's') + ' de ' + UP().toLowerCase() + ' combinad' + (espacio()[3] === 'm' ? 'os' : 'as'),
+      ag + ' agotado' + (ag === 1 ? '' : 's') + ' y ' + b + ' con stock bajo', c.n + ' factura' + (c.n === 1 ? '' : 's') + ' este mes (' + plata(c.total) + ', IVA ' + plata(c.iva) + ')',
+      (t ? t + ' pedido' + (t === 1 ? '' : 's') + ' demorado' + (t === 1 ? '' : 's') : 'ningún pedido demorado'), (aud ? aud + ' cosa' + (aud === 1 ? '' : 's') + ' por revisar (di «Laya, audita»)' : 'sin problemas detectados')].join(' · ') + '.';
+  }
+  // ---------- Búsqueda externa (Open Food Facts: base pública de productos, sin clave) ----------
+  async function buscarFuera(q){
+    const code = (q.match(/\b\d{8,14}\b/) || [])[0];
+    const url = code ? 'https://world.openfoodfacts.org/api/v2/product/' + code + '.json?fields=product_name,product_name_es,brands,quantity'
+      : 'https://world.openfoodfacts.org/cgi/search.pl?search_terms=' + encodeURIComponent(q) + '&search_simple=1&action=process&json=1&page_size=5&fields=product_name,product_name_es,brands,quantity,code&countries_tags_en=colombia';
+    const ctrl = new AbortController(), tm = setTimeout(() => ctrl.abort(), 9000);
+    try{ const j = await (await fetch(url, { signal: ctrl.signal })).json(); clearTimeout(tm);
+      const l = code ? (j.product ? [Object.assign({ code }, j.product)] : []) : (j.products || []);
+      if(!l.length) return 'No encontré «' + q + '» en Open Food Facts (base pública de productos). No invento datos: revisa el nombre o el código de barras.';
+      return '🌐 En Open Food Facts encontré:\n' + bul(l.slice(0, 5).map(x => (x.product_name_es || x.product_name || 'Sin nombre') + (x.brands ? ' · ' + x.brands : '') + (x.quantity ? ' · ' + x.quantity : '') + (x.code ? ' · código ' + x.code : ''))) + '\n(Fuente externa: verifica antes de crear el producto.)';
+    }catch(e){ clearTimeout(tm); return 'IA temporalmente no disponible para buscar afuera (sin conexión o la base no respondió). Puedes continuar manualmente.'; }
+  }
+  // ---------- Intenciones de unidades, reinicio, control y auditoría ----------
+  function responderUnidades(t, raw){
+    const ids = unidadesDe(t);
+    // Combinar
+    if(/\b(combina|combinar|combinalas|combinalos|agrupa|agrupar|vincula|vincular)\b/.test(t)){
+      if(ids.length < 2) return { text: 'Dime cuáles ' + UP().toLowerCase() + ' combino, por ejemplo: «combina ' + art() + ' ' + U().toLowerCase() + ' 4 con ' + art() + ' 5».' };
+      const falt = ids.filter(id => !data.tables[id]); if(falt.length) return { text: 'No existe: ' + falt.map(id => U() + ' ' + id).join(', ') + '.' };
+      const activas = ids.filter(id => (data.tables[id].items || []).length);
+      return { text: '¿Quieres combinar ' + arts() + ' ' + UP().toLowerCase() + ' ' + ids.join(', ') + '? Sus pedidos y cuentas se mostrarán como una operación conjunta (' + U().toLowerCase() + ' ' + ids[0] + ' principal). ' + (activas.length ? 'Tienen ' + plata(ids.reduce((s, id) => s + tableTotal(id), 0)) + ' en total; cada ' + U().toLowerCase() + ' conserva lo suyo.' : 'Están libres.'),
+        actions: [{ tipo: 'laya', op: 'combinar', ids, label: '🔗 Combinar ' + U().toLowerCase() + ' ' + ids.join(' + ') }] };
+    }
+    if(/\b(separa|separar|descombina|descombinar|desvincula|desagrupa|desune)\b/.test(t)){
+      const g = ids.map(id => G().de(id)).find(Boolean);
+      if(!g) return { text: (ids.length ? tableLabel(ids[0]) + ' no está combinada.' : 'No hay ' + UP().toLowerCase() + ' combinad' + (espacio()[3] === 'm' ? 'os' : 'as') + '.') };
+      const r = G().separar(g.principal); registrar('ejecución', 'Separó ' + r.etiqueta);
+      return { text: '✂️ Separé ' + r.etiqueta + '. Cada ' + U().toLowerCase() + ' conserva sus productos, pedidos y abonos; no se perdió ni se duplicó nada.' };
+    }
+    if(/\b(combinad[oa]s|agrupad[oa]s|juntas|en grupo|grupos)\b/.test(t) && /\b(que|cuales|hay|cuantos|cuantas|muestra)\b/.test(t)){
+      const l = G().lista(); if(!l.length) return { text: 'No hay ' + UP().toLowerCase() + ' combinad' + (espacio()[3] === 'm' ? 'os' : 'as') + '.' };
+      return { text: '🔗 ' + UP() + ' combinad' + (espacio()[3] === 'm' ? 'os' : 'as') + ':\n' + bul(l.map(g => G().etiqueta(g) + ': total ' + plata(G().total(g)) + ', falta ' + plata(G().saldo(g)))) };
+    }
+    if(ids.length >= 2 && /\b(total|cuanto|cuenta|deben|llevan|suma)\b/.test(t)){
+      const g = G().de(ids[0]); const mismos = g && ids.every(id => g.miembros.includes(id));
+      const tot = ids.reduce((s, id) => s + tableTotal(id), 0), sal = ids.reduce((s, id) => s + tableBalance(id), 0);
+      return { text: (mismos && g.miembros.length === ids.length ? G().etiqueta(g) : UP() + ' ' + ids.join(' + ') + (mismos ? ' (del grupo ' + G().etiqueta(g) + ')' : '')) + ': total ' + plata(tot) + ', falta pagar ' + plata(sal) + '.\n' + bul(ids.map(id => tableLabel(id) + ': ' + plata(tableTotal(id)))) };
+    }
+    if(ids.length && /\b(originalmente|de donde|origen|que pidio)\b/.test(t) && /\b(originalmente|origen|de donde)\b/.test(t)){
+      const id = ids[0], propios = (data.tables[id] && data.tables[id].items || []).filter(i => i.origen == null || i.origen === id);
+      const enOtra = []; Object.keys(data.tables).forEach(k => (data.tables[k].items || []).forEach(i => { if(i.origen === id && +k !== id) enOtra.push(i.qty + ' × ' + i.name + ' (ahora en ' + tableLabel(+k) + ')'); }));
+      const pm = pedidos().filter(p => p.mesa === id && Date.now() - p.at < DIA);
+      return { text: 'Lo que pidió ' + tableLabel(id) + ':\n' + (propios.length || enOtra.length ? bul(propios.map(i => i.qty + ' × ' + i.name).concat(enOtra)) : '• Nada en la cuenta.') + (pm.length ? '\nPedidos de hoy: ' + pm.map(p => p.items.map(i => i.qty + ' ' + i.name).join(', ') + ' (' + P().EST[p.estado] + ')').join('; ') + '.' : '') };
+    }
+    // Reiniciar
+    if(/\b(reinicia|reiniciar|reinicie|resetea|resetear|limpia|limpiar)\b/.test(t) && /\bmesas?\b/.test(t)){
+      const todas = /\b(todas|todos)\b/.test(t), el = todas ? Object.keys(data.tables).map(Number) : ids;
+      if(!el.length) return { text: '¿Cuáles ' + UP().toLowerCase() + ' reinicio? Ej.: «reinicia ' + art() + ' ' + U().toLowerCase() + ' 5» o «reinicia todas ' + arts() + ' ' + UP().toLowerCase() + '».' };
+      if(!esAdminL()) return { text: '🔒 Solo un administrador puede reiniciar ' + UP().toLowerCase() + '.' };
+      const R = window.vitoReinicio, av = [];
+      el.forEach(id => { const e = R.estado(id); if(e.saldo > 0) av.push(tableLabel(id) + ' tiene ' + plata(e.saldo) + ' sin pagar'); if(e.pedidos + e.prep) av.push(tableLabel(id) + ' tiene ' + (e.pedidos + e.prep) + ' pedido(s) activo(s)'); });
+      return { text: '⚠️ Acción crítica: reiniciar ' + (todas ? 'todas ' + arts() + ' ' + UP().toLowerCase() : U().toLowerCase() + ' ' + el.join(', ')) + '. Se borran los pedidos activos, productos, cantidades, totales, abonos y nombres de ' + (el.length === 1 ? 'esa' : 'esas') + ' ' + (el.length === 1 ? U() : UP()).toLowerCase() + '. NO se borran inventario, productos, facturas, proveedores, historial, configuración ni QR.' + (av.length ? '\nOjo: ' + av.join('; ') + '.' : '') + '\n¿Lo hago?',
+        actions: [{ tipo: 'laya', op: 'reiniciar', ids: el, critica: true, label: '♻️ Sí, reiniciar ' + (todas ? 'todas' : el.join(', ')) }] };
+    }
+    return null;
+  }
+
   // ---------- Entender la frase ----------
   function responder(raw){
     if(!listo()) return null;
-    let t = N(raw).replace(/^(oye |hola |ey |hey )?laya\b[ ,]*/, '').trim();
-    if(!t) return { text: '¡Aquí estoy! Pregúntame por facturas, IVA, costos, proveedores, inventario, pedidos, ' + prepNombre().toLowerCase() + ' o música.' };
+    let t = normUnidad(N(raw).replace(/^(oye |hola |ey |hey )?laya\b[ ,]*/, '').trim());
+    if(!t) return { text: '¡Aquí estoy! Pregúntame por facturas, IVA, costos, proveedores, inventario, pedidos, ' + UP().toLowerCase() + ', ' + prepNombre().toLowerCase() + ' o música.' };
     const r = rango(t), pn = N(prepNombre());
+    const ru = responderUnidades(t, raw); if(ru) return ru;
+    // Centro de control, auditoría, estimaciones, tiempos
+    if(/\b(centro de control|como va todo|como vamos|que esta pasando|estado general|resumen general|panorama)\b/.test(t)) return { text: centro() };
+    if(/\b(audita|auditar|auditoria|revisa (los )?errores|hay (algun )?problemas?|que problemas|anomalias|inconsistencias)\b/.test(t)){
+      const a = auditoria(); registrar('consulta', 'Auditoría: ' + a.length + ' hallazgo(s)');
+      return { text: a.length ? '🔍 Encontré ' + a.length + ' cosa' + (a.length === 1 ? '' : 's') + ' por revisar:\n' + bul(a.slice(0, 15)) : '🔍 Revisé facturas, pedidos, ' + UP().toLowerCase() + ', productos y conexión: no encontré problemas. ✅' };
+    }
+    if(/\b(se va a agotar|se van a agotar|va a faltar|prediccion|predice|proyeccion|cuanto me dura|cuantos dias|alcanza)\b/.test(t)){
+      const l = prediccion().filter(x => x.dias < 21); if(!l.length) return { text: 'Con las ventas de los últimos 14 días, ningún producto con control de stock parece agotarse en las próximas 3 semanas. (Es una estimación, no una certeza.)' };
+      return { text: '📈 Estimación (según el consumo de los últimos 14 días, no es una certeza):\n' + bul(l.slice(0, 10).map(x => x.p.name + ': quedan ' + x.p.stock + ', se venden ~' + (Math.round(x.porDia * 10) / 10) + ' al día → ' + (x.dias < 1 ? 'podría agotarse hoy' : 'alcanza para ~' + Math.round(x.dias) + ' día(s)'))) };
+    }
+    if(/\b(cuanto (lleva|llevan|tarda|tardan)|tiempos?|demora\w*|atrasad\w*|lento|lentos|cuanto se demoran)\b/.test(t) && /\b(pedido|pedidos|preparacion|cocina|barra|despacho|mesa)\b/.test(t + ' ' + pn)){
+      const x = tiempos(); if(!x.act.length) return { text: 'No hay pedidos activos ahora.' + (x.med != null ? ' Normalmente un pedido tarda ~' + Math.round(x.med) + ' min en estar listo.' : '') };
+      return { text: '⏱️ Tiempos (desde que llegó):\n' + bul(x.act.slice(0, 10).map(y => (window.vitoGrupos ? window.vitoGrupos.etiquetaDe(y.p.mesa) : tableLabel(y.p.mesa)) + ': ' + y.total + ' min · ' + P().EST[y.p.estado] + ' hace ' + y.enEstado + ' min' + (y.lento ? ' ⚠️ demorado' : ''))) + (x.med != null ? '\nLo normal en este local: ~' + Math.round(x.med) + ' min.' : '') };
+    }
+    if(/\b(falta por preparar|que falta|por preparar|pendiente por preparar)\b/.test(t)) return { text: INFORMES.preparacion() };
+    if(/\b(cuanto inventario|inventario queda|que inventario|valor del inventario)\b/.test(t)) return { text: INFORMES.inventario() };
+    // Búsqueda externa (base pública de productos)
+    const mBus = t.match(/\b(busca|buscar|investiga|consulta)\b.*\b(internet|afuera|en la web|en linea|open food|codigo de barras)\b\s*(.*)$/) || t.match(/^(?:que producto es|que es el codigo)\s+(.+)$/);
+    if(mBus){ const q = (mBus[3] || mBus[1] || '').replace(/\b(el|la|de|del|producto|codigo|barras)\b/g, ' ').trim() || raw.replace(/.*(internet|afuera|web|linea)/i, '').trim();
+      return { text: '🌐 Busco «' + q + '» en Open Food Facts (base pública de productos)…', run: async () => { const r2 = await buscarFuera(q); registrar('consulta', 'Búsqueda externa: ' + q); try{ asisBot(r2); }catch(e){ showToast(r2.slice(0, 200), 9000); } } }; }
+    // Pedido por chat o voz: «agrega cinco Águilas a la mesa 2», «repite el pedido anterior»
+    if(/\b(agrega|agregale|agregame|anota|anotale|pon|ponle|sirve|sirvele|suma|sumale)\b/.test(t) && /\bmesa\b/.test(t) && typeof parseVoiceCommand === 'function'){
+      const pv = parseVoiceCommand(t); const id = pv.tableId || unidadesDe(t)[0];
+      if(pv.items && pv.items.length && id && data.tables[id]){ const r3 = applyVoiceItems(id, pv.items, pv.mode || 'add'); registrar('ejecución', 'Agregó a ' + tableLabel(id) + ': ' + r3.added.map(a => a.qty + ' ' + a.name).join(', '));
+        return { text: r3.added.length ? '✅ ' + tableLabel(id) + ': ' + r3.added.map(a => a.qty + ' ' + a.name).join(', ') + '.' + (r3.notFound.length ? ' No encontré: ' + r3.notFound.join(', ') + '.' : '') : 'No encontré esos productos: ' + r3.notFound.join(', ') + '.' }; }
+    }
+    if(/\b(repite|repetir|repita)\b.*\b(pedido|orden|ronda)\b/.test(t) && typeof handleVoiceTranscriptLocal === 'function'){ setTimeout(() => handleVoiceTranscriptLocal(raw.replace(/^\s*laya[ ,]*/i, '')), 0); return { text: '🔁 Repito el pedido anterior.' }; }
     // Facturas: leer una nueva o aplicar la que está en revisión
     if(/\b(revisa|lee|leer|escanea|escanear|procesa|procesar|toma|tomale|analiza)\b.*\bfactura\b/.test(t) || /^factura nueva$/.test(t))
       return { text: '📷 Abro la cámara: tómale la foto a la factura. Yo leo los productos, cantidades, IVA y costo por unidad, y te muestro todo para confirmar.', run: () => { try{ asisClose(); }catch(e){} asisGoView('inventario'); setTimeout(() => { const b = document.getElementById('invInvoiceCamBtn'); if(b) b.click(); }, 400); } };
@@ -23386,14 +23821,14 @@ window.mesoraCelebrar = function(emojis){
     }
     if(mesaN && /\b(pidio|pidieron|pedido|pedidos|lleva|tiene|ordeno|consumio|que hay)\b/.test(t)){
       const tb = data.tables[mesaN]; const pm = pedidos().filter(p => p.mesa === mesaN && Date.now() - p.at < DIA).slice(-5);
-      if(!tb && !pm.length) return { text: 'No tengo la ' + tableLabel(mesaN) + '.' };
+      if(!tb && !pm.length) return { text: 'No tengo ' + art() + ' ' + tableLabel(mesaN) + '.' };
       const its = (tb && tb.items) || [];
       return { text: tableLabel(mesaN) + (its.length ? ' lleva:\n' + bul(its.map(i => i.qty + ' × ' + i.name)) + '\nTotal ' + plata(tableTotal(mesaN)) + ', falta pagar ' + plata(tableBalance(mesaN)) + '.' : ': sin nada en la cuenta.') +
         (pm.length ? '\nPedidos de hoy: ' + pm.map(p => p.items.map(i => i.qty + ' ' + i.name).join(', ') + ' (' + P().EST[p.estado] + ')').join('; ') + '.' : '') };
     }
     if(/\b(pedidos? (pendientes?|activos?|sin entregar|por entregar|nuevos)|cuantos pedidos|pedidos recientes|ultimos pedidos|que mesas tienen pedidos|mesas con pedidos)\b/.test(t)){
       if(/\b(recientes|ultimos)\b/.test(t)){ const l = pedidos().slice(-8).reverse(); return { text: l.length ? '🛎️ Pedidos recientes:\n' + bul(l.map(p => new Date(p.at).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) + ' · ' + txtPed(p))) : 'Todavía no hay pedidos.' }; }
-      if(/\bmesas\b/.test(t)){ const ms = [...new Set(activos().map(p => p.mesa))]; return { text: ms.length ? 'Mesas con pedidos pendientes: ' + ms.map(m => tableLabel(m)).join(', ') + '.' : 'Ninguna mesa tiene pedidos pendientes.' }; }
+      if(/\bmesas\b/.test(t)){ const ms = [...new Set(activos().map(p => p.mesa))]; return { text: ms.length ? UP() + ' con pedidos pendientes: ' + ms.map(m => tableLabel(m)).join(', ') + '.' : 'Ningun' + (espacio()[3] === 'm' ? '' : 'a') + ' ' + U().toLowerCase() + ' tiene pedidos pendientes.' }; }
       return { text: INFORMES.pedidos() };
     }
     if(/\b(cuantos productos se han pedido|productos pedidos|que se ha pedido|lo mas pedido)\b/.test(t)){
@@ -23424,6 +23859,11 @@ window.mesoraCelebrar = function(emojis){
   }
   // ---------- Acciones confirmadas desde el chat ----------
   function ejecutar(a){
+    const criticas = ['reiniciar', 'fusionar'];
+    if(criticas.includes(a.op) && !esAdminL()){ registrar('crítica', 'Denegado (sin permiso): ' + (a.label || a.op)); return '🔒 Esa acción es solo para un administrador.'; }
+    registrar(criticas.includes(a.op) ? 'crítica' : 'ejecución', 'Confirmado: ' + (a.label || a.op));
+    if(a.op === 'combinar' && G()){ const r = G().combinar(a.ids, a.ids[0]); return r.error ? '⚠️ ' + r.error : '🔗 ' + r.etiqueta + ' combinad' + (espacio()[3] === 'm' ? 'os' : 'as') + '. Total: ' + plata(G().total(r.grupo)) + '. Cada ' + U().toLowerCase() + ' conserva su origen.'; }
+    if(a.op === 'reiniciar' && window.vitoReinicio){ const r = window.vitoReinicio.reiniciar(a.ids); return r.error ? '🔒 ' + r.error : '♻️ Reinicié ' + r.n + ' ' + (r.n === 1 ? U() : UP()).toLowerCase() + '. Inventario, productos, facturas e historial intactos.'; }
     if(a.op === 'fusionar'){ const keep = data.products.find(p => p.id === a.keep); if(!keep) return 'Ya no encontré ese producto.';
       const nombres = []; (a.gone || []).forEach(id => { const g = data.products.find(p => p.id === id); if(g){ nombres.push(g.name); (g.skus || []).forEach(s => { keep.skus = keep.skus || []; if(!keep.skus.includes(s)) keep.skus.push(s); }); (g.barcodes || []).forEach(s => { keep.barcodes = keep.barcodes || []; if(!keep.barcodes.includes(s)) keep.barcodes.push(s); }); dupMerge(keep, g); } });
       Object.keys(data.equivalencias || {}).forEach(k => { if((a.gone || []).includes(data.equivalencias[k].productId || data.equivalencias[k])) { if(typeof data.equivalencias[k] === 'object') data.equivalencias[k].productId = keep.id; else data.equivalencias[k] = keep.id; } });
@@ -23481,22 +23921,27 @@ window.mesoraCelebrar = function(emojis){
     const BOT = [['general', '📊 Resumen general'], ['inventario', '📦 Inventario'], ['facturas', '🧾 Facturas'], ['compras', '🛒 Compras'], ['iva', '🧮 IVA pagado'], ['costos', '💰 Costos'], ['precios', '📈 Cambios de precio'], ['proveedores', '🏭 Proveedores'], ['nuevos', '🆕 Productos nuevos'], ['agotados', '🚫 Agotados'], ['bajos', '⚠️ Bajo stock'], ['pedidos', '🛎️ Pedidos'], ['preparacion', '🍳 Preparación'], ['musica', '🎵 Música']];
     g.innerHTML = '<h2>🧠 Laya IA</h2><div class="settings-desc">Laya lee tus facturas, cuadra cantidades e IVA, vigila el inventario, los pedidos, la pantalla de preparación y la música, y te avisa lo importante. Pregúntale con tus palabras tocando la carita de «IA» arriba (o di «Laya…» en el micrófono). Todo sale de tus datos reales: si algo no está, te lo dice.</div>' +
       '<div class="mz-actions" id="layaInfBtns" style="flex-wrap:wrap">' + BOT.map(([k, l]) => '<button type="button" class="btn-ghost" data-inf="' + k + '">' + l + '</button>').join('') + '</div>' +
-      '<pre class="laya-inf" id="layaInf" hidden></pre><div class="jm-card"><b>🔔 Avisos recientes de Laya</b><div id="layaAvisos" class="settings-desc"></div></div><div class="jm-card" id="layaUnif"></div>';
+      '<pre class="laya-inf" id="layaInf" hidden></pre><div class="jm-card"><b>🧠 Centro de control</b><div id="layaCentro" class="settings-desc"></div></div>' +
+      '<div class="jm-card"><b>🔔 Avisos recientes de Laya</b><div id="layaAvisos" class="settings-desc"></div></div>' +
+      '<div class="jm-card"><b>📜 Actividad de Laya y auditoría</b><div class="settings-desc">Qué consultó, sugirió y ejecutó Laya, y las acciones importantes (combinar, separar, reiniciar, cobrar grupos) con usuario, fecha y hora.</div><div id="layaActividad" class="jm-tabla jm-act"></div></div><div class="jm-card" id="layaUnif"></div>';
     const ref = document.querySelector('#view-ajustes .settings-group[data-cat]'); ref.parentNode.insertBefore(g, ref);
     b.addEventListener('click', () => { if(typeof mostrarCategoriaAjustes === 'function') mostrarCategoriaAjustes('laya'); pintar(); });
     g.querySelector('#layaInfBtns').addEventListener('click', ev => { const x = ev.target.closest('[data-inf]'); if(!x) return; const box = g.querySelector('#layaInf'); box.hidden = false; box.textContent = INFORMES[x.dataset.inf](x.dataset.inf === 'compras' || x.dataset.inf === 'iva' || x.dataset.inf === 'facturas' ? rango('este mes') : null); });
   }
   function pintar(){
     const g = document.getElementById('layaGrupo'); if(!g || !listo()) return;
+    try{ g.querySelector('#layaCentro').textContent = centro(); }catch(e){}
+    const act = (data.layaLog || []).map(x => ({ t: x.t, a: 'Laya · ' + x.clase, d: x.txt, u: x.usuario })).concat((data.auditoria || []).map(x => ({ t: x.t, a: x.accion, d: x.detalle, u: x.usuario }))).sort((a, b) => b.t - a.t).slice(0, 80);
+    g.querySelector('#layaActividad').innerHTML = act.length ? act.map(x => '<div><span>' + new Date(x.t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) + '</span><span><b>' + e2(x.a) + '</b> ' + e2(x.d) + '</span><span>' + e2(x.u) + '</span></div>').join('') : '<div class="settings-desc">Todavía no hay actividad.</div>';
     g.querySelector('#layaAvisos').innerHTML = recientes.length ? recientes.slice(0, 12).map(a => '<div>' + new Date(a.t).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) + ' · ' + e2(a.txt) + '</div>').join('') : 'Sin avisos por ahora.';
     const u = data.unificaciones || [];
     g.querySelector('#layaUnif').innerHTML = '<b>🔀 Mesas unificadas</b>' + (u.length ? '<div class="jm-tabla">' + u.slice(0, 100).map(x => '<div><span>' + new Date(x.t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) + '</span><span>' + e2(x.mesas.join(' + ')) + '</span><span>' + e2(x.empleado) + '</span><span>' + plata(x.total) + '</span></div>').join('') + '</div>' : '<div class="settings-desc">Todavía no se han juntado mesas.</div>');
   }
   const st = document.createElement('style');
-  st.textContent = '.jm-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0;background:var(--surface)}.jm-card>b{display:block;margin-bottom:6px}.laya-inf{white-space:pre-wrap;font:inherit;font-size:14px;line-height:1.5;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface);margin:10px 0}.jm-tabla div{display:grid;grid-template-columns:1.2fr 1.5fr 1fr .8fr;gap:6px;font-size:12.5px;padding:4px 0;border-top:1px solid var(--line)}';
+  st.textContent = '.jm-card{border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0;background:var(--surface)}.jm-card>b{display:block;margin-bottom:6px}.laya-inf{white-space:pre-wrap;font:inherit;font-size:14px;line-height:1.5;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface);margin:10px 0}.jm-tabla div{display:grid;grid-template-columns:1.2fr 1.5fr 1fr .8fr;gap:6px;font-size:12.5px;padding:4px 0;border-top:1px solid var(--line)}.jm-act div{grid-template-columns:5.5em 1fr 4.5em;overflow-wrap:anywhere}.jm-act{max-height:50vh;overflow:auto}';
   document.head.appendChild(st);
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', crearPanel); else crearPanel();
-  window.Laya = { responder, ejecutar, informe: (k, r) => INFORMES[k] ? INFORMES[k](r) : '', duplicados, cambiosPrecio, proveedores, resumenCompras, avisos: () => recientes.slice(), revisar };
+  window.Laya = { responder, ejecutar, registrar, centro, auditoria, prediccion, tiempos, buscarFuera, informe: (k, r) => INFORMES[k] ? INFORMES[k](r) : '', duplicados, cambiosPrecio, proveedores, resumenCompras, avisos: () => recientes.slice(), revisar };
 })();
 </script>
 <script>

@@ -798,6 +798,26 @@ function pintarSugC(){
   box.hidden=!box.children.length;
 }
 $('s').addEventListener('input',pintarSugC);
+/* Buscador de canciones con el teclado abierto: el campo sube a la parte visible de la pantalla
+   (visualViewport) y las sugerencias se ajustan al espacio que deja el teclado, con su propio scroll.
+   Solo mueve la vista: no cambia la búsqueda ni cómo se pide la canción. */
+function ajustarSugTeclado(){
+  const inp=$('s');if(!inp||document.activeElement!==inp)return;
+  const vv=window.visualViewport,H=vv?vv.height:innerHeight,arriba=vv?vv.offsetTop:0;
+  const teclado=Math.max(0,innerHeight-H);
+  document.body.style.paddingBottom=teclado?(teclado+40)+'px':'';
+  const r=inp.getBoundingClientRect();
+  const meta=arriba+12;                                   // el campo queda arriba, las sugerencias debajo y visibles
+  if(Math.abs(r.top-meta)>24)window.scrollBy({top:r.top-meta,behavior:'auto'});
+  const disp=Math.max(150,Math.round(H-(r.height+36)));
+  ['sugC','ytPrev'].forEach(id=>{const b=$(id);if(b){b.style.maxHeight=disp+'px';b.style.overflowY='auto';b.style.overscrollBehavior='contain';}});
+}
+let ajTimer=null;const ajustarLuego=()=>{clearTimeout(ajTimer);ajTimer=setTimeout(ajustarSugTeclado,60)};
+$('s').addEventListener('focus',()=>{ajustarLuego();setTimeout(ajustarSugTeclado,350)});
+$('s').addEventListener('input',ajustarLuego);
+$('s').addEventListener('blur',()=>{setTimeout(()=>{if(document.activeElement!==$('s'))document.body.style.paddingBottom=''},200)});
+if(window.visualViewport){visualViewport.addEventListener('resize',ajustarLuego);visualViewport.addEventListener('scroll',()=>{})}
+try{const mo=new MutationObserver(ajustarLuego);['sugC','ytPrev'].forEach(id=>{const b=$(id);if(b)mo.observe(b,{childList:true,attributes:true,attributeFilter:['hidden']})});}catch(e){}
 $('s').addEventListener('focus',()=>{ if(!$('s').value.trim()){ const box=$('sugC'); if(box){ box.hidden=true; } } });
 
 /* ---------- Vista previa de YouTube: ver la canción antes de pedirla (no la agrega, solo confirma) ----------

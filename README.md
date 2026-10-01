@@ -63,6 +63,30 @@ Laya es el asistente: la carita de "IA" arriba a la derecha. También responde p
 - **Preguntas libres y lectura de fotos:** usan el modelo de lenguaje y visión que el dueño conecte en ⚙️ Configurar IA (por ejemplo Gemini, con su propia clave). Sin conexión, las facturas se leen con el lector incluido (Tesseract.js y pdf.js).
 - **Motor de decisiones Laya** ([NandhaKishorM/laya](https://github.com/NandhaKishorM/laya), opcional): desempata los renglones de factura que se parecen a varios productos. Se conecta en Ajustes → Laya IA a través de `puente/laya-worker.js`. Variables: `LAYA_URL`, `LAYA_API_KEY` (como secreto) y `ALLOWED_ORIGINS`.
 
+## Unidades de atención: mesas, sillas, cabinas, habitaciones…
+
+**Nombre de la unidad.**
+- **Una sola fuente:** toda la terminología sale de `espacio()`, que también se pide como `getServiceUnitName()`, `getServiceUnitNamePlural()` y `serviceUnitLabel(id)`.
+- **Valor por defecto:** el tipo de negocio. Restaurante → Mesas, Barbería → Sillas, Spa → Cabinas, Hotel → Habitaciones, Karaoke → Salas, Bolera → Pistas, Lavandería → Órdenes.
+- **Nombre libre:** en Ajustes → Cuenta y negocio → «¿Cómo se llaman tus unidades de atención?» se elige otro o se escribe uno propio (ej. «Puesto VIP»).
+- **Dónde se ve:** en el menú, las cuentas, los avisos, el QR, la preparación, Laya y la voz.
+
+**Combinar** (botón 🔗 dentro de la cuenta, o «Laya, combina la mesa 4 con la 5»):
+- Se arma un grupo con una unidad principal y sus vinculadas, que se muestra como «Mesa 4 + 5 + 6».
+- No se mueve nada: cada unidad conserva sus productos, pedidos y origen, y el total del grupo es la suma real.
+- Separar no pierde ni duplica nada.
+- «Cobrar el grupo» junta la cuenta en la principal, con el origen de cada producto, y se cobra con el flujo normal.
+- El inventario no se toca.
+
+**Reiniciar** (botón «♻️ Reiniciar [unidades]» en la pantalla principal, o «Laya, reinicia la mesa 5»):
+- Se puede reiniciar una unidad, varias o todas. Hay confirmación y una segunda advertencia si quedan saldos, abonos, pedidos activos o preparación pendiente.
+- Solo puede hacerlo un administrador.
+- Borra solo el estado operativo de esas unidades.
+- Nunca toca inventario, productos, facturas, proveedores, historial, configuración, usuarios ni QR.
+- No crea ventas, cobros ni devoluciones. Lo descartado queda en `data.auditoria`.
+
+**Trazabilidad.** `data.auditoria` registra combinar, separar, cobrar grupo, reiniciar y los intentos sin permiso. `data.layaLog` registra lo que Laya consultó, sugirió y ejecutó. Ambos se ven en Ajustes → Laya IA → Actividad.
+
 ## Facturas
 
 Foto o PDF → (IA con internet, o el lector sin internet) → **cuadre aritmético de cada renglón** (`fiCuadrar`) → coincidencia con el inventario → revisión → inventario.
@@ -128,13 +152,21 @@ El nombre elegido aparece en el menú, los títulos, los avisos y en Laya. La co
   - En iPhone se intenta abrir la app y, si no abre, se usa la web.
   - En esta modalidad el tiempo es aproximado, porque esa app no informa el avance.
 
-## QR impresos: no hay que cambiarlos
+## Todo corre en GitHub (y qué queda de Netlify)
 
-Los QR pegados en las mesas abren `https://joyful-basbousa-0bc49b.netlify.app/?mesa=…&c=…&v=…`.
+La app, la página de pedidos, la preparación, el TV, los meseros y los QR nuevos salen de **GitHub Pages**. La app no tiene ninguna referencia a Netlify.
 
-**Cómo funciona.** Ese sitio de Netlify solo publica `netlify-qr/`, que reenvía al `pedido.html` de GitHub Pages con los mismos datos. Así cada cambio subido a GitHub le llega solo al cliente. `netlify.toml` evita que Netlify vuelva a publicar con cada cambio.
+**Lo único que queda.** Los QR que ya están pegados en las mesas tienen impresa la dirección `joyful-basbousa-0bc49b.netlify.app`. Ese dominio solo se puede atender desde Netlify. Por eso se mantiene, únicamente, una redirección de dos archivos:
+- `netlify-qr/index.html` y `_redirects`: reenvían a `pedido.html` de GitHub con los mismos datos del QR;
+- `netlify.toml`: impide que Netlify vuelva a publicar con cada cambio.
 
-**Si cambias de celular.** En la app, Ajustes → QR de las mesas → 📌 "Fijar mis QR impresos" (con la foto de un QR) deja la app escuchando el mismo canal de los QR pegados.
+Así el QR físico sigue funcionando sin reimprimirlo.
+
+**Para quitar Netlify por completo:**
+1. Imprime QR nuevos. La app ya los genera con la dirección de GitHub: Ajustes → QR de las mesas → Generar.
+2. Después de reemplazarlos, borra el sitio en Netlify y la carpeta `netlify-qr/` con `netlify.toml`.
+
+**Si pierdes la configuración.** En la app, Ajustes → QR de las mesas → 📌 «Fijar mis QR impresos» (con la foto de un QR) hace que la app vuelva a escuchar el canal de los QR pegados.
 
 ## Links (GitHub Pages)
 
