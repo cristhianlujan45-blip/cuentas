@@ -65,6 +65,40 @@ Lo del doble toque se aplicó también a la app principal, mesero, preparación 
 
 - **El botón "♻️ Reiniciar …"** ahora cambia de nombre al instante cuando cambia la palabra de la unidad. Antes decía "Reiniciar mesas" en un negocio con "Cuentas".
 
+## 7. Pedidos que salían «Sin conexión»
+
+**Causa probable:** el envío funciona por ntfy.sh, que tiene un cupo gratis de mensajes por día **por conexión a internet**. La app principal publicaba mucho:
+- la pantalla de preparación cada minuto, aunque no hubiera ninguna abierta;
+- la cuenta de **cada** mesa en cada cambio;
+- además, el TV y los meseros.
+
+Si los clientes usan el mismo Wi-Fi del local, comparten ese cupo. Cuando se acaba, ntfy rechaza el pedido del cliente y la página decía "Sin conexión".
+
+No hay forma de comprobarlo desde aquí: el entorno de pruebas no tiene acceso a ntfy.sh. Por eso se arregló por los dos lados.
+
+**App principal (gasta mucho menos cupo):**
+- **Cuenta en vivo:** se publica solo para las mesas que usaron el QR en las últimas 12 horas.
+- **Pantalla de preparación:** se publica solo si hay una abierta (la pantalla avisa al abrirse), y el repaso pasó de cada minuto a cada 10 minutos.
+
+**Página de pedidos (pedido.html):**
+- **Envío:** 3 intentos rápidos (0 s, 1,5 s y 4 s, más espera si ntfy dice "demasiados envíos"). Un corte de señal corto ya no deja el pedido sin enviar.
+- **Si no sale:** queda guardado y se reintenta solo cada vez con más espera (10 s, 20 s, 40 s… hasta 2 min). También se reintenta al volver la señal o al volver a la página.
+- **El mensaje ya no dice "Sin señal":** dice "Aún no se pudo enviar… se reintenta solo, no lo vuelvas a enviar".
+- **Sin duplicados:** el pedido sigue con su ID único.
+
+**Probado:** con 2 rechazos seguidos de ntfy, el pedido sale en el 3.er intento. Con 5 rechazos, queda guardado y sale solo en el siguiente reintento. Se envía 1 pedido, sin errores.
+
+**Pendiente de confirmar en el local:** si vuelve a salir el aviso, revisar si el celular del cliente estaba en el Wi-Fi del local.
+
+## 8. Panel de notificaciones (campana)
+
+En el celular el panel quedaba corrido: pegado a un lado, con espacio de más al otro, y se metía debajo de la barra de abajo.
+
+Ahora:
+- **En pantallas de menos de 600 px:** ocupa el ancho con 8 px de margen a cada lado.
+- **Alto:** termina antes de la barra de abajo, con su propio scroll.
+- **Texto:** se ve completo, en 320, 390 y 768 px.
+
 ## No se tocó
 
 - **YouTube Music:** enlaces, QR, reproducción, cola e integración.

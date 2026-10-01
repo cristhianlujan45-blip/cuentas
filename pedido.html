@@ -563,7 +563,7 @@ const DICT_SRC={
   enviadoOk:["✅ Enviado, ya lo recibió el local.","✅ Sent, the place received it.","✅ Enviado, o local já recebeu.","✅ Envoyé, l’établissement l’a reçu.","✅ 已发送，商家已收到。","✅ भेजा गया, दुकान को मिल गया।"],
   cancionesLlevas:[" Llevas {u} de {max} canciones."," You’ve used {u} of {max} songs."," Você já pediu {u} de {max} músicas."," Vous avez utilisé {u} chansons sur {max}."," 您已点{u}/{max}首歌。"," आपने {max} में से {u} गाने माँगे हैं।"],
   noEnviadoWa:["No se pudo enviar. Usa el botón de WhatsApp.","Couldn’t send. Use the WhatsApp button.","Não foi possível enviar. Use o botão do WhatsApp.","Échec de l’envoi. Utilisez le bouton WhatsApp.","发送失败，请使用WhatsApp按钮。","भेजा नहीं जा सका। WhatsApp बटन का उपयोग करें।"],
-  pedGuardado:["📶 Sin señal: tu pedido quedó guardado y se envía solo apenas vuelva la conexión.","📶 No signal: your order is saved and will be sent automatically.","📶 Sem sinal: seu pedido foi salvo e será enviado automaticamente.","📶 Pas de réseau : votre commande est enregistrée et partira automatiquement.","📶 无信号：订单已保存，恢复网络后自动发送。","📶 सिग्नल नहीं: आपका ऑर्डर सेव है, नेटवर्क आते ही भेज दिया जाएगा।"],
+  pedGuardado:["⏳ Aún no se pudo enviar. Tu pedido quedó guardado y se reintenta solo cada pocos segundos: no lo vuelvas a enviar.","⏳ Not sent yet. Your order is saved and retries by itself every few seconds: no need to send it again.","⏳ Ainda não enviado. Seu pedido foi salvo e é reenviado sozinho a cada poucos segundos: não envie de novo.","⏳ Pas encore envoyée. Votre commande est enregistrée et se renvoie seule toutes les quelques secondes : inutile de la renvoyer.","⏳ 尚未发送。订单已保存，几秒后会自动重试，无需再次发送。","⏳ अभी भेजा नहीं गया। आपका ऑर्डर सेव है और कुछ सेकंड में अपने-आप दोबारा भेजा जाएगा।"],
   pedEsperando:["Enviado. Esperando que el local lo confirme…","Sent. Waiting for the place to confirm…","Enviado. Aguardando a confirmação do local…","Envoyé. En attente de confirmation…","已发送，等待商家确认…","भेजा गया। दुकान की पुष्टि का इंतज़ार…"],
   pedSinConfirmar:["El local todavía no confirma tu pedido. Si tarda, avísale al mesero.","The place hasn’t confirmed yet. If it takes long, tell the waiter.","O local ainda não confirmou. Se demorar, avise o garçom.","Pas encore confirmé. Si cela tarde, prévenez le serveur.","商家尚未确认，如久未确认请告知服务员。","दुकान ने अभी पुष्टि नहीं की। देर हो तो वेटर को बताएँ।"],
   tusPedidos:["Tus pedidos","Your orders","Seus pedidos","Vos commandes","您的订单","आपके ऑर्डर"],
@@ -1125,17 +1125,35 @@ function conectar(){
 }
 
 /* ---------- Envío confiable: bandeja de salida + confirmación del local ---------- */
+// Publica en ntfy con 3 intentos rápidos (un corte de señal de 1-2 s ya no deja el pedido «sin conexión»).
+// Si ntfy responde 429 (demasiados envíos desde esa conexión), se espera un poco más antes de reintentar.
+async function ntfyPost(body){
+  const esperas=[0,1500,4000];let st=0;
+  for(const w of esperas){
+    if(w)await new Promise(r=>setTimeout(r,st===429?w*2:w));
+    try{const ctrl=new AbortController(),tm=setTimeout(()=>ctrl.abort(),9000);
+      const r=await fetch('https://ntfy.sh/'+c,{method:'POST',body,signal:ctrl.signal});clearTimeout(tm);
+      if(r.ok)return true;st=r.status;if(st>=400&&st<500&&st!==429&&st!==408)return false;}catch(e){st=0;}
+  }
+  return false;
+}
 const OUTK='outbox_'+c,MISK='mis_'+c+'_'+SUF;
 function outboxAgregar(body){const l=jget(OUTK,[]);if(!l.some(x=>x.body===body))l.push({body,at:Date.now()});jset(OUTK,l.slice(-20));}
 let vaciando=false;
 async function vaciarOutbox(){
   if(vaciando||!c)return;const l=jget(OUTK,[]);if(!l.length)return;vaciando=true;
   const quedan=[];
-  for(const m of l){let ok=false;if(Date.now()-m.at<12*36e5){try{ok=(await fetch('https://ntfy.sh/'+c,{method:'POST',body:m.body})).ok}catch(e){}}else ok=true;if(!ok)quedan.push(m);}
+  for(const m of l){let ok=false;if(Date.now()-m.at<12*36e5){ok=await ntfyPost(m.body);}else ok=true;if(!ok)quedan.push(m);}
   jset(OUTK,quedan);vaciando=false;
+  outFallos=quedan.length?outFallos+1:0;
   if(l.length>quedan.length){setMsg(()=>t('pedEsperando'),'ok');escucharEstados();}
 }
-setInterval(vaciarOutbox,15000);window.addEventListener('online',vaciarOutbox);setTimeout(vaciarOutbox,2000);
+// Reintento con espera creciente (10 s, 20 s, 40 s… máx. 2 min) para no saturar; al volver la señal o la pantalla, de una vez.
+let outFallos=0,outProx=0;
+setInterval(()=>{if(Date.now()>=outProx){outProx=Date.now()+Math.min(120000,10000*Math.pow(2,Math.min(outFallos,4)));vaciarOutbox();}},5000);
+window.addEventListener('online',()=>{outFallos=0;vaciarOutbox();});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)vaciarOutbox();});
+setTimeout(vaciarOutbox,2000);
 const misPedidos=()=>jget(MISK,[]).filter(x=>Date.now()-x.at<12*36e5);
 function misPedidosAgregar(o){const l=misPedidos();l.push(o);jset(MISK,l.slice(-15));pintarEstados();}
 const EST_TXT={enviado:'⏳',nuevo:'🆕',recibido:'✅',preparacion:'👩‍🍳',listo:'🔔',entregado:'🍽️',cancelado:'❌'};
@@ -1158,7 +1176,7 @@ function escucharEstados(){
 setInterval(()=>{
   const l=jget(MISK,[]);let cambio=false;
   l.forEach(x=>{if(x.e!=='enviado'||!x.body)return;const s=Date.now()-x.at;
-    if(s>45000&&!x.re){x.re=1;cambio=true;fetch('https://ntfy.sh/'+c,{method:'POST',body:x.body}).catch(()=>outboxAgregar(x.body));}
+    if(s>45000&&!x.re){x.re=1;cambio=true;ntfyPost(x.body).then(ok=>{if(!ok)outboxAgregar(x.body);});}
     if(s>180000&&!x.av){x.av=1;cambio=true;setMsg(()=>t('pedSinConfirmar'),'err');}});
   if(cambio)jset(MISK,l);
 },10000);
@@ -1229,7 +1247,7 @@ $('b').onclick=async()=>{
     if(cuerpo.length>3800||ultimo.length>(dom?500:2000))return setMsg(()=>t('pedidoLargo'),'err');
     $('b').disabled=true;
     try{
-      const r=await fetch('https://ntfy.sh/'+c,{method:'POST',body:cuerpo});
+      const r={ok:await ntfyPost(cuerpo)};
       if(r.ok){
         if(modo=='c'){const a=recientes();a.push(Date.now());jset(K,a);aprenderCancion(txt);if($('sugC'))$('sugC').hidden=true;if($('ytPrev'))$('ytPrev').hidden=true}
         if(modo=='p'){guardarRonda(env);aprender(env);lineas=[];pintarLineas();pintarRonda();pintarChips()}

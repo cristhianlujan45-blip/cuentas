@@ -59,7 +59,7 @@
   function esc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
   function enviar(obj){ try{ var x = new XMLHttpRequest(); x.open('POST', 'https://ntfy.sh/' + CANAL + 'r'); x.send(JSON.stringify(obj)); }catch(e){} }
   function pintar(){
-    var vivo = Date.now() - ultimo < 3 * 60000;
+    var vivo = Date.now() - ultimo < 30 * 60000;
     $('dot').className = 'dot ' + (vivo ? 'ok' : 'bad');
     $('st').textContent = vivo ? 'En vivo con Vento' : 'Sin noticias de Vento: deja la app abierta en el celular o la caja.';
     if(!estado) return;
@@ -110,6 +110,8 @@
   }
   conectar();
   enviar({ k: 'hola', at: Date.now() });
+  // Cada 6 h vuelve a avisar que sigue abierta (Vento solo le publica a pantallas que están abiertas).
+  setInterval(function(){ enviar({ k: 'hola', at: Date.now() }); }, 6 * 3600000);
   setInterval(pintar, 20000);
   pintar();
 })();

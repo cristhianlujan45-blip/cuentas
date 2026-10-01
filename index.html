@@ -17463,6 +17463,15 @@ bootApp();
   }
   function posicionarCerca(panel,anchoAprox){
     const r=bell.getBoundingClientRect();
+    // Celular: panel centrado con el mismo margen a los dos lados y sin meterse debajo de la barra de abajo.
+    if(window.innerWidth<600){
+      const tb=document.getElementById('tabbar'),abajo=(tb&&getComputedStyle(tb).position==='fixed')?tb.offsetHeight:0;
+      const top=Math.max(8,r.bottom+8);
+      panel.style.width=(window.innerWidth-16)+'px';panel.style.left='8px';panel.style.top=top+'px';
+      panel.style.maxHeight=Math.max(200,window.innerHeight-top-abajo-12)+'px';
+      return;
+    }
+    panel.style.width='';panel.style.maxHeight='';
     let left=r.right-anchoAprox, top=r.top-8-panel.offsetHeight;
     if(top<8) top=r.bottom+8;
     top=Math.max(8,Math.min(top,window.innerHeight-panel.offsetHeight-8));
@@ -17998,6 +18007,7 @@ function prepPublicar(force){
   clearTimeout(prepT);
   prepT=setTimeout(()=>{
     if(typeof data==='undefined'||!data||!prepOn())return;
+    if(Date.now()-(LS('vito_prep_visto',0)||0)>24*36e5)return;   // ninguna pantalla externa abierta: no se gasta el cupo de ntfy
     const act=pedidosLista().filter(p=>['nuevo','recibido','preparacion','listo'].includes(p.estado)).slice(-30);
     const m={t:'prep',n:prepNombre(),b:String(data.businessName||'').slice(0,40),o:act.map(p=>({i:p.id,m:String(window.vitoGrupos?window.vitoGrupos.etiquetaDe(p.mesa):tableLabel(p.mesa)).slice(0,40),e:p.estado,a:p.recibidoEn||p.at,g:String(p.origen||'').slice(0,20),x:String(p.nota||'').slice(0,80),it:p.items.slice(0,15).map(i=>[String(i.name).slice(0,30),i.qty])})),at:Date.now()};
     let s2=JSON.stringify(m);
@@ -18008,10 +18018,12 @@ function prepPublicar(force){
   },force?0:700);
 }
 window.prepPublicar=prepPublicar;
-setInterval(()=>{if(prepOn()&&pedidosLista().some(p=>['nuevo','recibido','preparacion','listo'].includes(p.estado)))prepPublicar(true);},60000);
+// Repaso cada 10 min (antes cada minuto) y solo con pedidos activos: los cambios ya se publican al instante.
+setInterval(()=>{if(prepOn()&&pedidosLista().some(p=>['nuevo','recibido','preparacion','listo'].includes(p.estado)))prepPublicar(true);},600000);
 function procesarPrep(txt){
   let o;try{o=JSON.parse(txt);}catch(e){return;}
   if(!o||o.t==='prep')return;                                   // eco de lo que publicamos
+  SS('vito_prep_visto',Date.now());                              // hay una pantalla de preparación abierta
   if(o.k==='hola'){prepPublicar(true);return;}
   if(o.k==='estado'&&o.id&&PEDIDO_EST[o.e]){pedidoCambiar(String(o.id),o.e);try{renderCocina();}catch(e){}}
 }
@@ -18128,7 +18140,12 @@ async function pedirWakeLock(){
 }
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!wakeLock)pedirWakeLock();});
 pedirWakeLock();
+// Mesas con clientes usando el QR (últimas 12 h): solo a esas se les publica la cuenta en vivo.
+// Antes se publicaba CADA cambio de CADA mesa a ntfy y eso gastaba el cupo diario gratis de la conexión
+// del local; si el cliente estaba en el mismo Wi-Fi, sus pedidos salían «Sin conexión».
+function mesaQRActiva(id,marcar){const a=LS('vito_qr_act',{});if(marcar){a[id]=Date.now();Object.keys(a).forEach(k=>{if(Date.now()-a[k]>12*36e5)delete a[k];});SS('vito_qr_act',a);return true;}return Date.now()-(a[id]||0)<12*36e5;}
 function procesar(txt){
+  try{const mm=/"mesa":\s*(\d+)|MESA\s*(\d+)/i.exec(txt);if(mm)mesaQRActiva(+(mm[1]||mm[2]),true);}catch(e){}
   // Formato nuevo (pedido.html 1.8+): JSON con ID único → sin duplicados, mesa y productos exactos.
   if(/^\s*\{/.test(txt)){
     let o=null;try{o=JSON.parse(txt);}catch(e){}
@@ -19136,6 +19153,7 @@ function publicarCuentas(){
   Object.keys(data.tables).forEach(k=>{
     const id=+k,sn=snapMesa(id),h=JSON.stringify(Object.assign({},sn,{t:0}));
     if(pubHash[id]===h)return;
+    if(pubHash[id]===undefined&&!mesaQRActiva(id))return;      // nadie la está viendo por QR
     const primera=pubHash[id]===undefined;pubHash[id]=h;
     if(primera&&!sn.i.length)return;
     fetch('https://ntfy.sh/'+vTopic(id),{method:'POST',body:JSON.stringify(sn)}).catch(()=>{delete pubHash[id];});
