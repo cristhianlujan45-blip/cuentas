@@ -60,7 +60,7 @@ Laya es el asistente: la carita de "IA" arriba a la derecha. También responde p
 
 **De dónde salen las respuestas.**
 - **Motor local de Laya:** todo lo anterior, que sale de los datos del equipo y nunca se inventa.
-- **Preguntas libres y lectura de fotos:** usan el modelo de lenguaje y visión que el dueño conecte en ⚙️ Configurar IA (por ejemplo Gemini, con su propia clave). Sin conexión, las facturas se leen con el lector incluido (Tesseract.js y pdf.js).
+- **Preguntas libres y lectura de fotos:** usan el modelo de lenguaje y visión que el dueño conecte en ⚙️ Configurar IA (por ejemplo Gemini, con su propia clave). Sin conexión, las facturas se leen con el lector incluido (Tesseract.js y pdf.js). Desde la 1.9.1 sus motores pesados están en `lib/` (`vento-ocr.js`, `vento-pdf.js`, `vento-pdf-worker.js`) y se cargan solo al leer una factura; la app pasó de 14 MB a 2 MB y Android ya no la recarga al volver de la cámara u otra app.
 - **Motor de decisiones Laya** ([NandhaKishorM/laya](https://github.com/NandhaKishorM/laya), opcional): desempata los renglones de factura que se parecen a varios productos. Se conecta en Ajustes → Laya IA a través de `puente/laya-worker.js`. Variables: `LAYA_URL`, `LAYA_API_KEY` (como secreto) y `ALLOWED_ORIGINS`.
 
 ## Unidades de atención: mesas, sillas, cabinas, habitaciones…

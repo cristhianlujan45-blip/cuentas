@@ -321,6 +321,18 @@ body.easy-mode #fxLayer{display:none!important}
 body.easy-mode button,body.easy-mode input,body.easy-mode select{min-height:48px}
 body.easy-mode .t{min-height:56px}
 </style>
+<style>
+/* Cómoda en cualquier celular, tablet o computador, sin tener que hacer zoom ni alejar:
+   - tocar rápido «+» varias veces ya no hace el zoom de doble toque (se puede seguir pellizcando para ampliar);
+   - ningún campo tiene letra menor a 16 px (en iPhone eso hacía zoom solo al tocarlo y había que alejar);
+   - nada se sale por los lados. */
+html{touch-action:manipulation}
+button,a,select,input,textarea,label,.pcard,.catbtn,.chip,[role="button"]{touch-action:manipulation}
+input,select,textarea{font-size:16px!important}
+.lang,.curr,.prefBtn{font-size:16px!important;padding:7px 14px}
+img,video,iframe{max-width:100%}
+@media (max-width:359px){.wrap{padding-left:12px;padding-right:12px}}
+</style>
 </head>
 <body>
 <div class="wrap">
