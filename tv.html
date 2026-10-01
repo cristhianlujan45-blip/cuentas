@@ -41,6 +41,10 @@
   #start button:focus{ outline:.6vh solid #fff; outline-offset:.6vh; }
   #start p{ font-size:2.4vh; color:var(--soft); margin:0; max-width:70%; line-height:1.4; }
   #err{ font-size:3vh; color:var(--bad); }
+  .bar{ height:1.1vh; background:var(--line); border-radius:1vh; overflow:hidden; margin-top:1.2vh; }
+  .bar i{ display:block; height:100%; width:0; background:var(--acc); }
+  .time{ font-size:2.2vh; color:var(--soft); margin-top:.8vh; font-variant-numeric:tabular-nums; }
+  .aviso{ font-size:2.2vh; color:var(--bad); margin-top:.8vh; }
 </style>
 </head>
 <body>
@@ -48,7 +52,7 @@
   <div class="main">
     <div class="top"><div class="biz" id="biz">Música</div><div class="hint">🎵 Pide tu canción con el QR de tu mesa</div></div>
     <div class="player"><div id="yt"></div><div class="idle" id="idle"><b>🎵 Esperando canciones…</b><span>Cuando una mesa pida una canción, empieza a sonar aquí sola.</span></div></div>
-    <div class="now" id="now" style="display:none"><small>Sonando</small><div id="nowSong"></div><em id="nowMesa"></em></div>
+    <div class="now" id="now" style="display:none"><small>Sonando</small><div id="nowSong"></div><em id="nowMesa"></em><div class="bar"><i id="nowBar"></i></div><div class="time" id="nowTime"></div><div class="aviso" id="aviso"></div></div>
   </div>
   <div class="side">
     <h2>Siguen</h2>
@@ -85,11 +89,22 @@
     $('next').innerHTML = p.length ? p.slice(0, 6).map(function(x){ return '<li><b>' + esc(x.s) + '</b><span>' + esc(x.m) + '</span></li>'; }).join('') : '<li class="empty">No hay más canciones en cola.</li>';
     $('now').style.display = actual ? '' : 'none';
     $('idle').style.display = actual ? 'none' : '';
-    if(actual){ $('nowSong').textContent = actual.s; $('nowMesa').textContent = actual.m; }
+    if(actual){ $('nowSong').textContent = actual.s + (actual.a ? ' · ' + actual.a : ''); $('nowMesa').textContent = 'Pedida por ' + actual.m + (p.length ? '  ·  Sigue: ' + p[0].s : ''); }
+    tiempo();
     var vivo = Date.now() - ultimoMsg < 6 * 60000;
     $('dot').className = 'dot ' + (vivo ? 'ok' : 'bad');
     $('state').textContent = vivo ? 'Conectado con Vento' : 'Sin noticias del celular: deja Vento abierta en la sección Música.';
   }
+  function mmss(s){ s = Math.max(0, Math.round(s || 0)); var m = Math.floor(s / 60), r = s % 60; return (m < 10 ? '0' : '') + m + ':' + (r < 10 ? '0' : '') + r; }
+  function pos(){ var t = 0, d = 0; try{ t = player.getCurrentTime() || 0; d = player.getDuration() || 0; }catch(e){} return { t: t, d: d }; }
+  function tiempo(){                            // barra y "01:32 / 03:42" con el tiempo real del video
+    if(!actual || !player){ $('nowTime').textContent = ''; $('nowBar').style.width = '0'; return; }
+    var x = pos();
+    $('nowTime').textContent = mmss(x.t) + ' / ' + (x.d ? mmss(x.d) : '--:--');
+    $('nowBar').style.width = (x.d ? Math.min(100, x.t / x.d * 100) : 0) + '%';
+  }
+  setInterval(tiempo, 1000);
+  setInterval(function(){ if(actual && player && cargadoEn === 0){ var x = pos(); if(x.t > 0) avisar({ g: actual.i, t: Math.round(x.t), d: Math.round(x.d) }); } }, 10000);
   function siguiente(){
     if(!listo || !empezado) return;
     var p = pendientes();
@@ -104,13 +119,15 @@
   function mala(){                              // esta versión no se deja reproducir: avisa y sigue
     if(!actual) return;
     avisar({ b: actual.i, v: actual.v });
+    $('aviso').textContent = 'No se pudo cargar la reproducción. Intente nuevamente.';
+    setTimeout(function(){ $('aviso').textContent = ''; }, 8000);
     actual = null; cargadoEn = 0;
     siguiente();
   }
   function crearPlayer(){
     player = new YT.Player('yt', { width: '100%', height: '100%', playerVars: { autoplay: 1, playsinline: 1, rel: 0, controls: 0, modestbranding: 1 }, events: {
       onReady: function(){ listo = true; siguiente(); },
-      onStateChange: function(e){ if(e.data === 1) cargadoEn = 0; if(e.data === 0){ actual = null; siguiente(); } },
+      onStateChange: function(e){ if(e.data === 1) cargadoEn = 0; if(e.data === 0){ if(actual){ var x = pos(); avisar({ e: actual.i, t: Math.round(x.d || x.t), d: Math.round(x.d) }); } actual = null; siguiente(); } },
       onError: function(){ mala(); }
     } });
   }
@@ -127,6 +144,12 @@
 
   function recibir(txt){
     var m; try{ m = JSON.parse(txt); }catch(e){ return; }
+    if(m && m.skip){                            // «Saltar» desde Vento
+      ultimoMsg = Date.now();
+      if(actual && actual.i === m.skip){ tocadas[m.skip] = Date.now(); guardarTocadas(); actual = null; try{ player.stopVideo(); }catch(e){} siguiente(); }
+      else { tocadas[m.skip] = Date.now(); guardarTocadas(); pintar(); }
+      return;
+    }
     if(!m || !m.q) return;
     ultimoMsg = Date.now();
     cola = m.q;
@@ -139,9 +162,8 @@
     var x = new XMLHttpRequest();
     x.open('GET', 'https://ntfy.sh/' + TOPIC + '/json?poll=1&since=' + desde);
     x.onload = function(){
-      var ls = String(x.responseText || '').split('\n'), ult = null;
-      for(var i = 0; i < ls.length; i++){ try{ var j = JSON.parse(ls[i]); if(j.event === 'message'){ ult = j; } }catch(e){} }
-      if(ult){ desde = ult.id; recibir(ult.message); }
+      var ls = String(x.responseText || '').split('\n');
+      for(var i = 0; i < ls.length; i++){ try{ var j = JSON.parse(ls[i]); if(j.event === 'message'){ desde = j.id; recibir(j.message); } }catch(e){} }
     };
     x.send();
   }
