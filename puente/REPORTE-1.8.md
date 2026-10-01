@@ -15,7 +15,7 @@ Cambios: Laya como única IA, facturas con IVA y cantidades bien calculadas, ped
 - En la revisión, el "precio sin IVA por caja" se llenaba con el costo de una sola unidad, y por eso el "Total de la compra" mostraba el precio de una unidad.
 - No se separaba el IVA por unidad.
 
-**3. Jimmy.** Era un módulo aparte con su propio panel, sus avisos, su prompt y la variable global `JimmyNAI`. Se eliminó por completo y la búsqueda en todo el repositorio da 0 referencias. El registro de mesas unificadas que ese módulo guardaba quedó en `registrarUnificacion` y se ve en Ajustes → Laya IA.
+**3. La IA anterior que el dueño pidió eliminar.** Era un módulo aparte con su propio panel, sus avisos, su prompt y su variable global. Se eliminó por completo y la búsqueda de su nombre en todo el repositorio da 0 resultados. El registro de mesas unificadas que ese módulo guardaba quedó en `registrarUnificacion` y se ve en Ajustes → Laya IA.
 
 ## Archivos
 
@@ -28,7 +28,7 @@ Cambios: Laya como única IA, facturas con IVA y cantidades bien calculadas, ped
 | `mesero.html`, `licencias.html` | modificados: ícono |
 | `icons/` | nuevo: ícono y logo de Vento |
 | `README.md` | reescrito con la arquitectura real |
-| `puente/laya-worker.js`, `puente/REPORTE-1.7.md` | sin referencias a Jimmy |
+| `puente/laya-worker.js`, `puente/REPORTE-1.7.md` | sin referencias a la IA anterior |
 | `version.txt` | `2026-10-01 · v1.8` |
 
 ## Funciones nuevas y reescritas
