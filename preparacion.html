@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0a0c1b">
+<title>Vento · Preparación</title>
+<link rel="icon" type="image/png" href="icons/vento-64.png">
+<link rel="apple-touch-icon" href="icons/vento-180.png">
+<style>
+  /* Pantalla de preparación (cocina, barra, despacho…) para una tablet o un TV.
+     Se abre con preparacion.html#canal.código (el link sale en Vento → Ajustes → Pedidos, QR y caja).
+     Recibe en vivo los pedidos activos que publica Vento y devuelve los cambios de estado.
+     Código sencillo a propósito: muchos navegadores de TV y tablets son viejos. */
+  :root{ --bg:#0a0c1b; --card:#141832; --line:#262c52; --ink:#f2f4ff; --soft:#9aa3cf; --nuevo:#fb7185; --rec:#60a5fa; --prep:#fbbf24; --listo:#34d399; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; min-height:100%; background:var(--bg); color:var(--ink); font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif; }
+  header{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:2; }
+  h1{ margin:0; font-size:22px; }
+  .st{ font-size:13px; color:var(--soft); }
+  .dot{ display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--soft); margin-right:6px; vertical-align:middle; }
+  .dot.ok{ background:var(--listo); } .dot.bad{ background:var(--nuevo); }
+  main{ display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; padding:14px 18px 40px; }
+  .col h2{ font-size:15px; margin:0 0 10px; color:var(--soft); text-transform:uppercase; letter-spacing:.06em; }
+  .col h2 i{ font-style:normal; background:var(--line); border-radius:10px; padding:1px 9px; margin-left:6px; color:var(--ink); }
+  .tk{ background:var(--card); border:1px solid var(--line); border-left:6px solid var(--rec); border-radius:12px; padding:12px; margin-bottom:12px; }
+  .tk.nuevo{ border-left-color:var(--nuevo); } .tk.preparacion{ border-left-color:var(--prep); } .tk.listo{ border-left-color:var(--listo); }
+  .tk .h{ display:flex; justify-content:space-between; gap:8px; font-weight:800; font-size:18px; }
+  .tk .h small{ font-weight:600; font-size:13px; color:var(--soft); }
+  .tk .h small.tarde{ color:var(--nuevo); }
+  .tk ul{ margin:8px 0; padding-left:0; list-style:none; font-size:17px; line-height:1.45; }
+  .tk li b{ display:inline-block; min-width:34px; }
+  .tk .nota{ font-size:14px; background:var(--line); border-radius:8px; padding:5px 8px; margin-bottom:8px; }
+  .tk .o{ font-size:12px; color:var(--soft); margin-bottom:8px; }
+  .tk button{ width:100%; font-size:16px; font-weight:800; padding:12px; border-radius:10px; border:0; cursor:pointer; background:#4f46e5; color:#fff; }
+  .tk button:focus{ outline:3px solid #fff; outline-offset:2px; }
+  .vacio{ color:var(--soft); padding:30px 18px; text-align:center; font-size:18px; grid-column:1/-1; }
+  #err{ color:var(--nuevo); padding:30px 18px; font-size:18px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="tit">🍳 Preparación</h1>
+  <div class="st"><span class="dot" id="dot"></span><span id="st">Conectando con Vento…</span></div>
+</header>
+<div id="err" hidden></div>
+<main id="tablero"></main>
+<script>
+(function(){
+  var h = (location.hash || '').replace(/^#/, '').split('.');
+  var topic = (h[0] || '').replace(/[^\w]/g, ''), code = (h[1] || '').replace(/[^\w]/g, '');
+  var $ = function(id){ return document.getElementById(id); };
+  if(!topic || !code){ $('err').hidden = false; $('err').textContent = 'Falta el código del link. Cópialo de nuevo en Vento → Ajustes → Pedidos, QR y caja → Pantalla de preparación.'; return; }
+  var CANAL = topic + 'p' + code, estado = null, ultimo = 0;
+  var SIG = { nuevo: ['✅ Aceptar', 'recibido'], recibido: ['👩‍🍳 En preparación', 'preparacion'], preparacion: ['🔔 Listo', 'listo'], listo: ['🍽️ Entregado', 'entregado'] };
+  var COLS = [['nuevo', '🆕 Por aceptar'], ['recibido', '📥 Recibidos'], ['preparacion', '👩‍🍳 En preparación'], ['listo', '🔔 Listos']];
+  function esc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+  function enviar(obj){ try{ var x = new XMLHttpRequest(); x.open('POST', 'https://ntfy.sh/' + CANAL + 'r'); x.send(JSON.stringify(obj)); }catch(e){} }
+  function pintar(){
+    var vivo = Date.now() - ultimo < 3 * 60000;
+    $('dot').className = 'dot ' + (vivo ? 'ok' : 'bad');
+    $('st').textContent = vivo ? 'En vivo con Vento' : 'Sin noticias de Vento: deja la app abierta en el celular o la caja.';
+    if(!estado) return;
+    document.title = 'Vento · ' + estado.n;
+    $('tit').textContent = '🍳 ' + estado.n + (estado.b ? ' · ' + estado.b : '');
+    var o = estado.o || [], html = '';
+    COLS.forEach(function(c){
+      var l = o.filter(function(p){ return p.e === c[0]; }).sort(function(a, b){ return a.a - b.a; });
+      if(!l.length) return;
+      html += '<section class="col"><h2>' + c[1] + '<i>' + l.length + '</i></h2>' + l.map(function(p){
+        var min = Math.max(0, Math.round((Date.now() - p.a) / 60000));
+        return '<div class="tk ' + p.e + '"><div class="h"><span>' + esc(p.m) + '</span><small' + (min >= 15 && p.e !== 'listo' ? ' class="tarde"' : '') + '>' + (min ? 'hace ' + min + ' min' : 'ahora') + '</small></div>' +
+          '<ul>' + (p.it || []).map(function(i){ return '<li><b>' + esc(i[1]) + '×</b> ' + esc(i[0]) + '</li>'; }).join('') + '</ul>' +
+          (p.x ? '<div class="nota">📝 ' + esc(p.x) + '</div>' : '') +
+          '<div class="o">' + (p.g === 'qr' ? '📱 Pedido por QR' : p.g ? '🧑‍🍳 ' + esc(String(p.g).replace(/^mesero:/, '')) : '') + '</div>' +
+          '<button type="button" data-id="' + esc(p.i) + '" data-e="' + SIG[p.e][1] + '">' + SIG[p.e][0] + '</button></div>';
+      }).join('') + '</section>';
+    });
+    $('tablero').innerHTML = html || '<div class="vacio">No hay pedidos pendientes. 🎉</div>';
+  }
+  $('tablero').addEventListener('click', function(ev){
+    var b = ev.target.closest ? ev.target.closest('button[data-id]') : null; if(!b) return;
+    enviar({ k: 'estado', id: b.getAttribute('data-id'), e: b.getAttribute('data-e'), at: Date.now() });
+    // Se mueve de una vez en pantalla; Vento confirma con su próxima publicación.
+    (estado.o || []).forEach(function(p){ if(p.i === b.getAttribute('data-id')) p.e = b.getAttribute('data-e'); });
+    estado.o = estado.o.filter(function(p){ return p.e !== 'entregado' && p.e !== 'cancelado'; });
+    pintar();
+  });
+  function recibir(txt){
+    var m; try{ m = JSON.parse(txt); }catch(e){ return; }
+    if(!m || m.t !== 'prep') return;
+    if(estado && m.at < estado.at) return;
+    estado = m; ultimo = Date.now(); pintar();
+  }
+  var desde = '1h';
+  function sondear(){
+    var x = new XMLHttpRequest();
+    x.open('GET', 'https://ntfy.sh/' + CANAL + '/json?poll=1&since=' + desde);
+    x.onload = function(){ String(x.responseText || '').split('\n').forEach(function(l){ try{ var j = JSON.parse(l); if(j.event === 'message'){ desde = j.id; recibir(j.message); } }catch(e){} }); };
+    x.send();
+  }
+  function conectar(){
+    if(window.EventSource){
+      var es = new EventSource('https://ntfy.sh/' + CANAL + '/sse?since=1h');
+      es.onmessage = function(ev){ try{ var j = JSON.parse(ev.data); if(j.event === 'message') recibir(j.message); }catch(e){} };
+      es.onerror = function(){ try{ es.close(); }catch(e){} setTimeout(conectar, 5000); };
+    } else { sondear(); setInterval(sondear, 5000); }
+  }
+  conectar();
+  enviar({ k: 'hola', at: Date.now() });
+  setInterval(pintar, 20000);
+  pintar();
+})();
+</script>
+</body>
+</html>

@@ -38,7 +38,7 @@ Este reporte cubre facturas inteligentes, Laya IA, música por QR, comandos de v
 **Facturas: pantallas**
 - Historial de facturas, con búsqueda, detalle y la foto original.
 - Movimientos de inventario (`data.inventarioMov`).
-- Tarjeta de Laya en Ajustes → Jimmy N AI.
+- Tarjeta de Laya en Ajustes → Laya IA.
 
 **Música**
 - `mzLimpiarPedido`: limpia lo que escribe el cliente ("ponme la de…", "Artista - Canción").
@@ -110,7 +110,7 @@ Este reporte cubre facturas inteligentes, Laya IA, música por QR, comandos de v
 
 1. Monta Laya con su Docker (`laya-serve`), siguiendo el repositorio oficial.
 2. Crea un Worker gratis en Cloudflare con el contenido de `puente/laya-worker.js` y ponle las variables de la sección 5.
-3. En Vento, ve a Ajustes → Jimmy N AI → Laya IA, pega la dirección del Worker y toca "Probar conexión".
+3. En Vento, ve a Ajustes → Laya IA, pega la dirección del Worker y toca "Probar conexión".
 
 ## 7. Cómo probar
 

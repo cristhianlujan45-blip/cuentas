@@ -1,125 +1,156 @@
-# Vento — Cuentas de mesa, pedidos por QR y márgenes de precio (offline)
+# Vento: cuentas, pedidos por QR, inventario y música para negocios (con Laya IA)
 
-Dos páginas independientes, sin backend ni instalación: cada una es un solo
-archivo HTML que corre entero en el navegador (los datos quedan en
-`localStorage` del propio dispositivo).
+Son páginas HTML independientes, sin backend ni instalación. Cada una corre entera en el navegador.
 
-## `index.html` — la app del negocio (dueño/mesero)
+- **Datos del negocio:** quedan en el propio equipo (`localStorage`, con respaldo en IndexedDB) y viajan en las copias de seguridad.
+- **Comunicación en vivo:** la app del local, la página de pedidos, la pantalla de preparación, el TV y la app de meseros se comunican por canales de [ntfy.sh](https://ntfy.sh).
+- **Si se cae la conexión:** ntfy guarda los mensajes hasta 12 horas, así que un pedido no se pierde aunque la app del local esté cerrada o sin señal un rato.
 
-Mesas, productos, pedidos por QR, inventario, estadísticas, carta pública y
-una calculadora de costo/margen/precio de venta por unidad en
-**Inventario → Costos y márgenes**.
+## Arquitectura y flujos
 
-El costo de cada producto se puede cargar escaneando una **factura de
-proveedor** o una **etiqueta de precio**, de dos formas:
+```
+QR impreso (Netlify) ──► netlify-qr/index.html ──► GitHub Pages /pedido.html?mesa=N&c=CANAL&v=CÓDIGO
+                                                     │  pedido JSON {id único, mesa, items, total}
+                                                     ▼
+                               ntfy.sh/CANAL  ──►  index.html (app del local)
+                                                     │  1 sola vez por ID · mesa correcta (si no existe se crea)
+                                                     │  suma a la cuenta · descuenta inventario
+                                                     ├─► ntfy.sh/CANAL+'e' ──► pedido.html muestra «Recibido / En preparación / Listo»
+                                                     └─► ntfy.sh/CANAL+'p'+código ──► preparacion.html (cocina / barra / despacho…)
+                                                                                         └─► cambios de estado de vuelta a la app
+Canción por QR ──► ntfy.sh/CANAL ──► cola de música (sin duplicados) ──► reproductor automático (celular o tv.html)
+```
 
-- **Con IA** (necesita internet): identifica productos, cantidades y precios
-  automáticamente, incluso en facturas con nombres abreviados o en clave.
-- **Sin internet**: lee el texto de la foto o del PDF con un motor de OCR
-  ([Tesseract.js](https://github.com/naptha/tesseract.js)) y un lector de PDF
-  ([pdf.js](https://mozilla.github.io/pdf.js/)) embebidos en el propio
-  archivo — funciona sin conexión, incluso abriendo `index.html` directo
-  desde el disco.
+| Archivo | Para qué es |
+|---|---|
+| `index.html` | App del negocio: mesas o cuentas, productos e inventario, facturas, contabilidad, música, Laya IA y ajustes. |
+| `pedido.html` | La página que ve el cliente al escanear el QR: carta, pedido, canción, "mi cuenta" y pago. |
+| `preparacion.html` | Pantalla de preparación en una tablet o TV. Su nombre es configurable (Cocina, Barra, Despacho…). |
+| `tv.html` | El TV reproduce la cola de canciones sola y muestra el tiempo real, la mesa y la siguiente canción. |
+| `mesero.html` | App de los meseros en su celular, por un canal privado. |
+| `licencias.html` | Códigos para sedes adicionales, firmados con una llave privada que no está en el repositorio. |
+| `netlify-qr/` | Redirección estable para los QR ya impresos (ver más abajo). |
+| `puente/laya-worker.js` | Puente seguro (Cloudflare Worker) hacia el motor de decisiones Laya. |
+| `puente/youtube-tv-worker.js` | Puente para la opción "YouTube del TV" (vincular con código de TV). |
+| `icons/` | Ícono y logo de Vento. |
 
-En ambos casos siempre se abre una pantalla de revisión para corregir
-cualquier dato antes de guardar.
+## Laya IA: la única IA de la app
 
-### Novedades
+Laya es el asistente: la carita de "IA" arriba a la derecha. También responde por voz si en el micrófono se dice "Laya, …".
 
-- **Mesi (IA) más rápida**: las preguntas simples (ventas, mesas, deudas,
-  precios, stock) se responden al instante sin IA; las demás se muestran en
-  vivo mientras la IA escribe (la primera frase sale en ~1 segundo) y nunca
-  se espera más de 8 segundos: si la IA no alcanza, Mesi responde con lo básico.
-- **Saludo de bienvenida** cada vez que se abre Mesi, con un resumen del día.
-- **Transmitir al TV con YouTube** (Música → 📺 Transmitir al TV): abre
-  directamente la app de YouTube (nunca el navegador) con la lista de canciones
-  pedidas. Ahí el botón de transmitir busca los TV del mismo wifi. Con Google
-  conectado, las canciones nuevas se agregan solas a la lista en vivo.
-- **Fotos de productos** (Productos → Editar → 📷 Agregar foto): el fondo se
-  vuelve blanco automáticamente y la foto sale en la carta de `pedido.html`.
-  Las fotos se guardan en el propio dispositivo (IndexedDB).
-- **Autorreparación**: la app registra cada error con un código (ej. `E-1A2B`).
-  Mesi lo detecta, corrige lo que se puede (datos dañados, memoria llena,
-  pantallas trabadas, conexión de YouTube vencida) y explica el resto. Basta
-  con decirle "arregla los errores".
+**Qué responde.** Contesta con los datos reales del negocio, al instante y también sin internet:
+- **Facturas e IVA:** IVA pagado, costo por unidad con y sin IVA, último precio, compras por proveedor, productos que subieron de precio y los que más cuestan.
+- **Inventario:** agotados, bajo stock y productos duplicados.
+- **Pedidos y mesas:** qué pidió una mesa, pedidos pendientes y recientes.
+- **Preparación y música:** qué hay en la pantalla de preparación (con el nombre que use el local) y estado de la música.
+- **Informes:** inventario, facturas, compras, IVA, costos, productos nuevos, agotados, cambios de precio, proveedores, pedidos, preparación, música y uno general.
 
-## `pedido.html` — la página que ve el cliente
+**Qué hace.**
+- Abre la cámara para leer una factura y la aplica al inventario.
+- Une productos duplicados.
+- Marca pedidos como listos o entregados y los cancela.
+- Salta o quita canciones.
+- Para lo destructivo o importante, siempre pide confirmación.
 
-Se abre al escanear el QR de la mesa. Muestra la carta, deja armar el pedido
-y llamar al mesero, sincronizado en vivo con `index.html`. Hay que subir
-ambos archivos al mismo lugar (el mismo hosting) y configurar en
-**Ajustes → Carta / QR** el link donde quedó `pedido.html`.
+**Avisos.** Avisa sola, sin repetir ni saturar:
+- stock bajo o agotado y productos duplicados;
+- cambios de precio y facturas guardadas con avisos;
+- pedidos esperando y canciones que no se pudieron reproducir;
+- problemas de conexión.
 
-## `tv.html` — la música en el TV
+**De dónde salen las respuestas.**
+- **Motor local de Laya:** todo lo anterior, que sale de los datos del equipo y nunca se inventa.
+- **Preguntas libres y lectura de fotos:** usan el modelo de lenguaje y visión que el dueño conecte en ⚙️ Configurar IA (por ejemplo Gemini, con su propia clave). Sin conexión, las facturas se leen con el lector incluido (Tesseract.js y pdf.js).
+- **Motor de decisiones Laya** ([NandhaKishorM/laya](https://github.com/NandhaKishorM/laya), opcional): desempata los renglones de factura que se parecen a varios productos. Se conecta en Ajustes → Laya IA a través de `puente/laya-worker.js`. Variables: `LAYA_URL`, `LAYA_API_KEY` (como secreto) y `ALLOWED_ORIGINS`.
 
-Se abre en el **navegador del TV** (LG webOS, Samsung, Android TV o TV Box) con
-el link de **Música → Pantalla del TV**. El TV reproduce la cola de canciones
-en orden y en vivo: el celular (con Vento abierta) le manda cada canción que
-piden las mesas, sin Google y sin transmitir. Solo se envían versiones que ya
-se comprobó que se dejan reproducir fuera de YouTube; si alguna igual falla, el
-TV avisa y el celular busca otra versión.
+## Facturas
 
-## `puente/youtube-tv-worker.js` — canciones solas en el YouTube del TV
+Foto o PDF → (IA con internet, o el lector sin internet) → **cuadre aritmético de cada renglón** (`fiCuadrar`) → coincidencia con el inventario → revisión → inventario.
 
-Con **Música → YouTube del TV: canciones solas**, Vento se conecta a la app de
-YouTube del televisor con el código «Vincular con código de TV» y le agrega
-cada canción que piden las mesas a su cola, en vivo. Usa el mismo sistema que
-los celulares al vincular un TV (no es una API pública de Google; YouTube
-podría cambiarlo). Como el navegador no deja hablar directo con youtube.com
-desde otra página, las llamadas pasan por este pequeño puente, que se publica
-gratis como Cloudflare Worker (los pasos están dentro de la app).
+**Qué calcula el cuadre en cada renglón:**
+- **Unidades reales:** cajas × unidades por caja. Ejemplo: 5 cajas × 24 = 120 unidades. Reconoce caja, paquete, docena, display y bolsa.
+- **Costos por unidad:** sin IVA, IVA por unidad y con IVA, junto con el subtotal, el IVA y el total del renglón.
+- **Errores que corrige:**
+  - el total del renglón tomado como precio de una unidad;
+  - el precio por caja;
+  - el precio sin IVA;
+  - el IVA sumado dos veces.
 
-## `mesero.html` — la app de los meseros
+**Antes de guardar** se valida que cantidad × precio, el subtotal más el IVA menos los descuentos y el total general cuadren. Si algo no cuadra, se muestra la lista y la persona decide: nunca se guarda en silencio.
 
-Cada mesero la abre en su propio celular con el link de **Ajustes → Pedidos,
-QR y caja → App de meseros**. Ve las mesas y lo que lleva cada una, anota
-pedidos tocando los productos o dictando (los mismos comandos de la voz
-clásica), pide la misma ronda y crea mesas con nombre. Los pedidos llegan
-directo al celular principal (con Vento abierta) por un canal privado que
-los clientes no conocen. En el mismo equipo del negocio, un usuario con rol
-**Mesero** entra en modo mesero: solo mesas, cocina y música.
+**Qué queda guardado.** En el producto, en el movimiento de inventario y en el historial de la factura quedan:
+- cantidad, unidad, presentación, cajas y unidades por caja;
+- costo por unidad sin IVA, IVA por unidad y costo con IVA;
+- subtotal, IVA total y total;
+- proveedor, número de factura, fecha y la foto original.
 
-## `licencias.html` — códigos para sedes adicionales
+## Pedidos por QR
 
-La sede principal va incluida; cada sede adicional se activa con un código
-que crea el dueño de Vento en `licencias.html` con su llave privada (que
-**no** está en este repositorio). El cliente lo abre como link
-(`index.html#licencia=…`) y la app comprueba la firma con la llave pública.
+**Cómo viaja el pedido.** El cliente manda un JSON con un ID único. La app del local:
+- lo suma una sola vez, aunque el cliente reintente, recargue o toque dos veces;
+- lo pone en la mesa correcta (si la mesa no existe, la crea);
+- busca el producto por su nombre exacto en la carta;
+- descuenta el inventario;
+- le devuelve el estado al cliente.
+
+**Sin conexión en el celular del cliente.** El pedido queda guardado en su bandeja y se envía solo cuando vuelve la señal. Ya no se manda al cliente a otra aplicación.
+
+**Lista de pedidos.**
+- Todos los pedidos (QR, meseros y WhatsApp) quedan en `data.pedidos`.
+- Estados: nuevo · recibido · en preparación · listo · entregado · cancelado.
+- Cada pedido guarda: ID, mesa, productos, cantidades, precios, total, fecha y hora, estado, origen e identificador del local (el canal).
+
+**Configuración.** En Ajustes → Pedidos, QR y caja se elige si los pedidos del QR se suman solos a la cuenta (por defecto sí) o quedan "Por aceptar".
+
+## Pantalla de preparación
+
+En Ajustes → Pedidos, QR y caja se puede:
+- activarla o desactivarla;
+- elegir su nombre: Cocina, Barra, Bar, Preparación, Despacho, Producción, Cafetería, Comandas, Pedidos, Servicio, Área de preparación u otro nombre personalizado;
+- copiar el link de `preparacion.html` para usarla en otra pantalla.
+
+El nombre elegido aparece en el menú, los títulos, los avisos y en Laya. La configuración es de cada local, porque va dentro de los datos del negocio. Si está desactivada, los pedidos igual llegan a las cuentas.
+
+## Música automática
+
+**Funcionamiento.** Recibe → encola → reproduce → detecta el final → pone la siguiente, sin tocar Play:
+- Si no hay nada sonando, la canción pedida suena de una vez.
+- Si ya hay música, la nueva se agrega a la cola sin interrumpir.
+- Con la cola vacía, queda esperando la próxima canción.
+
+**Estados de cada canción:** pendiente · en cola · reproduciendo · reproducida · saltada · error · cancelada. Cada canción guarda el ID, el título, el artista, la mesa, la fecha y hora, y la posición. No hay duplicados por doble toque, recarga o reintento.
+
+**Dónde suena:**
+- **En el celular:** en Música se toca "Música automática" una vez. Los navegadores exigen un toque inicial para permitir sonido; después todo es automático.
+- **En el TV:** se abre `tv.html` y se toca "Empezar música" una vez. El TV muestra el tiempo real ("01:32 / 03:42"), la mesa y la siguiente canción.
+- **En la app de YouTube Music:**
+  - En Android se abre con el intent oficial y, si la app no está instalada, cae a YouTube web.
+  - En iPhone se intenta abrir la app y, si no abre, se usa la web.
+  - En esta modalidad el tiempo es aproximado, porque esa app no informa el avance.
+
+## QR impresos: no hay que cambiarlos
+
+Los QR pegados en las mesas abren `https://joyful-basbousa-0bc49b.netlify.app/?mesa=…&c=…&v=…`.
+
+**Cómo funciona.** Ese sitio de Netlify solo publica `netlify-qr/`, que reenvía al `pedido.html` de GitHub Pages con los mismos datos. Así cada cambio subido a GitHub le llega solo al cliente. `netlify.toml` evita que Netlify vuelva a publicar con cada cambio.
+
+**Si cambias de celular.** En la app, Ajustes → QR de las mesas → 📌 "Fijar mis QR impresos" (con la foto de un QR) deja la app escuchando el mismo canal de los QR pegados.
 
 ## Links (GitHub Pages)
 
-Con GitHub Pages activado en este repositorio (`cuentas`):
+| Página | Link |
+|---|---|
+| App del negocio | https://cristhianlujan45-blip.github.io/cuentas/ |
+| Pedidos del cliente | https://cristhianlujan45-blip.github.io/cuentas/pedido.html |
+| Preparación | https://cristhianlujan45-blip.github.io/cuentas/preparacion.html#CANAL.CÓDIGO (el link completo sale en la app) |
+| Meseros | https://cristhianlujan45-blip.github.io/cuentas/mesero.html |
+| TV | https://cristhianlujan45-blip.github.io/cuentas/tv.html |
 
-- App del negocio: https://cristhianlujan45-blip.github.io/cuentas/
-- Pedidos del cliente (QR): https://cristhianlujan45-blip.github.io/cuentas/pedido.html
-- App de meseros: https://cristhianlujan45-blip.github.io/cuentas/mesero.html
-- Música en el TV: https://cristhianlujan45-blip.github.io/cuentas/tv.html
+`version.txt` debe llevar el mismo texto que `MESORA_VERSION` en `index.html`; así la app avisa cuando hay una versión nueva.
 
-GitHub Pages publica la rama elegida en Settings → Pages; cada cambio que
-se sube a esa rama se publica solo en 1–2 minutos. `version.txt` debe llevar
-el mismo texto que `MESORA_VERSION` en `index.html` (así la app avisa cuando
-hay una versión nueva sin volver a bajar los 14 MB).
+## Seguridad
 
-## QR impresos (Netlify)
-
-Los QR que ya están pegados en las mesas abren
-`https://joyful-basbousa-0bc49b.netlify.app/?mesa=…&c=…&v=…`. **No hay que
-cambiarlos:** ese sitio de Netlify solo tiene la carpeta `netlify-qr`, que
-reenvía al `pedido.html` de GitHub Pages con los mismos datos del QR (mesa,
-canal y código). Así cada cambio subido a GitHub le llega solo al cliente.
-
-- Si el sitio de Netlify está conectado a este repositorio, `netlify.toml` ya
-  publica solo `netlify-qr` y no vuelve a publicar con cada cambio de la app
-  (para no gastar los créditos gratis de Netlify).
-- Si no está conectado, se sube una vez la carpeta `netlify-qr` (o su .zip)
-  en Netlify → el sitio → Deploys.
-
-En la app, **Ajustes → QR de las mesas → 📌 Fijar mis QR impresos** (con la
-foto de un QR de una mesa) deja la app usando el mismo canal de los QR
-pegados; los QR que se vuelvan a imprimir salen idénticos.
-
-## Uso
-
-Subí los archivos (`index.html`, `pedido.html`, `mesero.html`, `tv.html` y `licencias.html`) a cualquier hosting estático (o abrí `index.html`
-directo en el navegador del celular o la compu para llevar solo las cuentas,
-sin la parte de pedidos por QR). No hace falta backend ni base de datos.
+- No hay claves privadas en el frontend. La clave de Laya vive como secreto del Worker.
+- La clave de navegador de YouTube Data API que trae la app debe estar restringida por referente HTTP a `cristhianlujan45-blip.github.io` en Google Cloud.
+- Los archivos subidos se validan por tipo (imagen o PDF), tamaño (15 MB) y cantidad (10). Los textos se muestran escapados.
+- `puente/youtube-tv-worker.js` usa el sistema de "Vincular con código de TV" de YouTube. No es una API pública documentada, así que puede dejar de funcionar si YouTube lo cambia. Las demás opciones de música (`tv.html` y el reproductor de la app) usan solo la YouTube IFrame Player API oficial.

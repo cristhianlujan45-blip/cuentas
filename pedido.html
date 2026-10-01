@@ -238,6 +238,9 @@ h1{
 @keyframes brilla{0%,100%{box-shadow:0 10px 28px rgba(201,138,43,.38),inset 0 1px 0 rgba(255,255,255,.45)}50%{box-shadow:0 10px 36px rgba(242,207,134,.7),inset 0 1px 0 rgba(255,255,255,.45)}}
 .cta:active{transform:scale(.985)}
 .cta:disabled{opacity:.55}
+.estped{margin-top:10px;border:1px solid var(--line);border-radius:14px;padding:10px 12px;font:500 13.5px var(--sans)}
+.estped b{display:block;margin-bottom:6px}.estped div{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-top:1px solid var(--line)}
+.estped div:first-of-type{border-top:0}.estped span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.estped em{font-style:normal;white-space:nowrap}
 .wa{width:100%;margin-top:10px;padding:13px;border-radius:14px;border:1px solid var(--line);background:none;color:var(--ink);font:500 14.5px var(--sans)}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -413,6 +416,7 @@ body.easy-mode .t{min-height:56px}
     <div class="envio" id="envio">
       <button class="cta" id="b" type="button">Enviar pedido</button>
       <p id="m" role="status" aria-live="polite"></p>
+      <div class="estped" id="estPed" hidden aria-live="polite"></div>
       <button class="wa" id="wa" type="button" style="display:none">¿No llegó? Enviar por WhatsApp</button>
     </div>
 
@@ -547,6 +551,10 @@ const DICT_SRC={
   enviadoOk:["✅ Enviado, ya lo recibió el local.","✅ Sent, the place received it.","✅ Enviado, o local já recebeu.","✅ Envoyé, l’établissement l’a reçu.","✅ 已发送，商家已收到。","✅ भेजा गया, दुकान को मिल गया।"],
   cancionesLlevas:[" Llevas {u} de {max} canciones."," You’ve used {u} of {max} songs."," Você já pediu {u} de {max} músicas."," Vous avez utilisé {u} chansons sur {max}."," 您已点{u}/{max}首歌。"," आपने {max} में से {u} गाने माँगे हैं।"],
   noEnviadoWa:["No se pudo enviar. Usa el botón de WhatsApp.","Couldn’t send. Use the WhatsApp button.","Não foi possível enviar. Use o botão do WhatsApp.","Échec de l’envoi. Utilisez le bouton WhatsApp.","发送失败，请使用WhatsApp按钮。","भेजा नहीं जा सका। WhatsApp बटन का उपयोग करें।"],
+  pedGuardado:["📶 Sin señal: tu pedido quedó guardado y se envía solo apenas vuelva la conexión.","📶 No signal: your order is saved and will be sent automatically.","📶 Sem sinal: seu pedido foi salvo e será enviado automaticamente.","📶 Pas de réseau : votre commande est enregistrée et partira automatiquement.","📶 无信号：订单已保存，恢复网络后自动发送。","📶 सिग्नल नहीं: आपका ऑर्डर सेव है, नेटवर्क आते ही भेज दिया जाएगा।"],
+  pedEsperando:["Enviado. Esperando que el local lo confirme…","Sent. Waiting for the place to confirm…","Enviado. Aguardando a confirmação do local…","Envoyé. En attente de confirmation…","已发送，等待商家确认…","भेजा गया। दुकान की पुष्टि का इंतज़ार…"],
+  pedSinConfirmar:["El local todavía no confirma tu pedido. Si tarda, avísale al mesero.","The place hasn’t confirmed yet. If it takes long, tell the waiter.","O local ainda não confirmou. Se demorar, avise o garçom.","Pas encore confirmé. Si cela tarde, prévenez le serveur.","商家尚未确认，如久未确认请告知服务员。","दुकान ने अभी पुष्टि नहीं की। देर हो तो वेटर को बताएँ।"],
+  tusPedidos:["Tus pedidos","Your orders","Seus pedidos","Vos commandes","您的订单","आपके ऑर्डर"],
   noEnviadoMesero:["No se pudo enviar. Avísale al mesero.","Couldn’t send. Let the waiter know.","Não foi possível enviar. Avise o garçom.","Échec de l’envoi. Prévenez le serveur.","发送失败，请告知服务员。","भेजा नहीं जा सका। वेटर को बताएँ।"],
   rondaCargada:["Ronda cargada. Revisa y toca «Enviar pedido».","Round loaded. Check it and tap “Send order”.","Rodada carregada. Confira e toque em “Enviar pedido”.","Tournée chargée. Vérifiez et touchez « Envoyer la commande ».","已加载上一轮，请检查后点击“提交订单”。","राउंड लोड हुआ। जाँचें और «ऑर्डर भेजें» दबाएँ।"],
   waTxt:["¿No llegó? Enviar por WhatsApp","Didn’t arrive? Send via WhatsApp","Não chegou? Enviar por WhatsApp","Pas reçu ? Envoyer par WhatsApp","没收到？通过WhatsApp发送","नहीं पहुँचा? WhatsApp से भेजें"],
@@ -1084,6 +1092,46 @@ function conectar(){
   es.onopen=()=>{if($('cs').textContent==t('cargandoCuenta'))$('cs').textContent=t('cuentaSinConsumo')};
 }
 
+/* ---------- Envío confiable: bandeja de salida + confirmación del local ---------- */
+const OUTK='outbox_'+c,MISK='mis_'+c+'_'+SUF;
+function outboxAgregar(body){const l=jget(OUTK,[]);if(!l.some(x=>x.body===body))l.push({body,at:Date.now()});jset(OUTK,l.slice(-20));}
+let vaciando=false;
+async function vaciarOutbox(){
+  if(vaciando||!c)return;const l=jget(OUTK,[]);if(!l.length)return;vaciando=true;
+  const quedan=[];
+  for(const m of l){let ok=false;if(Date.now()-m.at<12*36e5){try{ok=(await fetch('https://ntfy.sh/'+c,{method:'POST',body:m.body})).ok}catch(e){}}else ok=true;if(!ok)quedan.push(m);}
+  jset(OUTK,quedan);vaciando=false;
+  if(l.length>quedan.length){setMsg(()=>t('pedEsperando'),'ok');escucharEstados();}
+}
+setInterval(vaciarOutbox,15000);window.addEventListener('online',vaciarOutbox);setTimeout(vaciarOutbox,2000);
+const misPedidos=()=>jget(MISK,[]).filter(x=>Date.now()-x.at<12*36e5);
+function misPedidosAgregar(o){const l=misPedidos();l.push(o);jset(MISK,l.slice(-15));pintarEstados();}
+const EST_TXT={enviado:'⏳',nuevo:'🆕',recibido:'✅',preparacion:'👩‍🍳',listo:'🔔',entregado:'🍽️',cancelado:'❌'};
+function pintarEstados(){
+  const box=$('estPed');if(!box)return;const l=misPedidos();
+  if(!l.length){box.hidden=true;return}
+  box.hidden=false;box.textContent='';
+  box.appendChild(h('b',null,t('tusPedidos')));
+  l.slice().reverse().slice(0,5).forEach(x=>{const r=h('div');r.appendChild(h('span',null,x.txt));r.appendChild(h('em',null,EST_TXT[x.e]+' '+(x.n||(x.e==='enviado'?'…':''))));box.appendChild(r)});
+}
+let esEst=null;
+function escucharEstados(){
+  if(esEst||!c||!misPedidos().length)return;
+  try{esEst=new EventSource('https://ntfy.sh/'+c+'e/sse?since=12h')}catch(e){return}
+  esEst.onmessage=ev=>{try{const m=JSON.parse(ev.data);if(m.event!=='message')return;const o=JSON.parse(m.message);if(!o||o.t!=='estado')return;
+    const l=jget(MISK,[]),x=l.find(y=>y.id===o.id);if(!x)return;x.e=o.e;x.n=o.n||'';delete x.body;jset(MISK,l);pintarEstados();
+    if(['recibido','preparacion','listo'].includes(o.e)&&$('m').className!=='err')setMsg(()=>t('enviadoOk'),'ok');}catch(e){}};
+}
+// Si el local no confirma: se reenvía el MISMO pedido (mismo ID, no se duplica) y luego se avisa.
+setInterval(()=>{
+  const l=jget(MISK,[]);let cambio=false;
+  l.forEach(x=>{if(x.e!=='enviado'||!x.body)return;const s=Date.now()-x.at;
+    if(s>45000&&!x.re){x.re=1;cambio=true;fetch('https://ntfy.sh/'+c,{method:'POST',body:x.body}).catch(()=>outboxAgregar(x.body));}
+    if(s>180000&&!x.av){x.av=1;cambio=true;setMsg(()=>t('pedSinConfirmar'),'err');}});
+  if(cambio)jset(MISK,l);
+},10000);
+setTimeout(()=>{pintarEstados();escucharEstados()},800);
+
 /* ---------- Envío ---------- */
 const wam=()=>{location.href='https://wa.me/'+wa+'?text='+encodeURIComponent(ultimo)};
 $('wa').onclick=wam;
@@ -1133,23 +1181,44 @@ $('b').onclick=async()=>{
     ultimo='DOMICILIO: '+nom+' | '+tel+' | '+dir+' | '+txt;
   }
   else ultimo=tipo+' MESA '+mesa+(txt?': '+txt:'');
+  // Pedidos y canciones van como JSON con un ID único: la app del local los suma una sola vez
+  // aunque se reintenten, y responde el estado (recibido, en preparación, listo…) por el canal c+'e'.
+  let cuerpo=ultimo;
+  if(c&&!dom&&(modo=='p'||modo=='c')){
+    const id=(modo=='c'?'c':'p')+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+    if(modo=='p'){
+      const precioDe=n=>{const k=norm(n);const x=cat&&Array.isArray(cat.p)?cat.p.find(r=>norm(r[0])===k):null;return x?Math.round(+x[1]||0):0;};
+      const items=env.map(l=>({n:l.n,q:l.q,p:precioDe(l.n)}));
+      cuerpo=JSON.stringify({t:'pedido',v:2,id,mesa:+mesa,items,total:items.reduce((a,x)=>a+x.q*x.p,0),at:Date.now(),txt:ultimo.slice(0,300)});
+      misPedidosAgregar({id,txt:txt.slice(0,120),at:Date.now(),e:'enviado',body:cuerpo});
+    } else cuerpo=JSON.stringify({t:'cancion',v:2,id,mesa:+mesa,s:txt.slice(0,120),at:Date.now()});
+  }
   if(c){
-    if(ultimo.length>(dom?500:300))return setMsg(()=>t('pedidoLargo'),'err');
+    if(cuerpo.length>3800||ultimo.length>(dom?500:2000))return setMsg(()=>t('pedidoLargo'),'err');
     $('b').disabled=true;
     try{
-      const r=await fetch('https://ntfy.sh/'+c,{method:'POST',body:ultimo});
+      const r=await fetch('https://ntfy.sh/'+c,{method:'POST',body:cuerpo});
       if(r.ok){
         if(modo=='c'){const a=recientes();a.push(Date.now());jset(K,a);aprenderCancion(txt);if($('sugC'))$('sugC').hidden=true;if($('ytPrev'))$('ytPrev').hidden=true}
         if(modo=='p'){guardarRonda(env);aprender(env);lineas=[];pintarLineas();pintarRonda();pintarChips()}
         $('s').value=$('n').value='';
         $('b').disabled=false;
         if(modo=='c')pintarCupos();
-        setMsg(()=>t('enviadoOk')+(modo=='c'?t('cancionesLlevas',{u:usadas(),max:MAX}):''),'ok');
+        setMsg(()=>(modo=='p'?t('pedEsperando'):t('enviadoOk'))+(modo=='c'?t('cancionesLlevas',{u:usadas(),max:MAX}):''),'ok');
+        if(modo=='p')escucharEstados();
         try{ mesoraCelebrar(modo=='c'?['🎵','🎶','✨']:dom?['🛵','🎉','✨']:['🎉','✨','🍻']); }catch(e){}
         return;
       }
     }catch(e){}
     $('b').disabled=false;
+    // Sin conexión: el pedido NO se pierde ni se manda a otra app; queda guardado y se reintenta solo.
+    if(modo=='p'||modo=='c'){
+      outboxAgregar(cuerpo);
+      if(modo=='p'){guardarRonda(env);aprender(env);lineas=[];pintarLineas();pintarRonda();pintarChips()}
+      if(modo=='c'){const a=recientes();a.push(Date.now());jset(K,a);aprenderCancion(txt);}
+      $('s').value=$('n').value='';
+      return setMsg(()=>t('pedGuardado'),'err');
+    }
     if(wa){setMsg(()=>t('noEnviadoWa'),'err');$('wa').style.display='block';return}
     return setMsg(()=>t('noEnviadoMesero'),'err');
   }

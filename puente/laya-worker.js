@@ -17,7 +17,7 @@
  *   ALLOWED_ORIGINS  orígenes permitidos separados por coma, ej.
  *                    https://cristhianlujan45-blip.github.io                          (recomendado)
  *
- * En Vento: Ajustes → Jimmy N AI → Laya IA → pega la dirección del Worker → «Probar conexión».
+ * En Vento: Ajustes → Laya IA → Motor de decisiones Laya → pega la dirección del Worker → «Probar conexión».
  */
 const RUTAS = new Set(['/v1/systemone', '/v1/systemone/batch']);
 const MAX_BYTES = 32 * 1024;
