@@ -9801,11 +9801,13 @@ const PRODUCT_PROMPT_WEB_SENTENCE = 'Si tienes búsqueda web disponible, úsala 
 // (o si activaste "Verificar siempre en la web") se hace la segunda pasada con búsqueda web.
 async function recognizeProductWithAI(dataUrl, onStatus){
   const fastPrompt = FAST_PROMPT + invCatalogHint();
-  const isGood = (i) => !!(i && (i.name || i.brand) && Number(i.confidence) >= 0.5);
+  // Rápido: si la lectura directa ya trae el nombre, se usa de una vez (la verificación web de 25-90 s
+  // solo cuando no se reconoció nada o si activaste «Verificar siempre en la web»).
+  const isGood = (i) => !!(i && (i.name || i.brand));
   let info = null;
   if(!aiWebAlways()){
     try{
-      info = cleanAiJsonText(await aiText({ prompt: fastPrompt, imageDataUrl: dataUrl, json: true, timeoutMs: 20000, retries: 1, fast: true }));
+      info = cleanAiJsonText(await aiText({ prompt: fastPrompt, imageDataUrl: dataUrl, json: true, timeoutMs: 10000, retries: 0, oneModel: true, fast: true, maxOutputTokens: 600 }));
       if(isGood(info)) return info;
     }catch(err){
       if(!(err && AI_LADDER_KINDS.includes(err.kind))) throw err;   // clave, cuota, etc.: se avisa tal cual
@@ -10705,23 +10707,26 @@ function invoiceSuggestPrice(cost, product){
 // en clave, y filtrado de renglones de encabezado/dirección que no son productos).
 function invoicePromptRules(){
   return 'REGLA PARA SABER QUÉ ES UN PRODUCTO: un renglón es un producto SI Y SOLO SI tiene un precio o valor en pesos al lado (precio unitario, o un total de renglón del que se pueda sacar el precio unitario dividiendo por la cantidad). ' +
-    'Si un renglón tiene precio, es un producto y va en items — SIN IMPORTAR que el nombre esté abreviado, en clave, en código de proveedor, en mayúsculas cortadas o mal escrito por el OCR (ej: "CLUB COL BOT X30", "AG LIGH LAT", "COD 4521"). Cópialo tal como aparece impreso, no lo completes ni lo "traduzcas". ' +
+    'Si un renglón tiene precio, es un producto y va en items — SIN IMPORTAR que el nombre esté abreviado, en clave, en código de proveedor, en mayúsculas cortadas o mal escrito por el OCR (ej: "CLUB COL BOT X30", "AG LIGH LAT", "COD 4521"). En «original» cópialo tal como aparece impreso (en «nombre» va interpretado). ' +
     'No te saltes NINGÚN renglón que tenga precio, así el nombre te parezca raro o difícil de leer. ' +
     'No inventes renglones ni productos que no tengan un precio visible al lado, y no agregues nada que no esté impreso en la factura. ' +
     'NO incluyas en items los renglones que NO tienen precio propio (encabezados de columna, subtotal, IVA, descuento, total general, "pague así", notas, NIT, fecha, dirección, nombre del vendedor o del cliente, etc.) — esos no son productos. ' +
     'Si la factura es una TABLA con columnas (ítem, código, descripción, cantidad, unidad de medida, precio, descuento, precio neto, IVA, precio final…), usa la columna de CANTIDAD (Cant./Cantidad) como qty, y usa el PRECIO FINAL de ese renglón (el que ya incluye descuentos e impuestos, la última columna de valor) dividido entre qty como unit_cost — es lo que el negocio realmente paga por cada unidad. Si no hay columna de precio final, súmale el IVA al precio neto. No confundas la columna de código/referencia del producto con la cantidad o el precio. ' +
     'ADEMÁS, fíjate si el renglón trae información de EMPAQUE (que casi siempre está en el mismo nombre/descripción del producto, ej: "X24", "X12", "CJ X 30", "PAQ X6", "DISPLAY X20", "FARDO X10"), o si la unidad de medida de la columna (CJ, PQ, DISPLAY, FARDO, DOC…) indica que lo que se compró son cajas/paquetes y no unidades sueltas. En ese caso: cajas = cuántas cajas o paquetes se compraron (el número de la columna de cantidad), y unidades_por_caja = cuántas unidades individuales trae cada caja/paquete (el número que va después de la "X" en el empaque, ej: en "X24" son 24). Si la compra es por unidades sueltas, o no encuentras ningún indicio de empaque, NO inventes nada: pon cajas=1 y unidades_por_caja igual a qty. ' +
     'CUIDADO con contar doble: en tickets de caja (POS) el mismo texto "X30" o "X24" en el nombre a veces es solo la presentación de referencia del producto en el catálogo del proveedor (cuántas unidades trae la caja completa de ESE producto), y la cantidad de la columna YA viene en unidades sueltas vendidas, no en cajas. Pista útil en Colombia: si el nombre dice "LT" o "LATA" seguido de "X" un número (ej: "CLUB COLOMBIA LT X24"), casi siempre se vendió por LATA individual — deja cajas=1 y unidades_por_caja=qty, no multipliques. Si dice "BOT" o "BT" (botella) seguido de "X" un número (ej: "AGUILA BT X30", "POKER BOT X30"), ahí sí suele venderse la caja completa de esa cantidad de botellas — ahí la cantidad de la columna sí son cajas. Cuando no sea claro por el nombre, decide por el precio: calcula el precio por unidad ANTES de aplicar el desglose (precio del renglón entre la cantidad de la columna); si ese precio ya se ve razonable para UNA unidad individual de ese tipo de producto (ej: unos pocos miles de pesos para una cerveza o gaseosa, unos cientos de pesos para un dulce o sobre), la cantidad de la columna YA son unidades sueltas, no multipliques de nuevo — solo trata la cantidad como número de cajas cuando, de no hacerlo, el precio por unidad daría claramente disparatado para una sola unidad (muchos miles o decenas de miles de pesos por un dulce, o cientos de miles por una bebida). ' +
-    'Devuelve SOLO JSON válido (sin texto extra, sin ```), con esta forma exacta: ' +
-    '{"supplier":"","date":"","header":{"invoiceNumber":null,"issueDate":null,"dueDate":null,"supplierNit":null,"address":null,"phone":null,"email":null,"orderNumber":null,"paymentMethod":null,"paymentTerms":null,"cufe":null,"validationDate":null,"subtotal":null,"iva":null,"retenciones":null,"otrosImpuestos":null,"descuentos":null,"total":null},' +
-    '"items":[{"name":"","original":"","sku":null,"barcode":null,"brand":null,"unit":null,"presentation":null,"units_per_package":null,"content_per_unit":null,"qty":0,"unit_cost":0,"discount":null,"line_subtotal":null,"iva_pct":null,"iva_value":null,"line_total":null,"cajas":0,"unidades_por_caja":0}]}. ' +
-    'Copia los VALORES IMPRESOS de cada renglón tal cual: line_subtotal = valor del renglón ANTES de IVA (si hay columna de subtotal/valor neto), iva_value = valor del IVA del renglón, discount = descuento en pesos, line_total = total final del renglón. Si un valor no está impreso, null. La app hace las divisiones y comprueba que cuadren. ' +
-    'En header y en cada item, TODO dato que no esté impreso de forma clara va en null: NUNCA lo inventes ni lo calcules por tu cuenta (fechas AAAA-MM-DD; valores en pesos como número sin puntos). ' +
-    'original = la descripción del renglón EXACTAMENTE como está impresa (con sus abreviaturas). sku = código del producto del proveedor si hay columna de código. barcode = código de barras (8 a 14 dígitos) si aparece. ' +
-    'NO confundas la CANTIDAD COMPRADA (sale de la columna Cant./Cantidad) con el CONTENIDO o PRESENTACIÓN escrito en la descripción: en "MAGGI CALDO GALLINA 24X594G CO" el "24X594G" es la presentación (24 unidades de 594 g por paquete): presentation="24 x 594 g", units_per_package=24, content_per_unit="594 g"; eso NO dice cuántos compraron. ' +
-    'iva_pct = porcentaje de IVA del renglón (0, 5 o 19) si aparece. line_total = valor total del renglón tal como está impreso. ' +
-    'qty = cantidad TOTAL de unidades individuales compradas (si compró 2 cajas de 24, qty=48, no 2). unit_cost = lo que el negocio paga POR UNIDAD individual, YA CON IVA/impuestos incluidos (si la factura solo trae el total del renglón, divide entre qty). cajas y unidades_por_caja = el desglose de empaque explicado arriba (cajas × unidades_por_caja siempre debe dar qty). ' +
-    'name = nombre corto del producto tal como aparece impreso, aunque esté en clave o abreviado. supplier = nombre del proveedor si es visible, si no "". date = fecha de la factura en formato AAAA-MM-DD si es visible, si no "". ' + invCatalogHint();
+    // Respuesta COMPACTA (listas en vez de nombres de campo largos y sin campos vacíos): la IA escribe
+    // 3-4 veces menos texto y la factura sale en pocos segundos. fiExpandirCompacto() la vuelve al formato de siempre.
+    'Devuelve SOLO JSON válido y COMPACTO (sin texto extra, sin ```, sin espacios ni saltos de línea de más), con esta forma: ' +
+    '{"p":"proveedor","f":"AAAA-MM-DD","h":{"n":"número de factura","nit":"NIT del proveedor","st":subtotal,"iva":iva,"d":descuentos,"t":total},"i":[[original,nombre,qty,und,precio_unit,total_renglon,iva_pct,subtotal_renglon,iva_valor,descuento,codigo,cajas,und_por_caja]]}. ' +
+    'En "h" pon solo lo que esté impreso. Cada renglón de "i" es una LISTA con ese orden exacto: ' +
+    'original = la descripción del renglón EXACTAMENTE como está impresa (con sus abreviaturas); ' +
+    'nombre = el producto INTERPRETADO en limpio para un inventario, entendiendo las abreviaturas (ej. "AG LIGH LAT 330" → "Cerveza Águila Light lata 330 ml", "CLUB COL BOT X30" → "Cerveza Club Colombia botella", "MAGGI CALDO GALLINA 24X594G" → "Caldo de gallina Maggi"); si es un producto ya registrado (lista de abajo), usa EXACTAMENTE ese nombre registrado; ' +
+    'qty = cantidad TOTAL de unidades individuales compradas (2 cajas de 24 → 48); und = unidad de medida impresa (UND, CJ, PQ, DISPLAY…) o null; ' +
+    'precio_unit = lo que se paga por UNA unidad individual YA con IVA (si solo está el total del renglón, total ÷ qty); total_renglon = valor final impreso del renglón; ' +
+    'iva_pct = 0, 5 o 19 si aparece, si no null; subtotal_renglon = valor antes de IVA impreso o null; iva_valor = IVA impreso del renglón o null; descuento = en pesos o null; codigo = código del proveedor o null; ' +
+    'cajas y und_por_caja = el desglose de empaque explicado arriba (1 y qty si es suelto; cajas × und_por_caja = qty). ' +
+    'NO confundas la cantidad comprada (columna Cant.) con la presentación de la descripción ("24X594G" es presentación, no cantidad). ' +
+    'Todo lo que no esté impreso va en null: NUNCA inventes valores. Números en pesos sin puntos ni símbolos. Fechas AAAA-MM-DD. ' + invCatalogHint();
 }
 function invoicePrompt(){
   return 'Esta es una foto de una factura, remisión o recibo de un PROVEEDOR (lo que el negocio compra, no lo que vende). ' +
@@ -10734,6 +10739,19 @@ function invoicePromptForText(text){
     'Lee TODO el texto, de arriba a abajo, sin saltarte ningún renglón. ' + invoicePromptRules() +
     ' Este es el texto de la factura:\n\n' + text;
 }
+// Convierte la respuesta compacta de la IA al formato de siempre (si ya viene en el formato largo, la deja igual).
+function fiExpandirCompacto(info){
+  if(!info || Array.isArray(info.items) || !Array.isArray(info.i)) return info;
+  const h = info.h || {}, num = v => (v == null || v === '' ? null : v);
+  const items = info.i.filter(r => Array.isArray(r) && (r[0] || r[1])).map(r => ({
+    original: String(r[0] || r[1] || ''), name: String(r[1] || r[0] || ''), nombreIA: !!r[1],
+    qty: num(r[2]), unit: num(r[3]), unit_cost: num(r[4]), line_total: num(r[5]), iva_pct: num(r[6]),
+    line_subtotal: num(r[7]), iva_value: num(r[8]), discount: num(r[9]), sku: num(r[10]),
+    cajas: num(r[11]), unidades_por_caja: num(r[12])
+  }));
+  return { supplier: info.p || '', date: info.f || '', items,
+    header: { invoiceNumber: num(h.n), supplierNit: num(h.nit), subtotal: num(h.st), iva: num(h.iva), descuentos: num(h.d), total: num(h.t), issueDate: num(info.f) } };
+}
 // Modo rápido: primera pasada corta (un solo modelo, foto en resolución media, sin darle
 // vueltas) — normalmente responde en pocos segundos. Solo si esa pasada falla o no trae
 // nada usable se hace un segundo intento más a fondo (probando otro modelo si hace falta),
@@ -10745,12 +10763,12 @@ async function recognizeInvoiceWithAI(dataUrl){
     // Sin reintentos aquí a propósito: si la pasada rápida no responde en 12s, reintentar con
     // la misma foto/modelo casi nunca es más rápido — es mejor pasar de una vez a la pasada
     // a fondo (que sí reintenta) que esperar el doble antes de caer a ella.
-    info = cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 18000, retries: 0, oneModel: true, fast: true, doc: true, maxOutputTokens: 4000 }));
+    info = fiExpandirCompacto(cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 15000, retries: 0, oneModel: true, fast: true, doc: true, maxOutputTokens: 3000 })));
   }catch(err){
     if(!(err && AI_LADDER_KINDS.includes(err.kind))) throw err;   // clave inválida, cuota diaria, etc.: se avisa tal cual
   }
   if(!info || !Array.isArray(info.items)){
-    info = cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 45000, retries: 1 }));
+    info = fiExpandirCompacto(cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 30000, retries: 1, fast: true, doc: true, maxOutputTokens: 3000 })));
   }
   if(!info || !Array.isArray(info.items)) throw new OpenAIError('bad', 'La IA respondió pero no pude leer la factura. Prueba con una foto más clara, derecha y con buena luz.');
   return info;
@@ -10761,12 +10779,12 @@ async function recognizeInvoiceWithAIFromText(text){
   const prompt = invoicePromptForText(text);
   let info = null;
   try{
-    info = cleanAiJsonText(await aiText({ prompt, json: true, timeoutMs: 15000, retries: 0, oneModel: true, fast: true, maxOutputTokens: 4000 }));
+    info = fiExpandirCompacto(cleanAiJsonText(await aiText({ prompt, json: true, timeoutMs: 12000, retries: 0, oneModel: true, fast: true, maxOutputTokens: 3000 })));
   }catch(err){
     if(!(err && AI_LADDER_KINDS.includes(err.kind))) throw err;
   }
   if(!info || !Array.isArray(info.items)){
-    info = cleanAiJsonText(await aiText({ prompt, json: true, timeoutMs: 45000, retries: 1 }));
+    info = fiExpandirCompacto(cleanAiJsonText(await aiText({ prompt, json: true, timeoutMs: 30000, retries: 1, fast: true, maxOutputTokens: 3000 })));
   }
   if(!info || !Array.isArray(info.items)) throw new OpenAIError('bad', 'La IA respondió pero no pude leer el texto del PDF de la factura.');
   return info;
@@ -11536,7 +11554,7 @@ function fiValidarArchivos(files){
 function fiEstado(txt){ const s = document.getElementById('invoiceSub'); if(s) s.textContent = txt; }
 /* Revisar la foto antes de leerla: se muestra ya arreglada (recortada, enderezada y con la luz
    pareja). «Usar esta foto», «Tomar otra», «Elegir otra» o «Usar la original». */
-function fiRevisarFoto(file){
+function fiRevisarFoto(file, onLista){
   return new Promise(async resolve => {
     let ov = document.getElementById('fiFotoOv');
     if(!ov){
@@ -11555,6 +11573,8 @@ function fiRevisarFoto(file){
     try{ mejor = await fiMejorarFoto(file); im.src = mejor.dataUrl;
       sub.textContent = (mejor.enderezada ? 'La recorté y la enderecé. ' : '') + 'Mejoré la luz y el contraste. ¿Se lee bien?'; }
     catch(e){ im.src = URL.createObjectURL(file); sub.textContent = 'No pude mejorarla, pero puedes usarla así o tomar otra.'; }
+    // Mientras la persona mira la foto, ya se empieza a leer (así al tocar «Usar esta foto» la respuesta ya viene en camino).
+    if(typeof onLista === 'function') try{ onLista(mejor ? mejor.file : file); }catch(e){}
     document.getElementById('fiFotoOk').onclick = () => fin({ usar: mejor ? mejor.file : file, original: file });
     document.getElementById('fiFotoOrig').onclick = () => fin({ usar: file, original: file });
     document.getElementById('fiFotoOtra').onclick = () => fin({ otra: 'cam' });
@@ -11762,7 +11782,7 @@ function invoiceMatchItems(rawItems, proveedor){    // arma las filas de revisi�
         }
       }
       return {
-        name: (matched ? (x.name || original) : (pesoNota ? fiNombreSugerido(original).replace(new RegExp('\\b' + String(pres.contenido).replace('.', '[.,]') + '\\s*' + (pesoU ? 'g' : 'ml') + '\\b', 'i'), String(pesoU || volU).replace('.', ',') + ' ' + (pesoU ? 'g' : 'ml')) : fiNombreSugerido(original))).slice(0, 60),
+        name: (matched ? (x.name || original) : (x.nombreIA && x.name && !pesoNota) ? String(x.name) : (pesoNota ? fiNombreSugerido(original).replace(new RegExp('\\b' + String(pres.contenido).replace('.', '[.,]') + '\\s*' + (pesoU ? 'g' : 'ml') + '\\b', 'i'), String(pesoU || volU).replace('.', ',') + ' ' + (pesoU ? 'g' : 'ml')) : fiNombreSugerido(original))).slice(0, 60),
         originalDescription: original,
         sku: x.sku ? String(x.sku).slice(0, 30) : null, barcode: x.barcode ? String(x.barcode).replace(/\D/g, '').slice(0, 14) || null : null,
         brand: x.brand || fiNormalizar(original).marca || null, unit: x.unit || null,
@@ -12185,8 +12205,12 @@ document.getElementById('invoiceApplyBtn').addEventListener('click', async () =>
 // se podía tomar una foto nueva con la cámara, no se podía adjuntar nada.
 const invoiceCamInput = document.getElementById('invoiceCamInput');
 const invoiceGalInput = document.getElementById('invoiceGalInput');
-document.getElementById('invInvoiceCamBtn').addEventListener('click', () => invoiceCamInput.click());
-document.getElementById('invInvoiceGalBtn').addEventListener('click', () => invoiceGalInput.click());
+// Mientras la persona toma o elige la foto, se deja listo lo que va a leerla (así la espera después es corta).
+function fiPrecalentar(){
+  try{ if(!(hasAIKey() && navigator.onLine !== false) && window.VitoOfflineOCR && window.VitoOfflineOCR.precalentar) window.VitoOfflineOCR.precalentar(); }catch(e){}
+}
+document.getElementById('invInvoiceCamBtn').addEventListener('click', () => { fiPrecalentar(); invoiceCamInput.click(); });
+document.getElementById('invInvoiceGalBtn').addEventListener('click', () => { fiPrecalentar(); invoiceGalInput.click(); });
 
 async function handleOnlineInvoiceFiles(files, triggerBtn, inputEl){
   if(!files || !files.length) return false;
@@ -12222,10 +12246,10 @@ async function handleOnlineInvoiceFiles(files, triggerBtn, inputEl){
         info = await recognizeInvoiceWithAI(dataUrl);
       }
     } else {
-      const file = files[0];
-      const dataUrl = await scaleInvoicePhotoForAI(file, 1400, 0.75);
+      const file = files[0], pre = window.__fiPre; window.__fiPre = null;
       fiEstado('Analizando factura…');
-      info = await recognizeInvoiceWithAI(dataUrl);
+      if(pre && pre.file === file) info = await pre.prom;              // ya se venía leyendo desde la vista previa
+      else info = await recognizeInvoiceWithAI(await scaleInvoicePhotoForAI(file, 1400, 0.75));
     }
     invoiceOpen(info);
   }catch(err){
@@ -12246,8 +12270,14 @@ async function leerFactura(files, btn, input){
   const original = files[0];
   if(files.length === 1 && !fiEsPdf(files[0])){
     // Una sola foto: se muestra ya arreglada para revisarla antes de leerla.
-    const r = await fiRevisarFoto(files[0]);
+    const iaYa = hasAIKey() && navigator.onLine !== false;
+    let pre = null;
+    const r = await fiRevisarFoto(files[0], f => {
+      if(iaYa){ const prom = scaleInvoicePhotoForAI(f, 1400, 0.75).then(recognizeInvoiceWithAI); prom.catch(() => {}); pre = { file: f, prom }; }
+      else fiPrecalentar();
+    });
     input.value = '';
+    window.__fiPre = (r && pre && r.usar === pre.file) ? pre : null;
     if(!r) return;
     if(r.otra){ (r.otra === 'cam' ? invoiceCamInput : invoiceGalInput).click(); return; }
     files = [r.usar];
@@ -12329,11 +12359,11 @@ async function recognizePriceWithAI(dataUrl){
   const ok = i => !!(i && (i.name || i.brand));
   let info = null;
   try{
-    info = cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 15000, retries: 0, oneModel: true, fast: true, maxOutputTokens: 500 }));
+    info = cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 10000, retries: 0, oneModel: true, fast: true, maxOutputTokens: 600 }));
   }catch(err){
     if(!(err && AI_LADDER_KINDS.includes(err.kind))) throw err;
   }
-  if(!ok(info)) info = cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 45000, retries: 1 }));
+  if(!ok(info)) info = cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 20000, retries: 0, fast: true, maxOutputTokens: 600 }));
   if(!ok(info)) throw new OpenAIError('bad', 'La IA respondió pero no pude identificar el producto. Prueba con una foto más cerca de la etiqueta y con buena luz.');
   return info;
 }
@@ -12508,7 +12538,7 @@ pricePhotoInput.addEventListener('change', async e => {
   document.getElementById('priceSub').textContent = 'Detectando el producto y el precio…';
   document.getElementById('priceBody').innerHTML = '';
   try{
-    const dataUrl = await scalePhotoForAI(file, 1000, 0.65);
+    const dataUrl = await scalePhotoForAI(file, 800, 0.7);   // más liviana = respuesta más rápida (la etiqueta se sigue leyendo bien)
     const info = await recognizePriceWithAI(dataUrl);
     if(my !== pcToken) return;   // canceló mientras la IA respondía
     pcOpen(info);
@@ -20660,12 +20690,16 @@ document.addEventListener('click', function(ev){
       OCR_WORKER_LOAD_TIMEOUT_MS,
       "El lector de texto sin internet está tardando demasiado en cargar. Intenta de nuevo, o usa \"Escanear factura de proveedor\" si tienes internet."
     );
+    var t0 = Date.now(), PRESUPUESTO = 6000;   // las relecturas extra solo caben dentro de ~6 s (meta: menos de 10 s en total)
+    var aTiempo = function(){ return Date.now() - t0 < PRESUPUESTO; };
     var canvas = await fileToOcrCanvas(file);
     var text = await recognizeWithWorker(worker, canvas, OCR_RECOGNIZE_TIMEOUT_MS);
     // Si la lectura salió pobre (foto de lado, al revés, o el arreglo de la foto la dañó), se prueba
     // con la foto original y girada 90°/270°/180°, y se queda la lectura que mejor arme los renglones.
     var mejor = { text: text, p: puntajeLectura(text, ultimaConfianza), canvas: canvas };
-    if (mejor.p.renglones < 2 || mejor.p.conf < 55) {
+    // Se relee girada SOLO si no salió ningún renglón con precio (o casi nada y con muy poca confianza):
+    // antes bastaba confianza < 55 para leer 3-4 veces más la misma foto (4 s cada vez).
+    if (mejor.p.renglones < 2 || mejor.p.conf < 40) {
       var bases = [{ c: canvas }];
       if (file && file.__original) { try { bases.push({ c: await fileToOcrCanvas(file.__original) }); } catch (eO) { /* noop */ } }
       var pruebas = [];
@@ -20677,9 +20711,9 @@ document.addEventListener('click', function(ev){
         var t2 = await recognizeWithWorker(worker, cv, OCR_RECOGNIZE_TIMEOUT_MS);
         var p2 = puntajeLectura(t2, ultimaConfianza);
         if (p2.total > mejor.p.total + 5) mejor = { text: t2, p: p2, canvas: cv };
-        if (mejor.p.renglones >= 3 && mejor.p.conf >= 55) break;
+        if (mejor.p.renglones >= 2 || !aTiempo()) break;
       }
-      if (mejor.p.renglones < 2 && mejor.canvas !== canvas) {
+      if (mejor.p.renglones < 1 && mejor.canvas !== canvas && aTiempo()) {
         var t3 = await recognizeWithWorker(worker, rotarCanvas(mejor.canvas, 180), OCR_RECOGNIZE_TIMEOUT_MS);
         var p3 = puntajeLectura(t3, ultimaConfianza); if (p3.total > mejor.p.total + 5) mejor = { text: t3, p: p3, canvas: null };
       }
@@ -20689,7 +20723,10 @@ document.addEventListener('click', function(ev){
 
     // Igual que en Precios Vito: si el primer intento separó pocos
     // productos, probamos el otro modo de lectura antes de rendirnos.
-    if (items.length < OCR_MIN_ITEMS_BEFORE_RETRY) {
+    // El otro modo de lectura solo si el lector bueno (fiParsearRenglones) tampoco encontró renglones:
+    // antes se decidía con el lector viejo, que casi siempre veía 1, y se releía todo sin necesidad (+4 s).
+    var renglonesBuenos = puntajeLectura(text, 100).renglones;
+    if (items.length < OCR_MIN_ITEMS_BEFORE_RETRY && renglonesBuenos < 2 && (renglonesBuenos === 0 || aTiempo())) {
       try {
         await worker.setParameters({ tessedit_pageseg_mode: OCR_ALT_PSM });
         var text2 = await recognizeWithWorker(worker, canvas, OCR_RECOGNIZE_TIMEOUT_MS);
@@ -20754,7 +20791,9 @@ document.addEventListener('click', function(ev){
     // si es un PDF escaneado, sin reimplementar nada de esto por fuera.
     extractEmbeddedPdfText: extractEmbeddedPdfText,
     expandFilesWithPdfPages: expandFilesWithPdfPages,
-    isPdfFile: isPdfFile
+    isPdfFile: isPdfFile,
+    // Deja el motor de lectura cargado mientras se toma la foto (ahorra 1-3 s al leer).
+    precalentar: function(){ try { getOfflineWorker().catch(function(){ offlineWorkerPromise = null; }); } catch (e) {} }
   };
 })();
 </script>
@@ -21124,7 +21163,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.10.1';
+const MESORA_VERSION = '2026-10-02 · v1.11';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
