@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "Vento",
+  "short_name": "Vento",
+  "description": "Vento: cuentas, pedidos, inventario y caja de tu negocio.",
+  "lang": "es-CO",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0c1b",
+  "theme_color": "#0a0c1b",
+  "icons": [
+    { "src": "icons/vento-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/vento-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/vento-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/vento-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
