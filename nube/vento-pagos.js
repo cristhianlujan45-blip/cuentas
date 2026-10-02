@@ -102,7 +102,13 @@
     if(typeof data === 'undefined' || !data) return null;
     if(!data.pagos) data.pagos = { on: false, topic: '', lista: [], vistos: [], espera: {} };
     var g = data.pagos; g.lista = g.lista || [];
-    var id = 'srv-' + p.id, x = g.lista.find(function(y){ return y.id === id; });
+    var id = 'srv-' + p.id, x = g.lista.find(function(y){ return y.id === id || y.srv === p.id; });
+    // Un aviso que este mismo celular ya leyó por MacroDroid (y reenvió al servidor) no se duplica: se enlaza.
+    if(!x && p.proveedor === 'dispositivo'){
+      var tp = Date.parse(p.creado_en || p.actualizado_en) || Date.now();
+      x = g.lista.find(function(y){ return !y.srv && Number(y.monto) === Number(p.monto) && Math.abs((y.t || 0) - tp) < 3 * 60e3 && String(y.app || '').toUpperCase().replace('TRANSFERENCIA', '') === String(nombreMetodo(p.metodo)).toUpperCase().replace('TRANSFERENCIA', ''); });
+      if(x){ x.srv = p.id; x._yaAvisado = true; return x; }
+    }
     var fuente = p.verificado ? 'Verificado por ' + (p.proveedor === 'nequi' ? 'Nequi Conecta' : 'Wompi') : (p.detalle || 'Aviso del celular');
     if(!x){
       x = { id: id, srv: p.id, t: Date.parse(p.aprobado_en || p.actualizado_en || p.creado_en) || Date.now(), monto: Number(p.monto), app: nombreMetodo(p.metodo), de: p.pagador || '', mesa: p.mesa ? (isNaN(+p.mesa) ? p.mesa : +p.mesa) : null,
@@ -152,15 +158,23 @@
     if(p.estado !== 'aprobado' && !(p.estado === 'rechazado' && p.confianza === 'falso') && p.estado !== 'anulado') { pintarHistorial(); return; }
     var x = regLocal(p); if(!x){ return; }
     try{ saveData(); }catch(e){}
-    if(nuevoAprobado && enVivo) avisar(p, x);
+    if(nuevoAprobado && enVivo && !x._yaAvisado) avisar(p, x);
     else if(p.estado === 'rechazado' && p.confianza === 'falso' && !antes && enVivo) avisar(p, x);
     pintarHistorial();
     try{ window.layaPintarTarjeta && window.layaPintarTarjeta(); }catch(e){}
     if(p.estado !== 'aprobado' || p.aplicado_en || p.confianza === 'falso' || p.confianza === 'revisar' || !puedeCaja()) return;
     var mesa = p.mesa && data.tables && data.tables[p.mesa] ? p.mesa : null;
     if(mesa) aplicarEnMesa(p, x, isNaN(+mesa) ? mesa : +mesa);
-    else if(nuevoAprobado && enVivo){ try{ window.pagoLlego && window.pagoLlego(x); }catch(e){} }
+    else if(nuevoAprobado && enVivo && !x._yaAvisado){ try{ window.pagoLlego && window.pagoLlego(x); }catch(e){} }
   }
+
+  // Los avisos que llegan por MacroDroid (canal ntfy de siempre) también se mandan al Servidor Vento:
+  // quedan guardados en la nube, se cruzan entre celulares sin duplicarse y avisan con push aunque Vento esté cerrada.
+  window.ventoPagosReenviarAviso = function(txt){
+    var d = miDispositivo();
+    if(!d || !est.servidor || !puedeCaja() || !txt) return;
+    try{ fetch(base() + '/aviso/' + d.token, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: String(txt).slice(0, 1000), keepalive: true }).catch(function(){}); }catch(e){}
+  };
 
   // Al registrar a mano desde «Llegó un pago», el servidor también lo marca (y otro celular ya no lo repite).
   window.ventoPagosAntesDeRegistrar = function(x, mesa){

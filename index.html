@@ -21288,7 +21288,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.16.2';
+const MESORA_VERSION = '2026-10-02 · v1.16.3';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -23155,6 +23155,10 @@ let fotosListas = false;
     if(id){ if(g.vistos.includes(id)) return; g.vistos.push(id); g.vistos = g.vistos.slice(-300); }
     const p = pgLeer(txt);
     if(!p) return;
+    // ¿Ya llegó este mismo pago por el Servidor Vento (otro celular lo reenvió)? Entonces no se repite.
+    const yaSrv = (g.lista || []).find(x => x.srv && Number(x.monto) === p.monto && Math.abs((x.t || 0) - Date.now()) < 3 * 60e3 && String(x.app).toLowerCase() === String(p.app).toLowerCase());
+    if(yaSrv){ saveData(); return; }
+    try{ window.ventoPagosReenviarAviso && window.ventoPagosReenviarAviso(txt); }catch(e){}   // también al Servidor Vento
     const f = pgFuente(txt);
     const mesa = f.nivel === 'falso' ? null : pgMesaPara(p.monto);
     const reg = { id: id || Date.now().toString(36), t: Date.now(), monto: p.monto, app: p.app, de: p.de, mesa: mesa ? Number(mesa) : null, estado: f.nivel, fuente: f.txt, txt: String(txt).slice(0, 200) };
