@@ -477,6 +477,8 @@
   // Google / YouTube sin vencerse: el Servidor Vento guarda la llave de renovación (ver index.html → yRenovarServidor).
   window.ventoGoogle = {
     disponible: function(){ return !!(negocio() && est.servidor); },
+    // Por qué no está disponible (para decirle a la persona qué falta): sin_sesion | comprobando | sin_servidor | ok
+    motivo: function(){ return !negocio() ? 'sin_sesion' : est.servidor === true ? 'ok' : est.servidor === false ? 'sin_servidor' : 'comprobando'; },
     estado: function(){ return api('google', { negocio: negocio().id, accion: 'estado' }); },
     canjear: function(code, clientId, secret, redir){ return api('google', { negocio: negocio().id, accion: 'codigo', code: code, client_id: clientId, client_secret: secret || '', redirect_uri: redir || 'postmessage' }); },
     token: function(){ return api('google', { negocio: negocio().id, accion: 'token' }); },

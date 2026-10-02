@@ -18833,6 +18833,9 @@ function iniMusica(){
 // Client ID de Google del negocio (es público: Google lo muestra en la página de permiso). Se usa si no
 // se ha pegado otro en Música → YouTube.
 const YT_CID_VENTO='896233860758-56pu0r79ff4ld5buf5a56goqb1892i7r.apps.googleusercontent.com';
+// Una vez: si quedó guardado otro Client ID (de pruebas anteriores), se cambia por el del negocio, que
+// es el que tiene el Client Secret y la dirección de regreso registrados.
+try{const c0=JSON.parse(localStorage.getItem('vito_yt')||'null');if(c0&&c0.cid&&c0.cid!==YT_CID_VENTO&&!c0.cidVento){c0.cid=YT_CID_VENTO;c0.cidVento=1;delete c0.srv;localStorage.setItem('vito_yt',JSON.stringify(c0));}}catch(e){}
 const yCfg=()=>{const c=Object.assign({cid:'',pl:'',len:0,on:false,key:'AIzaSyCQ_IKzsP2TEPc7jiIfV3prwc6VYvgq1xY'},LS('vito_yt',{}));if(!c.cid)c.cid=YT_CID_VENTO;return c;};
 const yTok=()=>{try{const t=JSON.parse(localStorage.getItem('vito_ytok')||sessionStorage.getItem('vito_ytok'));return t&&t.exp>Date.now()?t.t:null;}catch(e){return null;}};
 let yTC=null,cadena=Promise.resolve();
@@ -18973,7 +18976,12 @@ async function ytUno(id){
       tvPublicar();
       if(v)setTimeout(()=>{try{verificarCola();}catch(e){}},50);   // se comprueba y, si no hay música, suena ya
     }
-    if(it.vid&&!it.yt&&!yTok()&&!tvOn()&&typeof castOn==='function'&&castOn()&&yCfg().cid){showToast('⚠️ Google se desconectó: «'+it.song+'» todavía no entró a la lista del TV. Ve a Música y toca «Reconectar»: la agrego enseguida.',8000);}
+    // Sin acceso a Google justo ahora: si el Servidor Vento tiene la conexión, se renueva sola y la canción
+    // entra enseguida (sin aviso). Solo si de verdad falta algo se avisa, una vez cada 10 min, con el motivo.
+    if(it.vid&&!it.yt&&!yTok()&&!tvOn()&&typeof castOn==='function'&&castOn()&&yCfg().cid){
+      if(ySrv()&&yCfg().srv){const idR=it.id;yRenovarServidor(true).then(ok=>{if(ok)ytAgregar(idR);});return;}
+      if(!window.ytAvisoDesc||Date.now()-window.ytAvisoDesc>600000){window.ytAvisoDesc=Date.now();yAvisoReconectar();const e=$('ytRecon');showToast('⚠️ «'+it.song+'» todavía no entró a la lista del TV: '+(e&&!e.hidden?e.querySelector('span').textContent.replace(/^🟠\s*/,''):'falta conectar Google en Música.'),9000);}
+    }
     if(!it.vid||it.yt||!yTok()||tvOn()||(typeof lngOn==='function'&&lngOn()))return;
     const pl=await yLista();
     // position:1 (no position:0) pone la canción nueva JUSTO DESPUÉS de la
@@ -19019,14 +19027,14 @@ const yEnApp=()=>{try{return matchMedia('(display-mode: standalone)').matches||n
 // Dirección de regreso: la carpeta de Vento (…/cuentas/), igual a la registrada en Google Cloud,
 // aunque Vento se haya abierto como …/cuentas/index.html.
 const yRedir=()=>location.origin+location.pathname.replace(/index\.html$/,'');
-let yRenovando=null,yFalloSrv=0;
+let yRenovando=null,yFalloSrv=0,yFalloMsg='';
 function yRenovarServidor(forzar){
   const c=yCfg();
   if(!ySrv()||!c.srv)return Promise.resolve(false);
   if(!forzar&&yTok()&&yTokExp()-Date.now()>6*60000)return Promise.resolve(true);   // todavía le quedan más de 6 min
   if(yRenovando)return yRenovando;
   yRenovando=window.ventoGoogle.token().then(j=>{yGuardarTok(j.access_token,j.expires_in);yFalloSrv=0;const x=yCfg();x.on=true;SS('vito_yt',x);yEstado();yAvisoReconectar();return true;})
-    .catch(e=>{yFalloSrv=Date.now();if(e&&(e.codigo==='google_revocado'||e.codigo==='google_no_conectado')){const x=yCfg();x.srv=false;SS('vito_yt',x);}yEstado();yAvisoReconectar();return false;})
+    .catch(e=>{yFalloSrv=Date.now();yFalloMsg=(e&&e.message)||'';if(e&&(e.codigo==='google_revocado'||e.codigo==='google_no_conectado')){const x=yCfg();x.srv=false;SS('vito_yt',x);}yEstado();yAvisoReconectar();return false;})
     .then(r=>{yRenovando=null;return r;});
   return yRenovando;
 }
@@ -19046,7 +19054,10 @@ function yGuardaVuelta(v){
 function yLeeVuelta(){for(const st of [sessionStorage,localStorage]){try{const v=JSON.parse(st.getItem(YT_GUARDA)||'null');if(v&&Date.now()-v.at<20*60000)return v;}catch(e){}}return null;}
 async function yConectarConCodigo(silencio,listo){
   const c=yCfg();
-  const secret=($('ytSecret')&&$('ytSecret').value.trim())||'';
+  const secret=(($('ytSecret')&&$('ytSecret').value)||'').replace(/\s+/g,'');
+  // Revisión antes de ir a Google: el error más común es pegar el Client ID (o un pedazo) en el campo del secret.
+  if(secret&&(/apps\.googleusercontent\.com$/.test(secret)||/^\d{6,}-/.test(secret))){showToast('⚠️ Eso que pegaste es el Client ID, no el Client Secret. El Client Secret empieza por «GOCSPX-»: está en Google Cloud → Clientes → Cliente web 1 → Secretos del cliente.',11000);listo();return;}
+  if(secret&&!/^GOCSPX-[\w-]{20,}$/.test(secret)&&!confirm('El Client Secret normalmente empieza por «GOCSPX-» y es largo. El que pegaste no se ve así. ¿Usarlo igual?')){listo();return;}
   // Sin Client Secret, solo se puede seguir si el servidor ya lo tiene guardado (de una conexión anterior).
   if(!secret){
     let est=null;try{est=await window.ventoGoogle.estado();}catch(e){}
@@ -19063,6 +19074,20 @@ async function yConectarConCodigo(silencio,listo){
   showToast('Abriendo Google… elige tu cuenta y toca «Continuar». Vento vuelve sola.',6000);
   setTimeout(()=>{location.href='https://accounts.google.com/o/oauth2/v2/auth?'+q.toString();},300);
 }
+// Regreso de Google sin Vento Nube (#access_token=…&state=vento-yt.<nonce>): acceso de 1 hora.
+(function(){
+  try{
+    const h=new URLSearchParams((location.hash||'').replace(/^#/,''));
+    if(!/^vento-yt\./.test(h.get('state')||'')||!(h.get('access_token')||h.get('error')))return;
+    const v=yLeeVuelta();history.replaceState(null,'',location.pathname+location.search);
+    const avisar=t=>{const f=()=>{try{showToast(t,8000);}catch(e){setTimeout(f,800);}};setTimeout(f,1500);};
+    if(!v||h.get('state')!=='vento-yt.'+v.nonce||!h.get('access_token')){yGuardaVuelta(null);avisar(h.get('error')?'Google: '+h.get('error'):'⚠️ La respuesta de Google no corresponde a esta conexión.');return;}
+    yGuardaVuelta(null);yGuardarTok(h.get('access_token'),Number(h.get('expires_in'))||3599);
+    const c=yCfg();c.on=true;SS('vito_yt',c);
+    avisar('🟢 Google conectado por 1 hora. Para que no se vuelva a vencer, inicia sesión en Vento Nube y conecta una vez más.');
+    setTimeout(()=>{try{yEstado();yAvisoReconectar();yQuien();yPendientes(true);}catch(e){}},2000);
+  }catch(e){}
+})();
 // Regreso de Google (?code=…&state=vento-yt.<nonce>): se canjea el código en el Servidor Vento.
 (function(){
   try{
@@ -19083,7 +19108,10 @@ async function yConectarConCodigo(silencio,listo){
         const c=yCfg();yGuardarTok(j.access_token,j.expires_in);c.on=true;c.srv=true;if(v.cid&&!c.cid)c.cid=v.cid;SS('vito_yt',c);
         avisar('🟢 Google conectado para siempre: se renueva solo, ya no te vuelve a pedir autorización.',8000);
         try{yEstado();yAvisoReconectar();await yQuien();const w=yCfg().who;if(w)window.ventoGoogle.cuenta(w);yPendientes(true);}catch(e){}
-      }).catch(e=>{yGuardaVuelta(null);avisar('Google: '+(e.message||e),12000);try{yEstado();yAvisoReconectar();}catch(x){}});
+      }).catch(e=>{yGuardaVuelta(null);
+        if(e&&e.codigo==='google_cliente')avisar('⚠️ Google no aceptó el Client Secret: no corresponde al Client ID '+String(v.cid).split('-')[0]+'…. En Google Cloud → Clientes → «Cliente web 1» → Secretos del cliente, toca «Agregar secreto», cópialo completo (empieza por GOCSPX-), pégalo en Música → YouTube y toca «Conectar con Google».',20000);
+        else avisar('Google: '+(e.message||e),12000);
+        try{yEstado();yAvisoReconectar();const i=$('ytSecret');if(i&&e&&e.codigo==='google_cliente')i.value='';}catch(x){}});
     },500);
   }catch(e){}
 })();
@@ -19100,8 +19128,6 @@ function yConectar(silencio,cb){
   if(ySrv()&&c.srv){yRenovarServidor(true).then(ok=>{if(ok){yPendientes(silencio);listo();}else if(!silencio)yConectarConCodigo(silencio,listo);else listo();});return;}
   // Con el Servidor Vento la conexión es por redirección (no necesita la librería ni ventanitas de Google).
   if(ySrv()&&!silencio&&(location.protocol==='https:'||location.hostname==='localhost')){yConectarConCodigo(silencio,listo);return;}
-  if(!window.google||!google.accounts){if(!silencio)showToast('No cargó Google. Revisa el internet.');listo();return;}
-  if(!silencio&&!ySrv())showToast('ℹ️ Sin Vento Nube la conexión con Google dura 1 hora. Para que quede conectada para siempre, entra a Vento Nube (Ajustes) y vuelve a tocar «Conectar con Google».',9000);
   // Google bloquea el inicio de sesión ("Error 400: invalid_request ... no
   // cumple la política de OAuth 2.0") cuando la app se abre como archivo
   // (file://) o desde una dirección http sin candado. Se avisa antes de
@@ -19112,6 +19138,23 @@ function yConectar(silencio,cb){
     listo();return;
   }
   if(ySrv()&&!silencio){yConectarConCodigo(silencio,listo);return;}
+  // El Servidor Vento todavía se está comprobando (recién abierta la app): se espera un momento en vez
+  // de caer en la conexión de 1 hora.
+  if(!silencio&&!ySrv()&&window.ventoGoogle&&window.ventoGoogle.motivo&&window.ventoGoogle.motivo()==='comprobando'&&!(cb&&cb.esperado>=10)){
+    showToast('⏳ Un momento, conectando con el Servidor Vento…',2500);const cb2=()=>listo();cb2.esperado=((cb&&cb.esperado)||0)+1;
+    setTimeout(()=>yConectar(false,cb2),1000);return;
+  }
+  if(!silencio&&!ySrv()){
+    // Sin Vento Nube no hay dónde guardar la llave permanente: se conecta por 1 hora, también por
+    // redirección (la ventanita de Google no vuelve en Brave ni en la app instalada).
+    const nonce=Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(16).padStart(2,'0')).join('');
+    yGuardaVuelta({nonce,cid:c.cid,redir:yRedir(),at:Date.now(),hora:true});
+    const q=new URLSearchParams({client_id:c.cid,redirect_uri:yRedir(),response_type:'token',scope:'https://www.googleapis.com/auth/youtube',include_granted_scopes:'true',state:'vento-yt.'+nonce});
+    showToast('ℹ️ Sin Vento Nube la conexión con Google dura 1 hora. Para que quede para siempre, inicia sesión en Vento Nube (Ajustes → Nube y usuarios) y conecta otra vez.',7000);
+    setTimeout(()=>{location.href='https://accounts.google.com/o/oauth2/v2/auth?'+q.toString();},1500);
+    listo();return;
+  }
+  if(!window.google||!google.accounts){if(!silencio)showToast('No cargó Google. Revisa el internet.');listo();return;}
   yTC=yTC||google.accounts.oauth2.initTokenClient({client_id:c.cid,scope:'https://www.googleapis.com/auth/youtube',
     error_callback:e=>{const t=e&&e.type;if(!yTC||!yTC.silencio){if(t==='popup_failed_to_open')showToast('El celular bloqueó la ventana de Google. Toca «Reconectar» y acepta.'+(yEnApp()?' Si Vento está instalada como app y no vuelve, conéctate a Vento Nube: así se reconecta sola.':''),9000);else if(t!=='popup_closed')showToast('Google: '+(t||'no se pudo conectar'));}yAvisoReconectar();listo();},
     callback:async r=>{
@@ -19153,17 +19196,30 @@ function iniYT(){
   yEstado();
   yQuien();
 }
-// Aviso con botón (en Música) cuando la conexión con Google se venció.
+// Aviso (en Música) cuando no hay conexión con Google: dice EXACTAMENTE qué falta y el botón hace eso.
+// Antes siempre decía «se venció (dura 1 hora) → Reconectar», aunque lo que faltaba fuera otra cosa
+// (la sesión de Vento Nube, el Client Secret…), y reconectar no lo arreglaba.
+function yIrNube(){
+  const b=document.querySelector('nav button[data-view="ajustes"]');try{asisGoView('ajustes');}catch(x){b&&b.click();}
+  setTimeout(()=>{const c=document.querySelector('.ajustes-cat[data-cat="nube"]');c&&c.click();},300);
+}
 function yAvisoReconectar(){
   let b=$('ytRecon');const c=yCfg(),falta=!!(c.cid&&c.on&&!yTok()&&!(ySrv()&&c.srv&&!yFalloSrv));
   if(!b){
     const sec=$('view-musica');if(!sec)return;
     b=document.createElement('div');b.id='ytRecon';b.className='yt-recon';
-    b.innerHTML='<span>🟠 Se venció la conexión con Google (dura 1 hora): las canciones nuevas no entran a tu lista de YouTube.</span><button type="button" class="btn-primary">Reconectar</button>';
-    b.querySelector('button').onclick=()=>yConectar(false);
+    b.innerHTML='<span></span><button type="button" class="btn-primary"></button>';
     sec.insertBefore(b,sec.firstChild);
   }
-  b.hidden=!falta;
+  b.hidden=!falta;if(!falta)return;
+  const m=window.ventoGoogle&&window.ventoGoogle.motivo?window.ventoGoogle.motivo():'sin_sesion';
+  let txt,btn,fn;
+  if(m==='sin_sesion'){txt='🟠 Google no está conectado: para que quede conectado para siempre falta iniciar sesión en Vento Nube (Ajustes → Nube y usuarios). Después toca «Conectar con Google» una vez.';btn='Ir a Vento Nube';fn=yIrNube;}
+  else if(m==='comprobando'){txt='⏳ Conectando con el Servidor Vento…';btn='Reintentar';fn=()=>yConectar(false);}
+  else if(m==='sin_servidor'){txt='🟠 El Servidor Vento no responde (revisa el internet). Cuando vuelva, Google se reconecta solo.';btn='Reintentar';fn=()=>{yFalloSrv=0;yConectar(false);};}
+  else if(c.srv&&yFalloSrv&&yFalloMsg&&!/revoc|no está conectado|ya no acepta/i.test(yFalloMsg)){txt='🟠 Google: '+yFalloMsg+' Se reintenta solo cada minuto.';btn='Reintentar ahora';fn=()=>{yFalloSrv=0;yRenovarServidor(true);};}
+  else{txt='🟠 Falta conectar Google UNA vez (después se renueva solo y no se vuelve a vencer).';btn='Conectar con Google';fn=()=>yConectar(false);}
+  b.querySelector('span').textContent=txt;const k=b.querySelector('button');k.textContent=btn;k.onclick=fn;
 }
 
 /* ---------- Reproductor automático dentro de la app ---------- */
@@ -21402,7 +21458,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.17.5';
+const MESORA_VERSION = '2026-10-02 · v1.17.6';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
