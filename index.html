@@ -3202,7 +3202,8 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
           <button class="btn-primary" id="castOpenYT" type="button">▶ YouTube</button>
         </div>
         <div class="cast-devs" id="castDevs" hidden><span class="cast-dot"></span><span id="castDevsTxt"></span></div>
-        <button class="btn-primary cast-big" id="castPres" type="button">📡 Buscar mi TV o TV Box (todos los dispositivos)</button>
+        <button class="btn-primary cast-big" id="castPres" type="button">📡 Transmitir (todos los dispositivos de tu wifi)</button>
+        <button class="btn-ghost" id="castChromeList" type="button">Solo Chromecast (lista de Chrome)</button>
         <div class="mz-actions">
           <button class="btn-ghost" id="castPair" type="button">🔗 Vincular con código de TV</button>
           <button class="btn-ghost" id="castHelp" type="button">¿No aparece tu TV?</button>
@@ -7459,6 +7460,38 @@ function resetVoiceFabPos(){
   try{ storageSet('voice-fab-pos', ''); }catch(e){}
 }
 window.resetVoiceFabPos = resetVoiceFabPos;
+/* Vigilante del micrófono: si está activado pero no se ve, se arregla solo.
+   - Quedó por fuera de la pantalla o debajo de la barra de abajo (posición guardada de otra pantalla,
+     teclado abierto, celular girado) → vuelve a su esquina.
+   - Una ventana quedó marcada «abierta» pero ya no se ve (por ejemplo, se cerró a medias): eso
+     escondía el micrófono por completo (se oculta mientras hay una ventana encima). Esa marca se limpia. */
+function micVigilar(){
+  try{
+    if(!micEnabled || voiceFabWasHidden || fabDrag) return;
+    // Solo se limpia si lleva más de 4 s invisible (así no se toca una ventana que se está abriendo con animación).
+    document.querySelectorAll('.overlay.show:not(#overlay)').forEach(o => {
+      const cs = getComputedStyle(o), r = o.getBoundingClientRect();
+      const invisible = cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0 || r.width < 2 || r.height < 2;
+      if(!invisible){ delete o.dataset.invDesde; return; }
+      if(!o.dataset.invDesde) o.dataset.invDesde = String(Date.now());
+      else if(Date.now() - Number(o.dataset.invDesde) > 4000){ o.classList.remove('show'); delete o.dataset.invDesde; }
+    });
+    if(document.querySelector('.overlay.show:not(#overlay)')) return;   // hay una ventana de verdad abierta: ahí sí se esconde
+    if(voiceFabWrap.style.display === 'none') voiceFabWrap.style.display = '';
+    const r = voiceFabWrap.getBoundingClientRect(), W = window.innerWidth, H = window.innerHeight;
+    const fuera = !r.width || r.right < 20 || r.left > W - 20 || r.bottom < 20 || r.top > H - 20;
+    let tapado = false;
+    if(!fuera){
+      const el = document.elementFromPoint(Math.min(W - 1, Math.max(0, r.left + r.width / 2)), Math.min(H - 1, Math.max(0, r.top + r.height / 2)));
+      tapado = !!(el && !voiceFabWrap.contains(el) && el.closest && el.closest('#tabbar, nav, .tabbar'));
+    }
+    if(fuera || tapado || voiceFabWrap.style.transform){ voiceFabWrap.style.transform = ''; resetVoiceFabPos(); }
+  }catch(e){}
+}
+setInterval(micVigilar, 2000);
+window.addEventListener('resize', () => setTimeout(micVigilar, 300));
+document.addEventListener('visibilitychange', () => { if(!document.hidden) setTimeout(micVigilar, 300); });
+setTimeout(micVigilar, 1500);
 { const rb = document.getElementById('voiceFabResetBtn'); if(rb) rb.addEventListener('click', () => { resetVoiceFabPos(); showToast('✅ El botón del micrófono volvió a su lugar.'); }); }
 
 document.getElementById('voiceFab').addEventListener('click', () => {
@@ -21488,7 +21521,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.18.1';
+const MESORA_VERSION = '2026-10-02 · v1.18.2';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -21651,7 +21684,7 @@ async function ccTransmitir(directo){
   const env = castEntorno();
   if(env.bad){ showToast(env.t, 9000); return; }
   // En Brave (o un navegador sin la función de transmitir) la lista de Chrome sale vacía: se ofrecen los demás caminos.
-  if(!directo && (esBrave() || !('chrome' in window))){ castDispositivos(); return; }
+  if(esBrave() || !('chrome' in window)){ castDispositivos(); return; }
   ccPintar('Buscando tus televisores…', 'busy');
   let ctx;
   try{ ctx = await castSdk(); }
@@ -21877,7 +21910,12 @@ function castAbrirApp(){
 }
 function iniCast(){
   if(!document.getElementById('castPres')) return;
-  document.getElementById('castPres').onclick = () => ccTransmitir(false);
+  /* Un solo botón: una página web no puede ver los aparatos de la red (el navegador no lo permite).
+     La que sí los muestra TODOS en un solo ícono (Smart TV, TV Box, Android TV, Chromecast, Fire TV,
+     consolas) es la app de YouTube / YouTube Music: este botón la abre con la lista puesta y avisa que
+     toque el ícono de transmitir. La lista de Chrome (solo Chromecast) queda aparte. */
+  document.getElementById('castPres').onclick = () => { castAbrirApp(); };
+  const ccl = document.getElementById('castChromeList'); if(ccl) ccl.onclick = () => ccTransmitir(true);
   setTimeout(() => { castSdk().catch(() => {}); }, 1500);   // se carga antes para que la lista de TV salga al instante
   document.getElementById('castRefresh').onclick = () => transmitirTV();
   // Al volver a Vento (desde YouTube) con canciones nuevas: se ofrece mandarlas al TV de un toque.
@@ -22084,6 +22122,7 @@ async function lngBind(){
   const sid = (t.match(/"c"\s*,\s*"([^"]+)"/) || [])[1], gs = (t.match(/"S"\s*,\s*"([^"]+)"/) || [])[1];
   if(!sid) throw new Error('El TV no respondió. Enciéndelo y abre la app de YouTube.');
   lng.sid = sid; lng.gs = gs || ''; lng.t = Date.now();
+  lng.fallas = 0; lng.pausaHasta = 0;   // el TV respondió: se olvidan los errores de antes (no se espera nada)
   lng.tvPlay = lngEstadoTV(t); lngLeerTV(t);
   // Prueba de que el TV DE VERDAD llegó a reproducir. Sin esta prueba no se puede dar por
   // hecho que hay una cola viva: es lo que hacía que la canción entrara como «agregada»
@@ -22505,8 +22544,14 @@ function iniLounge(){
     if(!lngCfg().relay) return showToast('⚠️ Primero el paso 1: la dirección del puente.');
     if(d.length !== 12) return showToast('⚠️ El código del TV tiene 12 números.');
     const b = document.getElementById('lngGo'); b.disabled = true; b.textContent = '⏳ Conectando con el TV…';
+    // Turno exclusivo: se espera (máx. 20 s) a que termine cualquier revisión del TV en curso, para que
+    // dos conexiones no se crucen (antes podían pisarse y la del código quedaba dañada).
+    for(let i = 0; i < 40 && lng.ocupado && Date.now() - lng.ocupadoT < 90000; i++) await new Promise(r => setTimeout(r, 500));
+    lng.ocupado = true; lng.ocupadoT = Date.now(); lng.fallas = 0; lng.pausaHasta = 0;
     try{
+      lngLog('código del TV: buscando el TV con el código ' + d.slice(0, 3) + '…');
       await lngParear(d);
+      lngLog('   ✅ el TV respondió: «' + (lngCfg().nombre || 'TV') + '»');
       lngReloj0('código del TV');
       await lngBind();
       // Si Vento también estaba mandando la música por otros caminos, se apagan para no duplicar.
@@ -22515,9 +22560,13 @@ function iniLounge(){
       code.value = '';
       showToast('✅ Conectado a «' + (lngCfg().nombre || 'TV') + '». Las canciones de las mesas van a entrar solas a la cola del YouTube del TV.', 8000);
       vm().cola().forEach(x => { if(!x.vid && !x.done) vm().ytAgregar(x.id); });
-      lngSync(true);
-    }catch(e){ lng.error = e.message; showToast('⚠️ ' + e.message, 8000); }
-    finally{ b.disabled = false; b.textContent = '🔗 Conectar con el YouTube del TV'; lngEstado(); }
+      lng.ocupado = false;
+      lng.porPersona = true; lngSync(true);
+    }catch(e){
+      lng.error = e.message; lngLog('   ❌ ' + e.message); showToast('⚠️ ' + e.message, 10000);
+      const lb = document.getElementById('lngLogBox'); if(lb){ lb.hidden = false; const l = document.getElementById('lngLog'); if(l) l.textContent = 'Vento ' + MESORA_VERSION + '\n' + (lng.log || []).join('\n'); }
+    }
+    finally{ lng.ocupado = false; b.disabled = false; b.textContent = '🔗 Conectar con el YouTube del TV'; lngEstado(); }
   };
   document.getElementById('lngPlay').onclick = () => { lng.porPersona = true; lng.pausaHasta = 0; lngSync(true); };
   document.getElementById('lngCuenta').onclick = () => {
