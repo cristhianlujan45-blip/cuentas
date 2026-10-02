@@ -17,3 +17,14 @@
 - **Lista del TV sin acceso a Google en ese momento:** primero se renueva sola por el servidor y la canción entra. Si falta algo, el aviso sale máximo una vez cada 10 min y con el motivo.
 - **Sin Vento Nube:** también se conecta por redirección (sin ventanita), pero por 1 hora, y se avisa.
 - **Pruebas:** 15/15 (navegador + Servidor Vento + Google simulado), e2e bien.
+
+# Vento 1.17.7: «Conectar con Google» SIEMPRE conecta
+
+El dueño seguía viendo «Google rechazó el Client Secret» y Google no conectaba: la conexión
+permanente dependía de un Client Secret que no corresponde. Ahora vuelve a funcionar como antes:
+
+- «Conectar con Google» abre Google (en la misma pestaña, sin ventanita) y conecta **sin pedir el Client Secret**.
+- Si hay un Client Secret correcto, además queda la conexión permanente (se renueva sola).
+- Si el Client Secret está mal, o se pegó el Client ID en su lugar, se avisa y **se conecta igual**: ya no bloquea la música.
+- Aviso de Música: «Google no está conectado → Conectar con Google», sin mandar a otras pantallas.
+- Pruebas: 15/15 (sin secret, Client ID pegado por error, secret equivocado, permanente, renovación, sin Vento Nube).
