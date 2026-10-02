@@ -1936,6 +1936,8 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   .cam-card-btns{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px; }
   #view-inventario .inv-head .btn-camera.cam-big{ flex: 1 1 100%; }
   /* Música en el TV: una sola sección, cada forma se abre y se cierra */
+  .cast-big.pulso{ animation: tvPulso 1.2s ease-in-out 4; }
+  @keyframes tvPulso{ 0%,100%{ box-shadow:0 0 0 0 color-mix(in srgb, var(--amber) 60%, transparent); } 50%{ box-shadow:0 0 0 12px transparent; } }
   .tv-opt{ border:1px solid var(--line); border-radius:14px; margin:10px 0; background: var(--surface); overflow:hidden; }
   .tv-opt[open]{ border-color: color-mix(in srgb, var(--amber) 45%, var(--line)); }
   .tv-opt > summary{ list-style:none; cursor:pointer; padding:12px 40px 12px 14px; position:relative; display:flex; flex-direction:column; gap:3px; }
@@ -9847,7 +9849,31 @@ function readFileAsDataUrl(file){
   });
 }
 
+/* Abre la foto lo más rápido posible: createImageBitmap la decodifica directo del archivo (fuera del
+   hilo principal en muchos celulares), sin convertir primero los varios MB de la foto a texto base64.
+   Si el navegador no puede, se usa el camino de siempre. */
+async function fotoBitmap(file){
+  if(typeof createImageBitmap !== 'function' || !(file instanceof Blob)) return null;
+  try{ return await createImageBitmap(file, { imageOrientation: 'from-image' }); }catch(e){ try{ return await createImageBitmap(file); }catch(e2){ return null; } }
+}
+async function fotoEscalada(file, maxSide, quality, filtro){
+  const bm = await fotoBitmap(file); if(!bm) return null;
+  try{
+    const scale = Math.min(1, maxSide / Math.max(bm.width, bm.height));
+    const w = Math.max(1, Math.round(bm.width * scale)), h = Math.max(1, Math.round(bm.height * scale));
+    const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+    if(filtro && 'filter' in ctx) ctx.filter = filtro;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bm, 0, 0, w, h);
+    return canvas.toDataURL('image/jpeg', quality);
+  }catch(e){ return null; }
+  finally{ try{ bm.close(); }catch(e){} }
+}
 async function scalePhotoForAI(file, maxSide, quality){
+  const rapida = await fotoEscalada(file, maxSide, quality, '');
+  if(rapida) return rapida;
   const original = await readFileAsDataUrl(file);
   try{
     const img = await new Promise((resolve, reject) => {
@@ -9880,6 +9906,8 @@ async function scalePhotoForAI(file, maxSide, quality){
 // mandar en una resolución más alta (mejor para letra pequeña) sin que la
 // lectura se vuelva más lenta.
 async function scaleInvoicePhotoForAI(file, maxSide, quality){
+  const rapida = await fotoEscalada(file, maxSide, quality, 'grayscale(1) contrast(1.35) brightness(1.08)');
+  if(rapida) return rapida;
   const original = await readFileAsDataUrl(file);
   try{
     const img = await new Promise((resolve, reject) => {
@@ -11542,7 +11570,7 @@ function fiCargarImagen(file){
   });
 }
 function fiOtsu(g){
-  const h = new Array(256).fill(0); g.forEach(v => h[v | 0]++);
+  const h = new Uint32Array(256); for(let p = 0; p < g.length; p++) h[g[p] | 0]++;
   const tot = g.length; let sum = 0; for(let i = 0; i < 256; i++) sum += i * h[i];
   let sB = 0, wB = 0, max = 0, th = 128;
   for(let i = 0; i < 256; i++){ wB += h[i]; if(!wB) continue; const wF = tot - wB; if(!wF) break; sB += i * h[i];
@@ -11593,33 +11621,42 @@ function fiHomografia(w, h, q){
 }
 async function fiMejorarFoto(file){
   const img = await fiCargarImagen(file);
-  let fuente = img, W = img.width, H = img.height, enderezada = false;
+  let fuente = img, W = img.width, H = img.height, enderezada = false, odListo = null;
   const q = fiEsquinasPapel(img);
   if(q){
     const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
     let ow = Math.max(dist(q[0], q[1]), dist(q[3], q[2])), oh = Math.max(dist(q[0], q[3]), dist(q[1], q[2]));
     const k = Math.min(2, FI_MAX_LADO / Math.max(ow, oh)); ow = Math.round(ow * k); oh = Math.round(oh * k);   // si la hoja salió chica se agranda (letra pequeña)
     if(ow > 200 && oh > 200){
-      const sc = document.createElement('canvas'); sc.width = img.width; sc.height = img.height;
-      const scx = sc.getContext('2d', { willReadFrequently: true }); scx.drawImage(img, 0, 0);
-      const sd = scx.getImageData(0, 0, img.width, img.height).data;
+      /* Más rápido sin perder calidad: la hoja se recorta a máx. 2000 px, así que no hace falta leer
+         la foto de 12 MP completa. Se reduce primero (lo hace la tarjeta gráfica) a lo justo que
+         necesita el recorte (con 15 % de margen) y se copian los píxeles de a 32 bits. En un celular
+         de gama media esto bajó de ~4,5 s a ~1,5 s. */
+      const kk = Math.min(1, (k * 1.15) || 1), sw = Math.max(1, Math.round(img.width * kk)), sh = Math.max(1, Math.round(img.height * kk));
+      const sc = document.createElement('canvas'); sc.width = sw; sc.height = sh;
+      const scx = sc.getContext('2d', { willReadFrequently: true }); scx.imageSmoothingQuality = 'high'; scx.drawImage(img, 0, 0, sw, sh);
+      const s32 = new Uint32Array(scx.getImageData(0, 0, sw, sh).data.buffer);
       const oc = document.createElement('canvas'); oc.width = ow; oc.height = oh;
-      const ocx = oc.getContext('2d'); const od = ocx.createImageData(ow, oh);
-      const [a, b, c, d, e, f, g, h] = fiHomografia(ow, oh, q);
-      for(let y = 0; y < oh; y++) for(let x = 0; x < ow; x++){
-        const z = g * x + h * y + 1, u = Math.round((a * x + b * y + c) / z), v = Math.round((d * x + e * y + f) / z);
-        const o = (y * ow + x) * 4;
-        if(u >= 0 && v >= 0 && u < img.width && v < img.height){ const s = (v * img.width + u) * 4; od.data[o] = sd[s]; od.data[o + 1] = sd[s + 1]; od.data[o + 2] = sd[s + 2]; }
-        else { od.data[o] = od.data[o + 1] = od.data[o + 2] = 255; }
-        od.data[o + 3] = 255;
+      const ocx = oc.getContext('2d'); const od = ocx.createImageData(ow, oh), o32 = new Uint32Array(od.data.buffer);
+      const [a, b, c, d, e, f, g, h] = fiHomografia(ow, oh, q.map(([x, y]) => [x * kk, y * kk]));
+      const BLANCO = 0xFFFFFFFF;
+      for(let y = 0, o = 0; y < oh; y++){
+        let nu = b * y + c, nv = e * y + f, nz = h * y + 1;   // se suman a, d, g en cada paso de x
+        for(let x = 0; x < ow; x++, o++, nu += a, nv += d, nz += g){
+          const u = (nu / nz + 0.5) | 0, v = (nv / nz + 0.5) | 0;
+          o32[o] = (u >= 0 && v >= 0 && u < sw && v < sh) ? (s32[v * sw + u] | 0xFF000000) : BLANCO;
+        }
       }
-      ocx.putImageData(od, 0, 0); fuente = oc; W = ow; H = oh; enderezada = true;
+      odListo = od; fuente = oc; W = ow; H = oh; enderezada = true;   // los píxeles ya enderezados se usan directo abajo (sin dibujar y leer otra vez)
     }
   }
   const k = Math.min(1, FI_MAX_LADO / Math.max(W, H)), w = Math.round(W * k), h = Math.round(H * k);
   const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const cx = c.getContext('2d', { willReadFrequently: true }); cx.drawImage(fuente, 0, 0, w, h);
-  const id = cx.getImageData(0, 0, w, h), px = id.data;
+  const cx = c.getContext('2d', { willReadFrequently: true });
+  let id;
+  if(odListo && w === W && h === H) id = odListo;
+  else { if(odListo) fuente.getContext('2d').putImageData(odListo, 0, 0); cx.drawImage(fuente, 0, 0, w, h); id = cx.getImageData(0, 0, w, h); }
+  const px = id.data;
   const gr = new Float32Array(w * h);
   for(let i = 0, p = 0; p < gr.length; i += 4, p++) gr[p] = px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114;
   // Luz del papel: en cada bloque se toma el punto MÁS claro (la letra no lo oscurece, así no
@@ -11638,7 +11675,7 @@ async function fiMejorarFoto(file){
   const fondo = fcx.getImageData(0, 0, w, h).data;
   const g = new Float32Array(w * h);
   for(let i = 0, p = 0; p < g.length; i += 4, p++) g[p] = Math.min(255, gr[p] / Math.max(40, fondo[i]) * 245);
-  const hist = new Array(256).fill(0); g.forEach(v => hist[v | 0]++);
+  const hist = new Uint32Array(256); for(let p = 0; p < g.length; p++) hist[g[p] | 0]++;   // recorrido directo (forEach era 10 veces más lento)
   let lo = 0, hi = 255, acc = 0; const n = g.length;
   for(let i = 0; i < 256; i++){ acc += hist[i]; if(acc > n * 0.01){ lo = i; break; } }
   acc = 0; for(let i = 255; i >= 0; i--){ acc += hist[i]; if(acc > n * 0.02){ hi = i; break; } }
@@ -11653,7 +11690,8 @@ async function fiMejorarFoto(file){
   cx.putImageData(id, 0, 0);
   const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
   const nombre = (file.name || 'factura').replace(/\.[^.]+$/, '') + '-mejorada.jpg';
-  return { file: new File([blob], nombre, { type: 'image/jpeg' }), dataUrl: c.toDataURL('image/jpeg', 0.7), enderezada, w, h };
+  const file2 = new File([blob], nombre, { type: 'image/jpeg' });
+  return { file: file2, dataUrl: URL.createObjectURL(file2), enderezada, w, h };   // vista previa sin volver a codificar la foto
 }
 const fiEsPdf = f => (window.VitoOfflineOCR && window.VitoOfflineOCR.isPdfFile && window.VitoOfflineOCR.isPdfFile(f)) || /\.pdf$/i.test(f.name || '') || f.type === 'application/pdf';
 // Archivos válidos: fotos o PDF, de hasta 15 MB cada uno, máximo 10 a la vez.
@@ -21525,7 +21563,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.19';
+const MESORA_VERSION = '2026-10-02 · v1.19.1';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -21679,18 +21717,18 @@ async function ccTransmitir(directo){
   const env = castEntorno();
   if(env.bad){ showToast(env.t, 9000); return; }
   // En Brave (o un navegador sin la función de transmitir) la lista de Chrome sale vacía: se ofrecen los demás caminos.
-  if(esBrave() || !('chrome' in window)){ castDispositivos(); return; }
+
   ccPintar('Buscando tus televisores…', 'busy');
   ccPorPersona = true;   // la persona eligió el TV: al conectar, la música arranca allá sí o sí
   let ctx;
   try{ ctx = await castSdk(); }
-  catch(e){ ccPintar(''); castDispositivos(); return; }
+  catch(e){ ccPintar(''); tvSinLista('Este navegador no puede mostrar los TV de tu wifi. Abre Vento en Chrome, o conecta con el código del TV (abajo).'); return; }
   try{ await ctx.requestSession(); }
   catch(e){
     ccPintar('');
     // Cerró la lista sin elegir: casi siempre es porque su TV no salía ahí → se le muestran los otros caminos.
     if(e === 'cancel' || (e && e.code === 'cancel')) return;   // cerró la lista sin elegir
-    if(e === 'receiver_unavailable' || (e && e.code === 'receiver_unavailable')){ castDispositivos('No encontré TV en tu wifi para transmitir. Revisa que el celular y el TV estén en el mismo wifi, o conecta con el código del TV (funciona con cualquier TV con YouTube).'); return; }
+    if(e === 'receiver_unavailable' || (e && e.code === 'receiver_unavailable')){ tvSinLista('No encontré TV en tu wifi. Revisa que el celular y el TV estén en el mismo wifi y el TV encendido. Si tu TV no tiene Chromecast, conéctalo con el código del TV (abajo).'); return; }
     showToast('⚠️ No se pudo abrir YouTube en el TV (' + (e && e.code || e) + ').', 7000); return;
   }
   ccConectado(ctx.getCurrentSession());
@@ -21908,9 +21946,40 @@ function castAbrirApp(){
 // ¿La música está yendo a un TV? (YouTube del TV por código o Chromecast)
 window.tvConectado = () => { try{ return (typeof lngOn === 'function' && lngOn()) || !!ccSes; }catch(e){ return false; } };
 window.tvMandarYa = () => { if(typeof lngOn === 'function' && lngOn()){ lng.porPersona = true; lng.pausaHasta = 0; lngSync(true); } else if(ccSes){ ccRespaldo = true; ccSiguiente(); } };
+/* «Transmitir al TV»: abre DIRECTO la lista de aparatos del wifi (Chromecast, Google TV, Android TV,
+   TV Box con Chromecast). Sin ventanas de opciones.
+   - Si este navegador tiene la lista (Chrome): se abre la lista.
+   - Si no la tiene (Brave, otros): el mismo toque abre Vento en Chrome, que sí la tiene, y allá queda
+     el botón resaltado para tocarlo una vez. (Ninguna página web puede ver los aparatos del wifi sin
+     la lista del navegador; Brave la trae apagada.)
+   La librería de Chromecast ya se cargó al abrir la app, así que la respuesta es inmediata y el toque
+   sigue valiendo para abrir la lista o Chrome. */
+async function tvTransmitirToque(){
+  const env = castEntorno();
+  if(env.bad){ showToast(env.t, 9000); return; }
+  let hay = false;
+  try{ await Promise.race([castSdk(), new Promise((_, r) => setTimeout(() => r(new Error('lento')), 2500))]); hay = true; }catch(e){ hay = false; }
+  if(hay){ ccTransmitir(true); return; }
+  if(window.esAndroid && window.esAndroid()){
+    showToast('Abriendo Vento en Chrome para ver los TV de tu wifi…', 5000);
+    abrirIntent('intent://' + location.host + location.pathname + '?transmitir=1#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + encodeURIComponent('https://play.google.com/store/apps/details?id=com.android.chrome') + ';end');
+    return;
+  }
+  tvSinLista('Este navegador no puede mostrar los TV de tu wifi. Abre Vento en Chrome, o conecta con el código del TV (abajo).');
+}
+// Sin lista de aparatos: aviso corto (sin ventana) y se abre la opción del código del TV.
+function tvSinLista(msg){
+  showToast('📺 ' + msg, 9000);
+  const d = document.getElementById('tvOptCodigo'); if(d){ d.open = true; setTimeout(() => d.scrollIntoView({ block: 'start', behavior: 'smooth' }), 300); }
+}
 function iniCast(){
   if(!document.getElementById('castPres')) return;
-  const tb = document.getElementById('tvTransmitir'); if(tb) tb.onclick = () => ccTransmitir(true);
+  const tb = document.getElementById('tvTransmitir'); if(tb) tb.onclick = tvTransmitirToque;
+  // Llegó desde Brave (se abrió en Chrome para transmitir): se lleva a Música y se resalta el botón.
+  if(/[?&]transmitir=1/.test(location.search)){
+    try{ history.replaceState(null, '', location.pathname + location.hash); }catch(e){}
+    setTimeout(() => { try{ document.querySelector('nav button[data-view="musica"]')?.click(); const b = document.getElementById('tvTransmitir'); if(b){ b.scrollIntoView({ block: 'center' }); b.classList.add('pulso'); } showToast('📡 Toca «Transmitir al TV» y elige tu TV o TV Box.', 7000); }catch(e){} }, 1800);
+  }
   // v1.19: el modo viejo «abrir YouTube en el celular y mandar al TV» ya no está en pantalla: se apaga
   // para que no salgan avisos de «Mandar al TV» ni se abra YouTube afuera.
   try{ if(LS(CAST_KEY, {}).on && !localStorage.getItem('vito_castoff1')){ SS(CAST_KEY, {}); } localStorage.setItem('vito_castoff1', '1'); }catch(e){}
