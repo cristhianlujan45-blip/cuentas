@@ -21461,7 +21461,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.17.7';
+const MESORA_VERSION = '2026-10-02 · v1.17.8';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22041,7 +22041,13 @@ function lngLeerTV(t){
   re = /"currentTime"\s*:\s*"?([\d.]+)"?/g; while((m = re.exec(t))) ct = Number(m[1]);
   re = /"duration"\s*:\s*"?([\d.]+)"?/g; while((m = re.exec(t))) du = Number(m[1]);
   lng.tvT = ct; lng.tvD = du;
+  if((lng.tvSt !== null || lng.tvVid) && !lngCfg().reporta) SS(LNG_KEY, Object.assign(lngCfg(), { reporta: Date.now() }));
 }
+/* Hay TV que NUNCA dicen qué están haciendo (el saludo siempre trae «no se sabe»), ni sonando.
+   Con esos no se puede deducir nada del silencio: se confía en que el TV reproduce su cola, como
+   hacía Vento antes de la 1.17.1 (y funcionaba). Volver a mandarle la canción cada vez que callaba
+   la reiniciaba una y otra vez y no terminaba de cargar nunca. */
+const lngReporta = () => !!lngCfg().reporta;
 // Canciones que Vento ya le mandó al TV y todavía no han sonado, en el orden en que se mandaron.
 function lngEnTV(){ return vm().cola().filter(x => x.lng && x.status === 'tv').sort((a, b) => (a.lngN || a.lngAt || 0) - (b.lngN || b.lngAt || 0)); }
 let lngN = 0;
@@ -22116,6 +22122,10 @@ async function lngArrancar(videoId, encolada){
     await new Promise(r => setTimeout(r, 3000));
     try{ await lngAsegurar(true); }catch(e){ lngLog('   no pude comprobar el TV: ' + (e.message || e)); return; }
     if(lng.tvPlay === true){ lngOk(); return; }
+    if(!lngReporta() && lng.tvPlay === null){
+      if(i === 0){ lngLog('   este TV no informa su estado → «play» por si acaso y se deja sonar'); try{ await lngCmd('play', {}); }catch(e){} }
+      return;
+    }
     const paso = i === 0 ? 'play' : 'setPlaylist';
     lngLog('   el TV ' + (lng.tvPlay === false ? 'sigue detenido' : 'no dice que esté sonando') + ' → ' + (paso === 'play' ? 'play' : 'le vuelvo a poner la cola'));
     try{ if(paso === 'play') await lngCmd('play', {}); else await lngPoner(lngFaltan(videoId ? [videoId] : [])); }
@@ -22173,7 +22183,9 @@ async function lngSync(forzar){
         const vids = lngFaltan(pend.map(x => x.vid));
         lngLog('TV ' + lngEstadoNombre(lng.tvPlay) + ' → arrancar cola de ' + vids.length + (vids.length === 1 ? ' canción' : ' canciones'));
         await lngPoner(vids);
-        c.arranco = Date.now(); SS(LNG_KEY, Object.assign(lngCfg(), { arranco: c.arranco }));
+        c.arranco = Date.now(); SS(LNG_KEY, Object.assign(lngCfg(), { arranco: c.arranco, cursor: c.arranco }));
+        // La que «sonaba» según Vento quedó reemplazada por esta cola nueva.
+        try{ vm().cola().filter(y => y.status === 'playing' && y.fuente === 'tvyt').forEach(y => vm().mzTermino(y.id, 'played')); }catch(e){}
         pend.forEach(lngMarcar);
         forzarInicio = false; lng.forzar = false; lng.ultimoEnvio = Date.now();
         await lngArrancar(pend[0].vid, false);
@@ -22206,11 +22218,14 @@ async function lngVigilar(){
   if(!lngOn() || !vm().cola) return;
   const enTV = lngEnTV(), suena = vm().cola().find(x => x.status === 'playing' && x.fuente === 'tvyt');
   if(!enTV.length && !suena) return;
+  // TV que no informa: no se le reenvía nada; se sigue por tiempo (y se saluda solo cada minuto, por si empieza a informar).
+  if(!lngReporta() && lng.sid && Date.now() - lng.t < 60000){ lngPorTiempo(enTV); return; }
   if(!lngTomar(false)) return;
   try{
     await lngAsegurar(true);
     const vid = lng.tvVid, st = lng.tvSt, reciente = Date.now() - (lng.ultimoEnvio || 0) < 25000;
     lngResultado(true);
+    if(!lngReporta()){ lngPorTiempo(lngEnTV()); return; }
     // Canciones mandadas hace más de 3 h (el TV se apagó, cerraron Vento…): no se reponen.
     enTV.filter(x => Date.now() - (x.lngAt || 0) > 3 * 36e5).forEach(x => vm().mzTermino(x.id, 'skipped'));
     if(lng.tvPlay === true) lng.reinicios = 0;
@@ -22255,11 +22270,32 @@ async function lngVigilar(){
     lng.reinicios = (lng.reinicios || 0) + 1; lng.avisoReinicio = false;
     lngLog('el TV ' + (vid === null && st === null ? 'no tiene nada puesto' : 'se quedó sin la siguiente') + ' → le pongo la cola que falta (' + falta.length + ')');
     await lngPoner(falta.map(x => x.vid)); lng.ultimoEnvio = Date.now();
-    SS(LNG_KEY, Object.assign(lngCfg(), { arranco: Date.now() }));
+    SS(LNG_KEY, Object.assign(lngCfg(), { arranco: Date.now(), cursor: Date.now() }));
     await lngArrancar(falta[0].vid, false);
     SS(LNG_KEY, Object.assign(lngCfg(), { arranco: Date.now(), hasta: Date.now() + falta.reduce((t, x) => t + (x.dur ? x.dur * 1000 : LNG_CANCION_MS), 0) }));
   }catch(e){ lngLog('   ⚠️ revisando el TV: ' + (e.message || e)); lngResultado(false); }
   finally{ lng.ocupado = false; try{ vm().renderMusica(); }catch(e){} }
+}
+/* TV que no informa su estado: se sigue la cola por la duración REAL de cada video. La que según el
+   tiempo está sonando se muestra en «Sonando» y la que ya debió terminar pasa al historial. */
+function lngPorTiempo(enTV){
+  const c = lngCfg(), ahora = Date.now(), m = vm();
+  const suena = m.cola().find(x => x.status === 'playing' && x.fuente === 'tvyt');
+  // Desde cuándo empieza la siguiente: lo que sonaba, o el «cursor» (fin de la última), o el arranque de la cola.
+  let t = suena && suena.startedAt ? suena.startedAt : (c.cursor || c.arranco || 0);
+  if(!t) return;
+  const orden = (suena ? [suena] : []).concat(enTV.filter(x => !suena || x.id !== suena.id));
+  for(const x of orden){
+    const dur = (x.dur ? x.dur * 1000 : LNG_CANCION_MS) + 3000;   // +3 s: lo que tarda el TV en cargar cada una
+    if(ahora >= t + dur){ m.mzTermino(x.id, 'played', x.dur || null); t += dur; continue; }
+    if(x.status !== 'playing'){
+      m.mzEmpezo(x.id, 'tvyt');
+      const l = m.cola(), it = l.find(y => y.id === x.id); if(it){ it.startedAt = Math.min(t, ahora); SS('vito_cola', l); SS('vito_now', it); }
+    }
+    break;
+  }
+  SS(LNG_KEY, Object.assign(lngCfg(), { cursor: t }));
+  try{ m.renderMusica(); }catch(e){}
 }
 // «Saltar» en Vento cuando suena en el YouTube del TV: el TV pasa a la siguiente de su cola.
 function lngSaltar(){ if(lngOn()) lngCmd('next', {}).then(() => { lng.ultimoEnvio = Date.now(); }).catch(e => lngLog('   ⚠️ saltar: ' + (e.message || e))); }
@@ -22321,7 +22357,28 @@ function lngGuia(){
   }
   ov.classList.add('show');
 }
+/* Arreglo de datos (una vez, v1.17.8): las canciones que quedaron «en el TV» con las versiones
+   1.17.1–1.17.7 y nunca sonaron vuelven a la cola para mandarse bien (las de más de 3 h se cierran).
+   No se borra ninguna: las viejas quedan en el historial. */
+function lngArreglarDatos(){
+  try{
+    if(localStorage.getItem('vito_tvfix1')) return;
+    const l = vm().cola ? vm().cola() : []; let n = 0, v = 0;
+    l.forEach(x => {
+      if(x.lng && x.status === 'tv'){
+        if(Date.now() - (x.lngAt || x.ts || 0) < 3 * 36e5){ x.lng = false; x.done = false; x.status = x.ok ? 'approved' : 'pending'; delete x.lngAt; delete x.lngN; n++; }
+        else v++;
+      }
+    });
+    if(n) SS('vito_cola', l);
+    l.filter(x => x.lng && x.status === 'tv').forEach(x => vm().mzTermino(x.id, 'skipped'));
+    const c = lngCfg(); delete c.hasta; delete c.cursor; delete c.visto; SS(LNG_KEY, c);
+    localStorage.setItem('vito_tvfix1', String(Date.now()));
+    if(n || v) lngLog('arreglo de datos: ' + n + ' canciones vuelven a la cola' + (v ? ', ' + v + ' viejas al historial' : ''));
+  }catch(e){}
+}
 function iniLounge(){
+  lngArreglarDatos();
   const relay = document.getElementById('lngRelay'); if(!relay) return;
   relay.value = lngCfg().relay || '';
   relay.onchange = () => { const c = lngCfg(); c.relay = relay.value.trim().replace(/\/+$/, ''); if(c.relay && !/^https:\/\//.test(c.relay)) c.relay = 'https://' + c.relay.replace(/^\w+:\/\//, ''); relay.value = c.relay; SS(LNG_KEY, c); lngEstado(); };
