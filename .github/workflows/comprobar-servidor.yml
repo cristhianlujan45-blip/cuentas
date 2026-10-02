@@ -1,0 +1,75 @@
+# Comprueba que el Servidor Vento (Supabase) esté funcionando y seguro. Corre solo después de cada
+# despliegue y también a mano (Actions → Comprobar Servidor Vento → Run workflow). Solo lee: no cambia nada.
+name: Comprobar Servidor Vento
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Servidor Vento"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  comprobar:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'schedule')
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Revisión completa
+        run: |
+          set -u
+          if [ -z "$PROJECT_REF" ] || [ -z "$SUPABASE_ACCESS_TOKEN" ]; then echo "::error::Faltan los secretos de Supabase."; exit 1; fi
+          U="https://${PROJECT_REF}.supabase.co"; F="$U/functions/v1/vento-pagos"
+          K=$(supabase projects api-keys --project-ref "$PROJECT_REF" -o json | jq -r '[.[] | select(.name=="anon" or .type=="publishable")][0].api_key // empty')
+          ORIGEN="https://${GITHUB_REPOSITORY_OWNER,,}.github.io"
+          OK=0; MAL=0
+          prueba(){ if eval "$2"; then echo "✅ $1"; OK=$((OK+1)); else echo "❌ $1"; MAL=$((MAL+1)); fi; }
+          code(){ curl -s -o /tmp/r.txt -w '%{http_code}' "$@"; }
+          echo "== Servidor de pagos"
+          S=$(curl -fsS "$F/salud" || true); echo "   $S"
+          prueba "El servidor responde (salud)" '[[ "$S" == *"\"ok\":true"* ]]'
+          prueba "Tiene Wompi, Nequi Conecta y avisos" '[[ "$S" == *wompi* && "$S" == *nequi_conecta* && "$S" == *avisos_dispositivo* ]]'
+          P=$(curl -fsS "$F/push-clave" || true)
+          prueba "Llave de notificaciones push creada" '[[ "$P" == *"\"publica\":\""* ]]'
+          C=$(code -X POST "$F/config" -H "apikey: $K" -H 'content-type: application/json' -d '{"negocio":"x"}')
+          prueba "Sin sesión no deja configurar (401)" '[ "$C" = 401 ]'
+          C=$(code -X POST "$F/webhook/wompi/tokeninventado" -H 'content-type: application/json' -d '{"event":"transaction.updated","data":{},"signature":{"properties":[],"checksum":"x"},"timestamp":1}')
+          prueba "Webhook con token inventado → 404" '[ "$C" = 404 ]'
+          C=$(code -X POST "$F/aviso/tokeninventado000000000000" -d 'Nequi | x | JUAN te envió $1.000')
+          prueba "Aviso con token inventado → 401" '[ "$C" = 401 ]'
+          H=$(curl -s -o /dev/null -D - -X OPTIONS "$F/config" -H "Origin: $ORIGEN" -H 'Access-Control-Request-Method: POST' | tr -d '\r' | grep -i '^access-control-allow-origin:' || true)
+          prueba "CORS permite el sitio de Vento ($ORIGEN)" '[[ "$H" == *"$ORIGEN"* ]]'
+          H=$(curl -s -o /dev/null -D - -X OPTIONS "$F/config" -H 'Origin: https://sitio-malo.example' -H 'Access-Control-Request-Method: POST' | tr -d '\r' | grep -i '^access-control-allow-origin:' || true)
+          prueba "CORS bloquea otros sitios" '[ -z "$H" ]'
+          echo "== Base de datos y seguridad"
+          A=(-H "apikey: $K" -H "Authorization: Bearer $K")
+          C=$(code "$U/rest/v1/pago_proveedores?select=*" "${A[@]}")
+          prueba "Nadie de afuera lee las credenciales (pago_proveedores)" '[ "$C" != 200 ] || [ "$(cat /tmp/r.txt)" = "[]" ]'
+          C=$(code "$U/rest/v1/pagos?select=id&limit=1" "${A[@]}"); R=$(cat /tmp/r.txt)
+          prueba "Tabla pagos existe y sin sesión no muestra nada" '[ "$C" = 200 ] && [ "$R" = "[]" ] || [ "$C" = 401 ] || [ "$C" = 403 ]'
+          C=$(code -X POST "$U/rest/v1/rpc/srv_proveedor_por_token" "${A[@]}" -H 'content-type: application/json' -d '{"p_token":"x"}')
+          prueba "Funciones del servidor bloqueadas para la app" '[ "$C" != 200 ]'
+          C=$(code -X POST "$U/rest/v1/rpc/pagos_estado" "${A[@]}" -H 'content-type: application/json' -d '{"p_negocio":"00000000-0000-0000-0000-000000000000"}'); R=$(cat /tmp/r.txt)
+          prueba "Funciones de pagos instaladas (pagos_estado responde sin_permiso)" '[[ "$R" == *sin_permiso* || "$R" == *"permission denied"* ]]'
+          C=$(code -X POST "$U/rest/v1/rpc/mis_negocios" "${A[@]}" -H 'content-type: application/json' -d '{}')
+          prueba "Vento Nube instalada (mis_negocios existe)" '[ "$C" != 404 ]'
+          echo "== Migraciones aplicadas"
+          supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD" >/dev/null 2>&1 || true
+          M=$(supabase migration list --password "$SUPABASE_DB_PASSWORD" 2>/dev/null || true); echo "$M" | tail -6
+          prueba "Migración Vento Nube aplicada en Supabase" '[[ "$M" == *20261002000000*20261002000000* ]] || echo "$M" | grep -Eq "20261002000000 *\| *20261002000000"'
+          prueba "Migración de pagos aplicada en Supabase" '[[ "$M" == *20261002120000*20261002120000* ]] || echo "$M" | grep -Eq "20261002120000 *\| *20261002120000"'
+          echo "== Conexión de los celulares"
+          prueba "nube/config.js apunta a este proyecto" 'grep -q "$U" nube/config.js'
+          prueba "nube/config.js usa la clave PÚBLICA (nunca la secreta)" '! grep -Eq "sb_secret_|service_role" nube/config.js'
+          echo; echo "RESULTADO: $OK bien, $MAL mal"
+          echo "### Servidor Vento: $OK bien, $MAL mal" >> "$GITHUB_STEP_SUMMARY"
+          [ "$MAL" = 0 ]
