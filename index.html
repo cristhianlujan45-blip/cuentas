@@ -18569,9 +18569,8 @@ function reproducir(x){
 }
 /* ---------- Cronómetro: la siguiente canción sola ----------
    Al abrir una canción se cuenta su duración real (la que da YouTube; si no se sabe, 4 min).
-   Cuando se acaba, se abre la siguiente de la cola sin tocar nada. Si el celular no deja
-   abrir YouTube Music solo (pasa si Vento quedó atrás), apenas vuelvas a Vento se abre;
-   y si tampoco, sale un botón grande con vibración. */
+   Cuando se acaba, sale un botón grande con vibración: «▶ Siguiente canción». YouTube Music se
+   abre SOLO al tocarlo (abrirlo solo sacaba a Vento y lo reabría una y otra vez). */
 const MZ_AUTO_KEY='vito_mzauto',MZ_T_KEY='vito_mzt';
 const mzAutoOn=()=>LS(MZ_AUTO_KEY,{on:true}).on!==false;
 async function mzCronoIniciar(x){
@@ -18588,8 +18587,9 @@ async function mzCronoAvanzar(){
   // Sin video resuelto todavía: se busca antes de abrir (así va directo a la canción).
   if(!sig.vid&&!sig.novid&&yCfg().key){try{const v=await ySearch(sig.song);const l=cola(),it=l.find(y=>y.id===sig.id);if(it){if(v){it.vid=v;if(ytDurCache[v])it.dur=ytDurCache[v];sig.vid=v;sig.dur=it.dur;}else it.novid=true;SS('vito_cola',l);}}catch(e){}}
   SS(MZ_T_KEY,Object.assign({},LS(MZ_T_KEY,{}),{pend:sig.id}));
-  reproducir(sig);
-  setTimeout(()=>{ if(!document.hidden&&LS(MZ_T_KEY,{}).pend===sig.id) mzBotonGrande(sig); },1800);
+  // Ya NO se abre YouTube Music solo: eso sacaba a Vento y lo volvía a abrir cada vez que regresabas
+  // («la app se cierra y se abre Google»). Ahora se avisa con un botón grande y vibración; se abre al tocarlo.
+  mzBotonGrande(sig);
 }
 function mzBotonGrande(sig){
   let ov=$('mzGoOverlay');
@@ -18597,7 +18597,8 @@ function mzBotonGrande(sig){
     ov.innerHTML='<div class="modal" style="max-width:380px;text-align:center"><h2>🎵 Siguiente canción</h2><div class="modal-sub" id="mzGoTxt"></div><div class="modal-actions" style="flex-direction:column;gap:8px"><button class="btn-primary" id="mzGoBtn" type="button" style="width:100%;padding:16px;font-size:17px">▶ Ponerla en YouTube Music</button><button class="btn-close" id="mzGoNo" type="button">Ahora no</button></div></div>';
     document.body.appendChild(ov); $('mzGoNo').onclick=()=>ov.classList.remove('show');}
   $('mzGoTxt').textContent='«'+sig.song+'» · '+tableLabel(sig.mesa);
-  $('mzGoBtn').onclick=()=>{ov.classList.remove('show');ytOpenMusic(sig.vid,sig.song);};
+  $('mzGoBtn').onclick=()=>{ov.classList.remove('show');reproducir(sig);};
+  $('mzGoNo').onclick=()=>{ov.classList.remove('show');const t=LS(MZ_T_KEY,{});if(t&&t.pend===sig.id){delete t.pend;t.espera=false;t.fin=Date.now()+5*60000;SS(MZ_T_KEY,t);}};
   ov.classList.add('show'); try{navigator.vibrate&&navigator.vibrate([200,100,200]);}catch(e){}
 }
 function mzCronoPintar(){
@@ -21123,7 +21124,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.10';
+const MESORA_VERSION = '2026-10-02 · v1.10.1';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
