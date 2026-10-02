@@ -370,6 +370,9 @@
     configurada: configurada, abrir: abrir, cambio: cambio, subir: subir, bajar: bajar, estado: textoEstado,
     correo: function(){ return st.negocio ? st.email : null; },
     rolActivo: function(){ return st.negocio ? st.negocio.rol : null; },
+    // Para el módulo de pagos (nube/vento-pagos.js): mismo cliente, sesión y negocio.
+    negocio: function(){ return st.negocio && configurada() ? { id: st.negocio.id, nombre: st.negocio.nombre, rol: st.negocio.rol } : null; },
+    cliente: cliente, config: cfg,
     _fusionar: fusionar
   };
   if(st.negocio && configurada()){ if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar); else arrancar(); }

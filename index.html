@@ -4573,6 +4573,7 @@ export default {
 </div>
 <script src="nube/config.js"></script>
 <script src="nube/vento-nube.js"></script>
+<script src="nube/vento-pagos.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 /* ---------- Lluvia de código (fondo Matrix) ---------- */
@@ -17560,6 +17561,8 @@ bootApp();
       '.vito-pedido-card-acts .vito-ok{background:#3fa34d;color:#fff;}'+
       '.vito-pedido-card-acts .vito-no{background:#b0392f;color:#fff;}'+
       '.vito-campana-menu{max-height:min(72vh,calc(100dvh - 24px));box-sizing:border-box;}'+
+      '.vito-campana-menu.vc-movil,.vito-ajustes.vc-movil{right:auto!important;margin:0!important;transform:none!important;max-width:none!important;box-sizing:border-box!important;}'+
+      '.vito-campana-menu > *{min-width:0;max-width:100%;overflow-wrap:anywhere;box-sizing:border-box;}'+
       '.vito-ajustes{max-width:calc(100vw - 20px);box-sizing:border-box;}'+
       '.vito-ajustes{position:fixed;z-index:10000;background:#221c16;color:#f3e9d8;border:1px solid #6b5a44;border-radius:12px;padding:14px;display:none;flex-direction:column;gap:10px;min-width:230px;font-family:system-ui;}'+
       '.vito-ajustes label{display:flex;align-items:center;gap:8px;font-size:14px;}'+
@@ -17609,17 +17612,44 @@ bootApp();
       if(ajustesPanel.style.display==='flex' && !ajustesPanel.contains(e.target) && e.target!==bell) ajustesPanel.style.display='none';
     });
   }
+  // Ancho y alto que REALMENTE se ven. En algunos Android, si algo de la página queda más ancho que la
+  // pantalla, «innerWidth» crece (la página mide más de lo visible) y el panel se iba corrido a la derecha.
+  function vistaReal(){
+    const vv=window.visualViewport, de=document.documentElement;
+    const cands=[window.innerWidth, de.clientWidth||Infinity, vv?vv.width:Infinity];
+    if(window.matchMedia&&matchMedia('(pointer:coarse)').matches&&screen.width) cands.push(screen.width);
+    return { w:Math.min.apply(null,cands), h:vv?vv.height:window.innerHeight, x:vv?vv.offsetLeft:0, y:vv?vv.offsetTop:0 };
+  }
+  function corregirEnPantalla(panel,v,topDeseado){
+    for(let i=0;i<2;i++){
+      const rr=panel.getBoundingClientRect(), anchoQuiero=v.w-16;
+      if(!rr.width) return;
+      const escala=rr.width/(parseFloat(panel.style.width)||rr.width)||1;
+      const dx=rr.left-8, dy=rr.top-topDeseado, dw=rr.width-anchoQuiero;
+      if(Math.abs(dx)<=2&&Math.abs(dy)<=2&&Math.abs(dw)<=2) return;
+      panel.style.setProperty('width',(anchoQuiero/escala)+'px','important');
+      panel.style.setProperty('left',(parseFloat(panel.style.left)-dx/escala)+'px','important');
+      panel.style.setProperty('top',(parseFloat(panel.style.top)-dy/escala)+'px','important');
+    }
+  }
   function posicionarCerca(panel,anchoAprox){
-    const r=bell.getBoundingClientRect();
-    // Celular: panel centrado con el mismo margen a los dos lados y sin meterse debajo de la barra de abajo.
-    if(window.innerWidth<600){
+    const r=bell.getBoundingClientRect(), v=vistaReal();
+    // Celular: panel centrado en lo que se ve, con el mismo margen a los dos lados y sin meterse debajo de la barra de abajo.
+    if(v.w<600){
       const tb=document.getElementById('tabbar'),abajo=(tb&&getComputedStyle(tb).position==='fixed')?tb.offsetHeight:0;
-      const top=Math.max(8,r.bottom+8);
-      panel.style.width=(window.innerWidth-16)+'px';panel.style.left='8px';panel.style.top=top+'px';
-      panel.style.maxHeight=Math.max(200,window.innerHeight-top-abajo-12)+'px';
+      const top=Math.max(v.y+8,r.bottom+8);
+      panel.classList.add('vc-movil');
+      panel.style.setProperty('width',(v.w-16)+'px','important');
+      panel.style.setProperty('left',(v.x+8)+'px','important');
+      panel.style.setProperty('top',top+'px','important');
+      panel.style.setProperty('max-height',Math.max(200,v.y+v.h-top-abajo-12)+'px','important');
+      // Comprobación final: se mide dónde quedó DE VERDAD en la pantalla y se corrige. Cubre temas con fondos o
+      // efectos que cambian la referencia de «position:fixed», letra grande, zoom del celular, etc.
+      corregirEnPantalla(panel,v,top);
       return;
     }
-    panel.style.width='';panel.style.maxHeight='';
+    panel.classList.remove('vc-movil');
+    ['width','left','top','max-height'].forEach(k=>panel.style.removeProperty(k));
     let left=r.right-anchoAprox, top=r.top-8-panel.offsetHeight;
     if(top<8) top=r.bottom+8;
     top=Math.max(8,Math.min(top,window.innerHeight-panel.offsetHeight-8));
@@ -17629,6 +17659,10 @@ bootApp();
   }
   function panelAncho(){ return Math.min(340,window.innerWidth-20); }
   function openMenuNearBell(){ menu.style.display='flex'; renderPanel(); posicionarCerca(menu,panelAncho()); }
+  // Si el celular gira, sale el teclado o la vista se mueve, el panel abierto se vuelve a acomodar.
+  function reacomodar(){ if(menu&&menu.style.display==='flex') posicionarCerca(menu,panelAncho()); if(ajustesPanel&&ajustesPanel.style.display==='flex') posicionarCerca(ajustesPanel,230); }
+  window.addEventListener('resize',reacomodar);
+  if(window.visualViewport){ visualViewport.addEventListener('resize',reacomodar); visualViewport.addEventListener('scroll',reacomodar); }
 
   /* ---------- Panel de la campanita: pedidos por enviar + historial (recibido / enviado) ---------- */
   function fmtHora(ts){
@@ -21214,7 +21248,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.15.1';
+const MESORA_VERSION = '2026-10-02 · v1.16';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -25018,12 +25052,22 @@ window.mesoraCelebrar = function(emojis){
       (sug ? '<button type="button" class="btn-primary pago-go" data-m="' + sug + '">Registrar en ' + esc(tableLabel(sug)) + ' (debe ' + plata(saldoDe(sug)) + ')</button>' : '') +
       (mesas.length ? '<div class="pago-otra"><select id="pagoMesaSel" class="mz-in">' + (sug ? '' : '<option value="">¿De qué cuenta es?</option>') + op + '</select><button type="button" class="btn-ghost" id="pagoOtraBtn">' + (sug ? 'Es de otra' : 'Registrar') + '</button></div>' : '<div class="modal-sub">No hay cuentas abiertas con saldo: queda guardado en «💜 Pagos».</div>') +
       '<div class="modal-actions"><button type="button" class="btn-close" id="pagoSolo">Solo guardar</button></div></div>';
-    const fin = m => { showToast(registrar(x, m), 7000); ov.classList.remove('show'); };
+    const fin = m => {
+      ov.classList.remove('show');
+      // Pago del Servidor Vento: el servidor deja registrarlo una sola vez aunque esté abierto en varios celulares.
+      if(x.srv && window.ventoPagosAntesDeRegistrar) return window.ventoPagosAntesDeRegistrar(x, m).then(gane => {
+        if(gane === false){ x.aplicado = x.aplicado || m; saveData(); showToast('Ese pago ya lo registró otro celular.', 6000); }
+        else showToast(registrar(x, m), 7000);
+      });
+      showToast(registrar(x, m), 7000);
+    };
     const go = ov.querySelector('.pago-go'); if(go) go.onclick = () => fin(+go.dataset.m);
     const ob = ov.querySelector('#pagoOtraBtn'); if(ob) ob.onclick = () => { const v = +ov.querySelector('#pagoMesaSel').value; if(!v) return showToast('Elige la cuenta.'); fin(v); };
     ov.querySelector('#pagoSolo').onclick = () => { x.ignorado = true; saveData(); ov.classList.remove('show'); try{ window.layaPintarTarjeta && window.layaPintarTarjeta(); }catch(e){} };
     ov.classList.add('show');
   };
+
+  window.pagoRegistrar = registrar;   // lo usa nube/vento-pagos.js cuando el servidor confirma un cobro de la cuenta
 
   // ---------- Resumen (lo usa Laya) ----------
   window.pagosResumen = function(pe, mesa){

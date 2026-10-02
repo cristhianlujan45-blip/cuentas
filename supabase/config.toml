@@ -1,0 +1,7 @@
+# Configuración del proyecto de Supabase para el CLI (la usa .github/workflows/servidor-vento.yml).
+project_id = "vento"
+
+[functions.vento-pagos]
+# El webhook de Wompi y los avisos del celular no traen sesión de Supabase: la función valida
+# la firma de Wompi / el token del dispositivo / la sesión del usuario por su cuenta.
+verify_jwt = false

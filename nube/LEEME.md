@@ -9,6 +9,8 @@ La base de datos es **Supabase**: PostgreSQL gratis con usuarios incluidos. Func
 
 Es opcional: si no se configura, Vento sigue funcionando igual, todo en el celular.
 
+> **Nuevo (1.16): despliegue automático.** Si agregas los secretos `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF` y `SUPABASE_DB_PASSWORD` en GitHub (Settings → Secrets and variables → Actions), el flujo **Actions → Servidor Vento** hace solo los pasos 1.2 y 2. Crea las tablas, sube el servidor de pagos de Nequi y DaviPlata, y conecta todos los celulares. Ver [`supabase/LEEME.md`](../supabase/LEEME.md).
+
 ## 1. Crear la base de datos (una sola vez, unos 5 minutos)
 
 1. **Crear el proyecto.**
