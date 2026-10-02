@@ -3324,6 +3324,15 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
     </div>
 
     <div class="settings-group" hidden data-cat="voz">
+      <h2>🗣️ Voz de la app</h2>
+      <div class="settings-desc">La voz con la que habla Laya y anuncia pedidos. Las marcadas con ⭐ son las más naturales de este celular. Si todas suenan robóticas, instala o actualiza «Servicios de voz de Google» y descarga la voz en español de alta calidad (Ajustes del celular → Texto a voz).</div>
+      <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
+        <select id="vozSel" class="mz-in"></select>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px">Velocidad <input type="range" id="vozVel" min="0.8" max="1.25" step="0.05" style="flex:1"> <span id="vozVelTxt"></span></label>
+        <button type="button" class="btn-ghost" id="vozProbar">🔊 Probar la voz</button>
+      </div>
+    </div>
+    <div class="settings-group" hidden data-cat="voz">
       <h2>Micrófono</h2>
       <div class="settings-desc">Activa o desactiva el botón flotante de comando por voz.</div>
       <div class="settings-row">
@@ -6267,6 +6276,37 @@ function applyVoiceItems(tableId, items, mode){
 }
 
 let voiceMalePreferred = true;
+/* Voz de la app (Laya, pedidos, avisos): se elige la voz más NATURAL que tenga el celular — las «Google»,
+   «Natural», «Neural», «Premium/Mejorada» — prefiriendo español de Latinoamérica, y sin bajarle el tono
+   (antes se ponía tono 0,82 para que sonara masculina y eso la hacía sonar robótica). Se puede elegir otra
+   en Ajustes → Voz. */
+const VOZ_KEY = 'vento_voz';
+const vozCfg = () => { try{ return JSON.parse(localStorage.getItem(VOZ_KEY)) || {}; }catch(e){ return {}; } };
+function vozPuntaje(v){
+  const n = (v.name || '') + ' ' + (v.voiceURI || ''), l = String(v.lang || '').replace('_', '-');
+  let s = /^es/i.test(l) ? 10 : 0;
+  if(/^es-CO/i.test(l)) s += 6; else if(/^es-(US|MX|419|AR|CL|PE)/i.test(l)) s += 5; else if(/^es-ES/i.test(l)) s += 3;
+  if(/natural|neural|premium|enhanced|mejorad|wavenet|studio|online/i.test(n)) s += 20;
+  if(/google/i.test(n)) s += 8;
+  if(/compact|espeak|robot|eloquence/i.test(n)) s -= 15;
+  if(v.localService === false) s += 2;
+  return s;
+}
+function vocesEspanol(){
+  if(!('speechSynthesis' in window)) return [];
+  const vs = (speechSynthesis.getVoices() || []).filter(v => /^es/i.test(v.lang || '') || /español|spanish/i.test(v.name || ''));
+  return vs.sort((a, b) => vozPuntaje(b) - vozPuntaje(a));
+}
+function vozElegida(){ const c = vozCfg(), l = vocesEspanol(); return (c.uri && l.find(v => v.voiceURI === c.uri)) || l[0] || null; }
+window.ventoHablar = function(texto, o){
+  o = o || {};
+  if(!('speechSynthesis' in window) || !texto) return;
+  if(!o.enCola) speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(String(texto)), v = vozElegida(), c = vozCfg();
+  u.lang = 'es-CO'; if(v){ try{ u.voice = v; u.lang = v.lang; }catch(e){} }
+  u.rate = c.vel || 1; u.pitch = 1; u.volume = o.volumen != null ? o.volumen : 1;
+  speechSynthesis.speak(u);
+};
 
 function getPreferredMaleVoice(){
   if(!('speechSynthesis' in window)) return null;
@@ -6282,14 +6322,7 @@ function speakVoice(text){
   try{
     if(!('speechSynthesis' in window)) return;
     try{ text = vocabTexto(text); }catch(e){}
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = 'es-CO';
-    utter.rate = 0.96;
-    utter.pitch = voiceMalePreferred ? 0.82 : 1;
-    const v = getPreferredMaleVoice();
-    if(v) utter.voice = v;
-    window.speechSynthesis.speak(utter);
+    window.ventoHablar(text);
   }catch(e){}
 }
 
@@ -6843,6 +6876,15 @@ async function handleVoiceTranscript(rawText){
       if(!rawText.trim()) return;
     }
     if(isVoiceHelpCommand(rawText)){ voiceAyuda(); return; }
+    // Cuentas por voz con el micrófono principal: «súmame 3500 más 4000 y multiplícame 5000 por 2».
+    // Solo si se pidió una cuenta (súmame, multiplícame, divídeme, réstame, cuánto es…) y no se nombró una
+    // mesa ni un producto (así «súmale 2 Águilas a la mesa 3» sigue siendo un pedido).
+    try{
+      const tn = String(rawText).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const nombraAlgo = /\b(mesa|meza|cuenta|silla|habitacion|pedido|ronda)\b/.test(tn) || data.products.some(p => { const w = String(p.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/\s+/).filter(x => x.length > 3 && !/^(lata|botella|cerveza|litro|unidad)$/.test(x)); return w.some(x => new RegExp('\\b' + x.replace(/[^a-z0-9]/g, '') + 's?\\b').test(tn)); });
+      const calc = !nombraAlgo && window.ventoCalcular && window.ventoCalcular(rawText, true);
+      if(calc){ showToast(calc.texto, 12000); speakVoice(calc.voz); return; }
+    }catch(e){}
     if(window.libretaVoz && window.libretaVoz(rawText)) return;   // «Juan me debe 20 mil», «agrégame a la lista negra…»
     if(/\b(libreta|cuaderno)\b/i.test(rawText) && window.libretaAbrir){ window.libretaAbrir(); return; }
     if(handleSimpleVoiceCommands(rawText)) return;
@@ -17419,9 +17461,7 @@ bootApp();
       const cfg=getCfg();
       if(!cfg.voz) return;
       if(!('speechSynthesis' in window)) return;
-      const u=new SpeechSynthesisUtterance(texto);
-      u.lang='es-CO'; u.rate=1; u.volume=Math.max(0,Math.min(1,cfg.volumen));
-      speechSynthesis.speak(u);
+      if(window.ventoHablar) window.ventoHablar(texto,{enCola:true,volumen:Math.max(0,Math.min(1,cfg.volumen))});
     }catch(e){}
   }
 
@@ -21167,7 +21207,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.12';
+const MESORA_VERSION = '2026-10-02 · v1.13';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22485,6 +22525,60 @@ let fotosListas = false;
     if(r.err) return r.err;
     return r.detalle + ' = ' + numFmt(r.acc);
   }
+  /* Calculadora por voz «de varias cuentas»: «súmame 3500 más 4000 y multiplícame 5000 por 2 o 6000 por 2»
+     → 3.500 + 4.000 = 7.500 · 5.000 × 2 = 10.000 · 6.000 × 2 = 12.000. Cada cuenta se separa por «y», «o»,
+     «luego», «después»…; el verbo da la operación («multiplícame 5000 y 2» también es ×) y las palabras o signos
+     entre números la cambian (más, menos, por, x, entre, dividido, +, −, ×, ÷, /). Se resuelve de izquierda a
+     derecha, como se hace a mano. La usan el micrófono principal, la libreta y Laya. */
+  const CALC_VERBO = /\b(sumame|sumale|sumeme|suma|sumar|sume|restame|restale|resta|restar|reste|multiplicame|multiplicale|multiplica|multiplicar|multiplique|divideme|dividele|divide|dividir|divida|cuanto es|cuanto son|cuanto da|cuanto dan|calcula|calculame|calcule)\b/;
+  function calcPrepara(raw){
+    let s = String(raw || '');
+    for(let k = 0; k < 6; k++){ const a = s;
+      s = s.replace(/(\d)\s*[x×*]\s*(\d)/gi, '$1 por $2').replace(/(\d)\s*[\/÷]\s*(\d)/g, '$1 entre $2').replace(/(\d)\s*\+\s*(\d)/g, '$1 mas $2').replace(/(\d)\s+[-−]\s*(\d)/g, '$1 menos $2');
+      if(s === a) break; }
+    return lbNorm(s).replace(/\bmultiplicado por\b/g, 'por').replace(/\bdividido (?:por|entre)\b/g, 'entre');
+  }
+  function calcUna(seg){
+    const { w, runs } = lbRuns(seg);
+    if(runs.length < 2) return null;
+    const v = (seg.match(CALC_VERBO) || [''])[0];
+    const def = /^rest/.test(v) ? '-' : /^multipl/.test(v) ? '×' : /^divid/.test(v) ? '÷' : '+';
+    // Se multiplica y divide primero, después se suma y resta (como una calculadora normal):
+    // «3 por 4000 más 2 por 3500» = 12.000 + 7.000 = 19.000 (3 cervezas a 4.000 y 2 a 3.500).
+    let det = numFmt(runs[0].v), voz = numFmt(runs[0].v);
+    const PAL = { '+': 'más', '-': 'menos', '×': 'por', '÷': 'entre' };
+    const terminos = [[1, runs[0].v]];                  // [signo, valor] de cada sumando
+    for(let k = 1; k < runs.length; k++){
+      const entre = w.slice(runs[k - 1].j, runs[k].i).join(' ');
+      let op = def;
+      if(/\b(menos|resta|restale|restando|quitale)\b/.test(entre)) op = '-';
+      else if(/\b(por|x|veces|multiplicado)\b/.test(entre)) op = '×';
+      else if(/\b(entre|dividido|divide|sobre)\b/.test(entre)) op = '÷';
+      else if(/\b(mas|sumale|suma)\b/.test(entre)) op = '+';
+      const b = runs[k].v;
+      if(op === '÷' && b === 0) return { det: 'No se puede dividir entre cero', voz: 'No se puede dividir entre cero' };
+      const ult = terminos[terminos.length - 1];
+      if(op === '×') ult[1] *= b; else if(op === '÷') ult[1] /= b; else terminos.push([op === '-' ? -1 : 1, b]);
+      det += ' ' + op + ' ' + numFmt(b); voz += ' ' + PAL[op] + ' ' + numFmt(b);
+    }
+    const acc = terminos.reduce((x, t) => x + t[0] * t[1], 0);
+    return { det: det + ' = ' + numFmt(acc), voz: voz + ' son ' + numFmt(acc), acc };
+  }
+  window.ventoCalcular = function(raw, exigirVerbo){
+    const t = calcPrepara(raw);
+    if(exigirVerbo && !CALC_VERBO.test(t)) return null;
+    const piezas = t.split(/\s(?:y luego|y despues|y tambien|luego|despues|tambien|ademas|aparte|y|o)\s/);
+    const segs = [];
+    piezas.forEach(p => {
+      const n = lbRuns(p).runs.length, cur = segs[segs.length - 1];
+      const nueva = CALC_VERBO.test(p) || (cur && cur.n >= 2 && n >= 2 && /\b(mas|menos|por|x|veces|entre|dividido)\b/.test(p));
+      if(!cur || nueva) segs.push({ t: p, n });
+      else { cur.t += ' junto ' + p; cur.n += n; }               // «súmame 3500 y 4000»: el «y» une números de la misma cuenta
+    });
+    const res = segs.map(x => calcUna(x.t)).filter(Boolean);
+    if(!res.length) return null;
+    return { texto: '🧮 ' + res.map(r => r.det).join('\n🧮 '), voz: res.map(r => r.voz).join('. ') + '.', valores: res.map(r => r.acc) };
+  };
   function lbCalcValor(t){   // solo el número final (uno o varios valores combinados), para sumarlo/restarlo a lbCuenta
     const r = lbCalcPasos(t);
     if(!r || r.err) return null;
@@ -22609,6 +22703,7 @@ let fotosListas = false;
     const esDeuda = /\b(debe|deben|debia|debiendo|pague|pago|pagaron|paga|fiado|fiar|fie|fio|preste|abono|abonar|sueldo|nomina|quincena|jornal)\b/.test(t);
     if(/\b(cuanto es|cuanto da|cuanto son|cuanto queda|cuanto suman|cuanto vale|cuanto valen|calcula|calculame)\b/.test(t) ||
        (/\b(mas|menos|por|multiplicado|dividido|entre)\b/.test(t) && lbRuns(t).runs.length >= 2 && !esDeuda)){
+      const r2 = window.ventoCalcular(t); if(r2) return { texto: r2.texto.replace(/🧮 /g, ''), voz: r2.voz };
       const r = lbCalc(t);
       if(r) return { texto: r };
     }
@@ -24682,6 +24777,8 @@ window.mesoraCelebrar = function(emojis){
     if(!listo()) return null;
     const t = N(raw).replace(/^(oye |hola |ey |hey )?laya\b ?/, '');
     if(!t) return null;
+    // Cuentas: «Laya, súmame 3500 más 4000 y multiplícame 5000 por 2»
+    if(window.ventoCalcular && !/\b(mesa|cuenta de|pedido)\b/.test(t)){ const c = window.ventoCalcular(raw.replace(/^\s*(oye\s+|hola\s+)?laya[\s,]*/i, ''), true); if(c) return { text: c.texto }; }
     const pe = periodo(t);
     if(/\b(ganancia|ganancias|utilidad|cuanto gane|cuanto he ganado|cuanto ganamos|me gane|rentabilidad|margen de hoy)\b/.test(t)){
       const v = ventas(pe.ini, pe.fin); reg('consulta', 'Ganancia ' + pe.txt);
@@ -24832,6 +24929,25 @@ window.mesoraCelebrar = function(emojis){
     '.ll-tabla{display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow:auto;margin:8px 0}.ll-fila{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px}' +
     '.ll-fila span{flex:1;min-width:0}.ll-fila small{display:block;color:var(--ink-soft);font-size:12px}.ll-fila input{width:70px;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2,transparent);color:inherit;font-size:16px;text-align:center}';
   document.head.appendChild(st);
+})();
+</script>
+<script>
+/* Ajustes → Voz: lista de voces en español (las más naturales primero) */
+(function(){
+  const sel = document.getElementById('vozSel'); if(!sel || !('speechSynthesis' in window)) return;
+  const vel = document.getElementById('vozVel'), velT = document.getElementById('vozVelTxt');
+  const guardar = c => { try{ localStorage.setItem(VOZ_KEY, JSON.stringify(Object.assign({}, vozCfg(), c))); }catch(e){} };
+  function pintar(){
+    const l = vocesEspanol(), elegida = vozElegida(), c = vozCfg();
+    sel.innerHTML = l.length ? l.map(v => '<option value="' + String(v.voiceURI).replace(/"/g, '&quot;') + '"' + (elegida && v.voiceURI === elegida.voiceURI ? ' selected' : '') + '>' + (vozPuntaje(v) >= 30 ? '⭐ ' : '') + v.name.replace(/[<>]/g, '') + ' (' + v.lang + ')</option>').join('') : '<option>No hay voces en español en este navegador</option>';
+    vel.value = c.vel || 1; velT.textContent = Math.round((c.vel || 1) * 100) + '%';
+  }
+  sel.onchange = () => { guardar({ uri: sel.value }); window.ventoHablar('Hola, soy Laya. Así sueno ahora.'); };
+  vel.oninput = () => { guardar({ vel: +vel.value }); velT.textContent = Math.round(vel.value * 100) + '%'; };
+  document.getElementById('vozProbar').onclick = () => window.ventoHablar('Hola, soy Laya. Mesa tres: dos Águilas y una Poker. Total, doce mil pesos.');
+  speechSynthesis.addEventListener ? speechSynthesis.addEventListener('voiceschanged', pintar) : (speechSynthesis.onvoiceschanged = pintar);
+  document.addEventListener('click', e => { if(e.target.closest && e.target.closest('.ajustes-cat[data-cat="voz"]')) setTimeout(pintar, 50); });
+  pintar();
 })();
 </script>
 </body>
