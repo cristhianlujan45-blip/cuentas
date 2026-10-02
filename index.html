@@ -17563,7 +17563,29 @@ bootApp();
       '.vito-pedido-card-acts .vito-ok{background:#3fa34d;color:#fff;}'+
       '.vito-pedido-card-acts .vito-no{background:#b0392f;color:#fff;}'+
       '.vito-campana-menu{max-height:min(72vh,calc(100dvh - 24px));box-sizing:border-box;}'+
-      '.vito-campana-menu.vc-movil,.vito-ajustes.vc-movil{left:8px!important;right:8px!important;width:auto!important;min-width:0!important;max-width:none!important;margin:0!important;transform:none!important;box-sizing:border-box!important;}'+
+      '.vito-campana-menu.vc-movil,.vito-ajustes.vc-movil{left:8px!important;right:8px!important;width:auto!important;min-width:0!important;max-width:none!important;margin:0!important;box-sizing:border-box!important;}'+
+      /* Computador: los accesos rápidos son botones con su texto completo */
+      '.vc-rapido .vc-corto{display:none}.vc-rapido .vc-ic{margin-right:6px}.vc-asa{display:none}.vc-fondo{display:none}'+
+      /* Celular: panel de notificaciones estilo Android / iPhone */
+      'html body .vito-campana-menu.vc-movil{top:calc(env(safe-area-inset-top,0px) + 8px)!important;flex-direction:row!important;flex-wrap:wrap;align-content:flex-start;gap:10px 8px!important;padding:14px 12px 6px!important;border-radius:26px!important;background:color-mix(in srgb,var(--surface,#1b1b22) 86%,transparent)!important;-webkit-backdrop-filter:blur(22px) saturate(1.3);backdrop-filter:blur(22px) saturate(1.3);border:1px solid color-mix(in srgb,var(--ink,#fff) 12%,transparent)!important;box-shadow:0 24px 60px rgba(0,0,0,.55)!important;overscroll-behavior:contain;}'+
+      '.vito-campana-menu.vc-movil.vc-entra{animation:vcBaja .28s cubic-bezier(.2,.9,.25,1) both}@keyframes vcBaja{from{opacity:0;translate:0 -40px}to{opacity:1;translate:0 0}}'+
+      'html body .vito-campana-menu.vc-movil > button.vc-rapido{order:-1;flex:1 1 0;min-width:0;display:flex!important;flex-direction:column;align-items:center;gap:6px;margin:0!important;padding:4px 0 2px!important;border:0!important;background:transparent!important;text-align:center;font-size:12px!important;font-weight:600;line-height:1.15;}'+
+      'html body .vito-campana-menu.vc-movil > button.vc-rapido[hidden]{display:none!important}'+
+      '.vito-campana-menu.vc-movil .vc-rapido .vc-ic{margin:0;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;font-size:24px;background:color-mix(in srgb,var(--amber,#8b5cf6) 22%,transparent);border:1px solid color-mix(in srgb,var(--amber,#8b5cf6) 40%,transparent);transition:transform .12s}'+
+      '.vito-campana-menu.vc-movil .vc-rapido:active .vc-ic{transform:scale(.92)}'+
+      '.vito-campana-menu.vc-movil .vc-rapido .vc-largo{display:none}.vito-campana-menu.vc-movil .vc-rapido .vc-corto{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-soft,#bbb)}'+
+      '.vito-campana-menu.vc-movil > div:not(.vc-asa){flex:1 1 100%;min-width:0;}'+
+      '.vito-campana-menu.vc-movil .vito-np-sec:first-child{font-size:20px!important;font-weight:800!important;letter-spacing:0!important;text-transform:none!important;margin:2px 4px 0!important;opacity:1!important;color:var(--ink,#fff)!important}'+
+      '.vito-campana-menu.vc-movil .vito-np-sec:not(:first-child){font-size:12px!important;margin:6px 6px 0!important}'+
+      '.vc-asa{flex:1 1 100%!important;height:22px;place-items:center;cursor:grab;touch-action:none}.vito-campana-menu.vc-movil .vc-asa{display:grid}.vc-asa::before{content:"";width:44px;height:5px;border-radius:3px;background:color-mix(in srgb,var(--ink,#fff) 35%,transparent)}'+
+      '.vc-fondo{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}.vc-fondo.on{display:block;animation:vcFade .2s both}@keyframes vcFade{from{opacity:0}to{opacity:1}}'+
+      /* Tarjetas: ícono redondo + estado y hora + mesa + pedido */
+      '.vito-np-item{display:flex;gap:12px;align-items:flex-start}.vito-np-cont{flex:1;min-width:0}'+
+      '.vito-np-ic{flex:0 0 auto;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:19px;background:color-mix(in srgb,var(--ink,#fff) 8%,transparent)}'+
+      '.vito-np-item.recibido .vito-np-ic{background:color-mix(in srgb,#f5a524 24%,transparent)}.vito-np-item.enviado .vito-np-ic{background:color-mix(in srgb,#22c55e 24%,transparent)}.vito-np-item.rechazado .vito-np-ic{background:color-mix(in srgb,#e5484d 24%,transparent)}'+
+      'html body .vito-campana-menu.vc-movil .vito-np-item{border-radius:20px!important;padding:12px 14px!important;border:0!important;background:color-mix(in srgb,var(--surface-2,#26262f) 92%,transparent)!important;box-shadow:0 1px 0 color-mix(in srgb,var(--ink,#fff) 6%,transparent) inset}'+
+      'html body .vito-campana-menu.vc-movil .vito-np-item::before{display:none}'+
+      '@media (prefers-reduced-motion:reduce){.vito-campana-menu.vc-movil.vc-entra{animation:none}}'+
       '.vito-campana-menu > *{min-width:0;max-width:100%;overflow-wrap:break-word;word-break:normal;box-sizing:border-box;}'+
       '.vito-ajustes{max-width:calc(100vw - 20px);box-sizing:border-box;}'+
       '.vito-ajustes{position:fixed;z-index:10000;background:#221c16;color:#f3e9d8;border:1px solid #6b5a44;border-radius:12px;padding:14px;display:none;flex-direction:column;gap:10px;min-width:230px;font-family:system-ui;}'+
@@ -17579,18 +17601,38 @@ bootApp();
     cardsWrap=document.createElement('div'); cardsWrap.className='vito-pedidos-cards';
     document.body.appendChild(cardsWrap);
     menu=document.createElement('div'); menu.className='vito-campana-menu';
-    const bPed=document.createElement('button'); bPed.textContent='📝 Pegar pedido de WhatsApp';
+    // Accesos rápidos: en computador se ven como botones con texto; en el celular, como los cuadritos de
+    // ajustes rápidos del panel de notificaciones (ícono redondo + nombre corto).
+    function rapido(b,ic,largo,corto){ b.classList.add('vc-rapido'); b.innerHTML='<span class="vc-ic">'+ic+'</span><span class="vc-largo">'+largo+'</span><span class="vc-corto">'+corto+'</span>'; b.title=largo; b.setAttribute('aria-label',largo); }
+    const bPed=document.createElement('button'); rapido(bPed,'📝','Pegar pedido de WhatsApp','Pedido');
     bPed.onclick=()=>{menu.style.display='none';if(window.vitoAbrirPedidos)window.vitoAbrirPedidos();};
-    const bMus=document.createElement('button'); bMus.textContent='🎵 Ver cola de música'; bMus.dataset.mus='1';
+    const bMus=document.createElement('button'); rapido(bMus,'🎵','Ver cola de música','Música'); bMus.dataset.mus='1';
     try{ bMus.hidden=!musicaOn(); }catch(e){}   // este menú se arma después del arranque
     bMus.onclick=()=>{menu.style.display='none';const nv=document.querySelector('nav button[data-view="musica"]');if(nv)nv.click();};
-    const bAdj=document.createElement('button'); bAdj.textContent='🔊 Ajustes de voz';
+    const bAdj=document.createElement('button'); rapido(bAdj,'🔊','Ajustes de voz','Voz');
     bAdj.onclick=()=>{menu.style.display='none';abrirAjustes();};
     panelBody=document.createElement('div'); panelBody.style.cssText='display:flex;flex-direction:column;gap:6px;';
-    const bClr=document.createElement('button'); bClr.textContent='🗑 Borrar historial';
+    const bClr=document.createElement('button'); rapido(bClr,'🗑','Borrar historial','Borrar');
     bClr.onclick=()=>{ if(window.vitoBorrarLog) window.vitoBorrarLog(); renderPanel(); };
-    menu.append(panelBody,bPed,bMus,bAdj,bClr);
+    // Asa para cerrar deslizando hacia arriba (como el panel de notificaciones del celular)
+    const asa=document.createElement('div'); asa.className='vc-asa'; asa.setAttribute('aria-label','Cerrar notificaciones'); asa.setAttribute('role','button');
+    asa.onclick=()=>{menu.style.display='none';};
+    menu.append(panelBody,bPed,bMus,bAdj,bClr,asa);
     document.body.appendChild(menu);
+    // Fondo oscuro detrás del panel en el celular (tocarlo cierra)
+    const fondo=document.createElement('div'); fondo.className='vc-fondo'; document.body.appendChild(fondo);
+    fondo.addEventListener('click',()=>{menu.style.display='none';});
+    new MutationObserver(()=>{
+      const abierto=menu.style.display==='flex'&&menu.classList.contains('vc-movil');
+      fondo.classList.toggle('on',abierto);
+      if(abierto&&!menu.dataset.anim){ menu.dataset.anim='1'; menu.classList.remove('vc-entra'); void menu.offsetWidth; menu.classList.add('vc-entra'); }
+      if(menu.style.display!=='flex') delete menu.dataset.anim;
+    }).observe(menu,{attributes:true,attributeFilter:['style','class']});
+    // Deslizar hacia arriba para cerrar (desde el asa, o cuando ya se llegó al final de la lista)
+    let y0=null;
+    menu.addEventListener('touchstart',e=>{ const fin=menu.scrollTop+menu.clientHeight>=menu.scrollHeight-2; y0=(e.target.closest('.vc-asa')||fin)?e.touches[0].clientY:null; },{passive:true});
+    menu.addEventListener('touchmove',e=>{ if(y0==null)return; const dy=e.touches[0].clientY-y0; if(dy<0) menu.style.translate='0 '+Math.max(dy,-160)+'px'; },{passive:true});
+    menu.addEventListener('touchend',e=>{ if(y0==null)return; const dy=(e.changedTouches[0]||{}).clientY-y0; y0=null; menu.style.translate=''; if(dy<-60) menu.style.display='none'; },{passive:true});
 
     ajustesPanel=document.createElement('div'); ajustesPanel.className='vito-ajustes';
     const cfg=getCfg();
@@ -17630,8 +17672,7 @@ bootApp();
     const esCel=v.w<600||mm('(max-width:599px)')||(mm('(pointer:coarse)')&&screen.width&&Math.min(screen.width,screen.height)<600);
     if(esCel){
       const tb=document.getElementById('tabbar'),abajo=(tb&&getComputedStyle(tb).position==='fixed')?tb.offsetHeight:0;
-      let top=r.bottom+8;
-      if(!(top>=8&&top<=window.innerHeight*0.5)) top=72;
+      const top=8;   // baja desde arriba, sobre el encabezado (como el panel de notificaciones del celular)
       panel.classList.add('vc-movil');
       ['width','left'].forEach(k=>panel.style.removeProperty(k));
       panel.style.setProperty('top',top+'px','important');
@@ -17678,13 +17719,17 @@ bootApp();
       // Tarjeta en 3 líneas: estado + hora / mesa en grande / qué pidieron (no se amontona en celulares).
       const d=document.createElement('div'); d.className='vito-np-item '+cls;
       const partes=String(titulo).split(' · ');
+      const em=(partes[0].match(/^(\S+)\s+(.*)$/)||[]);
+      const ic=document.createElement('span'); ic.className='vito-np-ic'; ic.textContent=em[1]||'🔔'; ic.setAttribute('aria-hidden','true');
+      const cont=document.createElement('div'); cont.className='vito-np-cont';
       const top=document.createElement('div'); top.className='vito-np-top';
-      const a=document.createElement('span'); a.textContent=partes[0];
+      const a=document.createElement('span'); a.textContent=em[2]||partes[0];
       const b=document.createElement('span'); b.className='vito-np-time'; b.textContent=hora;
-      top.append(a,b); d.appendChild(top);
-      if(partes.length>1){ const m=document.createElement('div'); m.className='vito-np-mesa'; m.textContent=partes.slice(1).join(' · '); d.appendChild(m); }
+      top.append(a,b); cont.appendChild(top);
+      if(partes.length>1){ const m=document.createElement('div'); m.className='vito-np-mesa'; m.textContent=partes.slice(1).join(' · '); cont.appendChild(m); }
       const body=document.createElement('div'); body.className='vito-np-body'; body.textContent=texto||'—';
-      d.appendChild(body);
+      cont.appendChild(body);
+      d.append(ic,cont);
       return d;
     };
     panelBody.appendChild(sec('🔔 Notificaciones'));
@@ -17697,7 +17742,7 @@ bootApp();
         bOk.onclick=()=>aceptarPedido(it.id);
         const bNo=document.createElement('button'); bNo.className='vito-no'; bNo.textContent='❌ Rechazar';
         bNo.onclick=()=>rechazarPedido(it.id);
-        acts.append(bOk,bNo); f.appendChild(acts);
+        acts.append(bOk,bNo); (f.querySelector('.vito-np-cont')||f).appendChild(acts);
         panelBody.appendChild(f);
       });
     }
@@ -21243,7 +21288,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.16.1';
+const MESORA_VERSION = '2026-10-02 · v1.16.2';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con

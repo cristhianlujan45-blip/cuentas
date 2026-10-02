@@ -43,3 +43,25 @@
 - 360, 390 y 412 px;
 - letra de 100, 130 y 150 %;
 - simulando medidas falsas del navegador (ancho visible 150 px y ancho de página 980 px): siempre 8 px a cada lado y los títulos en una línea.
+
+## 3. (1.16.2) Panel de notificaciones estilo celular
+
+En el celular, la campana abre ahora un panel como el de Android o iPhone:
+
+- **Posición:** baja desde arriba, a 8 px del borde, cubriendo el encabezado, con una animación suave y el fondo oscurecido.
+- **Accesos rápidos arriba,** en círculos con su nombre corto: 📝 Pedido, 🎵 Música, 🔊 Voz y 🗑 Borrar.
+- **Cada aviso es una tarjeta redondeada** con:
+  - un ícono en un círculo de color (📥 naranja = recibido, ✅ verde = enviado, ❌ rojo = rechazado);
+  - el estado y la hora;
+  - la mesa en grande;
+  - lo que pidieron.
+- **Se cierra** tocando afuera, deslizando hacia arriba desde la rayita de abajo o deslizando hacia arriba al llegar al final de la lista.
+- **En el computador** sigue como antes, con los botones con su texto completo.
+
+**Probado:**
+- 360, 390 y 412 px;
+- letra de 100, 130 y 150 %;
+- medidas falsas del navegador;
+- fondo del tema con `transform` y con `filter`;
+- cerrar tocando afuera y deslizando (gesto táctil real);
+- en computador, 1280 px.
