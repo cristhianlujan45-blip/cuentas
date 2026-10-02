@@ -444,6 +444,9 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;overflow-x:hidden;}
+  /* «clip» recorta igual que «hidden» pero sin volver al body una segunda zona de desplazamiento
+     (en algunos Android eso dejaba la pantalla sin poder subir ni bajar). */
+  @supports (overflow-x:clip){ html,body{ overflow-x:clip; } }
   /* Evita que una fila de botones sin espacio (celular angosto) empuje la
      página más ancha que la pantalla: eso es lo que obliga a alejar/acercar
      el zoom para ver todo. Con esto, si no caben, pasan a una segunda línea. */
@@ -841,7 +844,7 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   .kds-pend-actions button{
     flex: 1;
   }
-  .prep-head{margin-bottom:10px}.prep-head h2{margin:0 0 4px}.prep-ctl{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 8px}.prep-ctl select{max-width:200px;padding:7px 10px;border-radius:10px;border:1px solid var(--border,#ccc);background:var(--card,#fff);color:inherit;font:inherit}
+  .iv-peso-flip{margin-left:6px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2,transparent);color:inherit;font:inherit;font-size:12px;cursor:pointer}.prep-head{margin-bottom:10px}.prep-head h2{margin:0 0 4px}.prep-ctl{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 8px}.prep-ctl select{max-width:200px;padding:7px 10px;border-radius:10px;border:1px solid var(--border,#ccc);background:var(--card,#fff);color:inherit;font:inherit}
   .kds-col-h{grid-column:1/-1;display:flex;align-items:center;gap:8px;margin:8px 0 0;font-size:14px;font-weight:800}
   .kds-col-h i{font-style:normal;background:var(--line);border-radius:10px;padding:0 8px;font-size:12px}
   .kds-ticket .kds-meta{font-size:12px;color:var(--ink-soft);display:flex;justify-content:space-between;gap:6px}
@@ -2841,7 +2844,9 @@ html,button,a,input,select,label{touch-action:manipulation}
 .overlay:not(#navMoreSheet):not(#asisOverlay) > *{ margin:auto; max-height:100% !important; overflow-y:auto; overscroll-behavior:contain; }
 .more-panel{ max-height:100%; overflow-y:auto; overscroll-behavior:contain; }
 @media (min-width:600px){ #asisOverlay .asis-panel{ height:min(100%, 760px); } }
-body:has(.overlay.show:not([hidden])){ overflow:hidden; }
+/* Bloqueo del fondo SOLO mientras hay una ventana visible de verdad (lo maneja ventoScrollSano, abajo).
+   Antes era «body:has(.overlay.show)»: si una ventana quedaba marcada como abierta sin verse, la app entera dejaba de bajar y subir. */
+html.ov-lock{ overflow:hidden; }
 /* Nada se sale por el lado (celulares angostos o letra grande): las filas bajan de renglón y los
    textos largos se parten, en vez de empujar la ventana hacia los lados. */
 .modal-title-row{ flex-wrap:wrap; }
@@ -10815,6 +10820,7 @@ function fiPresentacion(desc){
     out.unidadesPorPaquete = Number(dpx[1]); out.contenido = Number(dpx[2]); out.unidadContenido = unidadStd(dpx[3]);
   } else if(m){
     out.unidadesPorPaquete = Number(m[1]); out.contenido = Number(m[2]); out.unidadContenido = unidadStd(m[3]);
+    out.orden = 'nx';   // «24X594G»: primero cuántas trae, luego el peso (que puede ser el total del paquete)
   } else {
     m = t.match(new RegExp('(\\d+(?:\\.\\d+)?)\\s*' + U + '\\s*[X\\*]\\s*(\\d{1,3})\\b'));
     if(m){ out.contenido = Number(m[1]); out.unidadContenido = unidadStd(m[2]); out.unidadesPorPaquete = Number(m[3]); }
@@ -11549,7 +11555,10 @@ let invoiceDraft = null; // { supplier, date, header, archivo, items:[{name,orig
 // Desglose por unidad que se ve en cada renglón: sin IVA + IVA = con IVA, y el total de la compra.
 function fiDesgloseHtml(it){
   const c = it.cost || 0, r = it.ivaPct || 0, sin = c / (1 + r);
-  return it.qty + ' unid. × (' + fmt(Math.round(sin)) + ' sin IVA + ' + fmt(Math.round(c - sin)) + ' IVA ' + Math.round(r * 100) + '%) = <b>' + fmt(Math.round(c)) + ' c/u</b> · total ' + fmt(Math.round(c * it.qty));
+  const po = it.pesoOpc;
+  const peso = it.contentPerUnit ? '<br>⚖️ Cada unidad: <b>' + invEsc(String(it.contentPerUnit)) + '</b>' + (it.pesoNota ? ' <small>(' + invEsc(it.pesoNota) + ')</small>' : '') +
+    (po ? ' <button type="button" class="iv-peso-flip">' + (it.pesoModo === 'div' ? '↩️ No dividir: ' + invEsc(po.tot) + ' c/u' : '➗ Dividir: ' + invEsc(po.div) + ' c/u') + '</button>' : '') : '';
+  return it.qty + ' unid. × (' + fmt(Math.round(sin)) + ' sin IVA + ' + fmt(Math.round(c - sin)) + ' IVA ' + Math.round(r * 100) + '%) = <b>' + fmt(Math.round(c)) + ' c/u</b> · total ' + fmt(Math.round(c * it.qty)) + peso;
 }
 function invoiceRowHtml(it, i){
   const matched = it.productId ? data.products.find(p => p.id === it.productId) : null;
@@ -11712,14 +11721,29 @@ function invoiceMatchItems(rawItems, proveedor){    // arma las filas de revisi�
       // Si la cantidad coincide con las unidades del paquete pero el total del renglón es el
       // de un solo paquete, seguramente se tomó la presentación como cantidad: se avisa.
       const qtyDeColumna = !(upp > 1 && qty === upp && lineTotal != null && Math.abs(lineTotal - cost) <= Math.max(50, cost * 0.02));
+      // Peso o volumen de CADA unidad. «MAGGI 24X594G» comprado por paquete: los 594 g son del paquete completo,
+      // así que cada unidad pesa 594 ÷ 24 = 24,75 g. Si se compraron sueltas («LECHERA 48X80G», 4 a $2.742) o
+      // el resultado no tiene sentido (menos de 5 g o ml), el peso escrito ya es el de cada unidad.
+      // Solo se divide sola cuando el peso NO es un tamaño típico de una unidad (594 g sí se divide; 300 g, 80 g o
+      // 1000 ml no: «JABON REY 3X300G» son 3 barras de 300 g). En la revisión hay un botón para cambiarlo a mano.
+      let pesoU = null, volU = null, pesoNota = '', pesoOpc = null;
+      const repartido = upp > 1 && Number(x.unidades_por_caja) === upp;
+      if(pres.orden === 'nx' && upp > 1 && (pres.pesoG > 0 || pres.volumenMl > 0)){
+        const tot = pres.pesoG > 0 ? pres.pesoG : pres.volumenMl, cada = tot / upp, u = pres.pesoG > 0 ? 'g' : 'ml';
+        if(cada >= 5){
+          const r = Math.round(cada * 100) / 100, f = v => String(v).replace('.', ',') + ' ' + u;
+          pesoOpc = { div: f(r), tot: f(tot), nota: f(tot) + ' ÷ ' + upp + ' = ' + f(r) + ' cada una', u, r, total: tot, upp };
+          if(repartido && Math.round(tot) % 5 !== 0){ if(u === 'g') pesoU = r; else volU = r; pesoNota = pesoOpc.nota; }
+        }
+      }
       return {
-        name: (matched ? (x.name || original) : fiNombreSugerido(original)).slice(0, 60),
+        name: (matched ? (x.name || original) : (pesoNota ? fiNombreSugerido(original).replace(new RegExp('\\b' + String(pres.contenido).replace('.', '[.,]') + '\\s*' + (pesoU ? 'g' : 'ml') + '\\b', 'i'), String(pesoU || volU).replace('.', ',') + ' ' + (pesoU ? 'g' : 'ml')) : fiNombreSugerido(original))).slice(0, 60),
         originalDescription: original,
         sku: x.sku ? String(x.sku).slice(0, 30) : null, barcode: x.barcode ? String(x.barcode).replace(/\D/g, '').slice(0, 14) || null : null,
         brand: x.brand || fiNormalizar(original).marca || null, unit: x.unit || null,
-        presentation: x.presentation || pres.presentacion || '', unitsPerPackage: upp,
-        contentPerUnit: x.content_per_unit || (pres.contenido != null ? pres.contenido + (pres.unidadContenido ? ' ' + pres.unidadContenido : '') : null),
-        weightG: pres.pesoG, volumeMl: pres.volumenMl, discount: n01(x.discount), ivaPctLeido: ivaLeido, ivaValue: n01(x.iva_value), lineTotal,
+        presentation: pesoNota ? upp + ' x ' + String(pesoU || volU).replace('.', ',') + ' ' + (pesoU ? 'g' : 'ml') + ' (' + (pres.presentacion || '').replace(/^\d+ x /, '') + ' en total)' : (x.presentation || pres.presentacion || ''), unitsPerPackage: upp,
+        contentPerUnit: pesoNota ? String(pesoU || volU).replace('.', ',') + ' ' + (pesoU ? 'g' : 'ml') : (x.content_per_unit || (pres.contenido != null ? String(pres.contenido).replace('.', ',') + (pres.unidadContenido ? ' ' + pres.unidadContenido : '') : null)),
+        pesoNota, pesoOpc, pesoModo: pesoNota ? 'div' : 'tot', weightG: pesoNota ? pesoU : pres.pesoG, volumeMl: pesoNota ? volU : pres.volumenMl, discount: n01(x.discount), ivaPctLeido: ivaLeido, ivaValue: n01(x.iva_value), lineTotal,
         qtyDeColumna, match, noCuadra: x.cuadra === false, ajustes: Array.isArray(x.ajustes) ? x.ajustes.slice(0, 4) : [],
         lineSubtotal: n01(x.line_subtotal), lineIva: n01(x.line_iva),
         qty, cost, cajas, unidadesPorCaja, costoSinIva, ivaPct,
@@ -11982,6 +12006,17 @@ function invoiceUpdateRowLive(row, it){
     }
   }
 }
+// ⚖️ Cambiar a mano si el peso escrito es del paquete completo (se divide) o de cada unidad.
+document.getElementById('invoiceBody').addEventListener('click', e => {
+  const b = e.target.closest('.iv-peso-flip'); if(!b || !invoiceDraft) return;
+  const row = b.closest('.iv-item'); const it = row && invoiceDraft.items[+row.dataset.i]; if(!it || !it.pesoOpc) return;
+  const po = it.pesoOpc, div = it.pesoModo !== 'div';
+  it.pesoModo = div ? 'div' : 'tot'; it.contentPerUnit = div ? po.div : po.tot; it.pesoNota = div ? po.nota : '';
+  if(po.u === 'g'){ it.weightG = div ? po.r : po.total; } else { it.volumeMl = div ? po.r : po.total; }
+  it.presentation = po.upp + ' x ' + (div ? po.div + ' (' + po.tot + ' en total)' : po.tot);
+  const pr = row.querySelector('.iv-pres'); if(pr) pr.value = it.presentation;
+  const dsg = row.querySelector('.iv-desglose'); if(dsg) dsg.innerHTML = fiDesgloseHtml(it);
+});
 document.getElementById('invoiceBody').addEventListener('input', e => {
   // Escribir en cualquier campo numérico recalcula todo en vivo, en el
   // momento, sin esperar a que el campo pierda el foco.
@@ -21061,7 +21096,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.9.2';
+const MESORA_VERSION = '2026-10-02 · v1.9.3';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -24404,6 +24439,24 @@ window.mesoraCelebrar = function(emojis){
     var b = document.querySelector('nav button[data-view="' + v + '"]');
     if(b && b.offsetParent !== null && !document.querySelector('nav button.active[data-view="' + v + '"]')) b.click();
   }, 600); });
+})();
+</script>
+<script>
+/* Desplazamiento siempre sano: la pantalla de fondo se bloquea solo si hay una ventana abierta y visible;
+   si una ventana quedó marcada como abierta pero no se ve, se cierra sola para que nunca trabe el dedo. */
+(function(){
+  function visible(o){ if(!o.classList.contains('show')) return false; const cs = getComputedStyle(o); if(cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity < 0.05) return false; const r = o.getBoundingClientRect(); return r.width > 2 && r.height > 2; }
+  function revisar(){
+    let alguna = false;
+    document.querySelectorAll('.overlay.show').forEach(o => { if(visible(o)) alguna = true; else if(getComputedStyle(o).display === 'none' || o.hidden) o.classList.remove('show'); });
+    document.documentElement.classList.toggle('ov-lock', alguna);
+    if(!alguna && document.body.style.overflow === 'hidden' && !document.querySelector('#carta:not([hidden])')) document.body.style.overflow = '';
+  }
+  window.ventoScrollSano = revisar;
+  let pend = false;
+  try{ new MutationObserver(() => { if(pend) return; pend = true; requestAnimationFrame(() => { pend = false; revisar(); }); }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class', 'hidden'] }); }catch(e){}
+  setInterval(revisar, 1500); document.addEventListener('visibilitychange', revisar); window.addEventListener('pageshow', revisar);
+  revisar();
 })();
 </script>
 </body>
