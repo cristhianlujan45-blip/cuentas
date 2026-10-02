@@ -3235,6 +3235,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <button type="button" class="ajustes-cat" data-cat="pedidos"><span class="ac-icon">🛎️</span><span class="ac-label">Pedidos, QR y caja</span><span class="ac-arrow">›</span></button>
       <button type="button" class="ajustes-cat" data-cat="apariencia"><span class="ac-icon">🎨</span><span class="ac-label">Apariencia</span><span class="ac-arrow">›</span></button>
       <button type="button" class="ajustes-cat" data-cat="voz"><span class="ac-icon">🎤</span><span class="ac-label">Voz</span><span class="ac-arrow">›</span></button>
+      <button type="button" class="ajustes-cat" data-cat="nube"><span class="ac-icon">☁️</span><span class="ac-label">Nube y usuarios</span><span class="ac-arrow">›</span></button>
       <button type="button" class="ajustes-cat" data-cat="datos"><span class="ac-icon">💾</span><span class="ac-label">Datos y herramientas</span><span class="ac-arrow">›</span></button>
       <button type="button" class="ajustes-cat" data-cat="ayuda"><span class="ac-icon">📖</span><span class="ac-label">Guía y soporte</span><span class="ac-arrow">›</span></button>
       <button type="button" class="ajustes-cat ajustes-cat-danger" data-cat="peligro"><span class="ac-icon">⚠️</span><span class="ac-label">Zona de riesgo</span><span class="ac-arrow">›</span></button>
@@ -3354,6 +3355,12 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       </div>
     </div>
 
+    <div class="settings-group" hidden data-cat="nube">
+      <h2>☁️ Vento Nube: usuarios y varios celulares</h2>
+      <div class="settings-desc">Cada persona entra con su correo y contraseña, y todos los celulares del negocio (caja, meseros, el dueño desde la casa) ven los mismos datos al instante. Roles: dueño, administrador, cajero y mesero. Respaldos automáticos en la nube. Es opcional: sin la nube todo sigue guardándose en este celular.</div>
+      <div class="settings-row"><div class="settings-row-text"><strong>Estado</strong><span id="nubeEstadoAj">…</span></div></div>
+      <button type="button" class="btn-primary" id="nubeAbrirAj" style="width:100%">☁️ Abrir Vento Nube</button>
+    </div>
     <div class="settings-group" hidden data-cat="datos">
       <h2>Datos y transferencia</h2>
       <div class="settings-desc">Guarda una copia de todos los datos de la aplicación o transfiérela a otro celular. Esta opción está disponible desde Ajustes.</div>
@@ -4535,6 +4542,7 @@ export default {
     <button class="btn-primary" type="submit" id="authBtn">Entrar</button>
     <button type="button" class="btn-ghost auth-nueva" id="authNueva" hidden>➕ Crear cuenta nueva</button>
     <button type="button" class="auth-link" id="authForgot">¿Olvidaste tu contraseña?</button>
+    <button type="button" class="btn-ghost" id="authNube">☁️ Entrar con Vento Nube (equipo con varios celulares)</button>
     <button type="button" class="auth-link" id="authRestoreBtn">📥 ¿Ya tenías una cuenta? Restaura tu copia de respaldo</button>
     <input type="file" id="authRestoreFile" accept="application/json,.json" hidden>
   </form>
@@ -4550,6 +4558,8 @@ export default {
     <button type="button" class="auth-link" id="recBack">Volver</button>
   </form>
 </div>
+<script src="nube/config.js"></script>
+<script src="nube/vento-nube.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 /* ---------- Lluvia de código (fondo Matrix) ---------- */
@@ -4736,12 +4746,27 @@ async function loadData(){
   renderAll();
 }
 
+// Vento Nube (nube/vento-nube.js): la nube lee los datos actuales y, cuando otro celular cambió algo,
+// los reemplaza aquí sin volver a subirlos (evita el eco).
+window.ventoDatosActuales = () => (typeof data !== 'undefined' ? data : null);
+window.ventoAplicarDatosNube = async (obj, respaldarLocal) => {
+  if(!obj || typeof obj !== 'object') return;
+  window.__nubeAplicando = true;
+  try{
+    if(respaldarLocal && typeof data !== 'undefined' && data){
+      // Antes de cambiar este celular a los datos de la nube, se deja un punto de restauración local.
+      try{ let pts = JSON.parse(localStorage.getItem(AUTOBK_KEY)) || []; pts.unshift({ day: new Date().toISOString().slice(0, 10) + ' (antes de la nube)', at: Date.now(), data: JSON.stringify(data) }); localStorage.setItem(AUTOBK_KEY, JSON.stringify(pts.slice(0, 8))); }catch(e){}
+    }
+    await storageSet(STORAGE_KEY, JSON.stringify(obj));
+    if(typeof authUser !== 'undefined' && authUser) await loadData();
+  }finally{ window.__nubeAplicando = false; }
+};
 async function saveData(){
   try{
     const json = JSON.stringify(data);
     const result = await storageSet(STORAGE_KEY, json);
     if(!result) showToast('No se pudo guardar. Intenta de nuevo.');
-    else autoBackupTick(json);
+    else { autoBackupTick(json); if(!window.__nubeAplicando) try{ window.ventoNube && window.ventoNube.cambio(); }catch(e){} }
   }catch(e){
     const cod = window.mesoraLogError ? window.mesoraLogError('guardar', 'No se pudo guardar: ' + (e && (e.name + ' ' + e.message) || e), 'saveData') : '';
     const lleno = e && (e.name === 'QuotaExceededError' || /quota/i.test(e.message || ''));
@@ -16408,6 +16433,8 @@ function aplicarModoMesero(){
   } else if(chip) chip.remove();
 }
 function authIsAdmin(){
+  // Usuario de Vento Nube: el rol lo da la nube (el mesero entra en «modo mesero»; dueño, admin y cajero usan toda la app).
+  try{ if(window.ventoNube && authUser && window.ventoNube.correo() === authUser) return window.ventoNube.rolActivo() !== 'mesero'; }catch(e){}
   const u = authUsers().find(x => x.user === authUser);
   return !u || u.role === 'admin';   // sin usuarios (dato viejo antes de roles) se trata como admin
 }
@@ -17077,7 +17104,7 @@ function wireAccountUI(){
 async function bootApp(){
   { const us = authUsers(); if(us.some(u => u.rec)){ us.forEach(u => delete u.rec); localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(us)); } }
   const users = authUsers(), ses = localStorage.getItem(AUTH_SESSION_KEY);
-  if(ses && users.some(u => u.user === ses)) return enterApp(ses, null);
+  if(ses && (users.some(u => u.user === ses) || (window.ventoNube && window.ventoNube.correo() === ses))) return enterApp(ses, null);
   showAuth(users.length === 0);
 }
 bootApp();
@@ -21096,7 +21123,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.9.3';
+const MESORA_VERSION = '2026-10-02 · v1.10';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -24457,6 +24484,19 @@ window.mesoraCelebrar = function(emojis){
   try{ new MutationObserver(() => { if(pend) return; pend = true; requestAnimationFrame(() => { pend = false; revisar(); }); }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class', 'hidden'] }); }catch(e){}
   setInterval(revisar, 1500); document.addEventListener('visibilitychange', revisar); window.addEventListener('pageshow', revisar);
   revisar();
+})();
+</script>
+<script>
+/* Botones de Vento Nube (pantalla de entrada y Ajustes → Nube y usuarios). */
+(function(){
+  const N = () => window.ventoNube;
+  const b1 = document.getElementById('authNube');
+  if(b1) b1.addEventListener('click', () => { if(!N()) return; N().abrir({ alEntrar: correo => { try{ enterApp(correo, null); }catch(e){ location.reload(); } } }); });
+  const b2 = document.getElementById('nubeAbrirAj');
+  if(b2) b2.addEventListener('click', () => { if(N()) N().abrir({}); });
+  const pinta = () => { const el = document.getElementById('nubeEstadoAj'); if(el && N()) el.textContent = N().estado(); };
+  document.querySelectorAll('.ajustes-cat[data-cat="nube"]').forEach(b => b.addEventListener('click', () => setTimeout(pinta, 30)));
+  setInterval(pinta, 5000); pinta();
 })();
 </script>
 </body>
