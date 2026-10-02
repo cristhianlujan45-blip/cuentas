@@ -3202,7 +3202,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
           <button class="btn-primary" id="castOpenYT" type="button">▶ YouTube</button>
         </div>
         <div class="cast-devs" id="castDevs" hidden><span class="cast-dot"></span><span id="castDevsTxt"></span></div>
-        <button class="btn-primary cast-big" id="castPres" type="button">📡 Chromecast / Google TV / Android TV: abrir YouTube en el TV</button>
+        <button class="btn-primary cast-big" id="castPres" type="button">📡 Buscar mi TV o TV Box (todos los dispositivos)</button>
         <div class="mz-actions">
           <button class="btn-ghost" id="castPair" type="button">🔗 Vincular con código de TV</button>
           <button class="btn-ghost" id="castHelp" type="button">¿No aparece tu TV?</button>
@@ -21488,7 +21488,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.18';
+const MESORA_VERSION = '2026-10-02 · v1.18.1';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -21608,18 +21608,60 @@ function ccPintar(txt, cls){
   if(cls) box.classList.add(cls);
   t.textContent = txt;
 }
-async function ccTransmitir(){
+/* Todos los dispositivos: la lista de Chrome solo trae los que tienen Chromecast integrado (Chromecast,
+   Google TV, Android TV / TV Box certificados). Los Smart TV (LG, Samsung), los TV Box sin Chromecast,
+   Fire TV, consolas y «YouTube on TV» solo los encuentra la app de YouTube o el código de TV. Y Brave no
+   trae la función de transmitir de Chrome en Android: ahí la lista sale vacía o casi vacía.
+   Por eso este selector ofrece cada camino según el aparato, en vez de solo la lista de Chrome. */
+const esBrave = () => !!(navigator.brave) || /Brave/i.test(navigator.userAgent);
+function castDispositivos(motivo){
+  let ov = document.getElementById('castTodosOv');
+  if(!ov){
+    ov = document.createElement('div'); ov.id = 'castTodosOv'; ov.className = 'overlay';
+    ov.innerHTML = '<div class="modal" style="max-width:430px;max-height:90vh;overflow:auto"><h2>📺 ¿A qué quieres transmitir?</h2>' +
+      '<div class="modal-sub" id="castTodosTxt"></div>' +
+      '<div class="modal-actions" style="flex-direction:column;gap:8px;align-items:stretch">' +
+      '<button class="btn-primary" id="ctCodigo" type="button" style="padding:13px;text-align:left">🔗 <b>Cualquier TV o TV Box con YouTube</b><br><small>Smart TV LG/Samsung, TV Box, Fire TV, Android TV, consolas. Con el código del TV; Vento le manda las canciones sola. Funciona aunque el wifi no deje ver el TV.</small></button>' +
+      '<button class="btn-primary" id="ctApp" type="button" style="padding:13px;text-align:left">▶ <b>Ver todos los de mi wifi en la app de YouTube</b><br><small>Abre YouTube en este celular: toca el ícono de transmitir y salen todos (TV, TV Box, Chromecast).</small></button>' +
+      '<button class="btn-primary" id="ctCast" type="button" style="padding:13px;text-align:left">📡 <b>Chromecast / Google TV</b><br><small>Lista de Chrome (solo aparatos con Chromecast integrado).</small></button>' +
+      '<button class="btn-ghost" id="ctNav" type="button" style="padding:12px;text-align:left">🌐 <b>TV con navegador</b><br><small>Abre un link en el navegador del TV y suena la cola ahí (Pantalla del TV).</small></button>' +
+      '<button class="btn-ghost" id="ctChrome" type="button" hidden>Abrir Vento en Chrome (para la lista de Chromecast)</button>' +
+      '<button class="btn-close" id="ctNo" type="button">Cerrar</button></div></div>';
+    document.body.appendChild(ov);
+    const cerrar = () => ov.classList.remove('show');
+    const abrirSeccion = (summaryTxt, foco) => {
+      const d = Array.from(document.querySelectorAll('.tv-hub details.tv-opt')).find(x => (x.querySelector('summary') || {}).textContent.includes(summaryTxt));
+      if(d){ d.open = true; d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+      if(foco) setTimeout(() => { const i = document.getElementById(foco); if(i){ try{ i.focus(); }catch(e){} } }, 500);
+    };
+    ov.querySelector('#ctCodigo').onclick = () => { cerrar(); abrirSeccion('YouTube del TV', 'lngCode'); showToast('En el TV: YouTube → Configuración → «Vincular con código de TV». Escribe aquí los 12 números y toca Conectar.', 9000); };
+    ov.querySelector('#ctApp').onclick = () => { cerrar(); SS(CAST_APP_KEY, { app: 'yt' }); castAbrirApp(); };
+    ov.querySelector('#ctCast').onclick = () => { cerrar(); ccTransmitir(true); };
+    ov.querySelector('#ctNav').onclick = () => { cerrar(); abrirSeccion('Pantalla del TV'); };
+    ov.querySelector('#ctChrome').onclick = () => { cerrar(); abrirIntent('intent://' + location.host + location.pathname + '#Intent;scheme=https;package=com.android.chrome;end'); };
+    ov.querySelector('#ctNo').onclick = cerrar;
+    ov.addEventListener('click', e => { if(e.target === ov) cerrar(); });
+  }
+  const brave = esBrave();
+  ov.querySelector('#castTodosTxt').textContent = motivo || (brave ? 'Estás en Brave: Brave no trae la lista de Chromecast de Chrome, por eso salían pocos aparatos. Elige el camino según tu TV:' : 'La lista de Chrome solo muestra aparatos con Chromecast integrado. Para los demás, elige el camino según tu TV:');
+  ov.querySelector('#ctChrome').hidden = !(brave && window.esAndroid && window.esAndroid());
+  ov.classList.add('show');
+}
+async function ccTransmitir(directo){
   const env = castEntorno();
   if(env.bad){ showToast(env.t, 9000); return; }
+  // En Brave (o un navegador sin la función de transmitir) la lista de Chrome sale vacía: se ofrecen los demás caminos.
+  if(!directo && (esBrave() || !('chrome' in window))){ castDispositivos(); return; }
   ccPintar('Buscando tus televisores…', 'busy');
   let ctx;
   try{ ctx = await castSdk(); }
-  catch(e){ ccPintar(''); showToast('⚠️ Este navegador no transmite a Chromecast. Abre Vento en Chrome (Android o computador). Para Smart TV LG/Samsung usa el código de TV.', 9000); castSinChromecast(); return; }
+  catch(e){ ccPintar(''); castDispositivos('Este navegador no tiene la lista de Chromecast. Elige el camino según tu TV:'); return; }
   try{ await ctx.requestSession(); }
   catch(e){
     ccPintar('');
-    if(e === 'cancel' || (e && e.code === 'cancel')) return;
-    if(e === 'receiver_unavailable' || (e && e.code === 'receiver_unavailable')){ castSinChromecast(); return; }
+    // Cerró la lista sin elegir: casi siempre es porque su TV no salía ahí → se le muestran los otros caminos.
+    if(e === 'cancel' || (e && e.code === 'cancel')){ castDispositivos('¿No salió tu TV en la lista? Esa lista solo trae aparatos con Chromecast integrado. Elige el camino según tu TV:'); return; }
+    if(e === 'receiver_unavailable' || (e && e.code === 'receiver_unavailable')){ castDispositivos('En tu wifi no hay aparatos con Chromecast. Tu TV o TV Box se conecta por uno de estos caminos:'); return; }
     showToast('⚠️ No se pudo abrir YouTube en el TV (' + (e && e.code || e) + ').', 7000); return;
   }
   ccConectado(ctx.getCurrentSession());
@@ -21835,7 +21877,7 @@ function castAbrirApp(){
 }
 function iniCast(){
   if(!document.getElementById('castPres')) return;
-  document.getElementById('castPres').onclick = ccTransmitir;
+  document.getElementById('castPres').onclick = () => ccTransmitir(false);
   setTimeout(() => { castSdk().catch(() => {}); }, 1500);   // se carga antes para que la lista de TV salga al instante
   document.getElementById('castRefresh').onclick = () => transmitirTV();
   // Al volver a Vento (desde YouTube) con canciones nuevas: se ofrece mandarlas al TV de un toque.
