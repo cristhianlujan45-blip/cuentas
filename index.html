@@ -3140,8 +3140,8 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <h2>🎵 Cola de música</h2>
       <div class="settings-desc" id="mzEstado"></div>
       <div class="mz-actions">
-        <button class="btn-warn" id="mzLoad" type="button">📥 Cargar en mi lista de YouTube Music</button>
-        <button class="btn-ghost" id="mzOpenYT" type="button">Abrir lista</button>
+        <button class="btn-warn" id="mzLoad" type="button" hidden>📥 Cargar en mi lista de YouTube Music</button>
+        <button class="btn-ghost" id="mzOpenYT" type="button" hidden>Abrir lista</button>
         <button class="btn-primary" id="mzAutoGo" type="button">🎶 Música automática</button>
         <button class="btn-primary" id="mzNext" type="button">▶ Siguiente canción</button>
         <button class="btn-ghost" id="mzSkip" type="button">⏭ Saltar la que suena</button>
@@ -3162,17 +3162,10 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
     </div>
     <div class="settings-group tv-hub">
       <h2>📺 Música en el TV</h2>
-      <div class="settings-desc">Elige <b>una</b> forma de que la música suene en el TV. Si no sabes cuál, usa la primera.</div>
-      <details class="tv-opt" open><summary><span class="tv-opt-t">Pantalla del TV <span class="tvp-badge">Recomendado</span></span><small>Abres un link en el navegador del TV y suena la cola en orden, sola.</small></summary>
-        <div class="settings-desc">El TV se vuelve el reproductor: abre un link en el <b>navegador del TV</b> (LG, Samsung, Android TV o TV Box) y suena la cola en orden, en vivo. Cada canción que piden las mesas entra sola, sin Google y sin transmitir. Solo se ponen versiones que ya se comprobó que se dejan reproducir.</div>
-        <div class="settings-row"><div class="settings-row-text"><strong>Usar el TV como reproductor</strong><span id="tvpEstado"></span></div><label class="switch"><input type="checkbox" id="tvpOn"><span class="switch-slider"></span></label></div>
-        <div id="tvpBox" hidden>
-          <input id="tvpLink" class="mz-in" readonly onclick="this.select()">
-          <div class="mz-actions"><button class="btn-primary" id="tvpCopy" type="button">📋 Copiar link del TV</button><button class="btn-ghost" id="tvpNew" type="button">Crear link nuevo</button></div>
-          <div class="settings-desc">En el TV: abre el <b>Navegador web</b> (en LG se llama «Web Browser»), escribe el link de arriba y guárdalo en favoritos. Toca <b>OK</b> en el control para empezar. Deja Vento abierta en este celular: de aquí salen las canciones.</div>
-        </div>
-      </details>
-      <details class="tv-opt"><summary><span class="tv-opt-t">YouTube del TV: canciones solas</span><small>Vento le manda cada canción a la app de YouTube del TV con su código de 12 números.</small></summary>
+      <button class="btn-primary cast-big" id="tvTransmitir" type="button">📡 Transmitir al TV</button>
+      <div class="cast-devs" id="castDevs" hidden><span class="cast-dot"></span><span id="castDevsTxt"></span></div>
+      <div class="settings-desc" id="tvAyuda">Toca <b>Transmitir al TV</b>: salen los TV y TV Box de tu wifi. Elige el tuyo y listo: las canciones que pidan las mesas suenan allá solas, una tras otra.</div>
+      <details class="tv-opt" id="tvOptCodigo"><summary><span class="tv-opt-t">¿Tu TV no aparece? Conectar con el código del TV</span><small>Smart TV LG/Samsung, TV Box y Fire TV sin Chromecast.</small></summary>
         <div class="settings-desc">Vento se conecta a la <b>app de YouTube de tu televisor</b> (LG, Samsung, Android TV…) con el código del TV y le va <b>agregando cada canción que piden las mesas a su cola, en vivo</b>, sin tocar nada. Suena en el TV (no en el celular) y sin bloqueos de sello. <b>Esto NO usa ninguna cuenta de Google</b> — funciona igual que el control remoto de tu celular con la app de YouTube, sin iniciar sesión con nadie, así que no hay ninguna cuenta que confirmar aquí. Si quieres que las canciones se guarden en tu propia biblioteca/lista de YouTube Music, eso es la sección de abajo, <b>▶ YouTube Music automático</b>, con «Conectar con Google». Se configura una sola vez:</div>
         <div class="lng-step"><span class="pair-n">1</span><div><strong>Puente gratis (5 minutos, una sola vez)</strong>
           <p>YouTube no deja que una página web hable directo con el TV; el puente le pasa los mensajes. <a href="#" id="lngHow">Ver cómo se crea</a></p>
@@ -3193,26 +3186,17 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
           <div class="mz-actions"><button class="btn-ghost" id="lngLogCopy" type="button">📋 Copiar el registro</button></div>
         </div>
       </details>
-      <details class="tv-opt"><summary><span class="tv-opt-t">Transmitir al TV</span><small>Abres YouTube en el celular y lo mandas al TV (Chromecast, Google TV).</small></summary>
-        <div class="settings-desc">Los Smart TV (LG webOS, Samsung…) y «YouTube on TV» solo los encuentra la <b>app de YouTube</b>: por eso los botones de abajo abren YouTube Music o YouTube directo en tu celular, no el navegador. Con Google conectado (más abajo), las canciones que pidan las mesas se agregan solas a esa lista en tiempo real, sin volver a tocar nada.</div>
-        <div class="cast-env" id="castEnv"></div>
-        <div class="cast-or">Abre la app instalada en este celular con la lista puesta. Ahí toca el ícono de transmitir y elige tu TV (LG, Samsung, «YouTube on TV»…):</div>
-        <div class="cast-apps">
-          <button class="btn-primary" id="castOpenMusic" type="button">▶ YouTube Music</button>
-          <button class="btn-primary" id="castOpenYT" type="button">▶ YouTube</button>
+      <details class="tv-opt"><summary><span class="tv-opt-t">Otras formas</span><small>Pantalla del TV (navegador del TV) y lista de YouTube Music.</small></summary>
+        <h3 style="margin:10px 0 4px;font-size:15px">🌐 Pantalla del TV</h3>
+        <div class="settings-desc">El TV se vuelve el reproductor: abre un link en el <b>navegador del TV</b> (LG, Samsung, Android TV o TV Box) y suena la cola en orden, en vivo. Cada canción que piden las mesas entra sola, sin Google y sin transmitir. Solo se ponen versiones que ya se comprobó que se dejan reproducir.</div>
+        <div class="settings-row"><div class="settings-row-text"><strong>Usar el TV como reproductor</strong><span id="tvpEstado"></span></div><label class="switch"><input type="checkbox" id="tvpOn"><span class="switch-slider"></span></label></div>
+        <div id="tvpBox" hidden>
+          <input id="tvpLink" class="mz-in" readonly onclick="this.select()">
+          <div class="mz-actions"><button class="btn-primary" id="tvpCopy" type="button">📋 Copiar link del TV</button><button class="btn-ghost" id="tvpNew" type="button">Crear link nuevo</button></div>
+          <div class="settings-desc">En el TV: abre el <b>Navegador web</b> (en LG se llama «Web Browser»), escribe el link de arriba y guárdalo en favoritos. Toca <b>OK</b> en el control para empezar. Deja Vento abierta en este celular: de aquí salen las canciones.</div>
         </div>
-        <div class="cast-devs" id="castDevs" hidden><span class="cast-dot"></span><span id="castDevsTxt"></span></div>
-        <button class="btn-primary cast-big" id="castPres" type="button">📡 Transmitir (todos los dispositivos de tu wifi)</button>
-        <button class="btn-ghost" id="castChromeList" type="button">Solo Chromecast (lista de Chrome)</button>
-        <div class="mz-actions">
-          <button class="btn-ghost" id="castPair" type="button">🔗 Vincular con código de TV</button>
-          <button class="btn-ghost" id="castHelp" type="button">¿No aparece tu TV?</button>
-          <button class="btn-ghost" id="castStop" type="button" hidden>Terminar transmisión</button>
-        </div>
-        <button class="btn-primary cast-big" id="castRefresh" type="button" hidden>▶ Mandar las canciones nuevas al TV</button>
-        <div class="cast-state" id="castEstado"></div>
-      </details>
-      <details class="tv-opt"><summary><span class="tv-opt-t">YouTube Music automático</span><small>Copia las canciones a una lista de tu cuenta de Google.</small></summary>
+
+        <h3 style="margin:16px 0 4px;font-size:15px">🎵 Lista de YouTube Music (cuenta de Google)</h3>
         <div class="settings-desc">⚠️ Esto copia las canciones a una lista <b>de tu cuenta de Google</b>. Para verlas en el TV, el TV tiene que estar con <b>esa misma cuenta</b>: si el TV está con otra (o sin cuenta), la lista no le aparece. Abajo se muestra con cuál quedó conectada la app, para que la compares con la del TV.<br><br>Si no quieres depender de la cuenta, usa <b>📺 YouTube del TV</b> (el del código de 12 números): ese <b>no necesita ninguna cuenta</b> ni que el TV y tú tengan la misma, porque le manda las canciones al TV como si fueras el control remoto.</div>
         <div class="settings-desc" id="ytEstado"></div>
         <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
@@ -3226,7 +3210,25 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
         <details class="settings-desc"><summary>Cómo obtener el Client ID (una sola vez)</summary>
           1) En console.cloud.google.com crea un proyecto. 2) Habilita «YouTube Data API v3». 3) En «Pantalla de consentimiento de OAuth» elige Externo y agrega tu correo como usuario de prueba. 4) En Credenciales crea un «ID de cliente de OAuth» tipo Aplicación web y en «Orígenes de JavaScript autorizados» pon la dirección https donde tienes esta app (sin / al final). 5) Copia el Client ID aquí. Para que la app busque y reproduzca sola solo necesitas una «Clave de API» (Credenciales → Crear credencial → Clave de API, limitada a YouTube Data API v3): no caduca cada hora. El Client ID solo hace falta para copiar las canciones a la lista de YouTube Music. No funciona si abres la app como archivo del celular: debe estar en esa dirección https. La conexión dura cerca de 1 hora; después toca Conectar otra vez.
         </details>
-      </details>
+      <div id="castViejo" hidden>
+        <div class="settings-desc">Los Smart TV (LG webOS, Samsung…) y «YouTube on TV» solo los encuentra la <b>app de YouTube</b>: por eso los botones de abajo abren YouTube Music o YouTube directo en tu celular, no el navegador. Con Google conectado (más abajo), las canciones que pidan las mesas se agregan solas a esa lista en tiempo real, sin volver a tocar nada.</div>
+        <div class="cast-env" id="castEnv"></div>
+        <div class="cast-or">Abre la app instalada en este celular con la lista puesta. Ahí toca el ícono de transmitir y elige tu TV (LG, Samsung, «YouTube on TV»…):</div>
+        <div class="cast-apps">
+          <button class="btn-primary" id="castOpenMusic" type="button">▶ YouTube Music</button>
+          <button class="btn-primary" id="castOpenYT" type="button">▶ YouTube</button>
+        </div>
+        
+        <button class="btn-primary cast-big" id="castPres" type="button">📡 Transmitir (todos los dispositivos de tu wifi)</button>
+        <button class="btn-ghost" id="castChromeList" type="button">Solo Chromecast (lista de Chrome)</button>
+        <div class="mz-actions">
+          <button class="btn-ghost" id="castPair" type="button">🔗 Vincular con código de TV</button>
+          <button class="btn-ghost" id="castHelp" type="button">¿No aparece tu TV?</button>
+          <button class="btn-ghost" id="castStop" type="button" hidden>Terminar transmisión</button>
+        </div>
+        <button class="btn-primary cast-big" id="castRefresh" type="button" hidden>▶ Mandar las canciones nuevas al TV</button>
+        <div class="cast-state" id="castEstado"></div>
+</div>
     </div>
     <div class="settings-group">
       <h2>Cómo se reparte</h2>
@@ -7333,7 +7335,9 @@ function placeFabAt(left, top){
   voiceFabWrap.style.bottom = 'auto';
 }
 
+var FAB_FIJO = true;   // micrófono fijo en su esquina (no se arrastra)
 async function loadVoiceFabPos(){
+  if(FAB_FIJO){ try{ voiceFabWrap.style.left = voiceFabWrap.style.top = voiceFabWrap.style.right = voiceFabWrap.style.bottom = voiceFabWrap.style.transform = ''; voiceFabWrap.classList.remove('izq', 'snap', 'dragging'); await storageSet('voice-fab-pos', ''); }catch(e){} return; }
   try{
     const res = await storageGet('voice-fab-pos');
     if(res && res.value){
@@ -7374,7 +7378,10 @@ function fabLim(w, h){
 }
 const fabClamp = (v, a, b) => Math.min(Math.max(v, a), b);
 
+/* v1.19: el micrófono queda FIJO en su esquina (abajo a la derecha, encima de la barra). Arrastrarlo
+   causaba que se moviera y se deslizara solo en varios celulares: ahora no se mueve nunca. */
 voiceFabWrap.addEventListener('pointerdown', (e) => {
+  if(FAB_FIJO) return;
   if(e.button > 0) return;
   if(e.target.closest('#voiceFabCloseBtn')) return;
   if(e.target.closest('#voiceFabHelp')) return;
@@ -7478,14 +7485,8 @@ function micVigilar(){
     });
     if(document.querySelector('.overlay.show:not(#overlay)')) return;   // hay una ventana de verdad abierta: ahí sí se esconde
     if(voiceFabWrap.style.display === 'none') voiceFabWrap.style.display = '';
-    const r = voiceFabWrap.getBoundingClientRect(), W = window.innerWidth, H = window.innerHeight;
-    const fuera = !r.width || r.right < 20 || r.left > W - 20 || r.bottom < 20 || r.top > H - 20;
-    let tapado = false;
-    if(!fuera){
-      const el = document.elementFromPoint(Math.min(W - 1, Math.max(0, r.left + r.width / 2)), Math.min(H - 1, Math.max(0, r.top + r.height / 2)));
-      tapado = !!(el && !voiceFabWrap.contains(el) && el.closest && el.closest('#tabbar, nav, .tabbar'));
-    }
-    if(fuera || tapado || voiceFabWrap.style.transform){ voiceFabWrap.style.transform = ''; resetVoiceFabPos(); }
+    // Siempre en su esquina fija (por si algo le dejó una posición vieja).
+    if(voiceFabWrap.style.left || voiceFabWrap.style.top || voiceFabWrap.style.transform){ voiceFabWrap.style.transform = ''; resetVoiceFabPos(); }
   }catch(e){}
 }
 setInterval(micVigilar, 2000);
@@ -18773,6 +18774,8 @@ function ytOpenMusic(vid, song){
   ytOpenMusicPath(vid ? ('watch?v=' + encodeURIComponent(vid)) : ('search?q=' + encodeURIComponent(song || '')));
 }
 function reproducir(x){
+  // Con el TV conectado, «▶» manda la música al TV (antes abría YouTube Music afuera, en el celular).
+  if(window.tvConectado&&window.tvConectado()){try{window.tvMandarYa();}catch(e){}showToast('📺 Mandando la música al TV…');return;}
   const it=mzEmpezo(x.id,'ytmusic');
   SS('vito_now',x);
   // Con Google conectado y la canción ya en tu lista: se abre DENTRO de la lista, así YouTube Music sigue solo con las demás.
@@ -18807,6 +18810,7 @@ async function mzCronoAvanzar(){
   mzBotonGrande(sig);
 }
 function mzBotonGrande(sig){
+  if(window.tvConectado&&window.tvConectado())return;   // la música va al TV: no se abre YouTube Music
   let ov=$('mzGoOverlay');
   if(!ov){ov=document.createElement('div');ov.id='mzGoOverlay';ov.className='overlay';
     ov.innerHTML='<div class="modal" style="max-width:380px;text-align:center"><h2>🎵 Siguiente canción</h2><div class="modal-sub" id="mzGoTxt"></div><div class="modal-actions" style="flex-direction:column;gap:8px"><button class="btn-primary" id="mzGoBtn" type="button" style="width:100%;padding:16px;font-size:17px">▶ Ponerla en YouTube Music</button><button class="btn-close" id="mzGoNo" type="button">Ahora no</button></div></div>';
@@ -21521,7 +21525,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.18.2';
+const MESORA_VERSION = '2026-10-02 · v1.19';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -21575,10 +21579,10 @@ function castDevsPintar(){
   box.classList.remove('ok', 'no', 'busy');
   box.hidden = !((presConn && presConn.state === 'connected') || presDisp === true);
   if(presConn && presConn.state === 'connected'){ box.classList.add('ok'); t.textContent = '📡 Transmitiendo a tu dispositivo: la música de las mesas suena allá en vivo.'; return; }
-  if(!presSoportado()){ t.textContent = 'Este navegador no busca Chromecast/Google TV. Usa Chrome, o los botones de YouTube de abajo.'; return; }
-  if(presDisp === true){ box.classList.add('ok'); t.textContent = 'Hay un Chromecast / Google TV en tu wifi: toca «buscarlo» y elígelo.'; }
-  else if(presDisp === false){ box.classList.add('no'); t.textContent = 'No hay Chromecast / Google TV en este wifi.'; }
-  else { t.textContent = 'Toca «Buscar» para ver los Chromecast / Google TV / Android TV de tu wifi.'; }
+  if(!presSoportado()){ box.hidden = true; return; }
+  if(presDisp === true){ box.classList.add('ok'); t.textContent = 'Hay un TV en tu wifi: toca «Transmitir al TV» y elígelo.'; }
+  else if(presDisp === false){ box.hidden = true; }
+  else { box.hidden = true; }
 }
 // No hay Chromecast: su TV es un Smart TV (LG/Samsung) que solo ve la app de YouTube.
 function castSinChromecast(){
@@ -21607,7 +21611,7 @@ function castSinChromecast(){
 function autoPausar(){ const a = document.getElementById('autoPlay'); if(a && a.checked){ SS('vito_auto_antes', { on: true }); a.checked = false; a.dispatchEvent(new Event('change')); } }
 function autoRestaurar(){ if(!LS('vito_auto_antes', {}).on) return; SS('vito_auto_antes', {}); const a = document.getElementById('autoPlay'); if(a && !a.checked){ a.checked = true; a.dispatchEvent(new Event('change')); } }
 const YT_RECEIVER = '233637DE', MDX_NS = 'urn:x-cast:com.google.youtube.mdx';
-let castSdkP = null, ccSes = null, ccRespaldo = false;
+let castSdkP = null, ccSes = null, ccRespaldo = false, ccPorPersona = false;
 function castSdk(){
   if(castSdkP) return castSdkP;
   castSdkP = new Promise((res, rej) => {
@@ -21648,36 +21652,27 @@ function ccPintar(txt, cls){
    Por eso este selector ofrece cada camino según el aparato, en vez de solo la lista de Chrome. */
 const esBrave = () => !!(navigator.brave) || /Brave/i.test(navigator.userAgent);
 function castDispositivos(motivo){
+  /* Aviso simple cuando la lista de TV no se puede mostrar o el TV no salió. Solo dos salidas:
+     abrir Vento en Chrome (el que sí muestra los TV) o conectar con el código del TV. */
   let ov = document.getElementById('castTodosOv');
   if(!ov){
     ov = document.createElement('div'); ov.id = 'castTodosOv'; ov.className = 'overlay';
-    ov.innerHTML = '<div class="modal" style="max-width:430px;max-height:90vh;overflow:auto"><h2>📺 ¿A qué quieres transmitir?</h2>' +
+    ov.innerHTML = '<div class="modal" style="max-width:400px;text-align:center"><h2>📺 Transmitir al TV</h2>' +
       '<div class="modal-sub" id="castTodosTxt"></div>' +
       '<div class="modal-actions" style="flex-direction:column;gap:8px;align-items:stretch">' +
-      '<button class="btn-primary" id="ctCodigo" type="button" style="padding:13px;text-align:left">🔗 <b>Cualquier TV o TV Box con YouTube</b><br><small>Smart TV LG/Samsung, TV Box, Fire TV, Android TV, consolas. Con el código del TV; Vento le manda las canciones sola. Funciona aunque el wifi no deje ver el TV.</small></button>' +
-      '<button class="btn-primary" id="ctApp" type="button" style="padding:13px;text-align:left">▶ <b>Ver todos los de mi wifi en la app de YouTube</b><br><small>Abre YouTube en este celular: toca el ícono de transmitir y salen todos (TV, TV Box, Chromecast).</small></button>' +
-      '<button class="btn-primary" id="ctCast" type="button" style="padding:13px;text-align:left">📡 <b>Chromecast / Google TV</b><br><small>Lista de Chrome (solo aparatos con Chromecast integrado).</small></button>' +
-      '<button class="btn-ghost" id="ctNav" type="button" style="padding:12px;text-align:left">🌐 <b>TV con navegador</b><br><small>Abre un link en el navegador del TV y suena la cola ahí (Pantalla del TV).</small></button>' +
-      '<button class="btn-ghost" id="ctChrome" type="button" hidden>Abrir Vento en Chrome (para la lista de Chromecast)</button>' +
+      '<button class="btn-primary" id="ctChrome" type="button" style="padding:13px">🌐 Abrir Vento en Chrome</button>' +
+      '<button class="btn-primary" id="ctCodigo" type="button" style="padding:13px">🔗 Conectar con el código del TV</button>' +
       '<button class="btn-close" id="ctNo" type="button">Cerrar</button></div></div>';
     document.body.appendChild(ov);
     const cerrar = () => ov.classList.remove('show');
-    const abrirSeccion = (summaryTxt, foco) => {
-      const d = Array.from(document.querySelectorAll('.tv-hub details.tv-opt')).find(x => (x.querySelector('summary') || {}).textContent.includes(summaryTxt));
-      if(d){ d.open = true; d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
-      if(foco) setTimeout(() => { const i = document.getElementById(foco); if(i){ try{ i.focus(); }catch(e){} } }, 500);
-    };
-    ov.querySelector('#ctCodigo').onclick = () => { cerrar(); abrirSeccion('YouTube del TV', 'lngCode'); showToast('En el TV: YouTube → Configuración → «Vincular con código de TV». Escribe aquí los 12 números y toca Conectar.', 9000); };
-    ov.querySelector('#ctApp').onclick = () => { cerrar(); SS(CAST_APP_KEY, { app: 'yt' }); castAbrirApp(); };
-    ov.querySelector('#ctCast').onclick = () => { cerrar(); ccTransmitir(true); };
-    ov.querySelector('#ctNav').onclick = () => { cerrar(); abrirSeccion('Pantalla del TV'); };
+    ov.querySelector('#ctCodigo').onclick = () => { cerrar(); const d = document.getElementById('tvOptCodigo'); if(d){ d.open = true; d.scrollIntoView({ block: 'start', behavior: 'smooth' }); } setTimeout(() => { const i = document.getElementById('lngCode'); if(i) try{ i.focus(); }catch(e){} }, 500); };
     ov.querySelector('#ctChrome').onclick = () => { cerrar(); abrirIntent('intent://' + location.host + location.pathname + '#Intent;scheme=https;package=com.android.chrome;end'); };
     ov.querySelector('#ctNo').onclick = cerrar;
     ov.addEventListener('click', e => { if(e.target === ov) cerrar(); });
   }
-  const brave = esBrave();
-  ov.querySelector('#castTodosTxt').textContent = motivo || (brave ? 'Estás en Brave: Brave no trae la lista de Chromecast de Chrome, por eso salían pocos aparatos. Elige el camino según tu TV:' : 'La lista de Chrome solo muestra aparatos con Chromecast integrado. Para los demás, elige el camino según tu TV:');
-  ov.querySelector('#ctChrome').hidden = !(brave && window.esAndroid && window.esAndroid());
+  const android = window.esAndroid && window.esAndroid();
+  ov.querySelector('#castTodosTxt').textContent = motivo || (esBrave() ? 'Brave no puede buscar los TV de tu wifi (Chrome sí). Abre Vento en Chrome y toca «Transmitir al TV» otra vez.' : 'Este navegador no puede buscar los TV de tu wifi. Ábrelo en Chrome, o conecta con el código del TV.');
+  ov.querySelector('#ctChrome').hidden = !(android && (esBrave() || !('chrome' in window)));
   ov.classList.add('show');
 }
 async function ccTransmitir(directo){
@@ -21686,15 +21681,16 @@ async function ccTransmitir(directo){
   // En Brave (o un navegador sin la función de transmitir) la lista de Chrome sale vacía: se ofrecen los demás caminos.
   if(esBrave() || !('chrome' in window)){ castDispositivos(); return; }
   ccPintar('Buscando tus televisores…', 'busy');
+  ccPorPersona = true;   // la persona eligió el TV: al conectar, la música arranca allá sí o sí
   let ctx;
   try{ ctx = await castSdk(); }
-  catch(e){ ccPintar(''); castDispositivos('Este navegador no tiene la lista de Chromecast. Elige el camino según tu TV:'); return; }
+  catch(e){ ccPintar(''); castDispositivos(); return; }
   try{ await ctx.requestSession(); }
   catch(e){
     ccPintar('');
     // Cerró la lista sin elegir: casi siempre es porque su TV no salía ahí → se le muestran los otros caminos.
-    if(e === 'cancel' || (e && e.code === 'cancel')){ castDispositivos('¿No salió tu TV en la lista? Esa lista solo trae aparatos con Chromecast integrado. Elige el camino según tu TV:'); return; }
-    if(e === 'receiver_unavailable' || (e && e.code === 'receiver_unavailable')){ castDispositivos('En tu wifi no hay aparatos con Chromecast. Tu TV o TV Box se conecta por uno de estos caminos:'); return; }
+    if(e === 'cancel' || (e && e.code === 'cancel')) return;   // cerró la lista sin elegir
+    if(e === 'receiver_unavailable' || (e && e.code === 'receiver_unavailable')){ castDispositivos('No encontré TV en tu wifi para transmitir. Revisa que el celular y el TV estén en el mismo wifi, o conecta con el código del TV (funciona con cualquier TV con YouTube).'); return; }
     showToast('⚠️ No se pudo abrir YouTube en el TV (' + (e && e.code || e) + ').', 7000); return;
   }
   ccConectado(ctx.getCurrentSession());
@@ -21720,6 +21716,7 @@ async function ccScreen(screenId, nombre){
   SS(LNG_KEY, c); lng.sid = null; lng.error = '';
   try{ vm().cola().forEach(x => { if(!x.vid && !x.done) vm().ytAgregar(x.id); }); }catch(e){}
   if(!c.relay){ ccPintar('📺 YouTube abierto en «' + nombre + '», pero para que suenen las canciones de las mesas falta el puente (paso 1 de «YouTube del TV»).', 'no'); lngEstado(); ccFaltaPuente(nombre); ccRespaldo = true; ccSiguiente(); return; }
+  if(ccPorPersona){ ccPorPersona = false; lng.porPersona = true; lng.pausaHasta = 0; }
   await lngSync(true);
   lngEstado();
   if(lng.error){ ccRespaldo = true; ccSiguiente(); ccPintar('⚠️ ' + lng.error, 'no'); return; }
@@ -21908,8 +21905,15 @@ function castAbrirApp(){
   }
   transmitirTV();
 }
+// ¿La música está yendo a un TV? (YouTube del TV por código o Chromecast)
+window.tvConectado = () => { try{ return (typeof lngOn === 'function' && lngOn()) || !!ccSes; }catch(e){ return false; } };
+window.tvMandarYa = () => { if(typeof lngOn === 'function' && lngOn()){ lng.porPersona = true; lng.pausaHasta = 0; lngSync(true); } else if(ccSes){ ccRespaldo = true; ccSiguiente(); } };
 function iniCast(){
   if(!document.getElementById('castPres')) return;
+  const tb = document.getElementById('tvTransmitir'); if(tb) tb.onclick = () => ccTransmitir(true);
+  // v1.19: el modo viejo «abrir YouTube en el celular y mandar al TV» ya no está en pantalla: se apaga
+  // para que no salgan avisos de «Mandar al TV» ni se abra YouTube afuera.
+  try{ if(LS(CAST_KEY, {}).on && !localStorage.getItem('vito_castoff1')){ SS(CAST_KEY, {}); } localStorage.setItem('vito_castoff1', '1'); }catch(e){}
   /* Un solo botón: una página web no puede ver los aparatos de la red (el navegador no lo permite).
      La que sí los muestra TODOS en un solo ícono (Smart TV, TV Box, Android TV, Chromecast, Fire TV,
      consolas) es la app de YouTube / YouTube Music: este botón la abre con la lista puesta y avisa que
