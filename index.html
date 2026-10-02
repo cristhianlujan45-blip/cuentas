@@ -4491,7 +4491,10 @@ export default {
   .voice-fab-wrap .voice-fab.listening .vf-ondas{opacity:1}
   .vf-ondas{opacity:0;transition:opacity .2s}
   .voice-fab-wrap.dragging .voice-fab{transform:scale(1.08);box-shadow:0 16px 34px rgba(0,0,0,.4)}
-  .voice-fab-wrap.snap{transition:left .22s cubic-bezier(.2,.8,.2,1), top .22s cubic-bezier(.2,.8,.2,1)}
+  .voice-fab-wrap.snap{transition:left .24s cubic-bezier(.2,.8,.2,1), top .24s cubic-bezier(.2,.8,.2,1)}
+  .voice-fab-wrap{-webkit-touch-callout:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+  .voice-fab-wrap.dragging{will-change:transform;transition:none!important}
+  .voice-fab-wrap .voice-fab{transition:transform .15s ease, box-shadow .15s ease}
   .voice-fab-wrap.izq .voice-fab-ai{right:auto;left:66px}
   .voice-fab-wrap.izq .voice-fab-help{left:auto;right:-8px}
 </style>
@@ -7354,76 +7357,100 @@ async function loadVoiceFabPos(){
 }
 loadVoiceFabPos();
 
+/* Arrastre del micrófono, rehecho para que sea suave en Android:
+   - Mientras se arrastra, el botón se mueve con «transform» (lo dibuja la tarjeta gráfica, sin
+     recalcular la pantalla): sigue al dedo sin temblar ni ir a saltos.
+   - Nunca se sale de la pantalla ni se mete debajo de la barra de abajo.
+   - Al soltar se pega al borde más cercano con una animación corta, desde donde quedó (sin brincos).
+   - Si la pantalla cambia de alto (la barra del navegador aparece/desaparece al hacer scroll, o el
+     teclado), el botón NO se mueve: solo se acomoda si quedara por fuera. Antes se reacomodaba en
+     cada cambio y parecía que se deslizaba solo. */
 let fabDrag = null;
 let fabJustDragged = false;
-const FAB_DRAG_THRESHOLD = 6;
+const FAB_DRAG_THRESHOLD = 8, FAB_M = 12;
+function fabLim(w, h){
+  return { x0: FAB_M, x1: Math.max(FAB_M, window.innerWidth - w - FAB_M), y0: FAB_M, y1: Math.max(FAB_M, window.innerHeight - h - bottomBarHeight() - FAB_M) };
+}
+const fabClamp = (v, a, b) => Math.min(Math.max(v, a), b);
 
 voiceFabWrap.addEventListener('pointerdown', (e) => {
+  if(e.button > 0) return;
   if(e.target.closest('#voiceFabCloseBtn')) return;
   if(e.target.closest('#voiceFabHelp')) return;
-  fabDrag = {
-    startX: e.clientX,
-    startY: e.clientY,
-    origLeft: voiceFabWrap.offsetLeft,
-    origTop: voiceFabWrap.offsetTop,
-    moved: false,
-    pointerId: e.pointerId
-  };
-  // La captura del dedo se pide SOLO cuando de verdad empieza a arrastrar (abajo, en
-  // pointermove): si se pedía desde el primer toque, el "click" le llegaba al contenedor y
-  // no al micrófono, y a veces había que tocar dos veces para que escuchara.
+  const r = voiceFabWrap.getBoundingClientRect();
+  fabDrag = { sx: e.clientX, sy: e.clientY, x: r.left, y: r.top, w: r.width || 56, h: r.height || 56, tx: 0, ty: 0, moved: false, pointerId: e.pointerId, raf: 0 };
+  // La captura del dedo se pide SOLO cuando de verdad empieza a arrastrar: si se pedía desde el
+  // primer toque, el «click» le llegaba al contenedor y no al micrófono.
 });
 
-// Se escucha en toda la ventana: si el dedo se sale del círculo al empezar a mover, el botón lo sigue igual.
 window.addEventListener('pointermove', (e) => {
   if(!fabDrag || e.pointerId !== fabDrag.pointerId) return;
-  const dx = e.clientX - fabDrag.startX;
-  const dy = e.clientY - fabDrag.startY;
+  const dx = e.clientX - fabDrag.sx, dy = e.clientY - fabDrag.sy;
   if(!fabDrag.moved && Math.hypot(dx, dy) < FAB_DRAG_THRESHOLD) return;
-  if(!fabDrag.moved){ try{ voiceFabWrap.setPointerCapture(fabDrag.pointerId); }catch(err){} }
-  fabDrag.moved = true;
   e.preventDefault();
-  voiceFabWrap.classList.remove('snap');
-  voiceFabWrap.classList.add('dragging');
-  // Un solo reposicionamiento por cuadro: el botón sigue al dedo sin saltos ni temblores.
-  fabDrag.nx = fabDrag.origLeft + dx; fabDrag.ny = fabDrag.origTop + dy;
-  if(!fabDrag.raf) fabDrag.raf = requestAnimationFrame(() => { if(fabDrag){ fabDrag.raf = 0; placeFabAt(fabDrag.nx, fabDrag.ny); } });
-});
-// Al soltar, el botón se pega al borde izquierdo o derecho más cercano (no queda tapando el contenido).
+  if(!fabDrag.moved){
+    fabDrag.moved = true;
+    try{ voiceFabWrap.setPointerCapture(fabDrag.pointerId); }catch(err){}
+    voiceFabWrap.classList.remove('snap');
+    // Se fija exactamente donde está (left/top) y desde ahí se mueve con transform.
+    voiceFabWrap.style.left = fabDrag.x + 'px'; voiceFabWrap.style.top = fabDrag.y + 'px';
+    voiceFabWrap.style.right = 'auto'; voiceFabWrap.style.bottom = 'auto';
+    voiceFabWrap.classList.add('dragging');
+  }
+  const L = fabLim(fabDrag.w, fabDrag.h);
+  fabDrag.tx = fabClamp(fabDrag.x + dx, L.x0, L.x1) - fabDrag.x;
+  fabDrag.ty = fabClamp(fabDrag.y + dy, L.y0, L.y1) - fabDrag.y;
+  if(!fabDrag.raf) fabDrag.raf = requestAnimationFrame(() => {
+    if(!fabDrag) return; fabDrag.raf = 0;
+    voiceFabWrap.style.transform = 'translate3d(' + fabDrag.tx + 'px,' + fabDrag.ty + 'px,0)';
+  });
+}, { passive: false });
+
+// Al soltar: queda donde se soltó y se desliza corto hasta el borde más cercano.
 function fabPegarAlBorde(){
-  const w = voiceFabWrap.offsetWidth || 56, m = 12;
+  const w = voiceFabWrap.offsetWidth || 56;
   const izq = voiceFabWrap.offsetLeft + w / 2 < window.innerWidth / 2;
-  voiceFabWrap.classList.add('snap');
+  const L = fabLim(w, voiceFabWrap.offsetHeight || 56);
   voiceFabWrap.classList.toggle('izq', izq);
-  placeFabAt(izq ? m : window.innerWidth - w - m, Math.max(m, voiceFabWrap.offsetTop));
-  setTimeout(() => voiceFabWrap.classList.remove('snap'), 260);
+  voiceFabWrap.classList.add('snap');
+  voiceFabWrap.style.left = (izq ? L.x0 : L.x1) + 'px';
+  voiceFabWrap.style.top = fabClamp(voiceFabWrap.offsetTop, L.y0, L.y1) + 'px';
+  setTimeout(() => voiceFabWrap.classList.remove('snap'), 280);
 }
 
 function endFabDrag(e){
-  if(!fabDrag) return;
+  if(!fabDrag || (e && e.pointerId !== undefined && e.pointerId !== fabDrag.pointerId)) return;
+  const d = fabDrag; fabDrag = null;
+  if(d.raf) cancelAnimationFrame(d.raf);
+  try{ voiceFabWrap.releasePointerCapture(d.pointerId); }catch(err){}
+  if(!d.moved) return;
+  // Evita que al soltar se active el micrófono (se apaga solo enseguida, por si no llega ningún «click»).
+  fabJustDragged = true;
+  setTimeout(() => { fabJustDragged = false; }, 350);
+  // El transform se pasa a left/top en el mismo cuadro: no hay salto.
+  voiceFabWrap.style.left = (d.x + d.tx) + 'px'; voiceFabWrap.style.top = (d.y + d.ty) + 'px';
+  voiceFabWrap.style.transform = '';
   voiceFabWrap.classList.remove('dragging');
-  if(fabDrag.moved){
-    // Evita que al soltar se active el micrófono. Se apaga solo enseguida: si el navegador
-    // no manda ningún "click" al soltar, antes quedaba prendido y el SIGUIENTE toque de
-    // verdad se perdía (parecía que el botón "no respondía" después de moverlo).
-    fabJustDragged = true;
-    setTimeout(() => { fabJustDragged = false; }, 350);
-    if(fabDrag.raf){ cancelAnimationFrame(fabDrag.raf); placeFabAt(fabDrag.nx, fabDrag.ny); }
+  void voiceFabWrap.offsetWidth;                        // el navegador toma la posición de partida
+  requestAnimationFrame(() => {
     fabPegarAlBorde();
     const pos = { left: parseFloat(voiceFabWrap.style.left) || voiceFabWrap.offsetLeft, top: parseFloat(voiceFabWrap.style.top) || voiceFabWrap.offsetTop };
     storageSet('voice-fab-pos', JSON.stringify(pos));
-  }
-  try{ voiceFabWrap.releasePointerCapture(fabDrag.pointerId); }catch(err){}
-  fabDrag = null;
+  });
 }
 window.addEventListener('pointerup', endFabDrag);
 window.addEventListener('pointercancel', endFabDrag);
 
+// Solo se acomoda si la pantalla cambió de ancho (girar el celular) o si el botón quedaría por fuera.
+let fabAncho = window.innerWidth;
 window.addEventListener('resize', () => {
-  if(voiceFabWrap.style.left && voiceFabWrap.style.left !== 'auto'){
-    const w = voiceFabWrap.offsetWidth || 56;
-    placeFabAt(voiceFabWrap.classList.contains('izq') ? 12 : window.innerWidth - w - 12, voiceFabWrap.offsetTop);
-  }
+  if(fabDrag || !voiceFabWrap.style.left || voiceFabWrap.style.left === 'auto') return;
+  const w = voiceFabWrap.offsetWidth || 56, h = voiceFabWrap.offsetHeight || 56, L = fabLim(w, h);
+  const top = voiceFabWrap.offsetTop, cambioAncho = window.innerWidth !== fabAncho;
+  fabAncho = window.innerWidth;
+  if(!cambioAncho && top >= L.y0 && top <= L.y1) return;
+  voiceFabWrap.style.left = (voiceFabWrap.classList.contains('izq') ? L.x0 : L.x1) + 'px';
+  voiceFabWrap.style.top = fabClamp(top, L.y0, L.y1) + 'px';
 });
 // Si el botón quedó en un lugar incómodo, Ajustes → «Devolver a su lugar» lo regresa a su esquina.
 function resetVoiceFabPos(){
@@ -21461,7 +21488,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.17.9';
+const MESORA_VERSION = '2026-10-02 · v1.18';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -21612,6 +21639,7 @@ function ccConectado(ses){
   ccPintar('📺 Abriendo YouTube en «' + nombre + '»…', 'busy');
 }
 async function ccScreen(screenId, nombre){
+  if(lngCfg().screenId !== screenId) lngReloj0('Chromecast «' + nombre + '»');
   const c = lngCfg();
   Object.assign(c, { screenId, nombre, on: true, ultimo: 0 }); delete c.loungeToken; delete c.exp; delete c.codigo;
   SS(LNG_KEY, c); lng.sid = null; lng.error = '';
@@ -22152,13 +22180,16 @@ async function lngSync(forzar){
     const c = lngCfg();
     let forzarInicio = lng.forzar;
     const pend = vm().ordenJusto(vm().cola()).filter(x => x.vid && !x.lng);
-    if(!pend.length && forzarInicio && lngEnTV().length){
+    if(!pend.length && forzarInicio && (lngEnTV().length || (lng.porPersona && vm().cola().some(y => y.status === 'playing' && y.fuente === 'tvyt')))){
       // «▶» con canciones ya mandadas que el TV no está sonando: se le vuelven a poner.
       lng.forzar = false; lng.reinicios = 0;
       await lngAsegurar(true);
-      if(!lngReporta() && Date.now() < lngOcupadoHasta()){ lngLog('▶: según el tiempo todavía suena una canción de Vento → no se corta'); try{ await lngCmd('play', {}); }catch(e){} }
-      else if(lng.tvPlay !== true){
-        const vids = lngFaltan();
+      const aMano = !!lng.porPersona; lng.porPersona = false;
+      if(!aMano && !lngReporta() && Date.now() < lngOcupadoHasta()){ lngLog('según el tiempo todavía suena una canción de Vento → no se corta'); try{ await lngCmd('play', {}); }catch(e){} }
+      else if(aMano || lng.tvPlay !== true){
+        // ▶ a mano: se vuelve a poner desde la que «sonaba» (si el TV no la tenía, ahora sí suena).
+        const suenaV = vm().cola().find(y => y.status === 'playing' && y.fuente === 'tvyt');
+        const vids = (suenaV ? [suenaV.vid] : []).concat(lngFaltan());
         lngLog('▶ arrancar: le pongo al TV la cola que falta (' + vids.length + ')');
         await lngPoner(vids); lng.ultimoEnvio = Date.now();
         await lngArrancar(vids[0], false);
@@ -22180,7 +22211,8 @@ async function lngSync(forzar){
       const relojOcupado = !lngReporta() && Date.now() < lngOcupadoHasta() + 30000;
       const quedaCola = arrancando || relojOcupado || (lng.tvPlay === false ? false : probado);
       // «Arrancar ya» (al reconectar el TV solo o tocar ▶) no corta una canción de Vento que ya suena.
-      const nuevaCola = (forzarInicio && !(deVento && lng.tvPlay === true) && !relojOcupado) || !quedaCola;
+      const porPersona = !!lng.porPersona; lng.porPersona = false;   // ▶ tocado a mano: arrancar sí o sí
+      const nuevaCola = porPersona || (forzarInicio && !(deVento && lng.tvPlay === true) && !relojOcupado) || !quedaCola;
       lng.forzar = false;
       if(nuevaCola){
         // El TV está quieto: se le pone la cola completa — las que ya se le habían mandado y no
@@ -22283,6 +22315,21 @@ async function lngVigilar(){
 }
 /* TV que no informa su estado: se sigue la cola por la duración REAL de cada video. La que según el
    tiempo está sonando se muestra en «Sonando» y la que ya debió terminar pasa al historial. */
+/* TV nuevo (se puso el código otra vez, otro Chromecast, o se desconectó): lo que se le había mandado
+   al TV anterior ya no existe. Las canciones que esperaban vuelven a la cola para mandarse a ESTE TV y el
+   reloj empieza de cero. Antes se quedaba el reloj viejo: Vento creía que el TV ya estaba sonando, solo
+   «agregaba» a una cola que no existía y no sonaba nada. */
+function lngReloj0(motivo){
+  try{
+    const m = vm(), l = m.cola ? m.cola() : []; let n = 0;
+    l.forEach(x => { if(x.lng && x.status === 'tv'){ x.lng = false; x.done = false; x.status = x.ok ? 'approved' : 'pending'; delete x.lngAt; delete x.lngN; n++; } });
+    if(n) SS('vito_cola', l);
+    l.filter(x => x.status === 'playing' && x.fuente === 'tvyt').forEach(x => m.mzTermino(x.id, 'played'));
+    const c = lngCfg(); ['arranco', 'cursor', 'hasta', 'visto', 'reporta', 'ultimo'].forEach(k => delete c[k]); SS(LNG_KEY, c);
+    lng.ultimoEnvio = 0; lng.reinicios = 0; lng.tvPlay = null; lng.tvVid = null; lng.tvSt = null;
+    lngLog('TV nuevo (' + motivo + '): reloj en cero' + (n ? ', ' + n + ' canciones vuelven a la cola para este TV' : ''));
+  }catch(e){}
+}
 // Hasta cuándo, según la duración real, le queda música de Vento al TV: la que suena + las que esperan.
 function lngOcupadoHasta(){
   const c = lngCfg(), m = vm(); if(!m.cola) return 0;
@@ -22418,6 +22465,7 @@ function iniLounge(){
     const b = document.getElementById('lngGo'); b.disabled = true; b.textContent = '⏳ Conectando con el TV…';
     try{
       await lngParear(d);
+      lngReloj0('código del TV');
       await lngBind();
       // Si Vento también estaba mandando la música por otros caminos, se apagan para no duplicar.
       autoPausar(); SS(LNG_KEY, Object.assign(lngCfg(), { codigo: true }));
@@ -22429,7 +22477,7 @@ function iniLounge(){
     }catch(e){ lng.error = e.message; showToast('⚠️ ' + e.message, 8000); }
     finally{ b.disabled = false; b.textContent = '🔗 Conectar con el YouTube del TV'; lngEstado(); }
   };
-  document.getElementById('lngPlay').onclick = () => lngSync(true);
+  document.getElementById('lngPlay').onclick = () => { lng.porPersona = true; lng.pausaHasta = 0; lngSync(true); };
   document.getElementById('lngCuenta').onclick = () => {
     const m = vm(), y = m.yCfg ? m.yCfg() : {};
     if(!y.cid){ showToast('Para entrar con tu cuenta de YouTube primero hay que pegar el «Client ID de Google» en Música → ▶ YouTube Music automático (ahí están los pasos). Mientras tanto las canciones se buscan con la clave o con la búsqueda libre.', 10000); const k = document.getElementById('ytCid'); if(k){ k.scrollIntoView({ block: 'center', behavior: 'smooth' }); } return; }
@@ -22456,7 +22504,7 @@ function iniLounge(){
     try{ await navigator.clipboard.writeText('Vento ' + MESORA_VERSION + ' · YouTube del TV\n' + txt); showToast('📋 Registro copiado.'); }
     catch(e){ showToast('⚠️ No se pudo copiar.'); }
   };
-  document.getElementById('lngOff').onclick = () => { const c = lngCfg(); ['screenId', 'loungeToken', 'exp', 'nombre', 'on', 'ultimo', 'hasta', 'visto', 'arranco'].forEach(k => delete c[k]); SS(LNG_KEY, c); lng.sid = null; lng.error = ''; lngEstado(); autoRestaurar(); showToast('Desconectado del YouTube del TV.'); };
+  document.getElementById('lngOff').onclick = () => { lngReloj0('desconectado'); const c = lngCfg(); ['screenId', 'loungeToken', 'exp', 'nombre', 'on', 'ultimo', 'hasta', 'visto', 'arranco'].forEach(k => delete c[k]); SS(LNG_KEY, c); lng.sid = null; lng.error = ''; lngEstado(); autoRestaurar(); showToast('Desconectado del YouTube del TV.'); };
   setInterval(() => { lngSync(); }, 4000);
   setInterval(() => { lngVigilar(); }, 12000);
   const ahora = () => { lng.pausaHasta = 0; lngSync(); setTimeout(lngVigilar, 1500); };
