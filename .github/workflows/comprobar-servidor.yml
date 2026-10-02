@@ -69,7 +69,9 @@ jobs:
           prueba "Migración de pagos aplicada en Supabase" '[[ "$M" == *20261002120000*20261002120000* ]] || echo "$M" | grep -Eq "20261002120000 *\| *20261002120000"'
           echo "== Conexión de los celulares"
           prueba "nube/config.js apunta a este proyecto" 'grep -q "$U" nube/config.js'
-          prueba "nube/config.js usa la clave PÚBLICA (nunca la secreta)" '! grep -Eq "sb_secret_|service_role" nube/config.js'
+          CK=$(grep -o "key: '[^']*'" nube/config.js | head -1 | sed "s/key: '//;s/'//")
+          ROL=$(python3 -c "import sys,base64,json; k=sys.argv[1]; p=k.split('.')[1] if k.count('.')==2 else ''; print('publishable' if k.startswith('sb_publishable_') else (json.loads(base64.urlsafe_b64decode(p+'='*(-len(p)%4))).get('role','?') if p else '?'))" "$CK" 2>/dev/null || echo '?')
+          prueba "nube/config.js usa la clave PÚBLICA (rol: $ROL)" '[ "$ROL" = anon ] || [ "$ROL" = publishable ]'
           echo; echo "RESULTADO: $OK bien, $MAL mal"
           echo "### Servidor Vento: $OK bien, $MAL mal" >> "$GITHUB_STEP_SUMMARY"
           [ "$MAL" = 0 ]
