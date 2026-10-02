@@ -19306,7 +19306,7 @@ function tvUrl(){
   const base=location.protocol==='file:'?'':location.origin+location.pathname.replace(/[^/]*$/,'');
   return base?base+'tv.html#'+tvCfg().code:'';
 }
-let tvHash='',tvHashT=0,tvES=null,tvVisto=0,tvSonando='';
+let tvHash='',tvHashT=0,tvES=null,tvVisto=0,tvSonando='',tvReintT=null;
 function tvPublicar(force){
   if(!tvOn())return;
   const q=ordenJusto(cola()).filter(x=>x.vid&&!x.sinVersion&&(x.ok||!yTestListo)).slice(0,15)
@@ -19315,7 +19315,9 @@ function tvPublicar(force){
   const s=JSON.stringify(msg);
   if(!force&&s===tvHash&&Date.now()-tvHashT<5*6e4)return;
   tvHash=s;tvHashT=Date.now();
-  fetch('https://ntfy.sh/'+tvTopic(),{method:'POST',body:JSON.stringify(Object.assign(msg,{t:Date.now()}))}).catch(()=>{tvHash='';});
+  fetch('https://ntfy.sh/'+tvTopic(),{method:'POST',body:JSON.stringify(Object.assign(msg,{t:Date.now()}))})
+    .then(r=>{if(!r.ok)throw new Error('ntfy '+r.status);})
+    .catch(()=>{tvHash='';clearTimeout(tvReintT);tvReintT=setTimeout(()=>{try{tvPublicar(true);}catch(e){}},6000);});   // no salió: se reintenta en 6 s
 }
 function tvEscuchar(){
   if(tvES){try{tvES.close();}catch(e){}tvES=null;}
@@ -19366,7 +19368,10 @@ function iniTVPantalla(){
     (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>showToast('📋 Link del TV copiado.'),()=>{$('tvpLink').select();showToast('Copia el link a mano.');});};
   $('tvpNew').onclick=()=>{if(!confirm('¿Crear un link nuevo para el TV? El link anterior dejará de funcionar.'))return;const c=LS(TVP_KEY,{});delete c.code;SS(TVP_KEY,c);tvCfg();tvEscuchar();tvPublicar(true);pintar();};
   pintar();tvEscuchar();tvPublicar(true);
-  setInterval(()=>{tvPublicar();tvEstado();},20000);
+  // El canal por el que el TV avisa (qué suena, cuándo terminó) se reabre si el navegador lo cerró.
+  setInterval(()=>{if(tvOn()&&(!tvES||tvES.readyState===2))tvEscuchar();tvPublicar();tvEstado();},20000);
+  window.addEventListener('online',()=>{if(tvOn()){tvEscuchar();tvPublicar(true);}});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&tvOn()){if(!tvES||tvES.readyState===2)tvEscuchar();tvPublicar(true);}});
   document.querySelector('nav button[data-view="musica"]').addEventListener('click',pintar);
 }
 
@@ -21370,7 +21375,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.17.1';
+const MESORA_VERSION = '2026-10-02 · v1.17.2';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -21857,7 +21862,19 @@ async function licDesdeLink(){
 const LNG_KEY = 'vito_ytlounge';
 const lngCfg = () => LS(LNG_KEY, {});
 function lngOn(){ const c = lngCfg(); return !!(c.on && c.relay && c.screenId); }
-const lng = { sid: null, gs: null, rid: 1, ofs: 0, t: 0, uuid: '', ocupado: false, error: '', tvPlay: null };
+const lng = { sid: null, gs: null, rid: 1, ofs: 0, t: 0, uuid: '', ocupado: false, error: '', tvPlay: null, ocupadoT: 0, fallas: 0, pausaHasta: 0 };
+/* Un solo trabajo con el TV a la vez. Si uno se quedara pegado más de 90 s, se suelta solo.
+   Tras errores seguidos (sin internet, puente caído) se espera cada vez más (5 s, 10 s, 20 s…
+   hasta 2 min) en vez de insistir cada 4 s; al primer éxito vuelve al ritmo normal. */
+function lngTomar(forzar){
+  if(lng.ocupado && Date.now() - lng.ocupadoT < 90000) return false;
+  if(!forzar && Date.now() < lng.pausaHasta) return false;
+  lng.ocupado = true; lng.ocupadoT = Date.now(); return true;
+}
+function lngResultado(ok){
+  if(ok){ lng.fallas = 0; lng.pausaHasta = 0; return; }
+  lng.fallas++; lng.pausaHasta = Date.now() + Math.min(120000, 5000 * Math.pow(2, lng.fallas - 1));
+}
 const LNG_CANCION_MS = 4 * 60000;   // lo que dura más o menos una canción en el TV
 function lngUuid(){ const c = lngCfg(); if(!c.uuid){ c.uuid = 'mesora' + Array.from(crypto.getRandomValues(new Uint8Array(10)), b => (b % 36).toString(36)).join(''); SS(LNG_KEY, c); } return c.uuid; }
 async function lngFetch(path, params, body, token){
@@ -21866,10 +21883,13 @@ async function lngFetch(path, params, body, token){
   const url = c.relay.replace(/\/+$/, '') + '/api/lounge/' + path + (params ? '?' + new URLSearchParams(params) : '');
   const h = { 'Content-Type': 'application/x-www-form-urlencoded' };
   if(token) h['X-YouTube-LoungeId-Token'] = token;
-  let r;
-  try{ r = await fetch(url, { method: 'POST', headers: h, body: new URLSearchParams(body || {}) }); }
-  catch(e){ throw new Error('No hay conexión con el puente. Revisa la dirección del paso 1 y el internet.'); }
-  const t = await r.text();
+  // Tiempo límite de 15 s: antes, una llamada que se quedaba colgada (internet lento) dejaba la
+  // conexión con el TV «ocupada» para siempre y no volvía a mandar ni revisar nada.
+  const ctl = new AbortController(), tmo = setTimeout(() => ctl.abort(), 15000);
+  let r, t;
+  try{ r = await fetch(url, { method: 'POST', headers: h, body: new URLSearchParams(body || {}), signal: ctl.signal }); t = await r.text(); }
+  catch(e){ throw new Error(e && e.name === 'AbortError' ? 'El puente o el TV no respondieron a tiempo (internet lento). Reintento solo.' : 'No hay conexión con el puente. Revisa la dirección del paso 1 y el internet.'); }
+  finally{ clearTimeout(tmo); }
   if(!r.ok){ const err = new Error('YouTube del TV respondió ' + r.status + (t ? ': ' + t.slice(0, 120) : '')); err.status = r.status; throw err; }
   return t;
 }
@@ -22033,8 +22053,8 @@ async function lngSync(forzar){
   // la canción todavía no tiene video buscado y la lista de pendientes está vacía, así que
   // antes se perdía y la primera canción terminaba entrando solo como «agregada».
   if(forzar) lng.forzar = true;
-  if(!lngOn() || lng.ocupado || !vm().cola) return;
-  lng.ocupado = true;
+  if(!lngOn() || !vm().cola) return;
+  if(!lngTomar(forzar)) return;
   try{
     const c = lngCfg();
     let forzarInicio = lng.forzar;
@@ -22078,8 +22098,8 @@ async function lngSync(forzar){
       if(nuevaCola) c.arranco = Date.now();
       SS(LNG_KEY, Object.assign(lngCfg(), { hasta: c.hasta, ultimo: c.ultimo, arranco: c.arranco }));
     }
-    lng.error = '';
-  }catch(e){ lng.error = e.message || String(e); }
+    lng.error = ''; lngResultado(true);
+  }catch(e){ lng.error = e.message || String(e); lngResultado(false); }
   finally{ lng.ocupado = false; lngEstado(); try{ vm().renderMusica(); }catch(e){} }
 }
 /* El YouTube del TV como reproductor de Vento: cada 12 s (solo mientras haya canciones de Vento
@@ -22089,13 +22109,14 @@ async function lngSync(forzar){
    Antes se mandaban y se daban por terminadas al instante: desaparecían de la cola de Vento y,
    si el TV no las tenía, nadie se daba cuenta y la música se detenía. */
 async function lngVigilar(){
-  if(!lngOn() || lng.ocupado || !vm().cola) return;
+  if(!lngOn() || !vm().cola) return;
   const enTV = lngEnTV(), suena = vm().cola().find(x => x.status === 'playing' && x.fuente === 'tvyt');
   if(!enTV.length && !suena) return;
-  lng.ocupado = true;
+  if(!lngTomar(false)) return;
   try{
     await lngAsegurar(true);
     const vid = lng.tvVid, st = lng.tvSt, reciente = Date.now() - (lng.ultimoEnvio || 0) < 25000;
+    lngResultado(true);
     if(vid === null && st === null) return;                       // el TV no dijo nada: no se adivina
     const it = vid ? enTV.concat(suena ? [suena] : []).find(x => x.vid === vid) : null;
     if(it){
@@ -22125,7 +22146,7 @@ async function lngVigilar(){
     lngLog('el TV se quedó sin la siguiente → le pongo la cola que falta (' + falta.length + ')');
     await lngPoner(falta.map(x => x.vid)); lng.ultimoEnvio = Date.now();
     SS(LNG_KEY, Object.assign(lngCfg(), { arranco: Date.now(), hasta: Date.now() + falta.reduce((t, x) => t + (x.dur ? x.dur * 1000 : LNG_CANCION_MS), 0) }));
-  }catch(e){ lngLog('   ⚠️ revisando el TV: ' + (e.message || e)); }
+  }catch(e){ lngLog('   ⚠️ revisando el TV: ' + (e.message || e)); lngResultado(false); }
   finally{ lng.ocupado = false; try{ vm().renderMusica(); }catch(e){} }
 }
 // «Saltar» en Vento cuando suena en el YouTube del TV: el TV pasa a la siguiente de su cola.
@@ -22255,12 +22276,15 @@ function iniLounge(){
   document.getElementById('lngOff').onclick = () => { const c = lngCfg(); ['screenId', 'loungeToken', 'exp', 'nombre', 'on', 'ultimo', 'hasta', 'visto', 'arranco'].forEach(k => delete c[k]); SS(LNG_KEY, c); lng.sid = null; lng.error = ''; lngEstado(); autoRestaurar(); showToast('Desconectado del YouTube del TV.'); };
   setInterval(() => { lngSync(); }, 4000);
   setInterval(() => { lngVigilar(); }, 12000);
+  const ahora = () => { lng.pausaHasta = 0; lngSync(); setTimeout(lngVigilar, 1500); };
+  window.addEventListener('online', ahora);
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && lngOn()) ahora(); });
   /* Latido: sin esto, mientras no hubiera canciones pendientes, la conexión con el TV nunca se
      volvía a revisar — si el TV se apagaba o se desvinculaba, nadie se enteraba (ni un aviso)
      hasta que llegara la próxima canción, que entonces tampoco sonaba. Ahora se comprueba sola
      cada 30 s aunque no haya nada por mandar, y cualquier problema queda visible en el estado. */
   setInterval(async () => {
-    if(!lngOn() || lng.ocupado) return;
+    if(!lngOn() || (lng.ocupado && Date.now() - lng.ocupadoT < 90000) || Date.now() < lng.pausaHasta) return;
     try{ await lngAsegurar(false); if(lng.error){ lng.error = ''; lngLog('   ✅ conexión con el TV recuperada'); } }
     catch(e){ const msg = e.message || String(e); if(lng.error !== msg){ lng.error = msg; lngLog('   ⚠️ latido: ' + msg); } }
     lngEstado();

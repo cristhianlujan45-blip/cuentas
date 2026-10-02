@@ -81,6 +81,9 @@
   // así, cuando Vento manda otra versión de la misma canción, sí suena (antes quedaba «tocada» y se perdía).
   // intentos / silencio: el navegador del TV a veces no deja sonar solo con audio (no es un video malo).
   var malos = {}, intentos = 0, silencio = false;
+  // esperaRed: se cayó el internet del TV; no se culpa a la versión, se reintenta la misma canción.
+  // bufDesde: desde cuándo está «cargando» sin avanzar.
+  var esperaRed = 0, bufDesde = 0;
   try{ tocadas = JSON.parse(localStorage.getItem('tv_tocadas_' + code) || '{}') || {}; }catch(e){ tocadas = {}; }
   function guardarTocadas(){
     var ks = Object.keys(tocadas); if(ks.length > 300){ ks.sort(function(a, b){ return tocadas[a] - tocadas[b]; }).slice(0, ks.length - 300).forEach(function(k){ delete tocadas[k]; }); }
@@ -125,6 +128,14 @@
   }
   function mala(){                              // esta versión no se deja reproducir: avisa y sigue
     if(!actual) return;
+    // Sin internet (o el YouTube del TV no carga nada): no es culpa de la versión. Antes se avisaba
+    // «versión mala» y Vento descartaba versiones buenas hasta borrar la canción. Se reintenta la
+    // MISMA canción una vez cuando vuelva la red; si falla otra vez con internet, ahí sí es mala.
+    if(!actual.reint && (navigator.onLine === false || Date.now() - ultimaRed < 60000)){
+      actual.reint = true; esperaRed = Date.now() + 20000; cargadoEn = 0;
+      $('aviso').textContent = '📶 Se cayó la conexión del TV: reintento la canción en unos segundos…';
+      return;
+    }
     avisar({ b: actual.i, v: actual.v });
     malos[actual.v] = 1; delete tocadas[actual.i]; guardarTocadas();   // la otra versión que mande Vento sí entra
     $('aviso').textContent = 'No se pudo cargar la reproducción. Intente nuevamente.';
@@ -136,7 +147,7 @@
     player = new YT.Player('yt', { width: '100%', height: '100%', playerVars: { autoplay: 1, playsinline: 1, rel: 0, controls: 0, modestbranding: 1 }, events: {
       onReady: function(){ listo = true; siguiente(); },
       onStateChange: function(e){ if(e.data === 1){ cargadoEn = 0; intentos = 0; } if(e.data === 0) termino(); },
-      onError: function(){ mala(); }
+      onError: function(e){ if(e && (e.data === 5 || e.data === 2) && navigator.onLine === false) ultimaRed = Date.now(); mala(); }
     } });
   }
   // Terminó la canción: avisa a Vento y pone la siguiente.
@@ -156,8 +167,23 @@
   //    Antes se tomaba como versión mala: Vento la cambiaba una y otra vez y al final la borraba.
   //  - si ni así arranca en ~24 s, ahí sí se da por mala (bloqueo que no avisa) y sigue la próxima.
   // Además, si el reproductor no avisó el final (pasa en algunos TV), se detecta aquí.
+  var ultimaRed = 0;
+  window.addEventListener('offline', function(){ ultimaRed = Date.now(); });
+  window.addEventListener('online', function(){ if(esperaRed) esperaRed = Date.now(); });
+  function recargar(t){                         // vuelve a cargar la misma canción (desde el segundo t)
+    if(!actual || !player) return;
+    cargadoEn = Date.now(); intentos = 0; bufDesde = 0;
+    try{ player.loadVideoById(actual.v, t || 0); if(silencio) player.mute(); }catch(e){}
+  }
   setInterval(function(){
     var st = -1; try{ st = player.getPlayerState(); }catch(e){}
+    if(actual && esperaRed){
+      if(Date.now() >= esperaRed && navigator.onLine !== false){ esperaRed = 0; $('aviso').textContent = ''; recargar(0); }
+      pintar(); return;
+    }
+    // «Cargando» por más de 45 s (internet lento o trabado): se vuelve a cargar desde donde iba.
+    if(actual && st === 3){ if(!bufDesde) bufDesde = Date.now(); else if(Date.now() - bufDesde > 45000) recargar(pos().t); }
+    else bufDesde = 0;
     if(actual && cargadoEn && Date.now() - cargadoEn > 8000 && st !== 1 && st !== 3){
       if((st === -1 || st === 5 || st === 2) && intentos < 2){
         intentos++; cargadoEn = Date.now();
@@ -199,16 +225,23 @@
     };
     x.send();
   }
+  // Una sola conexión a la vez. Algunos navegadores de TV dejan la conexión «abierta» pero muda (sin
+  // avisar error): si en 7 min no llega nada del celular (que manda la cola al menos cada ~5 min),
+  // se reconecta sola.
+  var es = null, esT = null, esDesde = 0;
   function conectar(){
-    if(window.EventSource){
-      var es = new EventSource('https://ntfy.sh/' + TOPIC + '/sse?since=10m');
-      es.onmessage = function(ev){ try{ recibir(JSON.parse(ev.data).message); }catch(e){} };
-      es.onerror = function(){ try{ es.close(); }catch(e){} setTimeout(conectar, 5000); };
-    } else {
-      sondear(); setInterval(sondear, 5000);
-    }
+    clearTimeout(esT); esT = null;
+    if(es){ try{ es.close(); }catch(e){} es = null; }
+    esDesde = Date.now();
+    var yo = es = new EventSource('https://ntfy.sh/' + TOPIC + '/sse?since=10m');
+    yo.onmessage = function(ev){ try{ recibir(JSON.parse(ev.data).message); }catch(e){} };
+    yo.onerror = function(){ if(es !== yo) return; try{ yo.close(); }catch(e){} es = null; if(!esT) esT = setTimeout(conectar, 5000); };
   }
-  conectar();
+  if(window.EventSource){
+    conectar();
+    setInterval(function(){ if(Date.now() - Math.max(ultimoMsg, esDesde) > 7 * 60000) conectar(); }, 30000);
+    window.addEventListener('online', function(){ conectar(); });
+  } else { sondear(); setInterval(sondear, 5000); }
 
   $('go').onclick = function(){
     empezado = true;
@@ -221,7 +254,10 @@
   if(/[?&]auto=1/.test(location.search) || (navigator.presentation && navigator.presentation.receiver)){
     empezado = true; $('start').style.display = 'none';
   }
-  var s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
+  // El reproductor de YouTube: si su script no carga (internet lento al prender el TV), se reintenta.
+  function cargarYT(){ var s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api?t=' + Date.now(); document.head.appendChild(s); }
+  cargarYT();
+  var ytReint = setInterval(function(){ if(window.YT && YT.Player){ clearInterval(ytReint); if(empezado && !player) crearPlayer(); return; } cargarYT(); }, 20000);
   pintar();
 })();
 </script>
