@@ -474,5 +474,15 @@
   var tCat = setInterval(function(){ if(document.getElementById('ajustesCats')){ clearInterval(tCat); crearCategoria(); } }, 1000);
   document.addEventListener('click', function(e){ if(e.target.closest && e.target.closest('.ajustes-cat[data-cat="pagos"]')) setTimeout(pintarAjustes, 30); });
 
+  // Google / YouTube sin vencerse: el Servidor Vento guarda la llave de renovación (ver index.html → yRenovarServidor).
+  window.ventoGoogle = {
+    disponible: function(){ return !!(negocio() && est.servidor); },
+    estado: function(){ return api('google', { negocio: negocio().id, accion: 'estado' }); },
+    canjear: function(code, clientId, secret, redir){ return api('google', { negocio: negocio().id, accion: 'codigo', code: code, client_id: clientId, client_secret: secret || '', redirect_uri: redir || 'postmessage' }); },
+    token: function(){ return api('google', { negocio: negocio().id, accion: 'token' }); },
+    cuenta: function(nombre){ return api('google', { negocio: negocio().id, accion: 'cuenta', cuenta: nombre }).catch(function(){}); },
+    olvidar: function(){ return api('google', { negocio: negocio().id, accion: 'olvidar' }); }
+  };
+
   window.ventoPagos = { estado: function(){ return est; }, sincronizar: sincronizar, recibir: recibir, cobrar: function(m, v){ return window.ventoPagosCobrar(m, v); }, activarPush: activarPush, abrirAjustes: pintarAjustes, _cache: cache };
 })();

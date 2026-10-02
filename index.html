@@ -3217,9 +3217,11 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
         <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
           <input id="ytKey" class="mz-in" placeholder="API key de YouTube (para buscar las canciones)" autocapitalize="none" autocomplete="off">
           <input id="ytCid" class="mz-in" placeholder="Client ID de Google (termina en .apps.googleusercontent.com)" autocapitalize="none" autocomplete="off">
+          <input id="ytSecret" class="mz-in" type="password" placeholder="Client Secret (una sola vez: así la conexión se renueva sola y no se vence)" autocapitalize="none" autocomplete="off">
           <input id="ytPl" class="mz-in" placeholder="ID de la lista (si lo dejas vacío, se crea sola)" autocapitalize="none" autocomplete="off">
           <div class="mz-actions"><button class="btn-warn" id="ytConn" type="button">Conectar con Google</button><button class="btn-ghost" id="ytOpen" type="button">Abrir lista en YouTube Music</button></div>
         </div>
+        <div class="settings-desc" id="ytAutoInfo">🔄 <b>Reconexión automática:</b> con Vento Nube y el Servidor Vento activos, pega una vez el <b>Client Secret</b> (Google Cloud → Credenciales → tu ID de cliente de OAuth) y toca «Conectar con Google». El servidor guarda la llave de renovación cifrada y Vento renueva la conexión solo antes de que venza, en todos los celulares, sin ventanas ni botón «Reconectar». <b>Importante:</b> en Google Cloud → «Pantalla de consentimiento de OAuth» toca <b>Publicar app</b> (pasar a «En producción»); si la dejas «En prueba», Google vence la llave cada 7 días. Si abres Vento instalada como app, agrega también esta dirección en «URIs de redireccionamiento autorizados»: <b id="ytRedirUri"></b></div>
         <details class="settings-desc"><summary>Cómo obtener el Client ID (una sola vez)</summary>
           1) En console.cloud.google.com crea un proyecto. 2) Habilita «YouTube Data API v3». 3) En «Pantalla de consentimiento de OAuth» elige Externo y agrega tu correo como usuario de prueba. 4) En Credenciales crea un «ID de cliente de OAuth» tipo Aplicación web y en «Orígenes de JavaScript autorizados» pon la dirección https donde tienes esta app (sin / al final). 5) Copia el Client ID aquí. Para que la app busque y reproduzca sola solo necesitas una «Clave de API» (Credenciales → Crear credencial → Clave de API, limitada a YouTube Data API v3): no caduca cada hora. El Client ID solo hace falta para copiar las canciones a la lista de YouTube Music. No funciona si abres la app como archivo del celular: debe estar en esa dirección https. La conexión dura cerca de 1 hora; después toca Conectar otra vez.
         </details>
@@ -18835,7 +18837,7 @@ async function yQuien(){
 function yEstado(){
   const e=$('ytEstado'),c=yCfg();
   const n=cola().filter(x=>!x.done&&!x.yt&&!x.vid).length,p=n?' ('+n+' canciones sin buscar)':'';
-  if(e)e.textContent=(c.key?'🟢 Búsqueda lista (API key)':'⚪ Sin API key')+' · '+(yTok()?('🟢 Google conectado'+(c.who?' como «'+c.who+'» (el TV debe estar con esta misma cuenta)':'')+': se copian solas a tu lista de YouTube Music'):(c.cid?(c.on?'🟠 Google desconectado (la conexión dura 1 hora): toca «Reconectar» arriba o «Conectar con Google»':'🟠 Google desconectado: toca «Conectar con Google» para la lista de YouTube Music'):'⚪ Lista de YouTube Music sin configurar'))+p+'.';
+  if(e)e.textContent=(c.key?'🟢 Búsqueda lista (API key)':'⚪ Sin API key')+' · '+(yTok()?('🟢 Google conectado'+(c.srv&&ySrv()?' (se renueva sola 🔄)':'')+(c.who?' como «'+c.who+'» (el TV debe estar con esta misma cuenta)':'')+': se copian solas a tu lista de YouTube Music'):(c.cid?(c.on?'🟠 Google desconectado (la conexión dura 1 hora): toca «Reconectar» arriba o «Conectar con Google»':'🟠 Google desconectado: toca «Conectar con Google» para la lista de YouTube Music'):'⚪ Lista de YouTube Music sin configurar'))+p+'.';
   const a=$('autoEstado');if(a)a.textContent=AUTO()?((c.key||yTok())?'🟢 Activo: suena solo y las nuevas entran solas.':'🟠 Falta la API key para buscar las canciones.'):'⚪ Apagado.';
 }
 async function yApi(path,opt){
@@ -18993,6 +18995,63 @@ function cargarLista(){
   if(!yCfg().cid){showToast('Primero pega tu Client ID de Google (más abajo).');return;}
   if(!yTok())yConectar(false);else yPendientes();
 }
+/* ---------- Conexión con Google que NO se vence (Servidor Vento) ----------
+   Con el flujo de «código de autorización» de Google, el servidor guarda (cifrado) el refresh token y
+   entrega un acceso nuevo cada vez que hace falta: la app se reconecta sola, sin ventanas ni botón. */
+const yGuardarTok=(t,exp)=>{const v=JSON.stringify({t:t,exp:Date.now()+(Math.max(300,exp||3599)-120)*1000});try{localStorage.setItem('vito_ytok',v);}catch(e){try{sessionStorage.setItem('vito_ytok',v);}catch(e2){}}};
+const yTokExp=()=>{try{const t=JSON.parse(localStorage.getItem('vito_ytok')||sessionStorage.getItem('vito_ytok'));return t&&t.exp||0;}catch(e){return 0;}};
+const ySrv=()=>!!(window.ventoGoogle&&window.ventoGoogle.disponible());
+const yEnApp=()=>{try{return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;}catch(e){return false;}};
+const yRedir=()=>location.origin+location.pathname;
+let yRenovando=null,yFalloSrv=0;
+function yRenovarServidor(forzar){
+  const c=yCfg();
+  if(!ySrv()||!c.srv)return Promise.resolve(false);
+  if(!forzar&&yTok()&&yTokExp()-Date.now()>6*60000)return Promise.resolve(true);   // todavía le quedan más de 6 min
+  if(yRenovando)return yRenovando;
+  yRenovando=window.ventoGoogle.token().then(j=>{yGuardarTok(j.access_token,j.expires_in);yFalloSrv=0;const x=yCfg();x.on=true;SS('vito_yt',x);yEstado();yAvisoReconectar();return true;})
+    .catch(e=>{yFalloSrv=Date.now();if(e&&(e.codigo==='google_revocado'||e.codigo==='google_no_conectado')){const x=yCfg();x.srv=false;SS('vito_yt',x);}yEstado();yAvisoReconectar();return false;})
+    .then(r=>{yRenovando=null;return r;});
+  return yRenovando;
+}
+function yConectarConCodigo(silencio,listo){
+  const c=yCfg(),enApp=yEnApp();
+  const secret=($('ytSecret')&&$('ytSecret').value.trim())||'';
+  const canjear=(code,redir)=>window.ventoGoogle.canjear(code,c.cid,secret||sessionStorage.getItem('vito_ytsec')||'',redir).then(async j=>{
+    try{sessionStorage.removeItem('vito_ytsec');}catch(e){}
+    if($('ytSecret'))$('ytSecret').value='';
+    yGuardarTok(j.access_token,j.expires_in);const x=yCfg();x.on=true;x.srv=true;SS('vito_yt',x);
+    showToast('🟢 Google conectado. La conexión se renueva sola: ya no hay que reconectar.',7000);
+    yEstado();yAvisoReconectar();await yQuien();try{const w=yCfg().who;if(w)window.ventoGoogle.cuenta(w);}catch(e){}yPendientes(silencio);listo();
+  }).catch(e=>{showToast('Google: '+(e.message||e),9000);yEstado();yAvisoReconectar();listo();});
+  try{
+    const cc=google.accounts.oauth2.initCodeClient({client_id:c.cid,scope:'https://www.googleapis.com/auth/youtube',ux_mode:enApp?'redirect':'popup',redirect_uri:enApp?yRedir():undefined,state:'vento-yt',
+      callback:r=>{if(r.error){showToast('Google: '+r.error);listo();return;}canjear(r.code,'postmessage');},
+      error_callback:e=>{const t=e&&e.type;if(t==='popup_failed_to_open')showToast('El celular bloqueó la ventana de Google. Toca «Conectar con Google» otra vez.',8000);else if(t!=='popup_closed')showToast('Google: '+(t||'no se pudo conectar'));listo();}});
+    if(enApp&&secret){try{sessionStorage.setItem('vito_ytsec',secret);}catch(e){}}
+    cc.requestCode();
+  }catch(e){showToast('No se pudo abrir Google: '+(e.message||e));listo();}
+}
+// Regreso de Google cuando Vento está instalada como app (modo redirección): ?code=…&state=vento-yt
+(function(){
+  try{
+    const q=new URLSearchParams(location.search);
+    if(q.get('state')!=='vento-yt'||!(q.get('code')||q.get('error')))return;
+    const code=q.get('code'),err=q.get('error');
+    history.replaceState(null,'',location.pathname+location.hash);
+    if(err){setTimeout(()=>{try{showToast('Google: '+err);}catch(e){}},2500);return;}
+    let n=0;const t=setInterval(()=>{
+      if(++n>40){clearInterval(t);return;}
+      if(!ySrv())return;clearInterval(t);
+      const c=yCfg();
+      window.ventoGoogle.canjear(code,c.cid,sessionStorage.getItem('vito_ytsec')||'',yRedir()).then(async j=>{
+        try{sessionStorage.removeItem('vito_ytsec');}catch(e){}
+        yGuardarTok(j.access_token,j.expires_in);const x=yCfg();x.on=true;x.srv=true;SS('vito_yt',x);
+        showToast('🟢 Google conectado. La conexión se renueva sola: ya no hay que reconectar.',7000);yEstado();yAvisoReconectar();await yQuien();yPendientes(true);
+      }).catch(e=>{try{showToast('Google: '+(e.message||e),9000);}catch(x){}});
+    },500);
+  }catch(e){}
+})();
 function yConectar(silencio,cb){
   // cb (opcional) avisa cuando el intento terminó (con o sin éxito), para que
   // quien llamó (ej. el botón "Conectar mi cuenta de YouTube" en YouTube del
@@ -19001,6 +19060,9 @@ function yConectar(silencio,cb){
   const listo=()=>{ if(typeof cb==='function'){ try{cb();}catch(e){} } };
   const c=yCfg();
   if(!c.cid){if(!silencio)showToast('Pega primero tu Client ID de Google.');listo();return;}
+  // Con el Servidor Vento: primero se intenta renovar sola (sin ventanas); si el servidor aún no tiene la
+  // conexión guardada y la persona tocó el botón, se hace el flujo de código una sola vez.
+  if(ySrv()&&c.srv){yRenovarServidor(true).then(ok=>{if(ok){yPendientes(silencio);listo();}else if(!silencio&&window.google&&google.accounts)yConectarConCodigo(silencio,listo);else listo();});return;}
   if(!window.google||!google.accounts){if(!silencio)showToast('No cargó Google. Revisa el internet.');listo();return;}
   // Google bloquea el inicio de sesión ("Error 400: invalid_request ... no
   // cumple la política de OAuth 2.0") cuando la app se abre como archivo
@@ -19011,7 +19073,10 @@ function yConectar(silencio,cb){
     if(!silencio) showToast('⚠️ Google no deja conectar desde aquí: la app está abierta como ' + (location.protocol === 'file:' ? 'archivo del teléfono/PC' : 'dirección sin https') + '. Ábrela desde tu dirección https (por ejemplo tu página de GitHub Pages) y registra esa dirección en Google Cloud → Credenciales → Orígenes de JavaScript autorizados.', 9000);
     listo();return;
   }
-  yTC=yTC||google.accounts.oauth2.initTokenClient({client_id:c.cid,scope:'https://www.googleapis.com/auth/youtube',callback:async r=>{
+  if(ySrv()&&!silencio){yConectarConCodigo(silencio,listo);return;}
+  yTC=yTC||google.accounts.oauth2.initTokenClient({client_id:c.cid,scope:'https://www.googleapis.com/auth/youtube',
+    error_callback:e=>{const t=e&&e.type;if(!yTC||!yTC.silencio){if(t==='popup_failed_to_open')showToast('El celular bloqueó la ventana de Google. Toca «Reconectar» y acepta.'+(yEnApp()?' Si Vento está instalada como app y no vuelve, conéctate a Vento Nube: así se reconecta sola.':''),9000);else if(t!=='popup_closed')showToast('Google: '+(t||'no se pudo conectar'));}yAvisoReconectar();listo();},
+    callback:async r=>{
     if(r.error){if(!yTC.silencio)showToast('Google: '+r.error);yAvisoReconectar();listo();return;}
     try{localStorage.setItem('vito_ytok',JSON.stringify({t:r.access_token,exp:Date.now()+(r.expires_in-120)*1000}));}catch(e){sessionStorage.setItem('vito_ytok',JSON.stringify({t:r.access_token,exp:Date.now()+(r.expires_in-120)*1000}));}
     const x=yCfg();x.on=true;SS('vito_yt',x);yEstado();yAvisoReconectar();await yQuien();yPendientes(yTC.silencio);listo();}});
@@ -19038,15 +19103,21 @@ function iniYT(){
     yEstado();yAvisoReconectar();
     const c=yCfg();
     if(c.key||yTok())ordenJusto(cola().filter(x=>!x.yt&&!x.novid)).forEach(x=>ytAgregar(x.id));
-    if(c.cid&&c.on&&!yTok()&&Date.now()-yUltimoSilencioso>5*60000){yUltimoSilencioso=Date.now();yConectar(true);}
+    if(ySrv()&&c.srv){ if(Date.now()-yFalloSrv>60000) yRenovarServidor(false); }   // se renueva sola antes de vencer
+    else if(c.cid&&c.on&&!yTok()&&Date.now()-yUltimoSilencioso>5*60000){yUltimoSilencioso=Date.now();yConectar(true);}
   },60000);
+  // Al volver a la app (pantalla prendida, otra app) o al volver el internet, se renueva de una vez si hace falta.
+  const yDespertar=()=>{if(document.visibilityState==='visible'&&ySrv()&&yCfg().srv)yRenovarServidor(false);};
+  document.addEventListener('visibilitychange',yDespertar);window.addEventListener('online',yDespertar);
+  setTimeout(()=>{if(ySrv()&&yCfg().srv)yRenovarServidor(false);},4000);
+  if($('ytRedirUri'))$('ytRedirUri').textContent=yRedir();
   yAvisoReconectar();
   yEstado();
   yQuien();
 }
 // Aviso con botón (en Música) cuando la conexión con Google se venció.
 function yAvisoReconectar(){
-  let b=$('ytRecon');const c=yCfg(),falta=!!(c.cid&&c.on&&!yTok());
+  let b=$('ytRecon');const c=yCfg(),falta=!!(c.cid&&c.on&&!yTok()&&!(ySrv()&&c.srv&&!yFalloSrv));
   if(!b){
     const sec=$('view-musica');if(!sec)return;
     b=document.createElement('div');b.id='ytRecon';b.className='yt-recon';
@@ -19370,7 +19441,7 @@ async function publicarCatalogo(force){
 window.vitoPublicarCatalogo = publicarCatalogo;
 window.vitoQCfg = qCfg;   // lo usan los domicilios por web/WhatsApp, que viven fuera de este módulo
 // Lo que usan las fotos de la carta y la transmisión al TV (script del final).
-window.vitoMod = { linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente, ytDur, ytPosicionSiguiente, ytTanda: () => ytTanda, procesar, notifPedidos, notifMusica };
+window.vitoMod = { yRenovarServidor, linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente, ytDur, ytPosicionSiguiente, ytTanda: () => ytTanda, procesar, notifPedidos, notifMusica };
 function publicarCuentas(){
   if(typeof data==='undefined'||!data)return;
   try{publicarCatalogo();}catch(e){}             // la carta se publica siempre (aunque "en vivo" esté apagado)
@@ -21288,7 +21359,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.16.3';
+const MESORA_VERSION = '2026-10-02 · v1.17';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con

@@ -17,9 +17,10 @@ import * as W from "./wompi.ts";
 import * as N from "./nequi.ts";
 import { leerAviso } from "./avisos.ts";
 import { avisarDispositivos, vapid } from "./push.ts";
+import * as G from "./google.ts";
 import { type Env, ErrorVento, log, sha256 } from "./util.ts";
 
-export const VERSION = "1.16.0";
+export const VERSION = "1.17.0";
 const SITIO = "https://cristhianlujan45-blip.github.io/cuentas/";
 
 type Pago = { id: string; negocio_id?: string; referencia: string; proveedor: string; metodo: string; canal: string; monto: number;
@@ -157,6 +158,44 @@ async function sincronizar(env: Env, db: Db, negocio: string | null) {
     }
   }
   return { revisados, cambios, errores };
+}
+
+// ---------- /google (YouTube sin vencerse) ----------
+type GSecreto = { client_secret: string; refresh_token: string };
+async function google(req: Request, env: Env, b: Record<string, unknown>) {
+  const yo = usuario(req, env), db = servidor(env);
+  const negocio = String(b.negocio || "");
+  if (!negocio) throw new ErrorVento("falta_negocio", "Falta el negocio", 400);
+  const accion = String(b.accion || "estado");
+  const quien = await yo.rpc<string>("integracion_puedo", { p_negocio: negocio, p_accion: accion === "codigo" || accion === "olvidar" ? "configurar" : "usar" });
+  const uid = quien.split(":")[0];
+  const guardado = await db.rpc<{ publico: Record<string, unknown>; secreto: string | null; actualizado_en: string } | null>("srv_integracion", { p_negocio: negocio, p_tipo: "google" });
+  if (accion === "estado") return { conectado: !!(guardado && guardado.secreto), client_id: guardado ? guardado.publico.client_id || null : null, desde: guardado ? guardado.publico.desde || null : null, cuenta: guardado ? guardado.publico.cuenta || null : null };
+  if (accion === "olvidar") { await db.rpc("srv_integracion_borrar", { p_negocio: negocio, p_tipo: "google", p_usuario: uid }); return { conectado: false }; }
+  if (accion === "codigo") {
+    const code = String(b.code || ""), client_id = String(b.client_id || "").trim(), redirect_uri = String(b.redirect_uri || "postmessage");
+    if (!code || !client_id) throw new ErrorVento("google_faltan", "Faltan el código o el Client ID", 400);
+    const previo = guardado && guardado.secreto && guardado.publico.client_id === client_id ? await descifrar<GSecreto>(env, guardado.secreto) : null;
+    const client_secret = String(b.client_secret || "").trim() || (previo ? previo.client_secret : "");
+    if (!client_secret) throw new ErrorVento("google_secret", "Pega el Client Secret de tu cliente OAuth de Google (Google Cloud → Credenciales) para que la conexión no se venza.", 400);
+    const t = await G.canjearCodigo({ code, client_id, client_secret, redirect_uri }, env);
+    const refresh_token = t.refresh_token || (previo ? previo.refresh_token : "");
+    if (!refresh_token) throw new ErrorVento("google_sin_refresh", "Google no entregó la llave de renovación. Entra a myaccount.google.com/permissions, quita el acceso de tu app y vuelve a tocar «Conectar con Google».", 400);
+    await db.rpc("srv_integracion_guardar", { p_negocio: negocio, p_tipo: "google", p_publico: { client_id, desde: new Date().toISOString(), cuenta: b.cuenta ? String(b.cuenta).slice(0, 80) : (guardado && guardado.publico.cuenta) || null }, p_secreto: await cifrar(env, { client_secret, refresh_token }), p_usuario: uid });
+    return { access_token: t.access_token, expires_in: t.expires_in || 3599, conectado: true };
+  }
+  if (accion === "token") {
+    if (!guardado || !guardado.secreto) throw new ErrorVento("google_no_conectado", "Google todavía no está conectado en el servidor", 404);
+    const s = await descifrar<GSecreto>(env, guardado.secreto);
+    const t = await G.renovar({ refresh_token: s.refresh_token, client_id: String(guardado.publico.client_id || ""), client_secret: s.client_secret }, env);
+    if (t.refresh_token && t.refresh_token !== s.refresh_token) await db.rpc("srv_integracion_guardar", { p_negocio: negocio, p_tipo: "google", p_publico: guardado.publico, p_secreto: await cifrar(env, { client_secret: s.client_secret, refresh_token: t.refresh_token }), p_usuario: uid });
+    return { access_token: t.access_token, expires_in: t.expires_in || 3599 };
+  }
+  if (accion === "cuenta") {
+    if (guardado) await db.rpc("srv_integracion_guardar", { p_negocio: negocio, p_tipo: "google", p_publico: { ...guardado.publico, cuenta: String(b.cuenta || "").slice(0, 80) }, p_secreto: null, p_usuario: uid });
+    return { ok: true };
+  }
+  throw new ErrorVento("accion_invalida", "Acción desconocida", 400);
 }
 
 // ---------- /config ----------
@@ -345,7 +384,7 @@ export async function manejar(req: Request, env: Env): Promise<Response> {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   try {
     const r0 = ruta[0] || "salud";
-    if (r0 === "salud") return json(200, { ok: true, servicio: "vento-pagos", version: VERSION, integraciones: ["wompi", "nequi_conecta", "avisos_dispositivo"], push: true }, cors);
+    if (r0 === "salud") return json(200, { ok: true, servicio: "vento-pagos", version: VERSION, integraciones: ["wompi", "nequi_conecta", "avisos_dispositivo", "google_youtube"], push: true }, cors);
     if (r0 === "webhook" && ruta[1] === "wompi" && ruta[2] && req.method === "POST") return await webhookWompi(req, env, ruta[2]);
     if (r0 === "aviso" && req.method === "POST") return await aviso(req, env, ruta[1] || null);
     if (r0 === "push-clave") { const v = await vapid(servidor(env), env.VENTO_SITIO || SITIO); return json(200, { publica: v.publica }, cors); }
@@ -358,6 +397,7 @@ export async function manejar(req: Request, env: Env): Promise<Response> {
     }
     const b = await req.json().catch(() => ({})) as Record<string, unknown>;
     if (r0 === "config") return json(200, await config(req, env, b), cors);
+    if (r0 === "google") return json(200, await google(req, env, b), cors);
     if (r0 === "cobro") return json(200, await cobro(req, env, b), cors);
     if (r0 === "sync") {
       const negocio = String(b.negocio || "");

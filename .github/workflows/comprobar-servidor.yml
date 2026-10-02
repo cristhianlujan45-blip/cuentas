@@ -38,6 +38,11 @@ jobs:
           S=$(curl -fsS "$F/salud" || true); echo "   $S"
           prueba "El servidor responde (salud)" '[[ "$S" == *"\"ok\":true"* ]]'
           prueba "Tiene Wompi, Nequi Conecta y avisos" '[[ "$S" == *wompi* && "$S" == *nequi_conecta* && "$S" == *avisos_dispositivo* ]]'
+          prueba "Google/YouTube con renovación automática disponible" '[[ "$S" == *google_youtube* ]]'
+          C=$(code -X POST "$F/google" -H "apikey: $K" -H 'content-type: application/json' -d '{"negocio":"x","accion":"token"}')
+          prueba "Google: sin sesión no entrega accesos (401)" '[ "$C" = 401 ]'
+          C=$(code "$U/rest/v1/integraciones?select=*" -H "apikey: $K" -H "Authorization: Bearer $K")
+          prueba "Nadie de afuera lee la llave de Google (integraciones)" '[ "$C" != 200 ] || [ "$(cat /tmp/r.txt)" = "[]" ]'
           P=$(curl -fsS "$F/push-clave" || true)
           prueba "Llave de notificaciones push creada" '[[ "$P" == *"\"publica\":\""* ]]'
           C=$(code -X POST "$F/config" -H "apikey: $K" -H 'content-type: application/json' -d '{"negocio":"x"}')
@@ -66,6 +71,7 @@ jobs:
           supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD" >/dev/null 2>&1 || true
           M=$(supabase migration list --password "$SUPABASE_DB_PASSWORD" 2>/dev/null || true); echo "$M" | tail -6
           prueba "Migración Vento Nube aplicada en Supabase" '[[ "$M" == *20261002000000*20261002000000* ]] || echo "$M" | grep -Eq "20261002000000 *\| *20261002000000"'
+          prueba "Migración de integraciones (Google) aplicada" '[[ "$M" == *20261002180000*20261002180000* ]] || echo "$M" | grep -Eq "20261002180000 *\| *20261002180000"'
           prueba "Migración de pagos aplicada en Supabase" '[[ "$M" == *20261002120000*20261002120000* ]] || echo "$M" | grep -Eq "20261002120000 *\| *20261002120000"'
           echo "== Conexión de los celulares"
           prueba "nube/config.js apunta a este proyecto" 'grep -q "$U" nube/config.js'
