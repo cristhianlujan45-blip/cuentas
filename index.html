@@ -7,6 +7,68 @@
 // Un QR de mesa o link de domicilio que cae en la app del negocio abre la carta del cliente.
 (function(){var q=location.search;if(/[?&]c=\w/.test(q)&&/[?&](mesa=\d|dom=1)/.test(q))location.replace(location.pathname.replace(/[^/]*$/,'')+'pedido.html'+q+location.hash);})();
 </script>
+<script>
+/* ---------- Vento para Android (APK) ----------
+   Dentro de la app instalada (window.VentoAndroid) se usan los servicios del celular para lo que el
+   navegador de una app no trae: dictado por voz, voz de Laya, guardar archivos y el botón Atrás.
+   Fuera de la app no se toca nada. */
+(function(){
+  var A = window.VentoAndroid; if(!A) return;
+  try{ document.documentElement.classList.add('en-apk'); }catch(e){}
+  // Dictado por voz: misma forma que SpeechRecognition del navegador (onresult, isFinal, alternativas…)
+  var activo = null;
+  function SR(){ this.lang = 'es-CO'; this.continuous = false; this.interimResults = false; this.maxAlternatives = 1; this.onresult = this.onerror = this.onend = this.onstart = null; this._fin = []; }
+  SR.prototype.start = function(){ if(activo && activo !== this){ try{ activo._vivo = false; }catch(e){} } activo = this; this._fin = []; this._vivo = true; A.vozIniciar(this.lang || 'es-CO', !!this.interimResults, !!this.continuous); };
+  SR.prototype.stop = function(){ try{ A.vozParar(); }catch(e){} };
+  SR.prototype.abort = function(){ try{ A.vozCancelar(); }catch(e){} };
+  SR.prototype.addEventListener = function(t, f){ this['on' + t] = f; };
+  function lista(arr){ arr.item = function(i){ return this[i]; }; return arr; }
+  window.__ventoVoz = function(tipo, d){
+    var r = activo; if(!r) return;
+    if(tipo === 'start'){ r.onstart && r.onstart({}); return; }
+    if(tipo === 'result'){
+      var res = lista((d.alts || []).map(function(a){ return { transcript: a.t, confidence: a.c }; })); res.isFinal = !!d.final;
+      var todos;
+      if(d.final){ r._fin.push(res); todos = lista(r._fin.slice()); }
+      else { todos = lista(r._fin.slice().concat([res])); }
+      r.onresult && r.onresult({ results: todos, resultIndex: todos.length - 1 });
+      return;
+    }
+    if(tipo === 'error'){ r.onerror && r.onerror({ error: d && d.error }); return; }
+    if(tipo === 'end'){ if(!r._vivo && r._finAvisado) return; r._vivo = false; r._finAvisado = true; if(activo === r) activo = null; r.onend && r.onend({}); setTimeout(function(){ r._finAvisado = false; }, 0); }
+  };
+  window.SpeechRecognition = window.webkitSpeechRecognition = SR;
+  // Voz de Laya (leer en voz alta)
+  if(!('speechSynthesis' in window) || !window.speechSynthesis || !window.speechSynthesis.speak){
+    var hablando = null;
+    window.SpeechSynthesisUtterance = window.SpeechSynthesisUtterance || function(t){ this.text = t || ''; this.lang = 'es-CO'; this.rate = 1; this.onend = this.onstart = this.onerror = null; };
+    window.speechSynthesis = { speaking: false, pending: false, onvoiceschanged: null,
+      getVoices: function(){ return []; },
+      speak: function(u){ hablando = u; this.speaking = true; try{ A.hablar(String(u.text || ''), u.lang || 'es-CO', Number(u.rate) || 1); }catch(e){ this.speaking = false; } },
+      cancel: function(){ this.speaking = false; try{ A.callar(); }catch(e){} var h = hablando; hablando = null; if(h && h.onend) try{ h.onend({}); }catch(e){} },
+      pause: function(){}, resume: function(){} };
+    window.__ventoHabla = function(t){ var h = hablando; if(t === 'start'){ h && h.onstart && h.onstart({}); return; } window.speechSynthesis.speaking = false; hablando = null; if(h && h.onend) try{ h.onend({}); }catch(e){} };
+  }
+  // Descargas (respaldos, reportes, fotos): la app los guarda en Descargas/Vento
+  var clickOrig = HTMLAnchorElement.prototype.click;
+  HTMLAnchorElement.prototype.click = function(){
+    var a = this, h = a.href || '';
+    if(a.download && /^(blob:|data:)/.test(h)){
+      fetch(h).then(function(r){ return r.blob(); }).then(function(b){
+        var fr = new FileReader(); fr.onload = function(){ var b64 = String(fr.result).split(',')[1] || ''; A.guardarArchivo(a.download, b.type || 'application/octet-stream', b64); }; fr.readAsDataURL(b);
+      }).catch(function(){});
+      return;
+    }
+    return clickOrig.apply(this, arguments);
+  };
+  // Botón Atrás del celular: cierra la ventana abierta de Vento (si hay una)
+  window.ventoAtras = function(){
+    var ab = Array.prototype.slice.call(document.querySelectorAll('.overlay.show'));
+    if(!ab.length) return false;
+    ab[ab.length - 1].classList.remove('show'); return true;
+  };
+})();
+</script>
 <!-- Evita que el navegador (sobre todo en el celular, con la app agregada a la
      pantalla de inicio) se quede pegado con una versión vieja de esta página
      guardada en caché — cada visita revisa que sea la última. -->
@@ -3166,6 +3228,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <h2>📺 Música en el TV</h2>
       <button class="btn-primary cast-big" id="tvTransmitir" type="button">📡 Transmitir al TV</button>
       <div class="cast-devs" id="castDevs" hidden><span class="cast-dot"></span><span id="castDevsTxt"></span></div>
+      <a class="btn-ghost" id="tvApk" hidden href="https://github.com/cristhianlujan45-blip/cuentas/releases/latest/download/vento.apk" style="text-align:center;margin:8px 0;padding:11px;border-radius:12px;text-decoration:none">📲 ¿Tu TV no sale? Instala la app Vento para Android: encuentra TODOS los TV del wifi (LG, Samsung, TV Box, Fire TV…)</a>
       <div class="settings-desc" id="tvAyuda">Toca <b>Transmitir al TV</b>: salen los TV y TV Box de tu wifi. Elige el tuyo y listo: las canciones que pidan las mesas suenan allá solas, una tras otra.</div>
       <details class="tv-opt" id="tvOptCodigo"><summary><span class="tv-opt-t">¿Tu TV no aparece? Conectar con el código del TV</span><small>Smart TV LG/Samsung, TV Box y Fire TV sin Chromecast.</small></summary>
         <div class="settings-desc">Vento se conecta a la <b>app de YouTube de tu televisor</b> (LG, Samsung, Android TV…) con el código del TV y le va <b>agregando cada canción que piden las mesas a su cola, en vivo</b>, sin tocar nada. Suena en el TV (no en el celular) y sin bloqueos de sello. <b>Esto NO usa ninguna cuenta de Google</b> — funciona igual que el control remoto de tu celular con la app de YouTube, sin iniciar sesión con nadie, así que no hay ninguna cuenta que confirmar aquí. Si quieres que las canciones se guarden en tu propia biblioteca/lista de YouTube Music, eso es la sección de abajo, <b>▶ YouTube Music automático</b>, con «Conectar con Google». Se configura una sola vez:</div>
@@ -21568,7 +21631,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.19.2';
+const MESORA_VERSION = '2026-10-02 · v1.20';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -21609,7 +21672,7 @@ function presUrl(){ const u = vm().tvUrl ? vm().tvUrl() : ''; return u ? u.repla
 function presSoportado(){ return 'PresentationRequest' in window && !!navigator.presentation; }
 function castEntorno(){
   const ua = navigator.userAgent;
-  if(/; wv\)|FBAN|FBAV|Instagram|WhatsApp|Line\/|GSA\//.test(ua)) return { bad: true, t: '⚠️ Vento está abierta DENTRO de otra app (no en Chrome). Así el celular no deja abrir YouTube ni buscar televisores. Ábrela en Chrome (copia su dirección y pégala en Chrome) o instálala desde el menú de Chrome.' };
+  if(!window.VentoAndroid && /; wv\)|FBAN|FBAV|Instagram|WhatsApp|Line\/|GSA\//.test(ua)) return { bad: true, t: '⚠️ Vento está abierta DENTRO de otra app (no en Chrome). Así el celular no deja abrir YouTube ni buscar televisores. Ábrela en Chrome (copia su dirección y pégala en Chrome) o instálala desde el menú de Chrome.' };
   if(location.protocol === 'file:') return { bad: true, t: '⚠️ Vento está abierta como archivo. Ábrela desde su dirección https para transmitir.' };
   if(/SamsungBrowser/.test(ua)) return { t: 'Samsung Internet: los botones de YouTube funcionan; para buscar Chromecast/Google TV abre Vento en Chrome.' };
   if(!/iPhone|iPad/.test(ua) && !window.esAndroid()) return { t: 'Computador: aquí no hay app de YouTube (se abre youtube.com).' };
@@ -21619,6 +21682,7 @@ function castDevsPintar(){
   const box = document.getElementById('castDevs'), t = document.getElementById('castDevsTxt');
   if(!box) return;
   if(ccSes){ ccPintar(); return; }
+  if(typeof lngOn === 'function' && lngOn() && !box.classList.contains('busy')){ box.hidden = false; box.classList.remove('no'); box.classList.add('ok'); t.textContent = '📺 Conectado a «' + (lngCfg().nombre || 'TV') + '»: las canciones de las mesas suenan allá solas.'; return; }
   box.classList.remove('ok', 'no', 'busy');
   box.hidden = !((presConn && presConn.state === 'connected') || presDisp === true);
   if(presConn && presConn.state === 'connected'){ box.classList.add('ok'); t.textContent = '📡 Transmitiendo a tu dispositivo: la música de las mesas suena allá en vivo.'; return; }
@@ -21962,6 +22026,7 @@ window.tvMandarYa = () => { if(typeof lngOn === 'function' && lngOn()){ lng.porP
    La librería de Chromecast ya se cargó al abrir la app, así que la respuesta es inmediata y el toque
    sigue valiendo para abrir la lista o Chrome. */
 async function tvTransmitirToque(){
+  if(window.VentoAndroid){ tvApkLista(); return; }   // app de Android: lista con TODOS los TV del wifi
   const env = castEntorno();
   if(env.bad){ showToast(env.t, 9000); return; }
   let hay = false;
@@ -21974,6 +22039,84 @@ async function tvTransmitirToque(){
   }
   tvSinLista('Este navegador no puede mostrar los TV de tu wifi. Abre Vento en Chrome, o conecta con el código del TV (abajo).');
 }
+/* ---------- App de Android: todos los TV del wifi ----------
+   La app busca en el wifi igual que YouTube (LG webOS, Samsung, TV Box, Android TV, Fire TV, Chromecast).
+   Al tocar uno, abre YouTube en ese TV con un código de vinculación y Vento se vincula sola con ese
+   código (el mismo sistema de «Vincular con código de TV», sin escribir nada). Desde ahí la cola de
+   las mesas suena allá sola, como con el código. */
+const tvEsc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const tvIcono = t => ({ lg: '📺', samsung: '📺', tv: '📺', chromecast: '📡', firetv: '🔥', roku: '🟣', tvbox: '📦' }[t] || '📺');
+function tvApkLista(){
+  let ov = document.getElementById('tvApkOv');
+  if(!ov){
+    ov = document.createElement('div'); ov.id = 'tvApkOv'; ov.className = 'overlay';
+    ov.innerHTML = '<div class="modal" style="max-width:420px;max-height:88vh;overflow:auto"><h2>📺 TV de tu wifi</h2><div class="modal-sub" id="tvApkSub"></div>' +
+      '<div id="tvApkLista" style="display:flex;flex-direction:column;gap:8px;margin:12px 0"></div>' +
+      '<div class="modal-actions" style="flex-direction:column;gap:8px;align-items:stretch"><button class="btn-ghost" id="tvApkOtra" type="button">🔄 Buscar otra vez</button><button class="btn-close" id="tvApkNo" type="button">Cerrar</button></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#tvApkNo').onclick = () => ov.classList.remove('show');
+    ov.querySelector('#tvApkOtra').onclick = () => tvApkLista();
+    ov.addEventListener('click', e => { if(e.target === ov) ov.classList.remove('show'); });
+  }
+  const L = ov.querySelector('#tvApkLista'), sub = ov.querySelector('#tvApkSub'), vistos = {};
+  L.innerHTML = ''; sub.textContent = '⏳ Buscando los TV de tu wifi…';
+  window.__ventoTV = tv => {
+    if(!tv || vistos[tv.id]) return; vistos[tv.id] = tv;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-primary';
+    b.style.cssText = 'display:flex;align-items:center;gap:12px;text-align:left;padding:13px 14px;width:100%';
+    const extra = [tv.fabricante, tv.modelo].filter(x => x && !String(tv.nombre).includes(x)).join(' · ');
+    b.innerHTML = '<span style="font-size:24px">' + tvIcono(tv.tipo) + '</span><span><b>' + tvEsc(tv.nombre) + '</b>' + (extra ? '<br><small style="opacity:.8">' + tvEsc(extra) + '</small>' : '') + '</span>';
+    b.onclick = () => { ov.classList.remove('show'); tvApkConectar(tv); };
+    L.appendChild(b);
+    sub.textContent = 'Toca tu TV: se abre YouTube allá y las canciones de las mesas suenan solas.';
+  };
+  window.__ventoTVfin = () => {
+    if(!Object.keys(vistos).length) sub.textContent = 'No encontré TV en este wifi. Revisa que el celular y el TV estén en el MISMO wifi y el TV encendido, y toca «Buscar otra vez». Si aun así no sale, usa el código del TV.';
+  };
+  ov.classList.add('show');
+  try{ window.VentoAndroid.buscarTVs(); }catch(e){ sub.textContent = 'No pude buscar los TV: ' + (e.message || e); }
+}
+window.__ventoCb = (id, d) => { const f = window.__ventoCbs && window.__ventoCbs[id]; if(f){ delete window.__ventoCbs[id]; f(d || {}); } };
+async function tvApkConectar(tv){
+  if(!lngCfg().relay){
+    showToast('Falta el puente (se crea gratis una sola vez). Te llevo al paso: Música → «¿Tu TV no aparece?» → paso 1.', 9000);
+    const d = document.getElementById('tvOptCodigo'); if(d){ d.open = true; d.querySelectorAll('[hidden]').forEach(x => { if(x.classList.contains('lng-step') || x.classList.contains('settings-desc')) x.hidden = false; }); d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+    return;
+  }
+  const box = document.getElementById('castDevs'), txt = document.getElementById('castDevsTxt');
+  const pintar = (t, cls) => { if(!box) return; box.hidden = false; box.classList.remove('ok', 'no', 'busy'); if(cls) box.classList.add(cls); txt.textContent = t; };
+  pintar('📺 Abriendo YouTube en «' + tv.nombre + '»…', 'busy');
+  const codigo = (crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join(''));
+  lngLog('TV del wifi: «' + tv.nombre + '» (' + (tv.fabricante || tv.tipo) + ') → abrir YouTube');
+  const r = await new Promise(res => { const id = 'y' + Date.now(); window.__ventoCbs = window.__ventoCbs || {}; window.__ventoCbs[id] = res; try{ window.VentoAndroid.abrirYouTube(id, tv.appUrl, codigo); }catch(e){ res({ status: -1 }); } setTimeout(() => res({ status: -2 }), 15000); });
+  if(!(r.status >= 200 && r.status < 300)){
+    lngLog('   ❌ el TV no dejó abrir YouTube (respuesta ' + r.status + ')');
+    pintar('⚠️ «' + tv.nombre + '» no dejó abrir YouTube. Enciende el TV, abre YouTube en él una vez y vuelve a tocar «Transmitir al TV».', 'no');
+    return;
+  }
+  lngLog('   ✅ YouTube abierto en el TV · vinculando…');
+  pintar('📺 YouTube abierto en «' + tv.nombre + '». Vinculando…', 'busy');
+  let ok = false, err = '';
+  for(let i = 0; i < 12 && !ok; i++){
+    await new Promise(r2 => setTimeout(r2, 2500));
+    try{ await lngParear(codigo); ok = true; }catch(e){ err = e.message || String(e); }
+  }
+  if(!ok){
+    lngLog('   ❌ no se pudo vincular solo: ' + err);
+    pintar('⚠️ YouTube se abrió en «' + tv.nombre + '», pero no se vinculó solo. Usa el código del TV (abajo): en el TV, YouTube → Configuración → Vincular con código de TV.', 'no');
+    tvSinLista('YouTube ya está abierto en el TV: falta escribir su código una vez.');
+    return;
+  }
+  SS(LNG_KEY, Object.assign(lngCfg(), { nombre: tv.nombre, codigo: true }));
+  lngReloj0('TV «' + tv.nombre + '»');
+  try{ await lngBind(); }catch(e){}
+  autoPausar();
+  try{ vm().cola().forEach(x => { if(!x.vid && !x.done) vm().ytAgregar(x.id); }); }catch(e){}
+  lng.porPersona = true; lng.pausaHasta = 0; lngSync(true);
+  lngEstado();
+  pintar('📺 Conectado a «' + tv.nombre + '»: las canciones de las mesas suenan allá solas, una tras otra.', 'ok');
+  showToast('✅ Conectado a «' + tv.nombre + '». La música de las mesas ya va al TV.', 7000);
+}
 // Sin lista de aparatos: aviso corto (sin ventana) y se abre la opción del código del TV.
 function tvSinLista(msg){
   showToast('📺 ' + msg, 9000);
@@ -21982,6 +22125,7 @@ function tvSinLista(msg){
 function iniCast(){
   if(!document.getElementById('castPres')) return;
   const tb = document.getElementById('tvTransmitir'); if(tb) tb.onclick = tvTransmitirToque;
+  const ta = document.getElementById('tvApk'); if(ta){ const ver = !window.VentoAndroid && !!(window.esAndroid && window.esAndroid()); ta.hidden = !ver; ta.style.display = ver ? 'block' : 'none'; }
   // Llegó desde Brave (se abrió en Chrome para transmitir): se lleva a Música y se resalta el botón.
   if(/[?&]transmitir=1/.test(location.search)){
     try{ history.replaceState(null, '', location.pathname + location.hash); }catch(e){}
