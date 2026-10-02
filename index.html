@@ -18776,7 +18776,16 @@ function renderMusica(){
   const L=$('mzList');if(!L||typeof data==='undefined'||!data)return;
   const o=ordenJusto(cola()),now=LS('vito_now',null);L.textContent='';mzPintarSonando();
   if(now&&!mzActual()){const d=document.createElement('div');d.className='mz-song';d.innerHTML='<span>▶ Última: <b>'+esc(now.song)+'</b> · '+esc(tableLabel(now.mesa))+'</span>';L.appendChild(d);}
-  if(!o.length){const d=document.createElement('div');d.className='empty-note';d.textContent='No hay canciones en cola. Los clientes las piden con el QR de su mesa.';L.appendChild(d);return;}
+  // Las que ya se mandaron al TV (o a tu lista de YouTube) y todavía no suenan siguen a la vista.
+  const enTV=cola().filter(x=>x.done&&(x.status==='tv'||(x.status==='lista'&&Date.now()-(x.ytAt||0)<3*36e5))).sort((a,b)=>(a.lngN||a.lngAt||a.ytAt||0)-(b.lngN||b.lngAt||b.ytAt||0)).slice(-15);
+  if(!o.length&&!enTV.length){const d=document.createElement('div');d.className='empty-note';d.textContent='No hay canciones en cola. Los clientes las piden con el QR de su mesa.';L.appendChild(d);return;}
+  if(enTV.length){
+    const h=document.createElement('div');h.className='mz-song';h.innerHTML='<span><b>📺 Ya en el TV</b> <small>(suenan en este orden)</small></span>';L.appendChild(h);
+    enTV.forEach((x,i)=>{const d=document.createElement('div');d.className='mz-song';
+      d.innerHTML='<span>'+(i+1)+'. '+esc(x.song)+' · '+esc(tableLabel(x.mesa))+' <small class="mz-est mz-approved">'+(x.status==='tv'?'En la cola del TV':'En tu lista de YouTube')+' · '+new Date(x.ts).toLocaleTimeString('es-CO',{hour:'numeric',minute:'2-digit'})+'</small></span>';
+      L.appendChild(d);});
+    if(o.length){const h2=document.createElement('div');h2.className='mz-song';h2.innerHTML='<span><b>⏳ Por mandar</b></span>';L.appendChild(h2);}
+  }
   o.forEach((x,i)=>{
     const d=document.createElement('div');d.className='mz-song';
     d.innerHTML='<span>'+(i+1)+'. '+esc(x.song)+' · '+esc(tableLabel(x.mesa))+' <small class="mz-est mz-'+(x.status||'pending')+'">'+(x.status==='approved'||x.ok?'En cola':'Pendiente')+' · '+new Date(x.ts).toLocaleTimeString('es-CO',{hour:'numeric',minute:'2-digit'})+'</small></span>';
@@ -18791,6 +18800,8 @@ function mzSaltar(){
   mzTermino(x.id,'skipped');
   if(x.fuente==='tv'){try{fetch('https://ntfy.sh/'+tvTopic(),{method:'POST',body:JSON.stringify({skip:x.id,t:Date.now()})}).catch(()=>{});}catch(e){}tvPublicar(true);}
   else if(x.fuente==='app'&&yPl&&yPl.stopVideo){try{yPl.stopVideo();}catch(e){}sonando=false;siguienteAuto();}
+  else if(x.fuente==='tvyt'&&typeof lngSaltar==='function')lngSaltar();
+  else if(x.fuente==='cc'&&typeof ccSes!=='undefined'&&ccSes){try{const ms=ccSes.getMediaSession&&ccSes.getMediaSession();if(ms)ms.stop(null,()=>{},()=>{});}catch(e){}}
   else{const o=ordenJusto(cola());if(o.length)reproducir(o[0]);}
   renderMusica();showToast('⏭ Saltada: «'+(x.title||x.song)+'».');
 }
@@ -18978,7 +18989,7 @@ async function ytUno(id){
     const sn={playlistId:pl,resourceId:{kind:'youtube#video',videoId:it.vid}};
     if(!(typeof castOn==='function'&&castOn()))sn.position=ytPosicionSiguiente(it.dur);
     const r=await yApi('playlistItems?part=snippet',{method:'POST',body:JSON.stringify({snippet:sn})});
-    l=cola();it=l.find(x=>x.id===id);if(it){it.yt=true;it.done=true;it.ytAt=Date.now();it.ytItemId=r&&r.id;SS('vito_cola',l);}
+    l=cola();it=l.find(x=>x.id===id);if(it){it.yt=true;it.done=true;it.ytAt=Date.now();it.ytItemId=r&&r.id;if(['pending','approved'].includes(it.status||'pending'))it.status='lista';SS('vito_cola',l);}
     try{if(typeof castEstado==='function')castEstado();}catch(e){}
     const c=yCfg();c.len++;SS('vito_yt',c);
   }catch(e){ if(!window.ytAvisoT||Date.now()-window.ytAvisoT>600000){ window.ytAvisoT=Date.now(); showToast('YouTube: '+(window.ytFallo||e.message),8000); } }
@@ -19441,7 +19452,7 @@ async function publicarCatalogo(force){
 window.vitoPublicarCatalogo = publicarCatalogo;
 window.vitoQCfg = qCfg;   // lo usan los domicilios por web/WhatsApp, que viven fuera de este módulo
 // Lo que usan las fotos de la carta y la transmisión al TV (script del final).
-window.vitoMod = { yRenovarServidor, linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente, ytDur, ytPosicionSiguiente, ytTanda: () => ytTanda, procesar, notifPedidos, notifMusica };
+window.vitoMod = { yRenovarServidor, linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, mzEmpezo, mzTermino, mzProgreso, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente, ytDur, ytPosicionSiguiente, ytTanda: () => ytTanda, procesar, notifPedidos, notifMusica };
 function publicarCuentas(){
   if(typeof data==='undefined'||!data)return;
   try{publicarCatalogo();}catch(e){}             // la carta se publica siempre (aunque "en vivo" esté apagado)
@@ -21359,7 +21370,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.17';
+const MESORA_VERSION = '2026-10-02 · v1.17.1';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -21530,6 +21541,7 @@ function ccSiguiente(){
   if(!ccRespaldo || !ccSes || !window.chrome || !chrome.cast || !chrome.cast.media) return;
   const ms = ccSes.getMediaSession && ccSes.getMediaSession();
   if(ms && ms.playerState && ms.playerState !== 'IDLE') return;
+  if(ccRespaldo !== 'esperando'){ const ant = vm().cola().find(y => y.status === 'playing' && y.fuente === 'cc'); if(ant && Date.now() - (ant.startedAt || 0) > 15000) vm().mzTermino(ant.id, 'played'); }
   const l = vm().cola ? vm().ordenJusto(vm().cola()) : [];
   const x = l.find(y => y.vid && !y.lng && !y.done); if(!x) return;
   if(ccRespaldo === 'esperando') return;
@@ -21542,7 +21554,7 @@ function ccSiguiente(){
     ccRespaldo = true; autoPausar();
     const cl = vm().cola(), it = cl.find(y => y.id === x.id);
     if(it){ it.lng = true; it.done = true; it.lngAt = Date.now(); SS('vito_cola', cl); }
-    SS('vito_now', x); try{ vm().renderMusica(); }catch(e){}
+    const e = vm().mzEmpezo(x.id, 'cc'); SS('vito_now', e || x); try{ vm().renderMusica(); }catch(e){}
   }).catch(() => { ccRespaldo = false; if(!lngOn() || !lngCfg().relay) ccPintar('📺 YouTube está abierto en el TV. Para que suene la cola de las mesas conecta el puente (Música → YouTube del TV, paso 1).', 'no'); });
 }
 setInterval(ccSiguiente, 5000);
@@ -21896,7 +21908,7 @@ async function lngBind(){
   const sid = (t.match(/"c"\s*,\s*"([^"]+)"/) || [])[1], gs = (t.match(/"S"\s*,\s*"([^"]+)"/) || [])[1];
   if(!sid) throw new Error('El TV no respondió. Enciéndelo y abre la app de YouTube.');
   lng.sid = sid; lng.gs = gs || ''; lng.t = Date.now();
-  lng.tvPlay = lngEstadoTV(t);
+  lng.tvPlay = lngEstadoTV(t); lngLeerTV(t);
   // Prueba de que el TV DE VERDAD llegó a reproducir. Sin esta prueba no se puede dar por
   // hecho que hay una cola viva: es lo que hacía que la canción entrara como «agregada»
   // a una cola que nunca existió y se quedara callada.
@@ -21909,6 +21921,36 @@ async function lngBind(){
    reciente. Devuelve true (hay cola sonando), false (no hay nada sonando) o null
    (no se pudo saber). Saberlo es lo que decide entre arrancar la reproducción o
    solo agregar a la cola. */
+/* Qué video tiene puesto el TV (evento «nowPlaying»), en qué segundo va y cuánto dura. Con eso
+   Vento sabe cuál de sus canciones está sonando, cuándo terminó y si el TV se quedó sin cola.
+   tvVid: null = el TV no lo dijo; '' = no tiene nada puesto. */
+function lngLeerTV(t){
+  let m, np = null, re = /"nowPlaying"\s*,\s*\{([^}]*)\}/g;
+  while((m = re.exec(t))) np = m[1];
+  const campo = k => { const r = new RegExp('"' + k + '"\\s*:\\s*"?([^",}]*)"?').exec(np || ''); return r ? r[1] : ''; };
+  lng.tvVid = np === null ? null : campo('videoId');
+  let st = null; re = /"state"\s*:\s*"?(-?\d+)"?/g; while((m = re.exec(t))) st = m[1];
+  lng.tvSt = st === null ? null : Number(st);
+  let ct = null, du = null;
+  re = /"currentTime"\s*:\s*"?([\d.]+)"?/g; while((m = re.exec(t))) ct = Number(m[1]);
+  re = /"duration"\s*:\s*"?([\d.]+)"?/g; while((m = re.exec(t))) du = Number(m[1]);
+  lng.tvT = ct; lng.tvD = du;
+}
+// Canciones que Vento ya le mandó al TV y todavía no han sonado, en el orden en que se mandaron.
+function lngEnTV(){ return vm().cola().filter(x => x.lng && x.status === 'tv').sort((a, b) => (a.lngN || a.lngAt || 0) - (b.lngN || b.lngAt || 0)); }
+let lngN = 0;
+function lngMarcar(x){
+  const l = vm().cola(), it = l.find(y => y.id === x.id);
+  if(it){ it.lng = true; it.done = true; it.lngAt = Date.now(); it.lngN = Date.now() * 100 + (lngN++ % 100); if(!['playing', 'played', 'skipped', 'cancelled'].includes(it.status)) it.status = 'tv'; SS('vito_cola', l); }
+}
+/* Pone en el TV una cola nueva con TODAS las canciones que faltan (no solo una). Antes se mandaba
+   «setPlaylist» con una sola canción: eso reemplazaba la cola del TV y borraba las que ya estaban
+   esperando, y al acabarse esa canción el TV no tenía siguiente. */
+function lngPoner(vids){
+  vids = vids.filter((v, i) => v && vids.indexOf(v) === i);
+  return lngCmd('setPlaylist', { videoId: vids[0], videoIds: vids.join(','), currentTime: 0, currentIndex: -1, audioOnly: false, listId: '' });
+}
+const lngFaltan = extra => lngEnTV().map(x => x.vid).concat(extra || []);
 function lngEstadoTV(t){
   let st = null, m, re = /"state"\s*:\s*"?(-?\d+)"?/g;
   while((m = re.exec(t))) st = m[1];
@@ -21942,7 +21984,7 @@ async function lngCmd(sc, datos, reintento){
       if(e.status === 401 || e.status === 403){ const c = lngCfg(); delete c.loungeToken; delete c.exp; SS(LNG_KEY, c); }
       await lngAsegurar(true);
       // Si el TV quedó sin nada sonando, «agregar» no se oiría: se arranca la reproducción.
-      if(sc === 'addVideo' && lng.tvPlay === false) return lngCmd('setPlaylist', { videoId: datos.videoId, currentTime: 0, currentIndex: -1, audioOnly: false, listId: '' }, true);
+      if(sc === 'addVideo' && lng.tvPlay === false){ const vids = lngFaltan([datos.videoId]).filter((v, i, a) => a.indexOf(v) === i); return lngCmd('setPlaylist', { videoId: vids[0], videoIds: vids.join(','), currentTime: 0, currentIndex: -1, audioOnly: false, listId: '' }, true); }
       return lngCmd(sc, datos, true);
     }
     throw e;
@@ -21965,13 +22007,15 @@ async function lngArrancar(videoId, encolada){
     await new Promise(r => setTimeout(r, 2500));
     try{ await lngAsegurar(true); }catch(e){ lngLog('   no pude comprobar el TV: ' + (e.message || e)); return; }
     if(lng.tvPlay === true){ lngLog('   ✅ el TV está sonando'); SS(LNG_KEY, Object.assign(lngCfg(), { visto: Date.now() })); return; }
+    // Ya no se usa «next»: si el TV sí estaba sonando algo, «next» SALTABA esa canción. Si el TV
+    // sigue quieto después del «play», se le pone la cola completa que falta (no una sola canción).
     let paso;
-    if(lng.tvPlay === false) paso = i === 0 ? 'play' : (i === 1 && encolada) ? 'next' : 'setPlaylist';
+    if(lng.tvPlay === false) paso = i === 0 ? 'play' : 'setPlaylist';
     else if(i === 0) paso = 'play';
     else { lngLog('   el TV no dice si está sonando; se deja así para no cortar nada'); return; }
     lngLog('   el TV ' + (lng.tvPlay === false ? 'sigue detenido' : 'no confirma que esté sonando') + ' → ' + paso);
     try{
-      if(paso === 'setPlaylist') await lngCmd('setPlaylist', { videoId: videoId, currentTime: 0, currentIndex: -1, audioOnly: false, listId: '' });
+      if(paso === 'setPlaylist') await lngPoner(lngFaltan([videoId]));
       else await lngCmd(paso, {});
     }catch(e){ lngLog('   ⚠️ ' + paso + ' falló: ' + (e.message || e)); return; }
     if(paso === 'setPlaylist') break;
@@ -21995,50 +22039,97 @@ async function lngSync(forzar){
     const c = lngCfg();
     let forzarInicio = lng.forzar;
     const pend = vm().ordenJusto(vm().cola()).filter(x => x.vid && !x.lng);
-    for(const x of pend){
-      /* «addVideo» solo agrega a la cola: si el TV no está reproduciendo, la canción entra y
-         se queda callada («video agregado» y nada más). «setPlaylist» sí arranca de una.
-         Para elegir bien se saluda al TV primero (eso trae su estado real) y:
-           - si el TV dice que NO está sonando  -> setPlaylist (arranca);
-           - si dice que sí                     -> addVideo (no se corta lo que suena);
-           - si no se pudo saber                -> se mira si la cola que le mandamos ya debió
-             acabarse (unos 4 minutos por canción). Antes se daban 45 minutos y por eso una
-             canción pedida 10 minutos después caía en una cola ya terminada y no sonaba. */
+    if(pend.length){
       await lngAsegurar(true);
       /* Recién mandada una canción, el TV puede reportar «cargando» por unos segundos: ahí no
-         hay que creerle que está quieto, o se cortaría lo que acaba de arrancar (pasa cuando
-         una mesa pide dos canciones seguidas).
-         Y lo importante: si el TV NO dice qué está haciendo (es lo normal cuando acaban de
-         abrir YouTube y está quieto), ANTES se daba por hecho que había cola sonando y solo
-         se encolaba: la canción entraba a una cola que no existía y no sonaba nunca. Ahora
-         solo se encola si hay prueba de que el TV llegó a reproducir; si no, se arranca. */
+         hay que creerle que está quieto, o se cortaría lo que acaba de arrancar.
+         Si el TV NO dice qué está haciendo, solo se encola si hay prueba de que llegó a
+         reproducir (lo dijo él, o le pusimos una cola que todavía no debe haber terminado).
+         Y si el TV tiene puesta una canción de Vento, hay cola viva: se agrega al final. */
       const arrancando = !!lng.ultimoEnvio && Date.now() - lng.ultimoEnvio < 20000;
-      // Prueba de cola viva: que el TV haya dicho que suena, o que NOSOTROS le hayamos puesto
-      // una lista (setPlaylist aceptado) que todavía no debe haber terminado. Así la segunda
-      // canción entra a continuación de la primera en vez de cortarla.
-      const probado = lng.tvPlay === true || ((c.visto || c.arranco) && c.hasta && Date.now() < c.hasta);
+      const deVento = !!lng.tvVid && vm().cola().some(y => y.lng && y.vid === lng.tvVid && ['tv', 'playing'].includes(y.status));
+      const probado = lng.tvPlay === true || deVento || ((c.visto || c.arranco) && c.hasta && Date.now() < c.hasta);
       const quedaCola = arrancando || (lng.tvPlay === false ? false : probado);
-      const nuevaCola = forzarInicio || !quedaCola;
-      lngLog('«' + String(x.song || '').slice(0, 40) + '» · TV ' + lngEstadoNombre(lng.tvPlay) + ' → ' + (nuevaCola ? 'arrancar' : 'encolar'));
-      await lngCmd(nuevaCola ? 'setPlaylist' : 'addVideo', nuevaCola ? { videoId: x.vid, currentTime: 0, currentIndex: -1, audioOnly: false, listId: '' } : { videoId: x.vid });
-      forzarInicio = false; lng.forzar = false; lng.ultimoEnvio = Date.now();
-      await lngArrancar(x.vid, !nuevaCola);
-      // Hasta cuándo se calcula que al TV le queda música de Vento por sonar: se usa la
-      // duración REAL del video (la sabe YouTube) para que la próxima entre justo cuando esta
-      // termine, en vez de calcular con un promedio de 4 minutos que casi nunca acierta.
+      // «Arrancar ya» (al reconectar el TV solo o tocar ▶) no corta una canción de Vento que ya suena.
+      const nuevaCola = (forzarInicio && !(deVento && lng.tvPlay === true)) || !quedaCola;
+      lng.forzar = false;
+      if(nuevaCola){
+        // El TV está quieto: se le pone la cola completa — las que ya se le habían mandado y no
+        // alcanzaron a sonar, más las nuevas — para que al acabar una siga sola con la siguiente.
+        const vids = lngFaltan(pend.map(x => x.vid));
+        lngLog('TV ' + lngEstadoNombre(lng.tvPlay) + ' → arrancar cola de ' + vids.length + (vids.length === 1 ? ' canción' : ' canciones'));
+        await lngPoner(vids);
+        pend.forEach(lngMarcar);
+        forzarInicio = false; lng.forzar = false; lng.ultimoEnvio = Date.now();
+        await lngArrancar(pend[0].vid, false);
+      } else {
+        for(const x of pend){
+          lngLog('«' + String(x.song || '').slice(0, 40) + '» · TV ' + lngEstadoNombre(lng.tvPlay) + ' → encolar al final');
+          await lngCmd('addVideo', { videoId: x.vid });
+          lngMarcar(x); lng.ultimoEnvio = Date.now();
+        }
+        await lngArrancar(pend[pend.length - 1].vid, true);
+      }
+      // Hasta cuándo se calcula que al TV le queda música de Vento por sonar (duración REAL de
+      // cada video; si no se sabe, unos 4 minutos).
+      const durMs = x => x.dur ? x.dur * 1000 : LNG_CANCION_MS;
       const base = nuevaCola ? Date.now() : Math.max(c.hasta || 0, Date.now());
-      const durMs = x.dur ? x.dur * 1000 : LNG_CANCION_MS;
-      c.hasta = base + durMs; c.ultimo = Date.now();
+      c.hasta = base + (nuevaCola ? lngEnTV() : pend).reduce((t, x) => t + durMs(x), 0); c.ultimo = Date.now();
       if(nuevaCola) c.arranco = Date.now();
       SS(LNG_KEY, Object.assign(lngCfg(), { hasta: c.hasta, ultimo: c.ultimo, arranco: c.arranco }));
-      const l = vm().cola(), it = l.find(y => y.id === x.id);
-      if(it){ it.lng = true; it.done = true; it.lngAt = Date.now(); SS('vito_cola', l); }
-      SS('vito_now', x);
     }
     lng.error = '';
   }catch(e){ lng.error = e.message || String(e); }
   finally{ lng.ocupado = false; lngEstado(); try{ vm().renderMusica(); }catch(e){} }
 }
+/* El YouTube del TV como reproductor de Vento: cada 12 s (solo mientras haya canciones de Vento
+   en el TV) se mira qué tiene puesto. Así Vento sabe cuál está sonando (y la muestra en «Sonando»
+   con su tiempo real), cuándo terminó (va al historial) y, sobre todo, si el TV se quedó sin la
+   siguiente (se acabó su cola o se fue a un video recomendado): ahí le pone la cola que falta.
+   Antes se mandaban y se daban por terminadas al instante: desaparecían de la cola de Vento y,
+   si el TV no las tenía, nadie se daba cuenta y la música se detenía. */
+async function lngVigilar(){
+  if(!lngOn() || lng.ocupado || !vm().cola) return;
+  const enTV = lngEnTV(), suena = vm().cola().find(x => x.status === 'playing' && x.fuente === 'tvyt');
+  if(!enTV.length && !suena) return;
+  lng.ocupado = true;
+  try{
+    await lngAsegurar(true);
+    const vid = lng.tvVid, st = lng.tvSt, reciente = Date.now() - (lng.ultimoEnvio || 0) < 25000;
+    if(vid === null && st === null) return;                       // el TV no dijo nada: no se adivina
+    const it = vid ? enTV.concat(suena ? [suena] : []).find(x => x.vid === vid) : null;
+    if(it){
+      if(st === 0){                                               // esa canción terminó
+        vm().mzTermino(it.id, 'played', lng.tvD || lng.tvT || null);
+      } else {
+        if(it.status !== 'playing' && st !== -1 && st !== 5){
+          // Las que se mandaron antes que ésta y nunca sonaron: el TV las pasó (no se dejaron reproducir).
+          enTV.filter(x => x.id !== it.id && (x.lngN || 0) < (it.lngN || 0)).forEach(x => vm().mzTermino(x.id, 'skipped'));
+          // La que sonaba antes: el TV pasó solo a la siguiente de su cola, o sea que terminó.
+          if(suena && suena.id !== it.id) vm().mzTermino(suena.id, 'played', suena.dur || null);
+          const e = vm().mzEmpezo(it.id, 'tvyt'); if(e) SS('vito_now', e);
+          lngLog('▶ en el TV suena «' + String(it.title || it.song || '').slice(0, 40) + '»');
+        }
+        if(lng.tvT != null && st === 1) vm().mzProgreso(it.id, lng.tvT, lng.tvD || 0);
+        if((st === -1 || st === 5) && !reciente){ lngLog('   el TV tiene la canción quieta → play'); await lngCmd('play', {}); }
+        return;
+      }
+    } else if(suena && (st === 0 || st === -1 || st === 5 || vid === '' || !!vid)){
+      // Sonaba una de Vento y el TV ya no la tiene: terminó (o se fue a un recomendado).
+      vm().mzTermino(suena.id, suena.dur && (suena.playedSeconds || 0) < suena.dur * 0.8 && st !== 0 ? 'skipped' : 'played');
+    }
+    if(st === 1 && vid && !it && !suena) return;                  // está sonando algo que puso otra persona: no se corta
+    if(st === 2 || st === 3 || reciente) return;                  // en pausa, cargando o recién mandado: se espera
+    const falta = lngEnTV();
+    if(!falta.length) return;
+    lngLog('el TV se quedó sin la siguiente → le pongo la cola que falta (' + falta.length + ')');
+    await lngPoner(falta.map(x => x.vid)); lng.ultimoEnvio = Date.now();
+    SS(LNG_KEY, Object.assign(lngCfg(), { arranco: Date.now(), hasta: Date.now() + falta.reduce((t, x) => t + (x.dur ? x.dur * 1000 : LNG_CANCION_MS), 0) }));
+  }catch(e){ lngLog('   ⚠️ revisando el TV: ' + (e.message || e)); }
+  finally{ lng.ocupado = false; try{ vm().renderMusica(); }catch(e){} }
+}
+// «Saltar» en Vento cuando suena en el YouTube del TV: el TV pasa a la siguiente de su cola.
+function lngSaltar(){ if(lngOn()) lngCmd('next', {}).then(() => { lng.ultimoEnvio = Date.now(); }).catch(e => lngLog('   ⚠️ saltar: ' + (e.message || e))); }
 /* ---------- Registro de lo que pasa con el TV ----------
    Sin esto no hay forma de saber por qué el TV no arranca: queda lo que Vento le mandó,
    lo que el TV contestó y en qué estado quedó. Se puede copiar y mandar para revisarlo. */
@@ -22163,6 +22254,7 @@ function iniLounge(){
   };
   document.getElementById('lngOff').onclick = () => { const c = lngCfg(); ['screenId', 'loungeToken', 'exp', 'nombre', 'on', 'ultimo', 'hasta', 'visto', 'arranco'].forEach(k => delete c[k]); SS(LNG_KEY, c); lng.sid = null; lng.error = ''; lngEstado(); autoRestaurar(); showToast('Desconectado del YouTube del TV.'); };
   setInterval(() => { lngSync(); }, 4000);
+  setInterval(() => { lngVigilar(); }, 12000);
   /* Latido: sin esto, mientras no hubiera canciones pendientes, la conexión con el TV nunca se
      volvía a revisar — si el TV se apagaba o se desvinculaba, nadie se enteraba (ni un aviso)
      hasta que llegara la próxima canción, que entonces tampoco sonaba. Ahora se comprueba sola

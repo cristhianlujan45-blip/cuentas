@@ -77,6 +77,10 @@
   if(!code){ $('err').textContent = 'Falta el código del link. Copia de nuevo el link desde Vento → Música → Pantalla del TV.'; $('go').style.display = 'none'; return; }
 
   var cola = [], tocadas = {}, actual = null, player = null, listo = false, empezado = false, cargadoEn = 0, ultimoMsg = 0;
+  // malos: versiones (video) que no se dejaron reproducir aquí. Se recuerda el VIDEO, no la canción:
+  // así, cuando Vento manda otra versión de la misma canción, sí suena (antes quedaba «tocada» y se perdía).
+  // intentos / silencio: el navegador del TV a veces no deja sonar solo con audio (no es un video malo).
+  var malos = {}, intentos = 0, silencio = false;
   try{ tocadas = JSON.parse(localStorage.getItem('tv_tocadas_' + code) || '{}') || {}; }catch(e){ tocadas = {}; }
   function guardarTocadas(){
     var ks = Object.keys(tocadas); if(ks.length > 300){ ks.sort(function(a, b){ return tocadas[a] - tocadas[b]; }).slice(0, ks.length - 300).forEach(function(k){ delete tocadas[k]; }); }
@@ -86,7 +90,7 @@
     try{ var x = new XMLHttpRequest(); x.open('POST', 'https://ntfy.sh/' + TOPIC + 'r'); x.send(JSON.stringify(obj)); }catch(e){}
   }
   function esc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
-  function pendientes(){ return cola.filter(function(x){ return !tocadas[x.i] && (!actual || x.i !== actual.i); }); }
+  function pendientes(){ return cola.filter(function(x){ return !tocadas[x.i] && !malos[x.v] && (!actual || x.i !== actual.i); }); }
   function pintar(){
     var p = pendientes();
     $('next').innerHTML = p.length ? p.slice(0, 6).map(function(x){ return '<li><b>' + esc(x.s) + '</b><span>' + esc(x.m) + '</span></li>'; }).join('') : '<li class="empty">No hay más canciones en cola.</li>';
@@ -114,14 +118,15 @@
     if(!p.length){ actual = null; pintar(); return; }
     actual = p[0];
     tocadas[actual.i] = Date.now(); guardarTocadas();
-    cargadoEn = Date.now();
-    try{ player.loadVideoById(actual.v); }catch(e){}
+    cargadoEn = Date.now(); intentos = 0;
+    try{ player.loadVideoById(actual.v); if(silencio) player.mute(); }catch(e){}
     avisar({ p: actual.i, s: actual.s });
     pintar();
   }
   function mala(){                              // esta versión no se deja reproducir: avisa y sigue
     if(!actual) return;
     avisar({ b: actual.i, v: actual.v });
+    malos[actual.v] = 1; delete tocadas[actual.i]; guardarTocadas();   // la otra versión que mande Vento sí entra
     $('aviso').textContent = 'No se pudo cargar la reproducción. Intente nuevamente.';
     setTimeout(function(){ $('aviso').textContent = ''; }, 8000);
     actual = null; cargadoEn = 0;
@@ -130,15 +135,39 @@
   function crearPlayer(){
     player = new YT.Player('yt', { width: '100%', height: '100%', playerVars: { autoplay: 1, playsinline: 1, rel: 0, controls: 0, modestbranding: 1 }, events: {
       onReady: function(){ listo = true; siguiente(); },
-      onStateChange: function(e){ if(e.data === 1) cargadoEn = 0; if(e.data === 0){ if(actual){ var x = pos(); avisar({ e: actual.i, t: Math.round(x.d || x.t), d: Math.round(x.d) }); } actual = null; siguiente(); } },
+      onStateChange: function(e){ if(e.data === 1){ cargadoEn = 0; intentos = 0; } if(e.data === 0) termino(); },
       onError: function(){ mala(); }
     } });
   }
-  // Si una canción "cargada" no arranca en 12 s (bloqueo que no avisa), se da por mala.
+  // Terminó la canción: avisa a Vento y pone la siguiente.
+  function termino(){
+    if(actual){ var x = pos(); avisar({ e: actual.i, t: Math.round(x.d || x.t), d: Math.round(x.d) }); }
+    actual = null; cargadoEn = 0; siguiente();
+  }
+  function quitarSilencio(){
+    if(!silencio) return;
+    silencio = false; $('aviso').textContent = '';
+    try{ player.unMute(); player.setVolume(100); }catch(e){}
+  }
+  document.addEventListener('keydown', quitarSilencio); document.addEventListener('click', quitarSilencio); document.addEventListener('touchstart', quitarSilencio);
+  // Una canción "cargada" que no arranca:
+  //  - quieta sin empezar (-1) o lista (5): el navegador del TV no la dejó sonar sola. Se le da «play»,
+  //    y si sigue quieta, se pone sin sonido (eso sí lo dejan) y se pide un toque para el sonido.
+  //    Antes se tomaba como versión mala: Vento la cambiaba una y otra vez y al final la borraba.
+  //  - si ni así arranca en ~24 s, ahí sí se da por mala (bloqueo que no avisa) y sigue la próxima.
+  // Además, si el reproductor no avisó el final (pasa en algunos TV), se detecta aquí.
   setInterval(function(){
-    if(actual && cargadoEn && Date.now() - cargadoEn > 12000){
-      var st = -1; try{ st = player.getPlayerState(); }catch(e){}
-      if(st !== 1 && st !== 3) mala();
+    var st = -1; try{ st = player.getPlayerState(); }catch(e){}
+    if(actual && cargadoEn && Date.now() - cargadoEn > 8000 && st !== 1 && st !== 3){
+      if((st === -1 || st === 5 || st === 2) && intentos < 2){
+        intentos++; cargadoEn = Date.now();
+        if(intentos === 2){ silencio = true; try{ player.mute(); }catch(e){} $('aviso').textContent = '🔇 El TV no dejó activar el sonido solo: toca OK en el control para escuchar.'; }
+        try{ player.playVideo(); }catch(e){}
+      } else mala();
+    }
+    if(actual && !cargadoEn){
+      var x = pos();
+      if(st === 0 || (st === 2 && x.d > 0 && x.t >= x.d - 1.5)) termino();
     }
     if(!actual) siguiente();
     pintar();
