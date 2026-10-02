@@ -18632,7 +18632,7 @@ function mzPintarSonando(){
   const x=mzActual();
   if(!x){e.hidden=true;return;}
   let t=x.playedSeconds||0;
-  if(x.fuente==='ytmusic'&&x.startedAt)t=Math.round((Date.now()-x.startedAt)/1000);    // en la app externa solo se sabe el tiempo transcurrido
+  if((x.fuente==='ytmusic'||(x.fuente==='tvyt'&&!x.progresoAt))&&x.startedAt)t=Math.round((Date.now()-x.startedAt)/1000);    // en la app externa solo se sabe el tiempo transcurrido
   else if(x.progresoAt)t+=Math.round((Date.now()-x.progresoAt)/1000);
   if(x.dur)t=Math.min(t,x.dur);
   const pct=x.dur?Math.min(100,t/x.dur*100):0;
@@ -21461,7 +21461,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.17.8';
+const MESORA_VERSION = '2026-10-02 · v1.17.9';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22156,7 +22156,8 @@ async function lngSync(forzar){
       // «▶» con canciones ya mandadas que el TV no está sonando: se le vuelven a poner.
       lng.forzar = false; lng.reinicios = 0;
       await lngAsegurar(true);
-      if(lng.tvPlay !== true){
+      if(!lngReporta() && Date.now() < lngOcupadoHasta()){ lngLog('▶: según el tiempo todavía suena una canción de Vento → no se corta'); try{ await lngCmd('play', {}); }catch(e){} }
+      else if(lng.tvPlay !== true){
         const vids = lngFaltan();
         lngLog('▶ arrancar: le pongo al TV la cola que falta (' + vids.length + ')');
         await lngPoner(vids); lng.ultimoEnvio = Date.now();
@@ -22173,9 +22174,13 @@ async function lngSync(forzar){
       const arrancando = !!lng.ultimoEnvio && Date.now() - lng.ultimoEnvio < 20000;
       const deVento = !!lng.tvVid && vm().cola().some(y => y.lng && y.vid === lng.tvVid && ['tv', 'playing'].includes(y.status));
       const probado = lng.tvPlay === true || deVento || ((c.visto || c.arranco) && c.hasta && Date.now() < c.hasta);
-      const quedaCola = arrancando || (lng.tvPlay === false ? false : probado);
+      // TV que no informa: manda el reloj de Vento. Mientras, según la duración real, siga sonando una
+      // canción de Vento (o haya mandadas esperando), la nueva SOLO se agrega al final: nunca se corta
+      // la que suena. Se dejan 30 s de margen por si el TV tardó en cargar.
+      const relojOcupado = !lngReporta() && Date.now() < lngOcupadoHasta() + 30000;
+      const quedaCola = arrancando || relojOcupado || (lng.tvPlay === false ? false : probado);
       // «Arrancar ya» (al reconectar el TV solo o tocar ▶) no corta una canción de Vento que ya suena.
-      const nuevaCola = (forzarInicio && !(deVento && lng.tvPlay === true)) || !quedaCola;
+      const nuevaCola = (forzarInicio && !(deVento && lng.tvPlay === true) && !relojOcupado) || !quedaCola;
       lng.forzar = false;
       if(nuevaCola){
         // El TV está quieto: se le pone la cola completa — las que ya se le habían mandado y no
@@ -22201,7 +22206,7 @@ async function lngSync(forzar){
       // cada video; si no se sabe, unos 4 minutos).
       const durMs = x => x.dur ? x.dur * 1000 : LNG_CANCION_MS;
       const base = nuevaCola ? Date.now() : Math.max(c.hasta || 0, Date.now());
-      c.hasta = base + (nuevaCola ? lngEnTV() : pend).reduce((t, x) => t + durMs(x), 0); c.ultimo = Date.now();
+      c.hasta = Math.max(base + (nuevaCola ? lngEnTV() : pend).reduce((t, x) => t + durMs(x), 0), lngOcupadoHasta()); c.ultimo = Date.now();
       SS(LNG_KEY, Object.assign(lngCfg(), { hasta: c.hasta, ultimo: c.ultimo, arranco: c.arranco }));
     }
     lng.error = ''; lngResultado(true);
@@ -22278,6 +22283,15 @@ async function lngVigilar(){
 }
 /* TV que no informa su estado: se sigue la cola por la duración REAL de cada video. La que según el
    tiempo está sonando se muestra en «Sonando» y la que ya debió terminar pasa al historial. */
+// Hasta cuándo, según la duración real, le queda música de Vento al TV: la que suena + las que esperan.
+function lngOcupadoHasta(){
+  const c = lngCfg(), m = vm(); if(!m.cola) return 0;
+  const suena = m.cola().find(x => x.status === 'playing' && x.fuente === 'tvyt');
+  let t = suena && suena.startedAt ? suena.startedAt : (c.cursor || c.arranco || 0);
+  if(!t) return 0;
+  (suena ? [suena] : []).concat(lngEnTV().filter(x => !suena || x.id !== suena.id)).forEach(x => { t += (x.dur ? x.dur * 1000 : LNG_CANCION_MS) + 3000; });
+  return t;
+}
 function lngPorTiempo(enTV){
   const c = lngCfg(), ahora = Date.now(), m = vm();
   const suena = m.cola().find(x => x.status === 'playing' && x.fuente === 'tvyt');
