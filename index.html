@@ -7337,7 +7337,7 @@ function placeFabAt(left, top){
   voiceFabWrap.style.bottom = 'auto';
 }
 
-var FAB_FIJO = true;   // micrófono fijo en su esquina (no se arrastra)
+var FAB_FIJO = false;   // v1.19.2: se puede mover otra vez (arrastre suave); ya nada lo mueve solo
 async function loadVoiceFabPos(){
   if(FAB_FIJO){ try{ voiceFabWrap.style.left = voiceFabWrap.style.top = voiceFabWrap.style.right = voiceFabWrap.style.bottom = voiceFabWrap.style.transform = ''; voiceFabWrap.classList.remove('izq', 'snap', 'dragging'); await storageSet('voice-fab-pos', ''); }catch(e){} return; }
   try{
@@ -7487,8 +7487,11 @@ function micVigilar(){
     });
     if(document.querySelector('.overlay.show:not(#overlay)')) return;   // hay una ventana de verdad abierta: ahí sí se esconde
     if(voiceFabWrap.style.display === 'none') voiceFabWrap.style.display = '';
-    // Siempre en su esquina fija (por si algo le dejó una posición vieja).
-    if(voiceFabWrap.style.left || voiceFabWrap.style.top || voiceFabWrap.style.transform){ voiceFabWrap.style.transform = ''; resetVoiceFabPos(); }
+    // Solo si quedó DE VERDAD fuera de la pantalla (otra pantalla, celular girado) vuelve a su esquina.
+    // Nada más lo mueve: antes también se reacomodaba cuando «parecía» tapado y eso lo hacía moverse solo.
+    const r = voiceFabWrap.getBoundingClientRect();
+    const fuera = r.width > 0 && (r.right < 24 || r.left > window.innerWidth - 24 || r.bottom < 24 || r.top > window.innerHeight - 24);
+    if(fuera && !(voiceFabWrap.classList.contains('dragging'))){ voiceFabWrap.style.transform = ''; resetVoiceFabPos(); }
   }catch(e){}
 }
 setInterval(micVigilar, 2000);
@@ -8190,7 +8193,9 @@ function openTableModal(id){
   if(cli){ const t = data.tables[id] || {}; cli.value = (t.name || '').trim(); cli.placeholder = '¿A nombre de quién? (ej. Ana Pérez)'; }
   try{ window.grupoBarPintar && window.grupoBarPintar(id); }catch(e){}
   overlay.classList.add('show');
-  if(cli && usaMod('n') && !cli.value) setTimeout(() => { try{ cli.focus(); }catch(e){} }, 250);
+  // Ya no se pone el cursor solo en «¿A nombre de quién?»: abría el teclado cada vez que se abría una
+  // mesa o cuenta. El campo sigue ahí; se escribe solo si la persona lo toca.
+  try{ const a = document.activeElement; if(a && a !== document.body && overlay.contains(a) && /INPUT|TEXTAREA/.test(a.tagName)) a.blur(); }catch(e){}
 }
 
 /* ---------- Renombrar mesa ---------- */
@@ -21563,7 +21568,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.19.1';
+const MESORA_VERSION = '2026-10-02 · v1.19.2';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -21727,7 +21732,9 @@ async function ccTransmitir(directo){
   catch(e){
     ccPintar('');
     // Cerró la lista sin elegir: casi siempre es porque su TV no salía ahí → se le muestran los otros caminos.
-    if(e === 'cancel' || (e && e.code === 'cancel')) return;   // cerró la lista sin elegir
+    // Cerró la lista (casi siempre porque salió vacía: su TV no tiene Chromecast) → directo al código del TV,
+    // que sirve para TODOS los TV y TV Box que ve la app de YouTube.
+    if(e === 'cancel' || (e && e.code === 'cancel')){ tvSinLista('¿Tu TV no salió en la lista? Esa lista solo trae aparatos con Chromecast. Conéctalo con el código del TV: en el TV abre YouTube → Configuración → «Vincular con código de TV» y escribe aquí los 12 números.'); return; }
     if(e === 'receiver_unavailable' || (e && e.code === 'receiver_unavailable')){ tvSinLista('No encontré TV en tu wifi. Revisa que el celular y el TV estén en el mismo wifi y el TV encendido. Si tu TV no tiene Chromecast, conéctalo con el código del TV (abajo).'); return; }
     showToast('⚠️ No se pudo abrir YouTube en el TV (' + (e && e.code || e) + ').', 7000); return;
   }
@@ -21748,7 +21755,7 @@ function ccConectado(ses){
   ccPintar('📺 Abriendo YouTube en «' + nombre + '»…', 'busy');
 }
 async function ccScreen(screenId, nombre){
-  if(lngCfg().screenId !== screenId) lngReloj0('Chromecast «' + nombre + '»');
+  if(lngCfg().screenId !== screenId || ccPorPersona) lngReloj0('Chromecast «' + nombre + '»');
   const c = lngCfg();
   Object.assign(c, { screenId, nombre, on: true, ultimo: 0 }); delete c.loungeToken; delete c.exp; delete c.codigo;
   SS(LNG_KEY, c); lng.sid = null; lng.error = '';
@@ -22476,7 +22483,11 @@ async function lngVigilar(){
 function lngReloj0(motivo){
   try{
     const m = vm(), l = m.cola ? m.cola() : []; let n = 0;
-    l.forEach(x => { if(x.lng && x.status === 'tv'){ x.lng = false; x.done = false; x.status = x.ok ? 'approved' : 'pending'; delete x.lngAt; delete x.lngN; n++; } });
+    l.forEach(x => {
+      if(x.lng && x.status === 'tv'){ x.lng = false; x.done = false; x.status = x.ok ? 'approved' : 'pending'; delete x.lngAt; delete x.lngN; n++; }
+      // Las que se pidieron antes de conectar el TV y se fueron a la lista de YouTube (sin sonar): van al TV.
+      else if(x.status === 'lista' && x.vid && Date.now() - (x.ytAt || x.ts || 0) < 3 * 36e5){ x.done = false; x.status = x.ok ? 'approved' : 'pending'; n++; }
+    });
     if(n) SS('vito_cola', l);
     l.filter(x => x.status === 'playing' && x.fuente === 'tvyt').forEach(x => m.mzTermino(x.id, 'played'));
     const c = lngCfg(); ['arranco', 'cursor', 'hasta', 'visto', 'reporta', 'ultimo'].forEach(k => delete c[k]); SS(LNG_KEY, c);
@@ -22596,6 +22607,17 @@ function iniLounge(){
   lngArreglarDatos();
   const relay = document.getElementById('lngRelay'); if(!relay) return;
   relay.value = lngCfg().relay || '';
+  // Con el puente ya configurado, la sección queda en lo único que hace falta: el código del TV.
+  try{
+    const det = document.getElementById('tvOptCodigo');
+    if(det && lngCfg().relay){
+      const paso1 = relay.closest('.lng-step'); if(paso1) paso1.hidden = true;
+      const largo = det.querySelector(':scope > .settings-desc'); if(largo) largo.hidden = true;
+      const n2 = det.querySelectorAll('.pair-n'); n2.forEach(x => { x.hidden = true; });
+      const nota = document.createElement('div'); nota.className = 'settings-desc'; nota.textContent = '✅ Puente listo. En el TV: YouTube → Configuración → «Vincular con código de TV». Escribe aquí los 12 números y toca Conectar.';
+      det.insertBefore(nota, det.querySelector('.lng-step'));
+    }
+  }catch(e){}
   relay.onchange = () => { const c = lngCfg(); c.relay = relay.value.trim().replace(/\/+$/, ''); if(c.relay && !/^https:\/\//.test(c.relay)) c.relay = 'https://' + c.relay.replace(/^\w+:\/\//, ''); relay.value = c.relay; SS(LNG_KEY, c); lngEstado(); };
   document.getElementById('lngHow').onclick = e => { e.preventDefault(); lngGuia(); };
   document.getElementById('lngCopy').onclick = async () => {
