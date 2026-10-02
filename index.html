@@ -299,7 +299,7 @@ window.esAndroid = function(){ var ua = navigator.userAgent || ''; if(/Android/i
 .tp-actual{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:color-mix(in srgb,var(--amber) 14%,var(--surface,var(--cream)));border:1px solid color-mix(in srgb,var(--amber) 45%,var(--line));flex-wrap:wrap;min-width:0}
 .tp-actual span{font-size:24px}.tp-actual b{font-size:15px;overflow-wrap:anywhere}.tp-actual small{color:var(--ink-soft);font-size:12px;flex-basis:100%}
 .tp-q{width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg,var(--paper));color:var(--ink);font:inherit;font-size:16px}
-.tp-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(150px,100%),1fr));gap:6px;max-height:min(42vh,340px);overflow-y:auto;overscroll-behavior:contain;padding:2px}
+.tp-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(150px,100%),1fr));gap:6px;padding:2px}
 .tp-it{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:12px;border:1px solid var(--line);background:var(--surface,var(--cream));color:var(--ink);font:inherit;cursor:pointer;text-align:left;min-width:0}
 .tp-it span{font-size:20px;flex:none}.tp-it b{font-size:13px;font-weight:600;overflow-wrap:anywhere;min-width:0}
 .tp-it.on{border-color:var(--amber);box-shadow:0 0 0 2px color-mix(in srgb,var(--amber) 45%,transparent)}
@@ -1697,7 +1697,12 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   /* ---------- Modo fácil: letras/botones grandes y sin animaciones,
      pensado para gente mayor o pantallas táctiles. No toca el diseño
      original: solo se activa con la palanca de Ajustes. ---------- */
-  body.easy-mode{ zoom: 1.18; }
+  /* Letra más grande SIN «zoom» en todo el body: eso corría los paneles flotantes (campana, avisos) hacia un lado
+     y hacía las ventanas más altas que la pantalla (no se podía bajar hasta el final, por ejemplo en Ajustes).
+     Ahora se agranda solo el contenido; las capas fijas (fondos, ventanas, barra de abajo) siguen midiendo la pantalla real. */
+  body.easy-mode{ --ez: 1.18; }
+  .wrap > section, .wrap > header > *:not(.tabbar), .tabbar nav > *, .tabbar > *:not(nav), .overlay > *, .auth-overlay > *, .toast > *, .voice-fab-wrap > *,
+  .vito-campana-menu > *, .vito-pedidos-cards > *, .vito-ajustes > *{ zoom: calc(var(--tz, 1) * var(--ez, 1)); }
   body.easy-mode *, body.easy-mode *::before, body.easy-mode *::after{
     animation: none !important;
     transition: none !important;
@@ -17532,7 +17537,11 @@ bootApp();
       panelBody.appendChild(v);
     } else {
       const nombres={recibido:'📥 Pedido recibido',enviado:'✅ Pedido enviado',rechazado:'❌ Pedido rechazado'};
-      log.forEach(e=>panelBody.appendChild(fila(e.tipo,(nombres[e.tipo]||e.tipo)+' · Mesa '+e.mesa,fmtHora(e.ts),e.texto)));
+      log.forEach(e=>{
+        let ms=e.mesa;
+        if(ms==null||ms===''){try{const pp=window.vitoPedidos&&window.vitoPedidos.lista().find(p=>p.id===e.pid);if(pp)ms=pp.mesa;}catch(x){}}
+        panelBody.appendChild(fila(e.tipo,(nombres[e.tipo]||e.tipo)+(ms!=null&&ms!==''?' · Mesa '+ms:''),fmtHora(e.ts),e.texto));
+      });
     }
   }
   function abrirAjustes(){ ajustesPanel.style.display='flex'; posicionarCerca(ajustesPanel,230); }
@@ -17623,7 +17632,7 @@ function aplicarTipo(){
   let st=$('tipoStyle');if(!st){st=document.createElement('style');st.id='tipoStyle';document.head.appendChild(st);}
   let css=':root{--font-main:'+f+'!important}html body,html body button,html body input,html body select,html body textarea{font-family:'+f+'!important}';
   if(t.c)css+=':root{--ink:'+t.c+'!important;--ink-soft:color-mix(in srgb,'+t.c+' 70%,transparent)!important}';
-  if(+t.s!==100)css+='body{zoom:'+(t.s/100)+'}';
+  if(+t.s!==100)css+=':root{--tz:'+(t.s/100)+'}';   // se aplica al contenido (ver «Letra más grande SIN zoom en todo el body»)
   st.textContent=css;
 }
 function iniTipo(){
@@ -21052,7 +21061,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-01 · v1.9.1';
+const MESORA_VERSION = '2026-10-02 · v1.9.2';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
