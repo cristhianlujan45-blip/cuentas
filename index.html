@@ -9593,8 +9593,31 @@ let aiLastNotice = 0;
 function lsGet(k){ try{ return localStorage.getItem(k) || ''; }catch(e){ return ''; } }
 function lsSet(k, v){ try{ if(v) localStorage.setItem(k, v); else localStorage.removeItem(k); }catch(e){} }
 
-function getGeminiKey(){ return (lsGet(GEMINI_KEY_STORAGE) || BUILTIN_GEMINI_KEY || '').replace(/\s+/g, ''); }
-function setGeminiKey(k){ lsSet(GEMINI_KEY_STORAGE, (k || '').replace(/\s+/g, '')); }
+// La clave de la IA se guarda en este celular Y en los datos del negocio: así llega sola a los demás celulares y a
+// la app de Android (con Vento Nube o un respaldo). Antes vivía solo en el navegador donde se pegó: en la app de
+// Android (que tiene su propia memoria) la IA quedaba «desconectada».
+function getGeminiKey(){
+  let k = (lsGet(GEMINI_KEY_STORAGE) || '').replace(/\s+/g, '');
+  if(!k){ try{ const d = typeof data !== 'undefined' && data && data.iaClave; if(d && /^[\x21-\x7e]{20,}$/.test(d)){ k = d; lsSet(GEMINI_KEY_STORAGE, d); } }catch(e){} }
+  return k || BUILTIN_GEMINI_KEY || '';
+}
+function setGeminiKey(k){
+  k = (k || '').replace(/\s+/g, '');
+  lsSet(GEMINI_KEY_STORAGE, k);
+  try{ if(typeof data !== 'undefined' && data && data.iaClave !== k){ if(k) data.iaClave = k; else delete data.iaClave; saveData(); } }catch(e){}
+}
+// Si este celular ya tenía clave y los datos del negocio no, se copia (para que viaje a los demás).
+setTimeout(() => { try{ const k = (lsGet(GEMINI_KEY_STORAGE) || '').replace(/\s+/g, ''); if(k && typeof data !== 'undefined' && data && !data.iaClave){ data.iaClave = k; saveData(); } }catch(e){} }, 6000);
+// «📲 Pasar la IA a la app Vento»: enlace vento://abrir#iaclave=… que la app abre y guarda la clave (sin escribirla).
+function iaClaveDeEnlace(){
+  try{
+    const h = new URLSearchParams(location.hash.replace(/^#/, ''));
+    const k = h.get('iaclave');
+    if(k){ history.replaceState(null, '', location.pathname + location.search); setTimeout(() => { setGeminiKey(k); try{ showToast('✅ IA conectada en este celular: ya puedes escanear facturas y productos.', 7000); }catch(e){} }, 1500); }
+  }catch(e){}
+}
+iaClaveDeEnlace();
+window.addEventListener('hashchange', iaClaveDeEnlace);      // si Vento ya estaba abierta, el enlace solo cambia el final de la dirección
 function getGeminiModel(){ return lsGet(GEMINI_MODEL_STORAGE).trim().replace(/^models\//, '') || GEMINI_MODEL_DEFAULT; }
 function setGeminiModel(m){
   m = (m || '').trim().replace(/^models\//, '');
@@ -10004,6 +10027,16 @@ function openAIConfigDialog(){
     try{ statusEl.textContent = await testAIConnection(); }
     catch(err){ statusEl.textContent = '❌ ' + (err && err.message ? err.message : err); }
   };
+  // Navegador con la IA ya conectada: un toque la pasa a la app de Android (que tiene su propia memoria).
+  try{
+    const k = getGeminiKey();
+    if(k && !window.VentoAndroid && window.esAndroid && window.esAndroid()){
+      const ln = document.createElement('a'); ln.className = 'btn-primary'; ln.style.cssText = 'display:block;text-align:center;padding:12px;border-radius:12px;text-decoration:none;margin-top:10px';
+      ln.textContent = '📲 Pasar la IA a la app Vento'; ln.href = 'vento://abrir#iaclave=' + encodeURIComponent(k);
+      const n = document.createElement('div'); n.className = 'settings-desc'; n.textContent = 'Abre la app Vento de este celular y le deja la IA conectada (no hay que volver a pegar la clave).';
+      statusEl.after(ln, n);
+    }
+  }catch(e){}
   box.querySelector('#aiCfgClose').onclick = () => box.remove();
   box.addEventListener('click', (e) => { if(e.target === box) box.remove(); });
 }
@@ -10121,7 +10154,7 @@ async function recognizeProductWithAI(dataUrl, onStatus){
   let info = null;
   if(!aiWebAlways()){
     try{
-      info = cleanAiJsonText(await aiText({ prompt: fastPrompt, imageDataUrl: dataUrl, json: true, timeoutMs: 10000, retries: 0, oneModel: true, fast: true, maxOutputTokens: 600 }));
+      info = cleanAiJsonText(await aiText({ prompt: fastPrompt, imageDataUrl: dataUrl, json: true, timeoutMs: 7000, retries: 0, oneModel: true, fast: true, maxOutputTokens: 600 }));
       if(isGood(info)) return info;
     }catch(err){
       if(!(err && AI_LADDER_KINDS.includes(err.kind))) throw err;   // clave, cuota, etc.: se avisa tal cual
@@ -11077,12 +11110,12 @@ async function recognizeInvoiceWithAI(dataUrl){
     // Sin reintentos aquí a propósito: si la pasada rápida no responde en 12s, reintentar con
     // la misma foto/modelo casi nunca es más rápido — es mejor pasar de una vez a la pasada
     // a fondo (que sí reintenta) que esperar el doble antes de caer a ella.
-    info = fiExpandirCompacto(cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 15000, retries: 0, oneModel: true, fast: true, doc: true, maxOutputTokens: 3000 })));
+    info = fiExpandirCompacto(cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 9000, retries: 0, oneModel: true, fast: true, doc: true, maxOutputTokens: 3000 })));
   }catch(err){
     if(!(err && AI_LADDER_KINDS.includes(err.kind))) throw err;   // clave inválida, cuota diaria, etc.: se avisa tal cual
   }
   if(!info || !Array.isArray(info.items)){
-    info = fiExpandirCompacto(cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 30000, retries: 1, fast: true, doc: true, maxOutputTokens: 3000 })));
+    info = fiExpandirCompacto(cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 14000, retries: 1, fast: true, doc: true, maxOutputTokens: 3000, maxMs: 20000 })));
   }
   if(!info || !Array.isArray(info.items)) throw new OpenAIError('bad', 'La IA respondió pero no pude leer la factura. Prueba con una foto más clara, derecha y con buena luz.');
   return info;
@@ -12566,14 +12599,14 @@ async function handleOnlineInvoiceFiles(files, triggerBtn, inputEl){
         const expanded = await window.VitoOfflineOCR.expandFilesWithPdfPages(pdfFiles);
         const firstImg = expanded && expanded[0];
         if(!firstImg) throw new OpenAIError('bad', 'No pude leer el PDF de la factura.');
-        const dataUrl = await scaleInvoicePhotoForAI(firstImg, 1280, 0.7);
+        const dataUrl = await scaleInvoicePhotoForAI(firstImg, 1150, 0.68);
         info = await recognizeInvoiceWithAI(dataUrl);
       }
     } else {
       const file = files[0], pre = window.__fiPre; window.__fiPre = null;
       fiEstado('Analizando factura…');
       if(pre && pre.file === file) info = await pre.prom;              // ya se venía leyendo desde la vista previa
-      else info = await recognizeInvoiceWithAI(await scaleInvoicePhotoForAI(file, 1400, 0.75));
+      else info = await recognizeInvoiceWithAI(await scaleInvoicePhotoForAI(file, 1150, 0.68));
     }
     invoiceOpen(info);
   }catch(err){
@@ -12597,7 +12630,7 @@ async function leerFactura(files, btn, input){
     const iaYa = hasAIKey() && navigator.onLine !== false;
     let pre = null;
     const r = await fiRevisarFoto(files[0], f => {
-      if(iaYa){ const prom = scaleInvoicePhotoForAI(f, 1400, 0.75).then(recognizeInvoiceWithAI); prom.catch(() => {}); pre = { file: f, prom }; }
+      if(iaYa){ const prom = scaleInvoicePhotoForAI(f, 1150, 0.68).then(recognizeInvoiceWithAI); prom.catch(() => {}); pre = { file: f, prom }; }
       else fiPrecalentar();
     });
     input.value = '';
@@ -12683,11 +12716,11 @@ async function recognizePriceWithAI(dataUrl){
   const ok = i => !!(i && (i.name || i.brand));
   let info = null;
   try{
-    info = cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 10000, retries: 0, oneModel: true, fast: true, maxOutputTokens: 600 }));
+    info = cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 7000, retries: 0, oneModel: true, fast: true, maxOutputTokens: 600 }));
   }catch(err){
     if(!(err && AI_LADDER_KINDS.includes(err.kind))) throw err;
   }
-  if(!ok(info)) info = cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 20000, retries: 0, fast: true, maxOutputTokens: 600 }));
+  if(!ok(info)) info = cleanAiJsonText(await aiText({ prompt, imageDataUrl: dataUrl, json: true, timeoutMs: 10000, retries: 0, fast: true, maxOutputTokens: 600 }));
   if(!ok(info)) throw new OpenAIError('bad', 'La IA respondió pero no pude identificar el producto. Prueba con una foto más cerca de la etiqueta y con buena luz.');
   return info;
 }
@@ -21760,8 +21793,16 @@ async function fotosCargar(){
 }
 function prodFotoThumbHtml(p){
   const u = p && p.foto && fotosCache[p.id];
-  return u ? '<img class="p-thumb" src="' + u + '" alt="" loading="lazy">' : '';
+  // Con foto: la miniatura (tocarla la cambia). Sin foto: un 📷 para subirla de una (cámara o galería).
+  return u ? '<img class="p-thumb" src="' + u + '" alt="" loading="lazy" data-fotoprod="' + p.id + '" title="Cambiar foto">'
+           : (p ? '<button type="button" class="p-thumb p-thumb-add" data-fotoprod="' + p.id + '" aria-label="Agregar foto">📷</button>' : '');
 }
+document.addEventListener('click', e => {
+  const t = e.target.closest && e.target.closest('[data-fotoprod]'); if(!t) return;
+  e.preventDefault(); e.stopPropagation();
+  try{ openEditProductModal(t.dataset.fotoprod); setTimeout(() => { const i = document.getElementById('editProdPhotoInput'); if(i) i.click(); }, 120); }catch(x){}
+}, true);
+(function(){ const st = document.createElement('style'); st.textContent = '.p-thumb-add{display:inline-flex;align-items:center;justify-content:center;border:1.5px dashed var(--line);background:transparent;color:inherit;font-size:18px;cursor:pointer;padding:0}'; document.head.appendChild(st); })();
 
 function fotoLeerImagen(file){
   return new Promise((res, rej) => {
@@ -22074,7 +22115,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-03 · v1.26.3';
+const MESORA_VERSION = '2026-10-03 · v1.26.5';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -23323,7 +23364,10 @@ function lngSaltar(){ if(lngOn()) lngCmd('next', {}).then(() => { lng.ultimoEnvi
    La app deja abierto el canal de vuelta del «YouTube del TV», como la app de YouTube: el TV cuenta al instante
    qué suena, si pausó, si pasó a la siguiente o si cambió la lista. Sin la app (navegador) se sigue preguntando
    cada pocos segundos, como antes. */
-const lngEscOk = () => lngPuenteApp() && typeof window.VentoAndroid.escucharTV === 'function';
+// APAGADO (v1.26.4): el canal en vivo nunca se pudo probar contra el YouTube real; si YouTube lo rechaza, Vento
+// entraba en un ciclo de reconectar cada 2 s y las canciones no llegaban al TV. Se vuelve al sistema de la 1.22
+// (el que funcionaba): saludar y revisar cada pocos segundos. Solo se usa si alguien lo prende a propósito.
+const lngEscOk = () => window.__ventoEnVivo === true && lngPuenteApp() && typeof window.VentoAndroid.escucharTV === 'function';
 // El canal está vivo mientras esté abierto (si se cae, la app avisa con __ventoTVcerro). Antes se daba por muerto si el TV
 // pasaba 100 s sin decir nada (p. ej. sonando una canción larga): Vento abría otra sesión y el TV veía que Vento se
 // desconectaba y se volvía a conectar todo el tiempo.
@@ -23379,7 +23423,8 @@ window.__ventoTVcerro = (id, st) => {
   if(id !== lng.escId) return;
   lng.escId = null;
   if(!lngOn()) return;
-  if(st >= 400 && st < 500){ lng.sid = null; lngEscFallas = 0; }      // la sesión venció: se saluda de nuevo
+  // YouTube rechazó el canal en vivo: se deja de usar (sin tumbar la conexión) y se sigue con el sistema de siempre.
+  if(st >= 400 && st < 500){ window.__ventoEnVivo = false; lngLog('   el canal en vivo no está disponible: sigo con el sistema de siempre'); return; }
   else lngEscFallas++;
   setTimeout(lngEscReintentar, Math.min(30000, 1500 * Math.pow(2, Math.min(lngEscFallas, 4))));
 };
