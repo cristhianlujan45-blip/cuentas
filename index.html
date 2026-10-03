@@ -18203,6 +18203,10 @@ const qCfg=()=>{
     else{c.topic='vito'+Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>(b%36).toString(36)).join('');c.nuevo=Date.now();}
     SS('vito_qr',c);
   }
+  // Los pedidos van directo a GitHub: si quedó guardada la dirección de Netlify (la de los QR impresos), los
+  // links que arma Vento (pedido, WhatsApp, domicilios, ver/imprimir QR) pasan a GitHub. El canal y el código
+  // de cada mesa NO cambian, así que los QR ya pegados siguen sirviendo igual.
+  if(/\.github\.io$/.test(location.hostname)&&c.url&&/netlify\.app/i.test(c.url)){c.urlImpreso=c.url;c.url=location.origin+location.pathname.replace(/[^/]*$/,'')+'pedido.html';SS('vito_qr',c);}
   return c;
 };
 /* Canales de pedidos del negocio. Cada celular tenía su propio canal guardado SOLO en ese celular: si se
@@ -18297,7 +18301,7 @@ function qrFijoDesdeLinks(texto){
 }
 function qrFijoAplicar(r){
   const c=qCfg();
-  c.topic=r.c;if(r.url)c.url=r.url;if(r.wa)c.wa=r.wa;c.v=Object.assign({},c.v||{},r.v);c.fijo=true;
+  c.topic=r.c;if(r.url){if(/\.github\.io$/.test(location.hostname)&&!/\.github\.io$/i.test(new URL(r.url,location.href).hostname)){c.urlImpreso=r.url;c.url=location.origin+location.pathname.replace(/[^/]*$/,'')+'pedido.html';}else c.url=r.url;}if(r.wa)c.wa=r.wa;c.v=Object.assign({},c.v||{},r.v);c.fijo=true;
   SS('vito_qr',c);qrFijoSync();
   try{$('qrUrl').value=c.url;$('qrWa').value=c.wa;}catch(e){}
   try{conectar();}catch(e){}
@@ -18308,7 +18312,7 @@ function qrFijoEstado(){
   const e=$('qrFijoEstado');if(!e)return;
   const c=qCfg(),n=Object.keys(c.v||{}).length;
   e.innerHTML=c.fijo
-    ?'📌 <b>QR impresos fijos.</b> Canal <b>'+esc(c.topic)+'</b> · '+n+(n===1?' mesa guardada':' mesas guardadas')+' · link <b>'+esc(c.url||'—')+'</b>. Los QR pegados en las mesas siguen sirviendo aunque cambies de celular o de proveedor (arriba puedes seguir actualizando la dirección de tu página de pedidos): esto va en tus respaldos. Si reimprimes, salen idénticos.'
+    ?'📌 <b>QR impresos fijos.</b> Canal <b>'+esc(c.topic)+'</b> · '+n+(n===1?' mesa guardada':' mesas guardadas')+' · link <b>'+esc(c.url||'—')+'</b>. Los QR pegados en las mesas siguen sirviendo aunque cambies de celular o de proveedor (arriba puedes seguir actualizando la dirección de tu página de pedidos): esto va en tus respaldos. Los pedidos llegan directo por GitHub; si reimprimes, salen con el mismo canal y código de cada mesa (y el link de GitHub).'
     :'¿Ya tienes QR impresos en las mesas? Tócalo en «Fijar mis QR impresos» para que nunca cambien.';
 }
 function qrFijoDialogo(){
@@ -18776,7 +18780,7 @@ function iniQR(){
   // toca el canal ni los códigos de cada mesa, así que los QR ya pegados en
   // las mesas siguen sirviendo exactamente igual; solo actualiza a dónde
   // apuntan los QR nuevos que imprimas de ahora en adelante.
-  if(/\.github\.io$/.test(location.hostname)&&!c.fijo){   // QR fijados: su link NUNCA se cambia solo
+  if(/\.github\.io$/.test(location.hostname)){   // todo por GitHub (los QR fijados conservan su canal y códigos; solo el link nuevo es de GitHub)
     const actual=location.origin+location.pathname.replace(/[^/]*$/,'')+'pedido.html';
     if(c.url!==actual){
       const antes=c.url;
@@ -21719,7 +21723,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-03 · v1.22.2';
+const MESORA_VERSION = '2026-10-03 · v1.22.3';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
