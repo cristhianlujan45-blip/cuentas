@@ -3247,7 +3247,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
         <div class="cast-devs" id="lngBox"><span class="cast-dot"></span><span id="lngEstado">Sin conectar.</span></div>
         <div class="settings-desc" id="lngBusca" style="margin-top:6px"></div>
         <div class="mz-actions"><button class="btn-ghost" id="lngCuenta" type="button">🔑 Conectar mi cuenta de YouTube</button></div>
-        <div class="mz-actions"><button class="btn-ghost" id="lngPlay" type="button" hidden>▶ Poner la cola en el TV ahora</button><button class="btn-ghost" id="lngOff" type="button" hidden>Desconectar</button><button class="btn-ghost" id="lngVerLog" type="button">🔍 Ver qué pasó</button></div>
+        <div class="mz-actions"><button class="btn-ghost" id="lngPlay" type="button" hidden>▶ Poner la cola en el TV ahora</button><button class="btn-ghost" id="lngOff" type="button" hidden>Desconectar</button><button class="btn-ghost" id="lngProbar" type="button">🩺 Probar conexión</button><button class="btn-ghost" id="lngVerLog" type="button">🔍 Ver qué pasó</button></div>
         <div id="lngLogBox" hidden>
           <pre id="lngLog" style="max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:11.5px;line-height:1.5;background:rgba(0,0,0,.25);padding:10px;border-radius:10px;margin:8px 0 0"></pre>
           <div class="mz-actions"><button class="btn-ghost" id="lngLogCopy" type="button">📋 Copiar el registro</button></div>
@@ -21633,7 +21633,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.21';
+const MESORA_VERSION = '2026-10-02 · v1.21.1';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22307,6 +22307,34 @@ function lngResultado(ok){
 }
 const LNG_CANCION_MS = 4 * 60000;   // lo que dura más o menos una canción en el TV
 function lngUuid(){ const c = lngCfg(); if(!c.uuid){ c.uuid = 'mesora' + Array.from(crypto.getRandomValues(new Uint8Array(10)), b => (b % 36).toString(36)).join(''); SS(LNG_KEY, c); } return c.uuid; }
+/* 🩺 Probar conexión: revisa cada paso y dice cuál falla.
+   1) la app habla directo con YouTube (si es la app); 2) el puente responde; 3) el puente llega a YouTube
+   (se pregunta por un código de TV inventado: si YouTube contesta «no existe», el camino funciona);
+   4) si ya hay un TV vinculado, que el TV conteste. */
+async function lngProbar(){
+  const out = [], c = lngCfg(), fake = { pairing_code: '000000000000' };
+  const yt = st => st >= 400 && st < 500;                 // YouTube contestó (el código inventado no existe): el camino sirve
+  if(lngPuenteApp()){
+    try{ await lngFetchApp('pairing/get_screen', null, fake); out.push('✅ La app habla directo con YouTube.'); }
+    catch(e){ out.push(e.status ? (yt(e.status) ? '✅ La app habla directo con YouTube (puente incluido).' : '❌ YouTube contestó error ' + e.status + ' a la app.') : '❌ La app no llega a YouTube: ' + (e.message || e) + ' Revisa el internet del celular.'); }
+  }
+  if(c.relay){
+    const base = c.relay.replace(/\/+$/, '');
+    try{ const r = await fetch(base + '/', { cache: 'no-store' }); const t = await r.text(); out.push(/Vento/.test(t) ? '✅ El puente responde (' + base.replace(/^https:\/\//, '') + ').' : '⚠️ Esa dirección responde, pero NO es el puente de Vento: en Cloudflare pega otra vez el código del puente (Copiar código del puente) y toca Deploy.'); }
+    catch(e){ out.push('❌ El puente no responde: revisa que la dirección esté bien escrita (termina en .workers.dev) y que en Cloudflare tocaste Deploy.'); }
+    try{
+      const r = await fetch(base + '/api/lounge/pairing/get_screen', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(fake) });
+      const t = await r.text();
+      out.push(yt(r.status) || r.ok ? '✅ El puente llega a YouTube (YouTube contestó ' + r.status + ').' : '❌ El puente no llega a YouTube (error ' + r.status + (t ? ': ' + t.slice(0, 80) : '') + '). En Cloudflare vuelve a pegar el código del puente y toca Deploy.');
+    }catch(e){ out.push('❌ El puente no deja pasar a Vento (bloqueo del navegador). En Cloudflare pega otra vez el código del puente COMPLETO (botón «Copiar código del puente») y toca Deploy.'); }
+  } else if(!lngPuenteApp()) out.push('❌ No hay puente configurado (paso 1).');
+  if(c.screenId){
+    try{ await lngBind(); out.push('✅ El TV «' + (c.nombre || 'TV') + '» contesta' + (lng.tvPlay === true ? ' y está sonando.' : '.')); }
+    catch(e){ out.push('❌ El TV vinculado no contesta: ' + (e.message || e) + ' Enciéndelo con YouTube abierto, o vuelve a poner su código.'); }
+  } else out.push('ℹ️ Todavía no hay un TV vinculado: pon el código del TV y toca Conectar.');
+  out.forEach(x => lngLog('🩺 ' + x));
+  return out;
+}
 // ¿Hay puente? Dentro de la app de Android el puente viene incluido (la app le habla directo a YouTube).
 const lngPuenteApp = () => !!(window.VentoAndroid && typeof window.VentoAndroid.lounge === 'function');
 const lngHayPuente = () => lngPuenteApp() || !!lngCfg().relay;
@@ -22327,7 +22355,12 @@ function lngFetchApp(path, params, body, token){
   });
 }
 async function lngFetch(path, params, body, token){
-  if(lngPuenteApp()) return lngFetchApp(path, params, body, token);   // app de Android: puente incluido
+  if(lngPuenteApp()){
+    // App de Android: puente incluido. Si esa conexión directa falla (no es una respuesta de YouTube,
+    // sino que no hubo conexión), se prueba por el puente configurado, si hay uno.
+    try{ return await lngFetchApp(path, params, body, token); }
+    catch(e){ if(e.status || !lngCfg().relay) throw e; lngLog('   la app no llegó directo a YouTube: uso el puente'); }
+  }
   const c = lngCfg();
   if(!c.relay) throw new Error('Falta la dirección del puente (paso 1).');
   const url = c.relay.replace(/\/+$/, '') + '/api/lounge/' + path + (params ? '?' + new URLSearchParams(params) : '');
@@ -22866,6 +22899,15 @@ function iniLounge(){
     const refrescar = () => { if(terminado) return; terminado = true; btn.disabled = false; lngEstado(); };
     m.yConectar(false, refrescar);
     setTimeout(refrescar, 20000); // respaldo por si la ventana de Google se quedó abierta sin responder
+  };
+  document.getElementById('lngProbar').onclick = async () => {
+    const b = document.getElementById('lngProbar'); b.disabled = true; b.textContent = '⏳ Probando…';
+    try{
+      const r = await lngProbar();
+      const box = document.getElementById('lngLogBox'); box.hidden = false;
+      document.getElementById('lngLog').textContent = 'Vento ' + MESORA_VERSION + (window.VentoAndroid ? ' · app Android' : '') + '\n' + r.join('\n') + '\n\n' + (lng.log || []).join('\n');
+      showToast(r.some(x => x.startsWith('❌')) ? '⚠️ ' + r.find(x => x.startsWith('❌')).replace(/^❌\s*/, '') : '✅ Todo conecta: puente y YouTube funcionan.', 10000);
+    }finally{ b.disabled = false; b.textContent = '🩺 Probar conexión'; lngEstado(); }
   };
   document.getElementById('lngVerLog').onclick = () => {
     const box = document.getElementById('lngLogBox');
