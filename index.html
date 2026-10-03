@@ -22074,7 +22074,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-03 · v1.26.1';
+const MESORA_VERSION = '2026-10-03 · v1.26.2';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22573,14 +22573,22 @@ function tvApkLista(){
     L.after(bc);
   }
   if(lngOn()) lngVivo(true).then(pintarVinc).catch(() => {});
+  const porIp = {};
   window.__ventoTV = tv => {
-    if(!tv || vistos[tv.id]) return; vistos[tv.id] = tv; tvWifiGuardar(tv);
+    if(!tv) return;
+    // El mismo aparato puede llegar varias veces (como «reproductor» y como «TV que abre YouTube»): se queda la ficha
+    // más completa y su botón reemplaza al anterior. Antes ganaba la primera y el TV quedaba como «solo código».
+    const viejo = (tv.ip && porIp[tv.ip]) || (tv.reemplaza && vistos[tv.reemplaza]);
+    if(viejo && tvPuntos(tv) <= tvPuntos(viejo.tv)) return;
+    if(!viejo && vistos[tv.id]) return;
+    vistos[tv.id] = tv; tvWifiGuardar(tv);
     const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-primary';
     b.style.cssText = 'display:flex;align-items:center;gap:12px;text-align:left;padding:13px 14px;width:100%';
     const extra = [tv.fabricante, tv.modelo].filter(x => x && !String(tv.nombre).includes(x)).join(' · ');
     b.innerHTML = '<span style="font-size:24px">' + tvIcono(tv.tipo) + '</span><span><b>' + tvEsc(tv.nombre) + '</b>' + (extra ? '<br><small style="opacity:.8">' + tvEsc(extra) + '</small>' : '') + (tv.youtube ? '<br><small style="opacity:.9">▶ Reproduciendo YouTube</small>' : '') + (tv.soloCodigo && !tv.screenId ? '<br><small style="opacity:.8">Se conecta con su código de TV</small>' : '') + '</span>';
     b.onclick = () => { ov.classList.remove('show'); if(tv.screenId) lngUsarPantalla(tv.screenId, tv.nombre, !!tv.youtube); else tvApkConectar(tv); };
-    L.appendChild(b);
+    if(viejo && viejo.b && viejo.b.parentNode){ viejo.b.replaceWith(b); if(viejo.tv && viejo.tv.ip && viejo.tv.ip !== tv.ip) delete porIp[viejo.tv.ip]; } else L.appendChild(b);
+    if(tv.ip) porIp[tv.ip] = { tv, b };
     sub.textContent = 'Toca tu TV: se abre YouTube allá y las canciones de las mesas suenan solas.';
   };
   window.__ventoTVfin = (n, diag) => {
@@ -23537,7 +23545,17 @@ function lngRecordar(screenId, nombre){
 }
 const tvWifi = {};
 let tvWifiT = 0, tvWifiBuscando = false;
-function tvWifiGuardar(tv){ if(!tv || !tv.ip) return; tvWifi[tv.ip] = Object.assign({}, tvWifi[tv.ip] || {}, tv, { visto: Date.now() }); tvDisposPintar(); }
+// Qué tan completa es la ficha: la que abre YouTube (appUrl) gana a la de «solo código».
+const tvPuntos = t => t ? (t.appUrl ? 8 : 0) + (t.screenId ? 4 : 0) + (t.youtube ? 2 : 0) + (t.soloCodigo ? 0 : 1) : -1;
+function tvWifiGuardar(tv){
+  if(!tv || !tv.ip) return;
+  const v = tvWifi[tv.ip];
+  if(v && tvPuntos(tv) < tvPuntos(v)){ v.visto = Date.now(); return; }       // ya había una ficha mejor: no se pisa
+  // Ficha nueva o mejor: reemplaza entera (no se mezcla: así no queda «soloCodigo» pegado de la ficha vieja).
+  tvWifi[tv.ip] = Object.assign({}, tv, { visto: Date.now() });
+  if(tv.reemplaza) Object.keys(tvWifi).forEach(k => { if(k !== tv.ip && tvWifi[k].id === tv.reemplaza) delete tvWifi[k]; });
+  tvDisposPintar();
+}
 // App de Android: busca los TV del wifi sola al abrir Música (máximo una vez por minuto).
 function tvWifiBuscar(forzar){
   if(!lngPuenteApp() || !window.VentoAndroid.buscarTVs || tvWifiBuscando) return;

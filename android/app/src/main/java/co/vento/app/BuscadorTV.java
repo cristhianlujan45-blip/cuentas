@@ -99,25 +99,48 @@ final class BuscadorTV {
         new Thread(this::buscarAhora).start();
     }
 
+    /** Qué tan completa es la ficha de un aparato: la que permite abrir YouTube en él vale más que la de «solo código». */
+    private static int puntos(JSONObject tv) {
+        return (tv.has("appUrl") ? 8 : 0) + (tv.has("screenId") ? 4 : 0) + (tv.optBoolean("youtube") ? 2 : 0) + (tv.optBoolean("soloCodigo") ? 0 : 1);
+    }
+
     private static void emitir(JSONObject tv) {
         if (tv == null) return;
         String ip = tv.optString("ip");
         String nom = tv.optString("nombre").trim().toLowerCase(Locale.ROOT);
         List<Oyente> a;
         synchronized (CANDADO) {
-            if (ip.isEmpty() || hallados.containsKey(ip)) return;
-            // Un mismo aparato sin dirección IPv4 (solo por su nombre) no se repite si ya salió con su dirección, y al revés.
-            boolean sinIp = ip.startsWith("nombre:");
-            for (JSONObject o : hallados.values()) {
-                if (!nom.isEmpty() && nom.equals(o.optString("nombre").trim().toLowerCase(Locale.ROOT)) && (sinIp || o.optString("ip").startsWith("nombre:"))) {
-                    if (sinIp) return;
-                    hallados.remove(o.optString("ip")); break;     // llegó la versión completa: reemplaza a la que no tenía dirección
+            if (ip.isEmpty()) return;
+            JSONObject viejo = hallados.get(ip);
+            if (viejo != null) {
+                // El mismo aparato contestó otra vez (un TV LG contesta como «reproductor» y como «TV que abre YouTube»).
+                // Antes ganaba la primera respuesta: si era la de «reproductor», el TV quedaba como «solo código» y
+                // Vento ya no le abría YouTube. Ahora gana la ficha más completa, y se conservan los datos buenos.
+                if (puntos(tv) <= puntos(viejo)) return;
+                try {
+                    String nv = tv.optString("nombre"), nn = viejo.optString("nombre");
+                    if ((nv.isEmpty() || nv.contains("(" + ip + ")")) && !nn.isEmpty() && !nn.contains("(" + ip + ")")) tv.put("nombre", nn);
+                    for (String k : new String[]{"screenId", "app", "fabricante", "modelo"}) if (!tv.has(k) || tv.optString(k).isEmpty()) if (viejo.has(k)) tv.put(k, viejo.get(k));
+                    if (viejo.optBoolean("youtube")) tv.put("youtube", true);
+                    tv.remove("soloCodigo"); if (!tv.has("appUrl")) tv.put("soloCodigo", true);
+                    tv.put("reemplaza", viejo.optString("id"));
+                } catch (Exception ignorado) { }
+                sumar("mejorados");
+            } else {
+                // Un mismo aparato sin dirección IPv4 (solo por su nombre) no se repite si ya salió con su dirección, y al revés.
+                boolean sinIp = ip.startsWith("nombre:");
+                for (JSONObject o : hallados.values()) {
+                    if (!nom.isEmpty() && nom.equals(o.optString("nombre").trim().toLowerCase(Locale.ROOT)) && (sinIp || o.optString("ip").startsWith("nombre:"))) {
+                        if (sinIp) return;
+                        try { tv.put("reemplaza", o.optString("id")); } catch (Exception ignorado) { }
+                        hallados.remove(o.optString("ip")); break;     // llegó la versión completa: reemplaza a la que no tenía dirección
+                    }
                 }
             }
             hallados.put(ip, tv);
             a = new ArrayList<>(oyentes);
         }
-        agregar("vistos", tv.optString("nombre") + " (" + ip + ")");
+        agregar("vistos", tv.optString("nombre") + " (" + ip + ")" + (tv.has("appUrl") ? "" : " [código]"));
         for (Oyente o : a) try { o.encontrado(tv); } catch (Exception ignorado) { }
     }
 
@@ -143,7 +166,8 @@ final class BuscadorTV {
         } catch (Exception e) { return null; }
     }
 
-    private static boolean yaEsta(String ip) { synchronized (CANDADO) { return hallados.containsKey(ip); } }
+    /** Ya hay una ficha COMPLETA (que abre YouTube) de esa dirección: no hace falta describirla otra vez. */
+    private static boolean yaEsta(String ip) { synchronized (CANDADO) { JSONObject o = hallados.get(ip); return o != null && o.has("appUrl"); } }
 
     private void buscarAhora() {
         synchronized (diag) { java.util.Iterator<String> it = diag.keys(); List<String> ks = new ArrayList<>(); while (it.hasNext()) ks.add(it.next()); for (String k : ks) diag.remove(k); }
