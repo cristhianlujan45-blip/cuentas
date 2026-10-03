@@ -76,7 +76,7 @@
 <body>
 <main>
   <h1>🔑 Licencias de Vento</h1>
-  <p class="sub">Crea el código de activación de las sedes adicionales de un cliente después de que pague. Solo funciona con tu llave privada.</p>
+  <p class="sub">Crea los códigos de activación de tus clientes (suscripción mensual o sedes adicionales) y la licencia de PROVEEDOR para tus propios equipos. Solo funciona con tu llave privada.</p>
 
   <section>
     <h2>1. Tu llave privada</h2>
@@ -89,10 +89,17 @@
 
   <section>
     <h2>2. Datos del cliente</h2>
-    <label for="equipo">Código del equipo del cliente (lo ve en Ajustes → Sedes, o te llega por WhatsApp)</label>
+    <label for="tipo">¿Qué vas a activar?</label>
+    <select id="tipo">
+      <option value="sub">💳 Suscripción del negocio (mensualidad)</option>
+      <option value="sedes">🏢 Sedes adicionales</option>
+      <option value="prov">👑 Proveedor: este equipo es MÍO (control total, sin vencimiento)</option>
+    </select>
+    <label for="equipo" id="equipoLbl">Código del negocio del cliente (lo ve en Ajustes → Negocio → Plan y suscripción, o te llega por WhatsApp)</label>
     <input id="equipo" placeholder="ABCD-1234" autocapitalize="characters" autocomplete="off">
     <div class="grid">
-      <div><label for="sedes">Sedes adicionales</label><input id="sedes" type="number" min="1" max="50" value="1"></div>
+      <div id="sedesBox"><label for="sedes">Sedes adicionales</label><input id="sedes" type="number" min="0" max="50" value="0"></div>
+      <div id="planBox"><label for="plan">Plan (opcional)</label><input id="plan" placeholder="Ej: Básico, Pro" maxlength="20"></div>
       <div><label for="vig">Vigencia</label><select id="vig"><option value="0">Sin vencimiento</option><option value="1">1 mes</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">1 año</option></select></div>
     </div>
     <label for="cliente">Nombre del cliente (para tu registro)</label>
@@ -142,8 +149,14 @@
     var eq = $('equipo').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     if(eq.length !== 8){ alert('El código del equipo tiene 8 letras/números (ej. ABCD-1234).'); return; }
     eq = eq.slice(0, 4) + '-' + eq.slice(4);
-    var s = Math.max(1, Math.min(50, parseInt($('sedes').value, 10) || 1)), meses = parseInt($('vig').value, 10) || 0;
-    var p = { d: eq, s: s, t: Date.now() };
+    var tipo = $('tipo').value;
+    var s = Math.max(0, Math.min(50, parseInt($('sedes').value, 10) || 0)), meses = parseInt($('vig').value, 10) || 0;
+    if(tipo === 'sedes' && !s){ alert('Pon cuántas sedes adicionales.'); return; }
+    if(tipo === 'sub' && !meses && !confirm('¿Suscripción SIN vencimiento? Normalmente es por 1 mes, 3 meses, etc.')) return;
+    var p = { d: eq, t: Date.now() };
+    if(s) p.s = s;
+    if(tipo === 'sub'){ p.m = 1; if($('plan').value.trim()) p.pl = $('plan').value.trim().slice(0, 20); }
+    if(tipo === 'prov'){ p.r = 'proveedor'; meses = 0; }
     if(meses){ var v = new Date(); v.setMonth(v.getMonth() + meses); p.v = v.getTime(); }
     if($('cliente').value.trim()) p.n = $('cliente').value.trim().slice(0, 40);
     var payload = b64u(new TextEncoder().encode(JSON.stringify(p)));
@@ -152,10 +165,10 @@
     var link = $('base').value.trim().replace(/#.*$/, '') + '#licencia=' + code;
     ultimo = { code: code, link: link, p: p };
     $('res').hidden = false;
-    $('resTxt').textContent = '✅ ' + s + ' sede(s) adicional(es) para el equipo ' + eq + (p.v ? ' · vence el ' + new Date(p.v).toLocaleDateString('es-CO') : ' · sin vencimiento') + '. El cliente solo tiene que abrir el link en el celular donde usa Vento.';
+    $('resTxt').textContent = '✅ ' + (tipo === 'prov' ? 'Licencia de PROVEEDOR (control total) para ' : tipo === 'sub' ? 'Suscripción' + (p.pl ? ' plan ' + p.pl : '') + (s ? ' + ' + s + ' sede(s)' : '') + ' para ' : s + ' sede(s) adicional(es) para ') + eq + (p.v ? ' · vence el ' + new Date(p.v).toLocaleDateString('es-CO') : ' · sin vencimiento') + '. El cliente solo tiene que abrir el link en el celular donde usa Vento.';
     $('resLink').textContent = link;
     var h = []; try{ h = JSON.parse(localStorage.getItem(HIST_LS) || '[]'); }catch(e){}
-    h.unshift({ at: Date.now(), eq: eq, s: s, v: p.v || 0, n: p.n || '' }); try{ localStorage.setItem(HIST_LS, JSON.stringify(h.slice(0, 200))); }catch(e){}
+    h.unshift({ at: Date.now(), eq: eq, s: s, v: p.v || 0, n: p.n || '', tipo: tipo }); try{ localStorage.setItem(HIST_LS, JSON.stringify(h.slice(0, 200))); }catch(e){}
     pintarHist();
   };
   function copiar(t){ (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function(){ alert('Copiado.'); }, function(){ prompt('Copia esto:', t); }); }
@@ -164,13 +177,23 @@
   $('sendWa').onclick = function(){
     if(!ultimo) return;
     var n = $('wa').value.replace(/\D/g, ''); if(n.length === 10) n = '57' + n;
-    var txt = '¡Gracias por tu pago! 🎉 Abre este link en el celular donde usas Vento para activar tus sedes:\n' + ultimo.link;
+    var txt = '¡Gracias por tu pago! 🎉 Abre este link en el celular donde usas Vento para activar tu suscripción de Vento:\n' + ultimo.link;
     window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(txt), '_blank');
   };
+  function tipoUI(){
+    var t = $('tipo').value;
+    $('equipoLbl').textContent = t === 'prov' ? 'Código de TU equipo (en Vento: Ajustes → Negocio → Plan y suscripción → «Código de este equipo»)' : t === 'sub' ? 'Código del negocio del cliente (lo ve en Ajustes → Negocio → Plan y suscripción, o te llega por WhatsApp)' : 'Código del equipo o del negocio del cliente';
+    $('planBox').style.display = t === 'sub' ? '' : 'none';
+    $('sedesBox').style.display = t === 'prov' ? 'none' : '';
+    $('vig').disabled = t === 'prov';
+    if(t === 'sedes' && !(parseInt($('sedes').value, 10) > 0)) $('sedes').value = 1;
+    if(t === 'sub' && $('vig').value === '0') $('vig').value = '1';
+  }
+  $('tipo').onchange = tipoUI; tipoUI();
   function pintarHist(){
     var h = []; try{ h = JSON.parse(localStorage.getItem(HIST_LS) || '[]'); }catch(e){}
     if(!h.length) return;
-    $('hist').innerHTML = h.map(function(x){ return '<div><b>' + x.eq + '</b> · ' + x.s + ' sede(s)' + (x.v ? ' · vence ' + new Date(x.v).toLocaleDateString('es-CO') : '') + (x.n ? ' · ' + x.n.replace(/</g, '&lt;') : '') + '<br><span style="color:var(--soft)">' + new Date(x.at).toLocaleString('es-CO') + '</span></div>'; }).join('');
+    $('hist').innerHTML = h.map(function(x){ return '<div><b>' + x.eq + '</b> · ' + (x.tipo === 'prov' ? '👑 proveedor' : x.tipo === 'sub' ? '💳 suscripción' + (x.s ? ' + ' + x.s + ' sede(s)' : '') : x.s + ' sede(s)') + (x.v ? ' · vence ' + new Date(x.v).toLocaleDateString('es-CO') : '') + (x.n ? ' · ' + x.n.replace(/</g, '&lt;') : '') + '<br><span style="color:var(--soft)">' + new Date(x.at).toLocaleString('es-CO') + '</span></div>'; }).join('');
   }
   pintarHist();
 })();

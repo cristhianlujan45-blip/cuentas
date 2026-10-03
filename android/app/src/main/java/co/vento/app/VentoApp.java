@@ -301,6 +301,70 @@ public class VentoApp extends Application {
         }
 
         /**
+         * Buscar una canción en YouTube sin gastar el cupo de la clave compartida: se abre la página pública de
+         * resultados de www.youtube.com (la misma que ve cualquiera en el navegador) y se sacan los primeros videos
+         * (id, título, canal y duración). Responde por window.__ventoCb(id, {status, text}) con un JSON
+         * [{v,t,c,d}] en text. Solo lectura; no usa cuentas ni claves.
+         */
+        @JavascriptInterface
+        public void buscarYT(final String id, final String consulta) {
+            new Thread(() -> {
+                int st = -1; String txt = "";
+                java.net.HttpURLConnection c = null;
+                try {
+                    String u = "https://www.youtube.com/results?hl=es&gl=CO&search_query=" + java.net.URLEncoder.encode(consulta == null ? "" : consulta, "UTF-8");
+                    c = (java.net.HttpURLConnection) new java.net.URL(u).openConnection();
+                    c.setConnectTimeout(8000);
+                    c.setReadTimeout(10000);
+                    c.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36");
+                    c.setRequestProperty("Accept-Language", "es-CO,es;q=0.9");
+                    c.setRequestProperty("Cookie", "CONSENT=YES+1");
+                    st = c.getResponseCode();
+                    String html = "";
+                    java.io.InputStream in = st >= 400 ? c.getErrorStream() : c.getInputStream();
+                    if (in != null) {
+                        try (java.io.InputStream i = in; java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+                            byte[] buf = new byte[16384]; int n;
+                            while ((n = i.read(buf)) > 0 && out.size() < 3_000_000) out.write(buf, 0, n);
+                            html = out.toString("UTF-8");
+                        }
+                    }
+                    org.json.JSONArray arr = new org.json.JSONArray();
+                    java.util.HashSet<String> vistos = new java.util.HashSet<>();
+                    java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"videoRenderer\":\\{\"videoId\":\"([\\w-]{11})\"").matcher(html);
+                    while (m.find() && arr.length() < 10) {
+                        String vid = m.group(1);
+                        if (!vistos.add(vid)) continue;
+                        String trozo = html.substring(m.start(), Math.min(html.length(), m.start() + 6000));
+                        org.json.JSONObject o = new org.json.JSONObject();
+                        o.put("v", vid);
+                        o.put("t", sacar(trozo, "\"title\":\\{\"runs\":\\[\\{\"text\":\"((?:[^\"\\\\]|\\\\.)*)\""));
+                        o.put("c", sacar(trozo, "\"ownerText\":\\{\"runs\":\\[\\{\"text\":\"((?:[^\"\\\\]|\\\\.)*)\""));
+                        o.put("d", sacar(trozo, "\"lengthText\":\\{.{0,400}?\"simpleText\":\"([0-9:]+)\""));
+                        arr.put(o);
+                    }
+                    txt = arr.toString();
+                    if (st < 400 && arr.length() == 0) st = 204;
+                } catch (Exception e) {
+                    st = -1; txt = String.valueOf(e.getMessage());
+                } finally {
+                    if (c != null) c.disconnect();
+                }
+                js("window.__ventoCb&&window.__ventoCb(" + q(id) + ",{status:" + st + ",text:" + q(txt) + "})");
+            }).start();
+        }
+
+        private String sacar(String texto, String patron) {
+            try {
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile(patron).matcher(texto);
+                if (!m.find()) return "";
+                String r = m.group(1);
+                try { r = new org.json.JSONObject("{\"x\":\"" + r + "\"}").getString("x"); } catch (Exception ignored) {}
+                return r;
+            } catch (Exception e) { return ""; }
+        }
+
+        /**
          * Escuchar al TV en vivo: el canal de vuelta del «YouTube del TV» (GET bc/bind con RID=rpc), el mismo que
          * usa la app de YouTube. Queda abierto y el TV va contando al instante qué suena, si pausó, si cambió de
          * canción o de lista. Cada trozo llega a window.__ventoTVev(id, texto); al cerrarse, window.__ventoTVcerro(id, código).

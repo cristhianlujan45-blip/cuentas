@@ -1321,6 +1321,39 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   }
   .add-row button:hover{ background: var(--amber); }
 
+  /* Pagos / abonos y personas (1.27): tarjeta clara, montos rápidos y método con botones grandes */
+  .pay-card{ display:flex; flex-direction:column; gap:10px; padding:14px; margin:6px 0 10px; border:1px solid color-mix(in srgb, var(--amber) 35%, var(--line)); border-radius:16px; background:color-mix(in srgb, var(--amber) 7%, var(--surface)); }
+  .pay-card-title{ font-weight:800; font-size:1.02em; color:var(--ink); display:flex; flex-direction:column; gap:2px; }
+  .pay-card-title small{ font-weight:500; font-size:.8em; color:var(--ink-soft); }
+  .pay-card .pay-in, .pay-amount{ width:100%; box-sizing:border-box; min-height:48px; border:1.5px solid var(--line); border-radius:12px; background:var(--bg); color:var(--ink); font:inherit; font-size:1em; padding:0 14px; }
+  .pay-card .pay-in:focus, .pay-amount:focus-within{ outline:none; border-color:var(--cream-soft); box-shadow:0 0 0 3px color-mix(in srgb, var(--amber) 25%, transparent); }
+  .pay-amount{ display:flex; align-items:center; gap:6px; cursor:text; }
+  .pay-amount span{ font-weight:800; font-size:1.25em; color:var(--paid); }
+  .pay-amount input{ flex:1; min-width:0; border:0; background:transparent; color:var(--ink); font:inherit; font-size:1.25em; font-weight:800; padding:10px 0; outline:none; }
+  .pay-quick, .pay-methods, .pay-extra{ display:flex; gap:8px; flex-wrap:wrap; }
+  .pay-quick button{ flex:1 1 0; min-height:38px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--cream); font:inherit; font-weight:700; font-size:.88em; cursor:pointer; }
+  .pay-methods{ display:grid; grid-template-columns:repeat(3, 1fr); }
+  .pay-methods button{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-width:0; min-height:58px; padding:6px 4px; line-height:1.15; border-radius:12px; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); font:inherit; font-weight:700; font-size:.82em; cursor:pointer; transition:background .15s, border-color .15s; }
+  .pay-methods button.on{ border-color:var(--amber); background:var(--amber); color:#fff; box-shadow:0 4px 14px color-mix(in srgb, var(--amber) 40%, transparent); }
+  .pay-methods button[data-v="debe"].on{ border-color:var(--brick); background:color-mix(in srgb, var(--brick) 80%, #000); }
+  .pay-extra button{ flex:1 1 0; min-height:42px; border-radius:12px; border:1px dashed color-mix(in srgb, var(--cream-soft) 60%, var(--line)); background:transparent; color:var(--cream); font:inherit; font-weight:700; font-size:.9em; cursor:pointer; }
+  .pay-go{ min-height:54px; border:0; border-radius:14px; background:linear-gradient(135deg, var(--amber), var(--amber-deep)); color:#fff; font:inherit; font-weight:800; font-size:1.08em; cursor:pointer; box-shadow:0 6px 18px color-mix(in srgb, var(--amber) 35%, transparent); }
+  .pay-go:active, .pay-quick button:active, .pay-methods button:active, .pay-extra button:active{ transform:scale(.97); }
+  .pay-methods button i{ font-style:normal; font-size:1.3em; }
+  .pay-methods button[data-v="transferencia"]{ font-size:.74em; }
+  #clienteRow{ display:flex; align-items:center; gap:8px; padding:5px 5px 5px 14px; border:1.5px solid var(--line); border-radius:999px; background:var(--bg); }
+  #clienteRow input{ flex:1; min-width:0; border:0 !important; background:transparent !important; color:var(--ink) !important; font:inherit; padding:9px 0; outline:none; }
+  #clienteRow button{ min-height:38px; border-radius:999px !important; padding:0 14px !important; }
+  .pay-extra button, .pay-quick button{ white-space:nowrap; }
+  .pay-card[data-scope="person"] .pay-quick [data-q="split"]{ display:none; }
+  .pay-select-oculto{ position:absolute !important; width:1px !important; height:1px !important; opacity:0 !important; pointer-events:none !important; }
+  .persona-add{ display:flex; align-items:center; gap:8px; padding:6px 6px 6px 12px; margin:4px 0 4px; border:1.5px solid var(--line); border-radius:999px; background:var(--bg); }
+  .persona-add:focus-within{ border-color:var(--cream-soft); box-shadow:0 0 0 3px color-mix(in srgb, var(--amber) 25%, transparent); }
+  .persona-add .persona-ico{ font-size:1.15em; }
+  .persona-add input{ flex:1; min-width:0; border:0; background:transparent; color:var(--ink); font:inherit; font-size:1em; padding:10px 0; outline:none; }
+  .persona-add button{ flex:0 0 auto; min-height:40px; padding:0 14px; font-size:.92em; border:0; border-radius:999px; background:linear-gradient(135deg, var(--amber), var(--amber-deep)); color:#fff; font:inherit; font-weight:800; cursor:pointer; }
+  .persona-hint{ font-size:.8em; color:var(--ink-soft); margin:0 4px 6px; }
+
   .line-item{
     display:flex;
     justify-content: space-between;
@@ -2169,6 +2202,11 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   body.modo-mesero #asisFab, body.modo-mesero #voiceFabAI, body.modo-mesero #mesoraFixPill{ display:none !important; }
   .mesero-chip{ display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 6px 0 12px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font:700 13px var(--font-main); }
   .mesero-chip button{ height:30px; padding:0 10px; border-radius:999px; border:1px solid var(--line); background:var(--surface-2); color:var(--brick); font:700 12px var(--font-main); cursor:pointer; }
+  .sub-bar{ display:flex; align-items:center; gap:10px; margin:8px 0 4px; padding:9px 12px; border-radius:12px; border:1px solid color-mix(in srgb, var(--amber) 45%, var(--line)); background:color-mix(in srgb, var(--amber) 12%, var(--surface)); color:var(--ink); font-size:13px; line-height:1.35; cursor:pointer; }
+  .sub-bar span{ flex:1; min-width:0; }
+  .sub-bar b:last-of-type{ white-space:nowrap; color:var(--cream); }
+  .sub-bar i{ font-style:normal; opacity:.6; padding:0 2px 0 6px; }
+  .sub-bar[data-k="vencida"], .sub-bar[data-k="gracia"]{ border-color:var(--brick); background:color-mix(in srgb, var(--brick) 14%, var(--surface)); }
   .lic-plan{ margin:8px 0 10px; padding:10px 12px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line); font-size:13.5px; line-height:1.45; }
   .lic-plan b{ color:var(--cream); }
   .lic-code{ font:800 22px/1.2 var(--font-main); letter-spacing:.12em; color:var(--cream); text-align:center; margin:6px 0; user-select:all; }
@@ -4154,10 +4192,12 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
     </div>
 
     <div class="section-divider" data-mod="d">Personas en la mesa</div>
-    <div class="add-row" data-mod="d">
-      <input type="text" id="personNameInput" placeholder="Nombre de la persona (ej. Ana)">
-      <button id="addPersonBtn">Agregar</button>
+    <div class="persona-add" data-mod="d">
+      <span class="persona-ico">👤</span>
+      <input type="text" id="personNameInput" placeholder="Nombre (ej. Ana)" autocomplete="off" maxlength="30" enterkeyhint="done">
+      <button id="addPersonBtn" type="button">＋ Agregar</button>
     </div>
+    <div class="persona-hint" data-mod="d">Cada persona lleva su cuenta aparte dentro de la mesa. Tócala para pedir o pagar lo suyo.</div>
     <div id="peopleChips" data-mod="d"></div>
 
     <div id="favChips" class="fav-chips"></div>
@@ -4188,17 +4228,19 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
     <div class="split-hint" data-mod="d">Solo de referencia — no cambia la cuenta, úsalo para saber cuánto le toca a cada quien.</div>
 
     <div class="section-divider">Pagos registrados</div>
-    <div class="add-row">
-      <input type="text" id="paymentNote" placeholder="Nombre (quién paga o queda debiendo)">
-      <input type="number" id="paymentAmount" placeholder="Monto (vacío = todo el saldo si Debe)" min="0" step="100">
-      <select id="paymentMethod">
+    <div class="pay-card" data-scope="table">
+      <div class="pay-card-title">💵 Registrar un pago o abono<small>Puede ser todo o solo una parte, también por adelantado.</small></div>
+      <input type="text" id="paymentNote" class="pay-in" placeholder="¿Quién paga? (opcional, ej. Ana)" autocomplete="off">
+      <label class="pay-amount"><span>$</span><input type="number" id="paymentAmount" placeholder="¿Cuánto paga?" min="0" step="100" inputmode="numeric"></label>
+      <div class="pay-quick"><button type="button" data-q="all">Todo</button><button type="button" data-q="half">La mitad</button><button type="button" data-q="split">Dividido</button></div>
+      <select id="paymentMethod" class="pay-select-oculto" tabindex="-1" aria-hidden="true">
         <option value="efectivo">Efectivo</option>
         <option value="transferencia">Transferencia</option>
         <option value="debe">Quedó debiendo</option>
       </select>
-      <button id="payPickBtn" type="button">☑ Productos</button>
-      <button id="payRcptBtn" type="button">📎 Comprobante</button>
-      <button id="addPaymentBtn">+</button>
+      <div class="pay-methods" data-sel="paymentMethod"><button type="button" data-v="efectivo" class="on"><i>💵</i>Efectivo</button><button type="button" data-v="transferencia"><i>📲</i>Transferencia</button><button type="button" data-v="debe"><i>📝</i>Queda debiendo</button></div>
+      <div class="pay-extra"><button id="payPickBtn" type="button">☑ Productos</button><button id="payRcptBtn" type="button">📎 Comprobante</button></div>
+      <button id="addPaymentBtn" type="button" class="pay-go">✅ Registrar pago</button>
     </div>
     <div class="li-paystatus" id="payPickInfo" style="display:none"></div>
     <div id="paymentsContainer"></div>
@@ -4264,17 +4306,19 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
     <div id="personItemsContainer"></div>
 
     <div class="section-divider">Pagos registrados</div>
-    <div class="add-row">
-      <input type="text" id="personPaymentNote" placeholder="Nombre (quién paga o queda debiendo)">
-      <input type="number" id="personPaymentAmount" placeholder="Monto (vacío = todo el saldo si Debe)" min="0" step="100">
-      <select id="personPaymentMethod">
+    <div class="pay-card" data-scope="person">
+      <div class="pay-card-title">💵 Registrar un pago o abono<small>Puede ser todo o solo una parte, también por adelantado.</small></div>
+      <input type="text" id="personPaymentNote" class="pay-in" placeholder="¿Quién paga? (opcional, ej. Ana)" autocomplete="off">
+      <label class="pay-amount"><span>$</span><input type="number" id="personPaymentAmount" placeholder="¿Cuánto paga?" min="0" step="100" inputmode="numeric"></label>
+      <div class="pay-quick"><button type="button" data-q="all">Todo</button><button type="button" data-q="half">La mitad</button><button type="button" data-q="split">Dividido</button></div>
+      <select id="personPaymentMethod" class="pay-select-oculto" tabindex="-1" aria-hidden="true">
         <option value="efectivo">Efectivo</option>
         <option value="transferencia">Transferencia</option>
         <option value="debe">Quedó debiendo</option>
       </select>
-      <button id="personPayPickBtn" type="button">☑ Productos</button>
-      <button id="personRcptBtn" type="button">📎 Comprobante</button>
-      <button id="personAddPaymentBtn">+</button>
+      <div class="pay-methods" data-sel="personPaymentMethod"><button type="button" data-v="efectivo" class="on"><i>💵</i>Efectivo</button><button type="button" data-v="transferencia"><i>📲</i>Transferencia</button><button type="button" data-v="debe"><i>📝</i>Queda debiendo</button></div>
+      <div class="pay-extra"><button id="personPayPickBtn" type="button">☑ Productos</button><button id="personRcptBtn" type="button">📎 Comprobante</button></div>
+      <button id="personAddPaymentBtn" type="button" class="pay-go">✅ Registrar pago</button>
     </div>
     <div class="li-paystatus" id="personPayPickInfo" style="display:none"></div>
     <div id="personPaymentsContainer"></div>
@@ -6177,6 +6221,11 @@ function pushVoiceUndoSnapshot(tableId){
 function undoLastVoiceOrder(){
   if(!voiceUndoStack.length) return null;
   const snap = voiceUndoStack.pop();
+  if(snap.abono){                         // abono por voz: se quita ese pago
+    const tb = data.tables[snap.tableId]; if(tb && tb.payments && tb.payments.length) tb.payments.pop();
+    saveData(); if(currentTable === snap.tableId){ try{ renderModalItems(); }catch(e){} } renderMesas();
+    return snap.tableId;
+  }
   if(snap.mov){                           // cambio de mesa: vuelven las dos mesas como estaban
     snap.tablas.forEach(x => { data.tables[x.id] = x.t; });
     saveData();
@@ -6200,11 +6249,12 @@ function undoLastVoiceOrder(){
 
 function isUndoVoiceCommand(rawText){
   const t = normVoiceText(rawText);
-  const hasAction = /\b(borra|borrar|deshaz|deshacer|cancela|cancelar)\b/.test(t);
-  const hasTarget = /\b(pedido|orden)\b[\s\S]*\b(anterior|ultimo|ultima|pasado|pasada)\b|\b(ultimo|ultima)\b[\s\S]*\b(pedido|orden)\b/.test(t);
+  const VERBO = '(borra|borre|borralo|borrame|borrar|deshaz|deshace|deshaga|deshagan|deshacer|deshazlo|cancela|cancele|cancelar|cancelalo|elimina|elimine|eliminar|eliminalo|anula|anule|anular|anulalo|quita|quite|quitar|quitalo|saca|saque|sacar|retira|retire|retirar|devuelve|reversa|revierte)';
+  const hasAction = new RegExp('\\b' + VERBO + '\\b').test(t);
+  const hasTarget = /\b(pedido|orden|ronda)\b[\s\S]*\b(anterior|ultimo|ultima|pasado|pasada|que hice|que hicimos)\b|\b(ultimo|ultima|anterior)\b[\s\S]*\b(pedido|orden|ronda)\b|\blo\s+(que\s+)?(ultimo|anterior|que\s+(pedi|pedimos|agregue|agregamos|puse|pusimos|anote|anotamos))\b/.test(t);
   if(hasAction && hasTarget) return true;
-  if(/^(deshacer|deshaz|deshaz eso|deshaz lo ultimo)$/.test(t)) return true;
-  if(/^(deshacer|deshaz|deshace|cancelar|cancela|borrar|borra|quitar|quita)\s+(el\s+|ese\s+|mi\s+)?(pedido|orden)$/.test(t)) return true;
+  if(/^(deshacer|deshaz|deshace|deshaga|deshazlo|deshaz eso|deshaz lo ultimo|me equivoque|anula eso|anular|borra eso|cancela eso)$/.test(t)) return true;
+  if(new RegExp('^' + VERBO + '\\s+(el\\s+|ese\\s+|mi\\s+|este\\s+)?(pedido|orden|ronda)$').test(t)) return true;
   return false;
 }
 // «repetir pedido anterior», «repite el último pedido», «repetir el pedido» (no «repíteme», que es recordarlo)
@@ -6217,6 +6267,7 @@ function isRepeatLastOrderVoiceCommand(rawText){
 let lastVoiceOrderInfo = null; // { tableId, mode, items: [{name, qty}], at }
 
 function isRecallVoiceCommand(rawText){
+  if(isUndoVoiceCommand(rawText)) return false;   // «borra el pedido anterior» es deshacer, no recordar
   const t = normVoiceText(rawText);
   // "recuérdame el pedido", "dime el pedido", "repíteme el pedido" (sin "para la mesa"), "cuál fue mi último pedido"
   if(/\b(recuerda\w*|recuerde\w*|recordar|recordame|acuerda\w*|dime|digame|repiteme|repitame|leeme|cual|como|que)\b[\s\S]*\b(pedido|pedidos|orden)\b/.test(t) && !/\b(para|a|en)\s+la\s+mesa\b/.test(t)) return true;
@@ -6558,7 +6609,9 @@ const VOICE_AYUDA = [
   ['Crear mesas', ['agrégame una mesa que se llame Juan', 'agrégame mesa nueva Lucas', 'agrégame una mesa a nombre de Juan y agrégale dos cervezas y una póker', 'crea la mesa Carolina con tres Club Colombia', 'nueva mesa para don Pedro', 'ábreme una cuenta a nombre de Ana', 'quiero una mesa llamada María José', 'agrega una mesa', 'agrega hasta la mesa 10']],
   ['Nombre de la mesa', ['cámbiale el nombre a la mesa 3 por Pedro', 'la mesa 2 se llama Martín', 'ponle Carolina a la mesa 4', 'renombra la mesa 1 como Lucía', 'quítale el nombre a la mesa 2']],
   ['Cambiar de mesa', ['pasa la mesa 3 a la 5', 'junta la mesa 1 con la 4 (se juntan las cuentas)', 'cambia la mesa Juan a la 2']],
-  ['Corregir', ['quita una póker de la mesa 2', 'la mesa 4 son tres águilas (corrige la cantidad)', 'deshacer', 'quitar mesa 3']],
+  ['Corregir', ['quita una póker de la mesa 2', 'la mesa 4 son tres águilas (corrige la cantidad)', 'deshacer', 'borra el pedido anterior', 'deshaz el último pedido', 'quitar mesa 3']],
+  ['Personas y abonos', ['agrega a Juan a la mesa 4', 'pon a María en la mesa 2', 'la mesa 3 abona 20 mil', 'Juan paga 10 mil de la mesa 2 por Nequi', 'cobra la mesa 3']],
+  ['Inventario y preguntas', ['cuántas Póker quedan', 'cuánto hay de Águila', 'cuánto vendí hoy', 'qué mesas están abiertas', 'siguiente canción', 'pon la canción Despacito']],
   ['Libreta (lista negra)', ['agrégame a la lista negra 30 mil para Julián', 'agrégame a la lista que Julián quedó debiendo 30 mil', 'Julián quedó de pagar 20 mil', 'cárgale a Julián 12 mil', 'fíale 10 mil a Ana', 'Julián pagó 10 mil', 'bórrale 5 mil a Julián', 'saca a Julián de la lista negra (pagó todo)', '¿quién me debe?']],
   ['Recordar', ['recuérdame el pedido (el último, por voz o a mano)', 'recuérdame el pedido de la mesa 2', 'qué lleva la mesa 3']],
   ['Cuentas', ['cuenta de la mesa 2', 'cuánto debe la 4', 'total de todas las mesas', 'cuánto llevo vendido']],
@@ -7010,12 +7063,87 @@ function voiceNormalizarHabla(raw){
   t = t.replace(/\bmesa\s+mesa\b/gi, 'mesa');
   t = t.replace(/^\s*(\d{1,3})\s+(?=(?:un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|\d{1,2})\s+\S)/i, (all, n) => esMesa(parseInt(n, 10)) ? 'mesa ' + n + ' ' : all);
   t = t.replace(/\bmenos\s+(?=\S)/gi, 'quita ');
+  // Muletillas al empezar: «que sean dos Póker…», «hay que agregar…», «que me traigan…» (se perdía la cantidad)
+  t = t.replace(/^\s*(?:que\s+(?:sean|sea|me\s+(?:traigan|traiga|traes|traen|regalen|regale|den|des))|hay\s+que\s+(?:agregar|poner|anotar|sumar|meter)|me\s+(?:traen|traes|trae|regalan|regalas|dan|das))\s+/i, '');
   // Deshacer con otras palabras
   if(/^\s*(borra|quita|cancela|elimina)\s+(lo|el)\s+(ultimo|último)\s*$|^\s*(me equivoque|me equivoqué|error|eso no|corrige eso|devuelve|atras|atrás)\s*$/i.test(t)) t = 'deshacer';
   return t;
 }
+// ---------- Más comandos de voz (1.27): inventario, abrir/cobrar mesa, personas, abonos y preguntas a Laya ----------
+function voiceDecir(txt, ms){ const limpio = String(txt || '').replace(/[•🧠📦🧾🛒🧮💰🆕🚫⚠️📈📉🏭🛎️🍳🎵✅🔎🔗⏭▶🗑👤💵📲📝↩️🔁]/gu, ' ').replace(/\s+/g, ' ').trim();
+  showToast(String(txt).split('\n').slice(0, 5).join(' · '), ms || 8000); speakVoice(limpio.slice(0, 320)); }
+function voiceEsPregunta(raw){
+  const t = normVoiceText(raw);
+  if(/\b(cancion|canciones|musica|cola de musica|playlist|youtube)\b/.test(t) && !/\b(mesa|meza)\s+\S+\s+(un|una|uno|dos|tres|\d)/.test(t)) return true;   // «siguiente canción», «pon la canción…»
+  return /\?\s*$/.test(String(raw)) || /^(cuanto|cuanta|cuantos|cuantas|que|cual|cuales|como|quien|quienes|donde|hay|dime|digame|muestrame|ensename|revisa|informe|resumen|estado)\b/.test(t);
+}
+function voiceExtras(raw){
+  const t = normVoiceText(raw);
+  const mesaN = (() => { const m = t.match(/\b(?:mesa|meza|cuenta)\s+(?:numero\s+)?(\d{1,3}|[a-z]+)\b/); if(!m) return null; const n = /^\d+$/.test(m[1]) ? parseInt(m[1], 10) : (typeof NUM_PAL !== 'undefined' ? NUM_PAL[m[1]] : null); if(n && data.tables[n]) return n; try{ const x = extractVoiceTableId(raw); return x && data.tables[x] ? x : null; }catch(e){ return null; } })();
+  // Inventario: «¿cuántas Poker quedan?», «cuánto hay de Águila», «stock de Club Colombia»
+  let mInv = t.match(/^(?:cuant[oa]s?|cuanto)\s+(?:de\s+)?(.+?)\s+(?:quedan|queda|hay|tengo|tenemos|me quedan|nos quedan|van quedando)(?:\s+.*)?$/) || t.match(/^(?:cuanto|cuanta|cuantos|cuantas)\s+(?:hay|queda|quedan)\s+(?:de\s+)?(.+)$/) || t.match(/^(?:stock|inventario|existencias)\s+(?:de|del)\s+(.+)$/) || t.match(/^(?:quedan|queda|hay)\s+(.+?)\s*$/);
+  if(mInv && !/\b(mesa|mesas|cuenta|cuentas|pedido|pedidos|cancion|canciones|plata|dinero|ventas?|saldo|deuda|debe)\b/.test(mInv[1])){
+    const p = matchProductVoice(mInv[1]);
+    if(p){ const msg = p.stock == null || p.stock === '' ? p.name + ' no lleva control de inventario.' : 'De ' + p.name + ' quedan ' + p.stock + ' unidad' + (p.stock == 1 ? '' : 'es') + '.'; voiceDecir('📦 ' + msg); return true; }
+  }
+  // Abrir una mesa: «abre la mesa 3», «muéstrame la mesa 2»
+  if(mesaN && /^(abre|abrir|abreme|muestra|muestrame|ver|ensename|entra a|entra en)\s+(la\s+)?(cuenta\s+de\s+la\s+)?(mesa|meza|cuenta)\s+\S+$/.test(t)){
+    openTableModal(mesaN); speakVoice('Listo, ' + tableLabel(mesaN) + '.'); return true;
+  }
+  // Cobrar una mesa (pide confirmación como siempre): «cobra la mesa 3», «cierra la cuenta de la mesa 2»
+  if(mesaN && /^(cobra|cobrar|cobrale|cobrame|cierra|cerrar|cierrale|liquida|liquidar|factura|facturale)\s+(la\s+)?(cuenta\s+(de\s+)?(la\s+)?)?(mesa|meza|cuenta)\b/.test(t)){
+    const tb = data.tables[mesaN];
+    if(!tb.items || !tb.items.length){ voiceDecir(tableLabel(mesaN) + ' no tiene nada por cobrar.'); return true; }
+    openTableModal(mesaN); voiceDecir('💰 ' + tableLabel(mesaN) + ': son ' + fmtSpoken(tableBalance(mesaN)) + '. Confirma el cobro en pantalla.');
+    setTimeout(() => { const b = document.getElementById('chargeBtn'); if(b && currentTable === mesaN) b.click(); }, 450);
+    return true;
+  }
+  // Agregar una persona a la mesa: «agrega a Juan a la mesa 4», «pon a María en la mesa 2»
+  const mPer = t.match(/^(?:agrega|agregale|agregame|anade|mete|pon|suma|sumale|registra|anota)\s+(?:a\s+)?(?:una\s+persona\s+(?:llamada\s+|que\s+se\s+llama\s+)?|la\s+persona\s+)?([a-zn][a-zn ]{1,28}?)\s+(?:a|en|para)\s+la\s+(?:mesa|meza|cuenta)\s+\S+$/);
+  if(mesaN && mPer && !/\d/.test(mPer[1]) && !matchProductVoice(mPer[1]) && !/^(un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|otra|otro|otras|otros|lo|la|el|los|las)\b/.test(mPer[1])){
+    const pal = mPer[1].trim().split(' '), orig = String(raw).split(/\s+/), on = orig.map(w => normVoiceText(w));
+    let nombre = mPer[1].trim();
+    for(let i = 0; i + pal.length <= on.length; i++){ if(pal.every((w, k) => on[i + k] === w)){ nombre = orig.slice(i, i + pal.length).join(' ').replace(/[^\p{L} ]/gu, ''); break; } }
+    nombre = nombre.replace(/(^|\s)\p{L}/gu, c => c.toUpperCase());
+    const tb = data.tables[mesaN]; tb.people = tb.people || [];
+    if(tb.people.some(x => normVoiceText(x.name) === normVoiceText(nombre))){ voiceDecir('👤 ' + nombre + ' ya está en ' + tableLabel(mesaN) + '.'); return true; }
+    tb.people.push({ id: Date.now().toString(), name: nombre }); saveData();
+    if(currentTable === mesaN){ try{ renderPeople(); }catch(e){} }
+    renderMesas(); voiceDecir('👤 Agregué a ' + nombre + ' a ' + tableLabel(mesaN) + '.'); return true;
+  }
+  // Abono / pago parcial: «la mesa 3 abona 20 mil», «Juan paga 10 mil de la mesa 2 por transferencia»
+  if(mesaN && /\b(abona|abono|abonar|abonale|abonen|adelanta|adelanto|anticipo|paga|pago|pagan|pagaron|pague)\b/.test(t) && !/\b(todo|toda la cuenta|completo|completa)\b/.test(t)){
+    const monto = window.ventoMonto ? window.ventoMonto(t.replace(/\b(mesa|meza|cuenta)\s+(numero\s+)?\S+/, ' ')) : 0;
+    if(monto > 0){
+      const tb = data.tables[mesaN]; tb.payments = tb.payments || [];
+      const met = /\b(transferencia|transfirio|nequi|daviplata|bancolombia|qr)\b/.test(t) ? 'transferencia' : 'efectivo';
+      const mQuien = t.match(/^([a-zn]+(?:\s[a-zn]+)?)\s+(?:abona|paga|pago|adelanta)\b/);
+      const quien = mQuien && !/^(la|el|mesa|cuenta|me|le|se)$/.test(mQuien[1]) ? mQuien[1].replace(/\b\w/g, c => c.toUpperCase()) : '';
+      tb.payments.push({ note: quien ? quien + ' (abono por voz)' : 'Abono por voz', amount: monto, method: met });
+      saveData(); if(currentTable === mesaN){ try{ renderModalItems(); }catch(e){} } renderMesas();
+      voiceDecir('💵 Abono de ' + fmtSpoken(monto) + (met === 'transferencia' ? ' por transferencia' : ' en efectivo') + ' a ' + tableLabel(mesaN) + '. Queda debiendo ' + fmtSpoken(Math.max(0, tableBalance(mesaN))) + '. Di «deshacer» si te equivocaste.');
+      voiceUndoStack.push({ abono: true, tableId: mesaN }); if(voiceUndoStack.length > 15) voiceUndoStack.shift();
+      return true;
+    }
+  }
+  return false;
+}
+// Preguntas por el micrófono: las responde Laya con los datos reales (sin internet) y las dice en voz alta.
+function voicePreguntaLaya(raw){
+  let r = null;
+  try{ r = window.Laya && window.Laya.responder(raw); }catch(e){}
+  try{ if(!r && typeof asisCommand === 'function') r = asisCommand(raw); }catch(e){}
+  try{ if(!r && typeof asisLocalAccion === 'function'){ const a = asisLocalAccion(raw); if(a) r = { text: a.text, actions: a.actions }; } }catch(e){}
+  try{ if(!r){ const x = (typeof asisLocalMas === 'function' && asisLocalMas(raw)) || (typeof asisLocal === 'function' && asisLocal(raw)); if(x) r = { text: x }; } }catch(e){}
+  if(!r || !r.text) return false;
+  voiceDecir(r.text, 10000);
+  if(r.run) setTimeout(r.run, 700);
+  if(r.actions && r.actions.length){ try{ asisOpen(); asisBot(r.text, { actions: r.actions }); }catch(e){} }
+  return true;
+}
 async function handleVoiceTranscript(rawText){
   const conIA = voiceModoIA; voiceModoIA = false;
+  if(typeof subPuedeVender === 'function' && !subPuedeVender()){ subPaywall('Para seguir usando la voz y hacer ventas, renueva tu suscripción.'); return; }
   rawText = voiceNormalizarHabla(rawText);
   try{
     // «Laya, ¿qué hay en la barra?» dicho en el micrófono de pedidos: lo responde Laya (y lo dice en voz alta).
@@ -7037,9 +7165,11 @@ async function handleVoiceTranscript(rawText){
       const calc = !nombraAlgo && window.ventoCalcular && window.ventoCalcular(rawText, true);
       if(calc){ showToast(calc.texto, 12000); speakVoice(calc.voz); return; }
     }catch(e){}
+    if(voiceExtras(rawText)) return;
     if(window.libretaVoz && window.libretaVoz(rawText)) return;   // «Juan me debe 20 mil», «agrégame a la lista negra…»
     if(/\b(libreta|cuaderno)\b/i.test(rawText) && window.libretaAbrir){ window.libretaAbrir(); return; }
     if(handleSimpleVoiceCommands(rawText)) return;
+    if(voiceEsPregunta(rawText) && !isRecallVoiceCommand(rawText) && !isBillRequestVoiceCommand(rawText) && voicePreguntaLaya(rawText)) return;
     if(conIA){
       if(!hasAIKey()){ showToast('⚠️ La IA no está conectada (⚙️ Configurar IA). Usé la voz clásica.'); return handleVoiceTranscriptLocal(rawText); }
       return await handleVoiceTranscriptAI(rawText, true);
@@ -7178,7 +7308,7 @@ function handleVoiceTranscriptLocal(rawText){
     }
     openBillSummary(tableId);
     const balance = tableBalance(tableId);
-    speakVoice('La cuenta de ' + tableLabel(tableId) + ' es ' + fmtSpoken(balance) + '.');
+    showToast('🧾 ' + tableLabel(tableId) + ': ' + fmt(balance), 7000); speakVoice('La cuenta de ' + tableLabel(tableId) + ' es ' + fmtSpoken(balance) + '.');
     return;
   }
 
@@ -8746,6 +8876,34 @@ function updateSplitAmount(){
   document.getElementById('splitAmount').textContent = fmt(balance / n) + ' c/u';
 }
 document.getElementById('splitCount').addEventListener('input', updateSplitAmount);
+
+// Tarjeta de pago: método con botones (sincronizados con el <select> de siempre) y montos rápidos.
+function paySync(){
+  document.querySelectorAll('.pay-methods[data-sel]').forEach(box => {
+    const sel = document.getElementById(box.dataset.sel); if(!sel) return;
+    box.querySelectorAll('button[data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === sel.value));
+  });
+}
+document.addEventListener('click', ev => {
+  const m = ev.target.closest('.pay-methods button[data-v]');
+  if(m){ const sel = document.getElementById(m.parentElement.dataset.sel); if(sel){ sel.value = m.dataset.v; sel.dispatchEvent(new Event('change', { bubbles: true })); } paySync(); return; }
+  const q = ev.target.closest('.pay-quick button[data-q]');
+  if(q){
+    const card = q.closest('.pay-card'), persona = card && card.dataset.scope === 'person';
+    let saldo = 0;
+    try{ saldo = persona ? personBalanceAmt(currentPersonId) : tableBalance(currentTable); }catch(e){}
+    saldo = Math.max(0, Math.round(saldo || 0));
+    if(!saldo){ showToast('No hay saldo pendiente.'); return; }
+    let v = saldo;
+    if(q.dataset.q === 'half') v = Math.ceil(saldo / 2 / 100) * 100;
+    if(q.dataset.q === 'split'){ const n = Math.max(1, parseInt((document.getElementById('splitCount') || {}).value, 10) || 2); v = Math.ceil(saldo / n / 100) * 100; }
+    const inp = card.querySelector('input[type=number]'); if(inp){ inp.value = Math.min(v, saldo); inp.focus(); }
+    return;
+  }
+  if(ev.target.closest('#addPaymentBtn, #personAddPaymentBtn')) setTimeout(paySync, 0);
+}, true);
+document.addEventListener('change', ev => { if(ev.target && /^(paymentMethod|personPaymentMethod)$/.test(ev.target.id)) paySync(); });
+setInterval(() => { if(document.querySelector('.overlay.show .pay-card')) paySync(); }, 1500);
 
 document.getElementById('addPaymentBtn').addEventListener('click', ()=>{
   const noteInput = document.getElementById('paymentNote');
@@ -12564,11 +12722,51 @@ const invoiceCamInput = document.getElementById('invoiceCamInput');
 const invoiceGalInput = document.getElementById('invoiceGalInput');
 // Mientras la persona toma o elige la foto, se deja listo lo que va a leerla (así la espera después es corta).
 function fiPrecalentar(){
-  try{ if(!(hasAIKey() && navigator.onLine !== false) && window.VitoOfflineOCR && window.VitoOfflineOCR.precalentar) window.VitoOfflineOCR.precalentar(); }catch(e){}
+  try{ if(window.VitoOfflineOCR && window.VitoOfflineOCR.precalentar) window.VitoOfflineOCR.precalentar(); }catch(e){}   // también con IA: Laya lee en paralelo
 }
 document.getElementById('invInvoiceCamBtn').addEventListener('click', () => { fiPrecalentar(); invoiceCamInput.click(); });
 document.getElementById('invInvoiceGalBtn').addEventListener('click', () => { fiPrecalentar(); invoiceGalInput.click(); });
 
+// Carrera Gemini ⚡ Laya: las dos leen la factura a la vez y se muestra la primera que traiga productos.
+// Si gana Laya (lector del celular, sin internet) y Gemini termina después, se ofrece su lectura con un toque.
+function fiCarrera(aiProm, files){
+  aiProm.catch(() => {});
+  const V = window.VitoOfflineOCR;
+  if(!V || !V.scanInvoiceFiles || window.__fiSinCarrera) return aiProm;
+  const conItems = i => !!(i && i.items && i.items.length);
+  const ocrProm = V.scanInvoiceFiles(files).then(i => Object.assign({}, i, { fuente: 'ocr', __laya: true }));
+  ocrProm.catch(() => {});
+  return new Promise((res, rej) => {
+    let listo = false, n = 0, iaInfo = null, iaErr = null, ocrErr = null;
+    const cerrar = () => {
+      if(listo || ++n < 2) return; listo = true;
+      if(iaInfo) return res(iaInfo);                                   // la IA respondió (aunque sin productos)
+      if(ocrErr && ocrErr.rawText) return res({ supplier: '', date: '', items: [], rawText: ocrErr.rawText, fuente: 'ocr', __laya: true });
+      rej(iaErr || ocrErr || new Error('No se pudo leer la factura.'));
+    };
+    aiProm.then(i => {
+      if(!listo && conItems(i)){ listo = true; window.__fiCarreraGano = 'ia'; return res(i); }
+      iaInfo = i; cerrar();
+    }, e => { iaErr = e; cerrar(); });
+    ocrProm.then(i => {
+      if(!listo && conItems(i)){
+        listo = true; window.__fiCarreraGano = 'laya'; res(i);
+        aiProm.then(ia => { if(conItems(ia)) fiOfrecerLecturaIA(ia); }).catch(() => {});
+        return;
+      }
+      cerrar();
+    }, e => { ocrErr = e; cerrar(); });
+  });
+}
+function fiOfrecerLecturaIA(ia){
+  const ov = document.getElementById('invoiceOverlay');
+  if(!ov || !ov.classList.contains('show') || !invoiceDraft || invoiceDraft.fuente !== 'ocr') return;
+  const box = document.getElementById('ivAvisos'); if(!box || document.getElementById('fiUsarIA')) return;
+  const b = document.createElement('button'); b.type = 'button'; b.id = 'fiUsarIA'; b.className = 'btn-camera'; b.style.cssText = 'width:100%;margin:6px 0';
+  b.textContent = '🤖 Gemini ya terminó (' + ia.items.length + ' productos): usar su lectura, suele ser más precisa';
+  b.addEventListener('click', () => { invoiceOpen(ia); showToast('🤖 Lectura de Gemini cargada.'); });
+  box.prepend(b);
+}
 async function handleOnlineInvoiceFiles(files, triggerBtn, inputEl){
   if(!files || !files.length) return false;
   const lbl = triggerBtn.innerHTML;
@@ -12605,10 +12803,14 @@ async function handleOnlineInvoiceFiles(files, triggerBtn, inputEl){
     } else {
       const file = files[0], pre = window.__fiPre; window.__fiPre = null;
       fiEstado('Analizando factura…');
-      if(pre && pre.file === file) info = await pre.prom;              // ya se venía leyendo desde la vista previa
-      else info = await recognizeInvoiceWithAI(await scaleInvoicePhotoForAI(file, 1150, 0.68));
+      const aiProm = (pre && pre.file === file) ? pre.prom : scaleInvoicePhotoForAI(file, 1150, 0.68).then(recognizeInvoiceWithAI);   // ya se venía leyendo desde la vista previa
+      info = await fiCarrera(aiProm, [file]);
     }
     invoiceOpen(info);
+    if(info && info.__laya){
+      if(!(info.items || []).length){ const rw = document.getElementById('invoiceRawWrap'); if(rw) rw.open = true; showToast('⚠️ Laya leyó el texto pero no separó productos: corrígelo y toca «Releer texto».', 7000); }
+      else showToast('⚡ Laya leyó la factura primero (sin esperar a Gemini). Revisa los datos.', 5000);
+    }
   }catch(err){
     ok = false;
     invoiceClose();
@@ -19546,8 +19748,27 @@ async function yLibre(u){
   }
   return undefined;
 }
+// Dentro de la app de Android: búsqueda propia en la página pública de YouTube (no gasta el cupo de la clave
+// compartida, que se agota con ~100 canciones al día entre todos los locales y dejaba canciones sin sonar).
+function yBuscarApp(q){
+  return new Promise(res=>{
+    if(!(window.VentoAndroid&&typeof window.VentoAndroid.buscarYT==='function'))return res(undefined);
+    const id='y'+Date.now()+Math.random().toString(36).slice(2,6);
+    window.__ventoCbs=window.__ventoCbs||{};
+    const tmo=setTimeout(()=>{delete window.__ventoCbs[id];res(undefined);},12000);
+    window.__ventoCbs[id]=d=>{clearTimeout(tmo);let arr=[];try{arr=JSON.parse(String((d&&d.text)||'[]'));}catch(e){}
+      if(!Array.isArray(arr)||!arr.length)return res(undefined);
+      arr.forEach(x=>{const p=String(x.d||'').split(':').map(Number);if(x.v&&p.length>1&&p.every(n=>!isNaN(n))){const sg=p.reduce((t,n)=>t*60+n,0);if(sg>0)ytDurCache[x.v]=sg;}});
+      res({items:arr.filter(x=>x&&x.v).map(x=>({id:{videoId:x.v},snippet:{title:x.t||'',channelTitle:x.c||''}})),_app:true});};
+    try{window.VentoAndroid.buscarYT(id,decodeURIComponent(q));}catch(e){clearTimeout(tmo);delete window.__ventoCbs[id];res(undefined);}
+  });
+}
 async function yGet(u){
   const c=yCfg();let err=null;
+  if(/^search\?/.test(u)&&window.VentoAndroid&&typeof window.VentoAndroid.buscarYT==='function'){
+    const q=(u.match(/[?&]q=([^&]*)/)||[])[1];
+    if(q){const j=await yBuscarApp(q);if(j){yFuente='app';window.ytFallo=null;return j;}}
+  }
   if(c.key){
     try{const r=await fetch('https://www.googleapis.com/youtube/v3/'+u+'&key='+encodeURIComponent(c.key));const j=await r.json();
       if(r.ok){yFuente='clave';window.ytFallo=null;return j;}
@@ -19609,6 +19830,7 @@ async function ySearch(q,excluir){
     if(d&&d.items)cands=cands.filter(x=>ok[x.v]);
   }catch(e){}
   cands.sort((a,b)=>SELLO_RE.test(a.canal)-SELLO_RE.test(b.canal));
+  if(cands.length)window.ytFallo=null;   // la canción sí se encontró (aunque el chequeo extra haya fallado)
   return cands.length?cands[0].v:null;
 }
 async function ytUno(id){
@@ -22115,7 +22337,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-03 · v1.26.5';
+const MESORA_VERSION = '2026-10-03 · v1.27.0';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22818,16 +23040,40 @@ async function licVerificar(texto){
     const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, licB64(m[2]), new TextEncoder().encode(m[1]));
     if(!ok) return { error: 'firma' };
     const p = JSON.parse(new TextDecoder().decode(licB64(m[1])));
-    if(p.d !== codigoEquipo()) return { error: 'equipo', p };
+    if(p.d !== codigoEquipo() && p.d !== codigoNegocio()) return { error: 'equipo', p };
     if(p.v && p.v < Date.now()) return { error: 'vencida', p };
     return { p, raw: m[1] + '.' + m[2] };
   }catch(e){ return { error: 'formato' }; }
 }
+const LICS_KEY = 'vento-licencias', NEGOCIO_KEY = 'vento-negocio';
+// Código del NEGOCIO: el mismo en todos los celulares del negocio (viaja con los datos). La suscripción se firma para él.
+function codigoNegocio(){
+  let c = ''; try{ c = localStorage.getItem(NEGOCIO_KEY) || ''; }catch(e){}
+  if(!c && typeof data !== 'undefined' && data && data.negocioCodigo) c = data.negocioCodigo;
+  if(!c){ const a = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; c = Array.from(crypto.getRandomValues(new Uint8Array(8)), b => a[b % a.length]).join(''); c = c.slice(0, 4) + '-' + c.slice(4); }
+  try{ localStorage.setItem(NEGOCIO_KEY, c); }catch(e){}
+  if(typeof data !== 'undefined' && data && data.negocioCodigo !== c){ data.negocioCodigo = c; try{ saveData(); }catch(e){} }
+  return c;
+}
+function licRaws(){
+  const out = [];
+  try{ const a = localStorage.getItem(LIC_KEY); if(a) out.push(a); }catch(e){}
+  try{ (JSON.parse(localStorage.getItem(LICS_KEY) || '[]') || []).forEach(x => out.push(x)); }catch(e){}
+  try{ if(typeof data !== 'undefined' && data && Array.isArray(data.licencias)) data.licencias.forEach(x => out.push(x)); }catch(e){}
+  return [...new Set(out.filter(Boolean))];
+}
 async function licCargar(){
-  let raw = ''; try{ raw = localStorage.getItem(LIC_KEY) || ''; }catch(e){}
-  licExtra = 0; licInfo = null;
-  if(raw){ const r = await licVerificar(raw); if(r.p && !r.error){ licExtra = Math.max(0, r.p.s | 0); licInfo = r.p; } }
+  licExtra = 0; licInfo = null; subInfo = null; subEsProveedor = false;
+  for(const raw of licRaws()){
+    const r = await licVerificar(raw), p = r.p;
+    if(!p || (r.error && r.error !== 'vencida')) continue;
+    const vencida = r.error === 'vencida';
+    if(p.r === 'proveedor' && !vencida) subEsProveedor = true;
+    if(p.m && (!subInfo || (p.v || 9e15) > (subInfo.v || 9e15))) subInfo = Object.assign({ vencida }, p);
+    if(!vencida && p.s){ if((p.s | 0) >= licExtra){ licExtra = Math.max(0, p.s | 0); licInfo = p; } }
+  }
   licPintar();
+  try{ subAplicar(); }catch(e){}
 }
 function licPuedeAgregarSede(){ return sedesList().length < SEDES_INCLUIDAS + licExtra; }
 function licPintar(){
@@ -22845,9 +23091,12 @@ async function licActivar(texto, silencioso){
     if(!silencioso) showToast('⚠️ ' + why, 8000);
     return false;
   }
-  try{ localStorage.setItem(LIC_KEY, r.raw); }catch(e){}
+  try{ const l = JSON.parse(localStorage.getItem(LICS_KEY) || '[]') || []; if(!l.includes(r.raw)) l.push(r.raw); localStorage.setItem(LICS_KEY, JSON.stringify(l.slice(-20))); }catch(e){}
+  if(r.p.d === codigoNegocio() && typeof data !== 'undefined' && data){ data.licencias = (data.licencias || []).filter(x => x !== r.raw).concat([r.raw]).slice(-20); try{ saveData(); }catch(e){} }
   await licCargar();
-  showToast('✅ Activado: ahora puedes tener ' + (SEDES_INCLUIDAS + licExtra) + ' sedes.', 7000);
+  if(r.p.r === 'proveedor') showToast('👑 Este equipo quedó como PROVEEDOR de Vento: control total, sin restricciones.', 8000);
+  else if(r.p.m) showToast('✅ Suscripción activa' + (r.p.v ? ' hasta el ' + new Date(r.p.v).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }) : '') + '. ¡Gracias!', 8000);
+  else showToast('✅ Activado: ahora puedes tener ' + (SEDES_INCLUIDAS + licExtra) + ' sedes.', 7000);
   return true;
 }
 function licPaywall(nombreSede){
@@ -22882,6 +23131,133 @@ async function licDesdeLink(){
   try{ history.replaceState(null, '', location.pathname + location.search); }catch(e){}
   await licActivar(m[1]);
 }
+
+/* ---------- Suscripción: Vento es un SERVICIO del proveedor (1.27) ----------
+   • PROVEEDOR (el dueño de Vento): su equipo se activa con una licencia firmada «proveedor» (licencias.html,
+     con SU llave privada). Tiene control total: es el único que puede borrar todo, borrar historial, etc.
+   • SUSCRIPTORES (los negocios que pagan): usan la app con restricciones. Su mensualidad es una licencia
+     firmada para el código del NEGOCIO (sirve en todos sus celulares) con fecha de vencimiento.
+   • Sin suscripción: prueba gratis de PRUEBA_DIAS días + GRACIA_DIAS de gracia. Después, la app NO borra
+     nada ni pierde pedidos: deja ver todo, cobrar las cuentas abiertas, recibir los pedidos del QR y sacar
+     respaldo, pero no deja hacer ventas nuevas hasta renovar. Nadie puede fabricar una licencia sin la llave. */
+const PRUEBA_DIAS = 15, GRACIA_DIAS = 3;
+const SUSCRIPCION_PRECIO_TEXTO = '';     // ej. '$59.900 al mes' (vacío = «consulta el precio»)
+let subInfo = null, subEsProveedor = false;
+const DIA_MS = 864e5;
+function subPruebaDesde(){
+  let a = 0; try{ a = +localStorage.getItem('vento-prueba-desde') || 0; }catch(e){}
+  const b = (typeof data !== 'undefined' && data && +data.pruebaDesde) || 0;
+  let t = [a, b].filter(x => x > 1.5e12).sort((x, y) => x - y)[0] || Date.now();
+  if(t > Date.now()) t = Date.now();
+  try{ localStorage.setItem('vento-prueba-desde', String(t)); }catch(e){}
+  if(typeof data !== 'undefined' && data && data.pruebaDesde !== t){ data.pruebaDesde = t; try{ saveData(); }catch(e){} }
+  return t;
+}
+function subEstado(){
+  if(subEsProveedor) return { k: 'proveedor' };
+  const now = Date.now();
+  if(subInfo && !subInfo.vencida && (!subInfo.v || subInfo.v > now)) return { k: 'activa', v: subInfo.v || 0, dias: subInfo.v ? Math.ceil((subInfo.v - now) / DIA_MS) : null, plan: subInfo.pl || '' };
+  const finPrueba = subPruebaDesde() + PRUEBA_DIAS * DIA_MS;
+  if(!subInfo && now < finPrueba) return { k: 'prueba', dias: Math.ceil((finPrueba - now) / DIA_MS) };
+  const fin = (subInfo && subInfo.v ? Math.max(subInfo.v, 0) : finPrueba) + GRACIA_DIAS * DIA_MS;
+  if(now < fin) return { k: 'gracia', dias: Math.ceil((fin - now) / DIA_MS) };
+  return { k: 'vencida' };
+}
+window.ventoPlan = () => subEstado();
+const subPuedeVender = () => subEstado().k !== 'vencida';
+const subEsProv = () => subEstado().k === 'proveedor';
+function subRenovarWa(){
+  const st = subEstado();
+  const msg = 'Hola, quiero ' + (st.k === 'activa' ? 'renovar' : 'activar') + ' mi suscripción de Vento.\nNegocio: ' + ((typeof data !== 'undefined' && data && data.businessName) || '') + '\nCódigo del negocio: ' + codigoNegocio();
+  window.open('https://wa.me/' + SUPPORT_WA_NUMBER + '?text=' + encodeURIComponent(msg), '_blank');
+}
+function subPaywall(motivo){
+  let ov = document.getElementById('subOverlay');
+  if(!ov){
+    ov = document.createElement('div'); ov.id = 'subOverlay'; ov.className = 'overlay';
+    ov.innerHTML = '<div class="modal" style="max-width:420px;text-align:center"><h2 id="subTit">💳 Tu suscripción</h2>' +
+      '<div class="modal-sub" id="subTxt"></div>' +
+      '<div class="modal-sub" style="margin-top:10px">Código de tu negocio:</div><div class="lic-code" id="subCod"></div>' +
+      '<div class="modal-actions" style="flex-direction:column;gap:8px">' +
+        '<button class="btn-primary" id="subWa" type="button" style="width:100%;padding:13px;font-size:15px">💬 Pagar / renovar por WhatsApp</button>' +
+        '<input id="subInput" class="mz-in" placeholder="¿Ya pagaste? Pega aquí tu código de activación" autocomplete="off" autocapitalize="none" spellcheck="false" style="width:100%;box-sizing:border-box">' +
+        '<button class="btn-ghost" id="subGo" type="button" style="width:100%">✅ Activar</button>' +
+        '<button class="btn-close" id="subNo" type="button">Cerrar</button></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#subNo').onclick = () => ov.classList.remove('show');
+    ov.querySelector('#subWa').onclick = subRenovarWa;
+    ov.querySelector('#subGo').onclick = async () => { if(await licActivar(ov.querySelector('#subInput').value)){ ov.classList.remove('show'); } };
+  }
+  const st = subEstado();
+  ov.querySelector('#subTit').textContent = st.k === 'vencida' ? '🔒 Tu suscripción venció' : '💳 Tu suscripción de Vento';
+  ov.querySelector('#subTxt').innerHTML = (motivo ? '<b>' + motivo + '</b><br>' : '') +
+    (st.k === 'vencida' ? 'Tus datos están a salvo: puedes ver todo, cobrar las cuentas abiertas, recibir los pedidos del QR y guardar respaldo. Para seguir vendiendo, renueva tu suscripción' :
+     st.k === 'prueba' ? 'Estás en la prueba gratis: te quedan <b>' + st.dias + ' día' + (st.dias === 1 ? '' : 's') + '</b>. Para seguir usando Vento después, activa tu suscripción' :
+     st.k === 'gracia' ? 'Tu suscripción está por cortarse: te quedan <b>' + st.dias + ' día' + (st.dias === 1 ? '' : 's') + '</b> de gracia. Renueva tu suscripción' :
+     'Renueva tu suscripción') + (SUSCRIPCION_PRECIO_TEXTO ? ': <b>' + SUSCRIPCION_PRECIO_TEXTO + '</b>.' : '.') + ' Escríbenos por WhatsApp con el código de tu negocio y te mandamos tu código de activación.';
+  ov.querySelector('#subCod').textContent = codigoNegocio();
+  ov.classList.add('show');
+}
+function subTexto(st){
+  if(st.k === 'proveedor') return '👑 <b>Proveedor de Vento</b>: este equipo tiene control total, sin restricciones.';
+  if(st.k === 'activa') return '✅ <b>Suscripción activa</b>' + (st.plan ? ' · plan ' + st.plan : '') + (st.v ? ' · vence el ' + new Date(st.v).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }) + ' (' + st.dias + ' día' + (st.dias === 1 ? '' : 's') + ')' : '') + '.';
+  if(st.k === 'prueba') return '🎁 <b>Prueba gratis</b>: te quedan ' + st.dias + ' día' + (st.dias === 1 ? '' : 's') + '.';
+  if(st.k === 'gracia') return '⚠️ <b>Suscripción por cortarse</b>: ' + st.dias + ' día' + (st.dias === 1 ? '' : 's') + ' de gracia.';
+  return '🔒 <b>Suscripción vencida</b>: puedes ver, cobrar y sacar respaldo, pero no hacer ventas nuevas.';
+}
+function subPintar(){
+  const st = subEstado();
+  // Panel en Ajustes → Negocio
+  let g = document.getElementById('subGrupo');
+  if(!g){
+    const ref = document.querySelector('#view-ajustes .settings-group[data-cat="negocio"]');
+    if(ref){
+      g = document.createElement('div'); g.className = 'settings-group'; g.id = 'subGrupo'; g.dataset.cat = 'negocio'; g.hidden = ref.hidden;
+      g.innerHTML = '<h2>💳 Plan y suscripción</h2><div class="lic-plan" id="subPlan"></div>' +
+        '<div class="settings-desc">Vento es un servicio por suscripción. Solo el proveedor de Vento puede cambiar la aplicación, borrar todo o borrar historial; tus datos siempre quedan guardados.</div>' +
+        '<div class="mz-actions" style="flex-wrap:wrap"><button class="btn-warn" id="subRenovarBtn" type="button">💬 Pagar / renovar</button><button class="btn-ghost" id="subCodigoBtn" type="button">🔑 Pegar código de activación</button><a class="btn-ghost" id="subLicLink" href="licencias.html" target="_blank" rel="noopener" hidden>🔑 Crear licencias (proveedor)</a></div>';
+      ref.parentNode.insertBefore(g, ref);
+      g.querySelector('#subRenovarBtn').onclick = subRenovarWa;
+      g.querySelector('#subCodigoBtn').onclick = () => subPaywall('');
+    }
+  }
+  if(g){
+    g.querySelector('#subPlan').innerHTML = subTexto(st) + '<br>Código del negocio: <b>' + codigoNegocio() + '</b> · Código de este equipo: <b>' + codigoEquipo() + '</b>';
+    g.querySelector('#subLicLink').hidden = st.k !== 'proveedor';
+  }
+  // Barra arriba solo cuando hace falta (prueba, gracia, vencida o pocos días)
+  let bar = document.getElementById('subBar');
+  const mostrar = st.k === 'prueba' || st.k === 'gracia' || st.k === 'vencida' || (st.k === 'activa' && st.dias != null && st.dias <= 5);
+  if(!bar){
+    const h = document.querySelector('.wrap > header'); if(!h) return;
+    bar = document.createElement('div'); bar.id = 'subBar'; bar.className = 'sub-bar';
+    h.parentNode.insertBefore(bar, h.nextSibling);
+    bar.addEventListener('click', e => { if(e.target.closest('[data-x]')){ try{ sessionStorage.setItem('vento-subbar-x', '1'); }catch(x){} bar.hidden = true; return; } subPaywall(''); });
+  }
+  let cerrada = false; try{ cerrada = sessionStorage.getItem('vento-subbar-x') === '1'; }catch(e){}
+  bar.hidden = !mostrar || (cerrada && st.k !== 'vencida');
+  bar.dataset.k = st.k;
+  bar.innerHTML = '<span>' + subTexto(st) + '</span><b>' + (st.k === 'vencida' ? 'Renovar' : 'Activar') + ' ›</b>' + (st.k !== 'vencida' ? '<i data-x title="Ocultar">✕</i>' : '');
+}
+function subAplicar(){ try{ subPintar(); }catch(e){} document.body.classList.toggle('sub-vencida', subEstado().k === 'vencida'); }
+// Solo el PROVEEDOR: borrar todo y borrar historial (datos permanentes).
+const SUB_SOLO_PROVEEDOR = '#resetAllBtn, #deleteHistoryDayBtn';
+// Con la suscripción vencida no se hacen ventas nuevas (cobrar, ver, respaldo y pedidos del QR siguen funcionando).
+const SUB_VENTAS = '#addItemBtn, #qpAddBtn, #scanSellBtn, #prodAddBtn, #voiceProductBtn, #invInvoiceCamBtn, #invInvoiceGalBtn, #voiceFab, #personAddItemBtn, #favChips button, .fav-chips button[data-fav]';
+document.addEventListener('click', ev => {
+  const t = ev.target && ev.target.closest && ev.target.closest(SUB_SOLO_PROVEEDOR + ', ' + SUB_VENTAS);
+  if(!t) return;
+  if(t.matches(SUB_SOLO_PROVEEDOR) && !subEsProv()){
+    ev.preventDefault(); ev.stopImmediatePropagation();
+    showToast('🔒 Solo el proveedor de Vento puede borrar datos permanentes. Si lo necesitas, escríbenos por WhatsApp (Ajustes → Guía y soporte).', 8000);
+    return;
+  }
+  if(t.matches(SUB_VENTAS) && !subPuedeVender()){
+    ev.preventDefault(); ev.stopImmediatePropagation();
+    subPaywall('Para hacer ventas nuevas, renueva tu suscripción.');
+  }
+}, true);
+setInterval(() => { try{ subAplicar(); }catch(e){} }, 60 * 60000);
 
 /* ---------- YouTube del TV en vivo (protocolo «Vincular con código de TV») ----------
    La app de YouTube del TV acepta controles remotos: con el código del TV se obtiene un permiso
@@ -24433,6 +24809,7 @@ let fotosListas = false;
     const r = runs.reduce((a, b) => (b.v > a.v ? b : a));
     return { monto: r.v, resto: w.slice(0, r.i).concat(w.slice(r.j)).join(' ') };
   }
+  window.ventoMonto = t => { try{ return lbMonto(normVoiceText(t).replace(/\b(lucas?|barras?)\b/g, 'mil')).monto || 0; }catch(e){ return 0; } };
   const numFmt = n => { const r = Math.round(n * 100) / 100; return r.toLocaleString('es-CO', { maximumFractionDigits: 2 }); };
   // Calculadora de cabeza: toma TODOS los números dichos, en orden, y la palabra entre cada par
   // decide la operación («más», «menos», «por», «dividido»/«entre»). Se resuelve de izquierda a
