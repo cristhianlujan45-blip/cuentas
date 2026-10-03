@@ -670,10 +670,21 @@ final class BuscadorTV {
      * código de TV», pero sin escribir nada). Devuelve el código HTTP del TV (201/200 = abrió).
      */
     static int abrirYouTube(String appUrl, String codigo) {
+        // Primero por la red wifi; si así no responde, como se hacía antes (por la red que elija Android).
+        int st = abrirYouTube(appUrl, codigo, true);
+        if (st < 200 || st >= 300) {
+            int st2 = abrirYouTube(appUrl, codigo, false);
+            if (st2 >= 200 && st2 < 300) return st2;
+            if (st < 0) st = st2;
+        }
+        return st;
+    }
+
+    private static int abrirYouTube(String appUrl, String codigo, boolean porWifi) {
         HttpURLConnection c = null;
         try {
             byte[] cuerpo = ("pairingCode=" + codigo + "&theme=cl").getBytes(StandardCharsets.UTF_8);
-            c = abrir(appUrl + "YouTube");
+            c = porWifi ? abrir(appUrl + "YouTube") : (HttpURLConnection) new URL(appUrl + "YouTube").openConnection();
             c.setConnectTimeout(4000);
             c.setReadTimeout(6000);
             c.setRequestMethod("POST");

@@ -22074,7 +22074,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-03 · v1.26.2';
+const MESORA_VERSION = '2026-10-03 · v1.26.3';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22125,6 +22125,7 @@ function castDevsPintar(){
   const box = document.getElementById('castDevs'), t = document.getElementById('castDevsTxt');
   if(!box) return;
   if(ccSes){ ccPintar(); return; }
+  if(typeof lngOn === 'function' && lngOn() && !box.classList.contains('busy') && lng.error && !lng.sid){ box.hidden = false; box.classList.remove('ok'); box.classList.add('no'); t.textContent = '⚠️ «' + (lngCfg().nombre || 'TV') + '» no contesta: ' + lng.error + ' Vento lo sigue intentando solo.'; return; }
   if(typeof lngOn === 'function' && lngOn() && !box.classList.contains('busy') && lngTVEnLinea() === false){ box.hidden = false; box.classList.remove('ok'); box.classList.add('no'); t.textContent = '📴 «' + (lngCfg().nombre || 'TV') + '» no responde ahora (apagado o en otra red). Toca «Transmitir al TV» y elige uno de este wifi.'; return; }
   if(typeof lngOn === 'function' && lngOn() && !box.classList.contains('busy')){ box.hidden = false; box.classList.remove('no'); box.classList.add('ok'); t.textContent = '📺 Conectado a «' + (lngCfg().nombre || 'TV') + '»' + (lng.tvSt === 1 ? ' · sonando ahora' : '') + ': las canciones de las mesas suenan allá solas. Abajo ves en vivo lo que suena.'; return; }
   box.classList.remove('ok', 'no', 'busy');
@@ -22586,7 +22587,7 @@ function tvApkLista(){
     b.style.cssText = 'display:flex;align-items:center;gap:12px;text-align:left;padding:13px 14px;width:100%';
     const extra = [tv.fabricante, tv.modelo].filter(x => x && !String(tv.nombre).includes(x)).join(' · ');
     b.innerHTML = '<span style="font-size:24px">' + tvIcono(tv.tipo) + '</span><span><b>' + tvEsc(tv.nombre) + '</b>' + (extra ? '<br><small style="opacity:.8">' + tvEsc(extra) + '</small>' : '') + (tv.youtube ? '<br><small style="opacity:.9">▶ Reproduciendo YouTube</small>' : '') + (tv.soloCodigo && !tv.screenId ? '<br><small style="opacity:.8">Se conecta con su código de TV</small>' : '') + '</span>';
-    b.onclick = () => { ov.classList.remove('show'); if(tv.screenId) lngUsarPantalla(tv.screenId, tv.nombre, !!tv.youtube); else tvApkConectar(tv); };
+    b.onclick = () => { ov.classList.remove('show'); tvConectarAparato(tv); };
     if(viejo && viejo.b && viejo.b.parentNode){ viejo.b.replaceWith(b); if(viejo.tv && viejo.tv.ip && viejo.tv.ip !== tv.ip) delete porIp[viejo.tv.ip]; } else L.appendChild(b);
     if(tv.ip) porIp[tv.ip] = { tv, b };
     sub.textContent = 'Toca tu TV: se abre YouTube allá y las canciones de las mesas suenan solas.';
@@ -22602,47 +22603,79 @@ function tvApkLista(){
 }
 window.__ventoCb = (id, d) => { const f = window.__ventoCbs && window.__ventoCbs[id]; if(f){ delete window.__ventoCbs[id]; f(d || {}); } };
 async function tvApkConectar(tv){
-  if(tv.soloCodigo || !tv.appUrl){ tvSinLista('«' + tv.nombre + '» se conecta con su código (una sola vez): en ese TV abre YouTube → Configuración → «Vincular con código de TV» y escribe aquí los 12 números. Lo que esté sonando allá no se corta.'); setTimeout(() => { const c = document.getElementById('lngCode'); if(c) c.focus(); }, 500); return; }
+  if(tv.soloCodigo || !tv.appUrl){ tvSinLista('«' + tv.nombre + '» se conecta con su código (una sola vez): en ese TV abre YouTube → Configuración → «Vincular con código de TV» y escribe aquí los 12 números. Lo que esté sonando allá no se corta.'); setTimeout(() => { const c = document.getElementById('lngCode'); if(c) c.focus(); }, 500); return false; }
   if(!lngHayPuente()){
     showToast('Falta el puente (se crea gratis una sola vez). Te llevo al paso: Música → «¿Tu TV no aparece?» → paso 1.', 9000);
     const d = document.getElementById('tvOptCodigo'); if(d){ d.open = true; d.querySelectorAll('[hidden]').forEach(x => { if(x.classList.contains('lng-step') || x.classList.contains('settings-desc') || x.classList.contains('pair-n')){ x.hidden = false; x.style.display = ''; } }); d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
-    return;
+    return false;
   }
   const box = document.getElementById('castDevs'), txt = document.getElementById('castDevsTxt');
   const pintar = (t, cls) => { if(!box) return; box.hidden = false; box.classList.remove('ok', 'no', 'busy'); if(cls) box.classList.add(cls); txt.textContent = t; };
-  pintar('📺 Abriendo YouTube en «' + tv.nombre + '»…', 'busy');
-  const codigo = (crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join(''));
-  lngLog('TV del wifi: «' + tv.nombre + '» (' + (tv.fabricante || tv.tipo) + ') → abrir YouTube');
-  const r = await new Promise(res => { const id = 'y' + Date.now(); window.__ventoCbs = window.__ventoCbs || {}; window.__ventoCbs[id] = res; try{ window.VentoAndroid.abrirYouTube(id, tv.appUrl, codigo); }catch(e){ res({ status: -1 }); } setTimeout(() => res({ status: -2 }), 15000); });
-  if(!(r.status >= 200 && r.status < 300)){
-    lngLog('   ❌ el TV no dejó abrir YouTube (respuesta ' + r.status + ')');
-    pintar('⚠️ «' + tv.nombre + '» no dejó abrir YouTube. Enciende el TV, abre YouTube en él una vez y vuelve a tocar «Transmitir al TV».', 'no');
-    return;
+  // Turno exclusivo con el TV mientras se conecta (que ninguna revisión de fondo se cruce con la vinculación).
+  for(let i = 0; i < 40 && lng.ocupado && Date.now() - lng.ocupadoT < 90000; i++) await new Promise(r => setTimeout(r, 500));
+  lng.ocupado = true; lng.ocupadoT = Date.now(); lng.fallas = 0; lng.pausaHasta = 0;
+  try{
+    const abrirYT = async () => {
+      const codigo = (crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join(''));
+      const r = await new Promise(res => { const id = 'y' + Date.now() + Math.random().toString(36).slice(2, 5); window.__ventoCbs = window.__ventoCbs || {}; window.__ventoCbs[id] = res; try{ window.VentoAndroid.abrirYouTube(id, tv.appUrl, codigo); }catch(e){ res({ status: -1 }); } setTimeout(() => res({ status: -2 }), 15000); });
+      return { codigo, st: r.status };
+    };
+    const vincular = async codigo => { let err = ''; for(let i = 0; i < 12; i++){ await new Promise(r2 => setTimeout(r2, 2500)); lng.ocupadoT = Date.now(); try{ await lngParear(codigo); return ''; }catch(e){ err = e.message || String(e); } } return err || 'sin respuesta'; };
+    pintar('📺 Abriendo YouTube en «' + tv.nombre + '»…', 'busy');
+    lngLog('TV del wifi: «' + tv.nombre + '» (' + (tv.fabricante || tv.tipo) + ') → abrir YouTube en ' + tv.appUrl);
+    let a = await abrirYT();
+    if(!(a.st >= 200 && a.st < 300)){
+      lngLog('   ❌ el TV no dejó abrir YouTube (respuesta ' + a.st + ')');
+      pintar('⚠️ «' + tv.nombre + '» no dejó abrir YouTube. Enciende el TV, abre YouTube en él una vez y vuelve a tocar «Transmitir al TV».', 'no');
+      return false;
+    }
+    lngLog('   ✅ YouTube abierto en el TV (' + a.st + ') · vinculando…');
+    pintar('📺 YouTube abierto en «' + tv.nombre + '». Vinculando…', 'busy');
+    let err = await vincular(a.codigo);
+    if(err){
+      // Segundo intento: se vuelve a abrir YouTube con un código nuevo (a veces el TV tarda en registrar el primero).
+      lngLog('   ⚠️ no se vinculó con el primer código (' + err + ') → otro intento');
+      pintar('📺 Vinculando con «' + tv.nombre + '» (segundo intento)…', 'busy');
+      a = await abrirYT();
+      if(a.st >= 200 && a.st < 300) err = await vincular(a.codigo);
+    }
+    if(err){
+      lngLog('   ❌ no se pudo vincular solo: ' + err);
+      pintar('⚠️ YouTube se abrió en «' + tv.nombre + '», pero no se vinculó solo. Usa el código del TV (abajo): en el TV, YouTube → Configuración → Vincular con código de TV.', 'no');
+      tvSinLista('YouTube ya está abierto en el TV: falta escribir su código una vez.');
+      return false;
+    }
+    lngLog('   ✅ vinculado con el TV');
+    SS(LNG_KEY, Object.assign(lngCfg(), { nombre: tv.nombre, codigo: true }));
+    lngRecordar(lngCfg().screenId, tv.nombre);
+    lngReloj0('TV «' + tv.nombre + '»');
+    // El saludo es lo que hace que el TV muestre «Vento se conectó». Antes, si fallaba, Vento decía «Conectado» igual.
+    let saludo = '';
+    for(let i = 0; i < 3; i++){ try{ await lngBind(); saludo = ''; break; }catch(e){ saludo = e.message || String(e); lngLog('   ⚠️ saludo al TV falló (' + saludo + '), reintento'); await new Promise(r2 => setTimeout(r2, 1500)); } }
+    if(saludo){ lng.error = 'el TV no contesta (' + saludo + ').'; lng.sid = null; pintar('⚠️ Vinculado con «' + tv.nombre + '», pero el TV no contesta: ' + saludo, 'no'); lngEstado(); return false; }
+    autoPausar();
+    try{ vm().cola().forEach(x => { if(!x.vid && !x.done) vm().ytAgregar(x.id); }); }catch(e){}
+    lng.ocupado = false;
+    lng.pausaHasta = 0;
+    if(tv.youtube || lng.tvPlay === true) lngSync(); else { lng.porPersona = true; lngSync(true); }   // si ya sonaba algo, no se corta
+    lngEstado();
+    pintar('📺 Conectado a «' + tv.nombre + '»: las canciones de las mesas suenan allá solas, una tras otra.', 'ok');
+    showToast('✅ Conectado a «' + tv.nombre + '». La música de las mesas ya va al TV.', 7000);
+    return true;
+  }finally{ lng.ocupado = false; }
+}
+/* Conectar a un aparato de la lista: primero el camino de siempre (abrir YouTube en el TV con un código de
+   vinculación, el que ya funcionaba); si no se puede y el TV dio su screenId, se usa ese; y si no, el código del TV. */
+async function tvConectarAparato(tv){
+  if(!tv) return false;
+  if(tv.appUrl && !tv.soloCodigo){
+    const ok = await tvApkConectar(tv);
+    if(ok || !tv.screenId) return ok;
+    lngLog('   → pruebo con el código de pantalla que dio el TV');
+    return lngUsarPantalla(tv.screenId, tv.nombre, !!tv.youtube);
   }
-  lngLog('   ✅ YouTube abierto en el TV · vinculando…');
-  pintar('📺 YouTube abierto en «' + tv.nombre + '». Vinculando…', 'busy');
-  let ok = false, err = '';
-  for(let i = 0; i < 12 && !ok; i++){
-    await new Promise(r2 => setTimeout(r2, 2500));
-    try{ await lngParear(codigo); ok = true; }catch(e){ err = e.message || String(e); }
-  }
-  if(!ok){
-    lngLog('   ❌ no se pudo vincular solo: ' + err);
-    pintar('⚠️ YouTube se abrió en «' + tv.nombre + '», pero no se vinculó solo. Usa el código del TV (abajo): en el TV, YouTube → Configuración → Vincular con código de TV.', 'no');
-    tvSinLista('YouTube ya está abierto en el TV: falta escribir su código una vez.');
-    return;
-  }
-  SS(LNG_KEY, Object.assign(lngCfg(), { nombre: tv.nombre, codigo: true }));
-  lngRecordar(lngCfg().screenId, tv.nombre);
-  lngReloj0('TV «' + tv.nombre + '»');
-  try{ await lngBind(); }catch(e){}
-  autoPausar();
-  try{ vm().cola().forEach(x => { if(!x.vid && !x.done) vm().ytAgregar(x.id); }); }catch(e){}
-  lng.pausaHasta = 0;
-  if(tv.youtube || lng.tvPlay === true) lngSync(); else { lng.porPersona = true; lngSync(true); }   // si ya sonaba algo, no se corta
-  lngEstado();
-  pintar('📺 Conectado a «' + tv.nombre + '»: las canciones de las mesas suenan allá solas, una tras otra.', 'ok');
-  showToast('✅ Conectado a «' + tv.nombre + '». La música de las mesas ya va al TV.', 7000);
+  if(tv.screenId) return lngUsarPantalla(tv.screenId, tv.nombre, !!tv.youtube);
+  return tvApkConectar(tv);
 }
 // Sin lista de aparatos: aviso corto (sin ventana) y se abre la opción del código del TV.
 function tvSinLista(msg){
@@ -22938,7 +22971,7 @@ async function lngBind(){
   }, tok);
   const sid = (t.match(/"c"\s*,\s*"([^"]+)"/) || [])[1], gs = (t.match(/"S"\s*,\s*"([^"]+)"/) || [])[1];
   if(!sid) throw new Error('El TV no respondió. Enciéndelo y abre la app de YouTube.');
-  lng.sid = sid; lng.gs = gs || ''; lng.t = Date.now(); lng.pantallaFuera = 0;
+  lng.sid = sid; lng.gs = gs || ''; lng.t = Date.now(); lng.pantallaFuera = 0; lng.error = '';
   lng.fallas = 0; lng.pausaHasta = 0;   // el TV respondió: se olvidan los errores de antes (no se espera nada)
   lng.tvPlay = lngEstadoTV(t); lngLeerTV(t);
   // Prueba de que el TV DE VERDAD llegó a reproducir. Sin esta prueba no se puede dar por
@@ -23657,8 +23690,7 @@ function tvDisposToque(acc){
   if(acc.startsWith('p:')){ const p = (lngCfg().pantallas || []).find(x => x.screenId === acc.slice(2)); if(p) lngUsarPantalla(p.screenId, p.nombre, false); return; }
   if(acc.startsWith('w:')){
     const tv = tvWifi[acc.slice(2)]; if(!tv) return;
-    if(tv.screenId) return lngUsarPantalla(tv.screenId, tv.nombre, !!tv.youtube);
-    return tvApkConectar(tv);
+    return tvConectarAparato(tv);
   }
 }
 function iniVivo(){

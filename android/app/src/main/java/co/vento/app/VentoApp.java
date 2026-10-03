@@ -111,17 +111,35 @@ public class VentoApp extends Application {
     static void aviso(String t) { ui.post(() -> Toast.makeText(app, t, Toast.LENGTH_LONG).show()); }
 
     // ---------------------------------------------------------------- Voz (dictado) con el reconocedor de Android
+    // Dictado: el reconocedor se REUSA (crearlo cada vez hacía que la primera escucha fallara al instante en muchos
+    // celulares: «ocupado» / «no te entendí» sin dejarte hablar). Si falla apenas empieza o antes de oírte, se vuelve a
+    // poner a escuchar solo (hasta 2 veces), sin que tengas que tocar el micrófono otra vez.
+    private long vozInicio = 0;
+    private boolean vozHablo = false;
+    private int vozReintentos = 0;
+
     void iniciarVoz() {
         vozPendiente = false;
+        vozReintentos = 0;
+        escucharVoz(false);
+    }
+
+    private void escucharVoz(boolean nuevo) {
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
             js("window.__ventoVoz&&window.__ventoVoz('error',{error:'service-not-allowed'});window.__ventoVoz&&window.__ventoVoz('end',{})");
             return;
         }
-        try { if (voz != null) voz.destroy(); } catch (Exception ignorado) { }
-        voz = SpeechRecognizer.createSpeechRecognizer(this);
+        if (nuevo || voz == null) {
+            try { if (voz != null) voz.destroy(); } catch (Exception ignorado) { }
+            voz = SpeechRecognizer.createSpeechRecognizer(this);
+        } else {
+            try { voz.cancel(); } catch (Exception ignorado) { }
+        }
+        vozInicio = System.currentTimeMillis();
+        vozHablo = false;
         voz.setRecognitionListener(new RecognitionListener() {
             @Override public void onReadyForSpeech(android.os.Bundle b) { js("window.__ventoVoz&&window.__ventoVoz('start',{})"); }
-            @Override public void onBeginningOfSpeech() { }
+            @Override public void onBeginningOfSpeech() { vozHablo = true; }
             @Override public void onRmsChanged(float v) { }
             @Override public void onBufferReceived(byte[] b) { }
             @Override public void onEndOfSpeech() { }
@@ -129,6 +147,15 @@ public class VentoApp extends Application {
 
             @Override
             public void onError(int error) {
+                long dura = System.currentTimeMillis() - vozInicio;
+                boolean arranque = dura < 2500 && error != SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS;
+                boolean sinOir = !vozHablo && (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY);
+                if (vozReintentos < 2 && (arranque || sinOir) && dura < 9000) {
+                    vozReintentos++;
+                    final boolean recrear = error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_SERVER;
+                    ui.postDelayed(() -> escucharVoz(recrear), recrear ? 350 : 150);
+                    return;
+                }
                 String e;
                 switch (error) {
                     case SpeechRecognizer.ERROR_NO_MATCH:
@@ -139,10 +166,13 @@ public class VentoApp extends Application {
                     case SpeechRecognizer.ERROR_AUDIO: e = "audio-capture"; break;
                     default: e = "aborted";
                 }
+                if (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == SpeechRecognizer.ERROR_CLIENT) {
+                    try { voz.destroy(); } catch (Exception ignorado) { } voz = null;     // la próxima vez arranca uno limpio
+                }
                 js("window.__ventoVoz&&window.__ventoVoz('error',{error:" + q(e) + "});window.__ventoVoz&&window.__ventoVoz('end',{})");
             }
 
-            @Override public void onPartialResults(android.os.Bundle b) { mandarResultados(b, false); }
+            @Override public void onPartialResults(android.os.Bundle b) { vozHablo = true; mandarResultados(b, false); }
 
             @Override
             public void onResults(android.os.Bundle b) {
@@ -156,8 +186,15 @@ public class VentoApp extends Application {
         i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, vozParcial);
         i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);
         i.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
+        // Un poco más de paciencia para terminar la frase (pedidos largos: «dos poker y una picada para la mesa 3»).
+        i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1800L);
+        i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L);
+        i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1200L);
         try { voz.startListening(i); }
-        catch (Exception e) { js("window.__ventoVoz&&window.__ventoVoz('error',{error:'aborted'});window.__ventoVoz&&window.__ventoVoz('end',{})"); }
+        catch (Exception e) {
+            if (vozReintentos < 2) { vozReintentos++; ui.postDelayed(() -> escucharVoz(true), 350); return; }
+            js("window.__ventoVoz&&window.__ventoVoz('error',{error:'aborted'});window.__ventoVoz&&window.__ventoVoz('end',{})");
+        }
     }
 
     void vozNegada() {
