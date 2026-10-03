@@ -190,7 +190,8 @@ final class BuscadorTV {
             boolean esCast = x.getServiceType() != null && x.getServiceType().contains("googlecast");
             if (nombre.isEmpty()) nombre = x.getServiceName().replaceAll("-[0-9a-f]{20,}$", "").replace('-', ' ');
             String appUrl = "http://" + ip + ":8008/apps/";
-            int yt = estado(appUrl + "YouTube");
+            String[] ytr = estadoYouTube(appUrl + "YouTube");
+            int yt = Integer.parseInt(ytr[0]);
             JSONObject tv = new JSONObject();
             tv.put("id", "mdns:" + ip);
             tv.put("nombre", nombre);
@@ -201,6 +202,10 @@ final class BuscadorTV {
             tv.put("tipo", t.contains("chromecast") || t.contains("google tv") ? "chromecast" : (esCast && !t.contains("tv") ? "chromecast" : "androidtv"));
             if (yt >= 200 && yt < 300) tv.put("appUrl", appUrl);
             else tv.put("soloCodigo", true);                               // sale en la lista, pero se conecta con el código del TV
+            // «rs» es lo que el aparato está mostrando ahora (p. ej. «YouTube»): lo mismo que YouTube pone como «Reproduciendo YouTube».
+            String rs = atributo(x, "rs");
+            if (!rs.isEmpty()) tv.put("app", rs);
+            marcarYouTube(tv, ytr, rs);
             return tv;
         } catch (Exception e) {
             return null;
@@ -238,7 +243,8 @@ final class BuscadorTV {
             String modelo = etiqueta(xml, "modelName");
             URL u = new URL(ubicacion);
             // ¿Tiene YouTube? (404 = no lo tiene instalado)
-            int yt = estado(appUrl + "YouTube");
+            String[] ytr = estadoYouTube(appUrl + "YouTube");
+            int yt = Integer.parseInt(ytr[0]);
             if (yt == 404) return null;
             JSONObject tv = new JSONObject();
             tv.put("id", usn != null ? usn : ubicacion);
@@ -248,6 +254,7 @@ final class BuscadorTV {
             tv.put("ip", u.getHost());
             tv.put("appUrl", appUrl);
             tv.put("tipo", tipo(fabricante + " " + modelo + " " + nombre));
+            marcarYouTube(tv, ytr, "");
             return tv;
         } catch (Exception e) {
             return null;
@@ -265,6 +272,40 @@ final class BuscadorTV {
         if (s.contains("roku")) return "roku";
         if (s.contains("box") || s.contains("android")) return "tvbox";
         return "tv";
+    }
+
+    /**
+     * Estado de la app de YouTube en el TV (DIAL): código HTTP y respuesta. Si YouTube está abierto
+     * («running»), el TV suele contar su «screenId»: con él Vento se vincula sin volver a abrir YouTube
+     * (no corta lo que está sonando), igual que hace la app de YouTube.
+     */
+    private static String[] estadoYouTube(String url) {
+        HttpURLConnection c = null;
+        try {
+            c = (HttpURLConnection) new URL(url).openConnection();
+            c.setConnectTimeout(2000);
+            c.setReadTimeout(2500);
+            c.setRequestProperty("User-Agent", "Android Vento/1");
+            int st = c.getResponseCode();
+            String xml = "";
+            if (st >= 200 && st < 300) try { xml = leer(c.getInputStream()); } catch (Exception ignorado) { }
+            return new String[]{String.valueOf(st), xml};
+        } catch (Exception e) {
+            return new String[]{"-1", ""};
+        } finally {
+            if (c != null) c.disconnect();
+        }
+    }
+
+    private static void marcarYouTube(JSONObject tv, String[] ytr, String rs) {
+        try {
+            String xml = ytr[1] == null ? "" : ytr[1];
+            String st = etiqueta(xml, "state");
+            String sid = etiqueta(xml, "screenId");
+            boolean abierto = "running".equalsIgnoreCase(st) || rs.toLowerCase(Locale.ROOT).contains("youtube");
+            if (abierto) tv.put("youtube", true);
+            if (!sid.isEmpty()) tv.put("screenId", sid);
+        } catch (Exception ignorado) { }
     }
 
     private static int estado(String url) {

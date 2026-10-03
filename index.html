@@ -2193,6 +2193,9 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   .tvv-disp{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
   .tvv-dev{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; border:1px solid var(--line); font-size:13.5px; line-height:1.3; }
   .tvv-dev.on{ border-color:var(--paid); }
+  button.tvv-dev{ width:100%; text-align:left; background:transparent; color:inherit; font:inherit; cursor:pointer; }
+  .tvv-dev .tvv-ic{ font-size:20px; flex:none; }
+  .tvv-dev .tvv-go{ margin-left:auto; font-size:12.5px; font-weight:700; opacity:.85; flex:none; }
   .tvv-dev small{ display:block; opacity:.75; font-size:12px; }
   .tvv-now{ display:flex; gap:12px; align-items:center; }
   .tvv-now img{ width:96px; height:54px; object-fit:cover; border-radius:8px; flex:none; background:#000; }
@@ -3247,6 +3250,10 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <h2>📺 Música en el TV</h2>
       <button class="btn-primary cast-big" id="tvTransmitir" type="button">📡 Transmitir al TV</button>
       <div class="cast-devs" id="castDevs" hidden><span class="cast-dot"></span><span id="castDevsTxt"></span></div>
+      <div class="tv-vivo" id="tvDispos" hidden>
+        <div class="tvv-h"><b>📺 Dispositivos</b><small id="tvdAct"></small></div>
+        <div class="tvv-disp" id="tvdLista"></div>
+      </div>
       <div class="tv-vivo" id="tvVivo" hidden aria-live="polite">
         <div class="tvv-h"><b>🔴 En vivo en el TV</b><small id="tvvAct"></small></div>
         <div class="tvv-disp" id="tvvDisp"></div>
@@ -21661,7 +21668,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-03 · v1.22';
+const MESORA_VERSION = '2026-10-03 · v1.22.1';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22099,12 +22106,12 @@ function tvApkLista(){
     L.appendChild(b0);
   }
   window.__ventoTV = tv => {
-    if(!tv || vistos[tv.id]) return; vistos[tv.id] = tv;
+    if(!tv || vistos[tv.id]) return; vistos[tv.id] = tv; tvWifiGuardar(tv);
     const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-primary';
     b.style.cssText = 'display:flex;align-items:center;gap:12px;text-align:left;padding:13px 14px;width:100%';
     const extra = [tv.fabricante, tv.modelo].filter(x => x && !String(tv.nombre).includes(x)).join(' · ');
-    b.innerHTML = '<span style="font-size:24px">' + tvIcono(tv.tipo) + '</span><span><b>' + tvEsc(tv.nombre) + '</b>' + (extra ? '<br><small style="opacity:.8">' + tvEsc(extra) + '</small>' : '') + (tv.soloCodigo ? '<br><small style="opacity:.8">Se conecta con su código de TV</small>' : '') + '</span>';
-    b.onclick = () => { ov.classList.remove('show'); tvApkConectar(tv); };
+    b.innerHTML = '<span style="font-size:24px">' + tvIcono(tv.tipo) + '</span><span><b>' + tvEsc(tv.nombre) + '</b>' + (extra ? '<br><small style="opacity:.8">' + tvEsc(extra) + '</small>' : '') + (tv.youtube ? '<br><small style="opacity:.9">▶ Reproduciendo YouTube</small>' : '') + (tv.soloCodigo && !tv.screenId ? '<br><small style="opacity:.8">Se conecta con su código de TV</small>' : '') + '</span>';
+    b.onclick = () => { ov.classList.remove('show'); if(tv.screenId) lngUsarPantalla(tv.screenId, tv.nombre, !!tv.youtube); else tvApkConectar(tv); };
     L.appendChild(b);
     sub.textContent = 'Toca tu TV: se abre YouTube allá y las canciones de las mesas suenan solas.';
   };
@@ -22147,11 +22154,13 @@ async function tvApkConectar(tv){
     return;
   }
   SS(LNG_KEY, Object.assign(lngCfg(), { nombre: tv.nombre, codigo: true }));
+  lngRecordar(lngCfg().screenId, tv.nombre);
   lngReloj0('TV «' + tv.nombre + '»');
   try{ await lngBind(); }catch(e){}
   autoPausar();
   try{ vm().cola().forEach(x => { if(!x.vid && !x.done) vm().ytAgregar(x.id); }); }catch(e){}
-  lng.porPersona = true; lng.pausaHasta = 0; lngSync(true);
+  lng.pausaHasta = 0;
+  if(tv.youtube || lng.tvPlay === true) lngSync(); else { lng.porPersona = true; lngSync(true); }   // si ya sonaba algo, no se corta
   lngEstado();
   pintar('📺 Conectado a «' + tv.nombre + '»: las canciones de las mesas suenan allá solas, una tras otra.', 'ok');
   showToast('✅ Conectado a «' + tv.nombre + '». La música de las mesas ya va al TV.', 7000);
@@ -22423,6 +22432,7 @@ async function lngParear(code){
   const c = lngCfg();
   Object.assign(c, { screenId: sc.screenId, loungeToken: sc.loungeToken, exp: lngExp(sc.expiration), nombre: sc.name || sc.screenName || 'TV', on: true });
   SS(LNG_KEY, c);
+  lngRecordar(sc.screenId, c.nombre);
   lng.sid = null;
 }
 async function lngToken(){
@@ -22860,7 +22870,7 @@ const lngMmss = s => { s = Math.max(0, Math.round(s || 0)); return Math.floor(s 
 function lngVivoPintar(){
   const box = document.getElementById('tvVivo'), mini = document.getElementById('mzTvAhora');
   if(!box) return;
-  if(!lngOn()){ box.hidden = true; if(mini) mini.hidden = true; return; }
+  if(!lngOn()){ box.hidden = true; if(mini) mini.hidden = true; try{ tvDisposPintar(); }catch(e){} return; }
   box.hidden = false;
   const c = lngCfg(), m = vm(), vid = lng.tvVid;
   const hace = lng.tvAt ? Math.round((Date.now() - lng.tvAt) / 1000) : null;
@@ -22870,11 +22880,13 @@ function lngVivoPintar(){
   const nomTV = pant && (pant.marca || pant.modelo) ? '[' + (pant.marca || 'TV') + '] ' + (pant.modelo || pant.nombre) : (c.nombre || (pant && pant.nombre) || 'TV');
   const suena = lng.tvSt === 1 || lng.tvSt === 3;
   const otroNom = [pant && pant.nombre, c.nombre].filter(x => x && x !== nomTV)[0] || '';
-  let h = '<div class="tvv-dev on">📺<div><b>' + tvEsc(nomTV) + '</b><small>' + (suena ? '🟢 Sonando ahora' : lng.tvSt === 2 ? '🟡 En pausa' : '🟢 Conectado') + (otroNom ? ' · ' + tvEsc(otroNom) : '') + '</small></div></div>';
+  let h = '';
   disp.filter(x => !/SCREEN/i.test(x.tipo)).forEach(x => {
     const app = /music/i.test(x.app) ? 'YouTube Music' : /youtube|android|ios|web|m?web/i.test(x.app) ? 'YouTube' : '';
-    h += '<div class="tvv-dev">📱<div><b>' + tvEsc(x.nombre || 'Otro control') + '</b><small>También conectado al TV' + (app ? ' · ' + app : '') + '</small></div></div>';
+    h += '<div class="tvv-dev">📱<div><b>' + tvEsc(x.nombre || 'Otro control') + '</b><small>Conectado a «' + tvEsc(nomTV) + '»' + (app ? ' · ' + app : '') + '</small></div></div>';
   });
+  lng.nomTV = nomTV; lng.otroNom = otroNom; lng.suena = suena;
+  try{ tvDisposPintar(); }catch(e){}
   document.getElementById('tvvDisp').innerHTML = h;
   // Lo que suena.
   const ahora = document.getElementById('tvvAhora');
@@ -22942,12 +22954,98 @@ async function lngVivoCmd(sc, txt){
   try{ await lngCmd(sc, {}); if(sc === 'next') lng.ultimoEnvio = Date.now(); showToast(txt, 3000); setTimeout(() => lngVivo(true), 1500); }
   catch(e){ showToast('⚠️ El TV no recibió la orden: ' + (e.message || e), 6000); }
 }
+/* ---------- Dispositivos (como la lista de YouTube) ----------
+   Salen juntos: el TV conectado a Vento, los otros TV que se vincularon antes con su código («YouTube on
+   TV») y, en la app de Android, los TV del wifi (LG, Samsung, Chromecast, TV Box…), con «Reproduciendo
+   YouTube» cuando tienen YouTube abierto. Tocar uno pasa la música de las mesas a ese TV. */
+function lngRecordar(screenId, nombre){
+  if(!screenId) return;
+  const c = lngCfg(), l = (c.pantallas || []).filter(x => x.screenId !== screenId);
+  l.unshift({ screenId, nombre: nombre || 'TV', at: Date.now() });
+  c.pantallas = l.slice(0, 6); SS(LNG_KEY, c);
+}
+const tvWifi = {};
+let tvWifiT = 0, tvWifiBuscando = false;
+function tvWifiGuardar(tv){ if(!tv || !tv.ip) return; tvWifi[tv.ip] = Object.assign({}, tvWifi[tv.ip] || {}, tv, { visto: Date.now() }); tvDisposPintar(); }
+// App de Android: busca los TV del wifi sola al abrir Música (máximo una vez por minuto).
+function tvWifiBuscar(forzar){
+  if(!lngPuenteApp() || !window.VentoAndroid.buscarTVs || tvWifiBuscando) return;
+  if(!forzar && Date.now() - tvWifiT < 60000) return;
+  const ov = document.getElementById('tvApkOv'); if(ov && ov.classList.contains('show')) return;   // ya está buscando la lista grande
+  tvWifiBuscando = true; tvWifiT = Date.now();
+  Object.keys(tvWifi).forEach(k => { tvWifi[k].viejo = true; });
+  window.__ventoTV = tvWifiGuardar;
+  window.__ventoTVfin = () => { tvWifiBuscando = false; Object.keys(tvWifi).forEach(k => { if(tvWifi[k].viejo && Date.now() - tvWifi[k].visto > 3 * 60000) delete tvWifi[k]; }); tvDisposPintar(); };
+  setTimeout(() => { tvWifiBuscando = false; }, 15000);
+  try{ window.VentoAndroid.buscarTVs(); }catch(e){ tvWifiBuscando = false; }
+  tvDisposPintar();
+}
+function tvDisposPintar(){
+  const box = document.getElementById('tvDispos'), L = document.getElementById('tvdLista'); if(!box) return;
+  const c = lngCfg(), on = lngOn(), filas = [];
+  const fila = (ic, nombre, sub, cls, accion, go) => filas.push({ ic, nombre, sub, cls, accion, go });
+  if(on){
+    const nom = lng.nomTV || c.nombre || 'TV';
+    const est = lng.tvSt === 1 || lng.tvSt === 3 ? 'Reproduciendo YouTube' : lng.tvSt === 2 ? 'En pausa' : 'Conectado';
+    fila('🟢', nom, '✓ Conectado a Vento · ' + est + (lng.otroNom && lng.otroNom !== nom ? ' · ' + lng.otroNom : ''), 'on', 'vivo', 'Ver');
+  }
+  (c.pantallas || []).filter(x => !(on && x.screenId === c.screenId)).forEach(x => fila('📺', x.nombre || 'YouTube on TV', 'Vinculado antes con su código', '', 'p:' + x.screenId, 'Usar'));
+  Object.values(tvWifi).sort((a, b) => (b.youtube ? 1 : 0) - (a.youtube ? 1 : 0)).forEach(tv => {
+    if(on && tv.screenId && tv.screenId === c.screenId) return;
+    const extra = [tv.fabricante, tv.modelo].filter(x => x && !String(tv.nombre).includes(x)).join(' · ');
+    fila(tvIcono(tv.tipo), tv.nombre, (tv.youtube ? '▶ Reproduciendo YouTube' : (tv.app ? tv.app : 'En tu wifi')) + (extra ? ' · ' + extra : '') + (tv.soloCodigo && !tv.screenId ? ' · se conecta con su código' : ''), '', 'w:' + tv.ip, 'Usar');
+  });
+  const app = lngPuenteApp();
+  box.hidden = !filas.length && !app;
+  const act = document.getElementById('tvdAct'); if(act) act.textContent = tvWifiBuscando ? '⏳ buscando en el wifi…' : app ? '' : '';
+  let h = filas.map(f => '<button type="button" class="tvv-dev ' + f.cls + '" data-acc="' + tvEsc(f.accion) + '"><span class="tvv-ic">' + f.ic + '</span><div><b>' + tvEsc(f.nombre) + '</b><small>' + tvEsc(f.sub) + '</small></div><span class="tvv-go">' + f.go + ' ›</span></button>').join('');
+  if(app) h += '<button type="button" class="tvv-dev" data-acc="buscar"><span class="tvv-ic">🔄</span><div><b>Buscar TV en el wifi</b><small>' + (tvWifiBuscando ? 'Buscando…' : 'LG, Samsung, Chromecast, Android TV, TV Box, Fire TV') + '</small></div></button>';
+  else if(!filas.length) h = '';
+  if(!app && window.esAndroid && window.esAndroid()) h += '<div class="settings-desc">Los TV de tu wifi (como los que ves en YouTube) solo los puede buscar la <b>app Vento para Android</b>; desde el navegador conecta con el código del TV.</div>';
+  if(L.dataset.h !== h){ L.dataset.h = h; L.innerHTML = h; }
+}
+// Pasa la música de Vento a otro TV ya conocido (por su screenId), sin volver a abrir YouTube allá.
+async function lngUsarPantalla(screenId, nombre, yaSuena){
+  for(let i = 0; i < 40 && lng.ocupado && Date.now() - lng.ocupadoT < 90000; i++) await new Promise(r => setTimeout(r, 500));
+  lng.ocupado = true; lng.ocupadoT = Date.now(); lng.fallas = 0; lng.pausaHasta = 0;
+  const c = lngCfg(), antes = { screenId: c.screenId, loungeToken: c.loungeToken, exp: c.exp, nombre: c.nombre, on: c.on };
+  try{
+    lngLog('cambiar al TV «' + (nombre || 'TV') + '»');
+    Object.assign(c, { screenId, nombre: nombre || 'TV', on: true, codigo: true }); delete c.loungeToken; delete c.exp; SS(LNG_KEY, c);
+    lng.sid = null; lng.disp = null; lng.tvLista = null;
+    await lngBind();
+    lngRecordar(screenId, nombre);
+    lngReloj0('TV «' + (nombre || 'TV') + '»');
+    lng.ocupado = false;
+    autoPausar();
+    try{ vm().cola().forEach(x => { if(!x.vid && !x.done) vm().ytAgregar(x.id); }); }catch(e){}
+    // Si ese TV ya está sonando algo, las canciones de las mesas se agregan detrás (no se corta).
+    if(yaSuena || lng.tvPlay === true) lngSync(); else { lng.porPersona = true; lngSync(true); }
+    showToast('✅ Conectado a «' + (nombre || 'TV') + '». La música de las mesas va a ese TV.', 6000);
+    return true;
+  }catch(e){
+    Object.assign(c, antes); SS(LNG_KEY, c); lng.sid = null;
+    lngLog('   ❌ ' + (e.message || e)); showToast('⚠️ No pude conectar con «' + (nombre || 'TV') + '»: ' + (e.message || e), 9000);
+    return false;
+  }finally{ lng.ocupado = false; lngEstado(); lngVivoPintar(); }
+}
+function tvDisposToque(acc){
+  if(acc === 'buscar') return tvWifiBuscar(true);
+  if(acc === 'vivo'){ const v = document.getElementById('tvVivo'); if(v) v.scrollIntoView({ block: 'start', behavior: 'smooth' }); return lngVivo(true); }
+  if(acc.startsWith('p:')){ const p = (lngCfg().pantallas || []).find(x => x.screenId === acc.slice(2)); if(p) lngUsarPantalla(p.screenId, p.nombre, false); return; }
+  if(acc.startsWith('w:')){
+    const tv = tvWifi[acc.slice(2)]; if(!tv) return;
+    if(tv.screenId) return lngUsarPantalla(tv.screenId, tv.nombre, !!tv.youtube);
+    return tvApkConectar(tv);
+  }
+}
 function iniVivo(){
   const b = id => document.getElementById(id);
   if(!b('tvVivo')) return;
   b('tvvPausa').onclick = () => lng.tvSt === 2 ? lngVivoCmd('play', '▶ Sigue sonando en el TV') : lngVivoCmd('pause', '⏸ En pausa en el TV');
   b('tvvSig').onclick = () => lngVivoCmd('next', '⏭ El TV pasa a la siguiente');
   b('tvvRef').onclick = () => lngVivo(true);
+  b('tvdLista').addEventListener('click', e => { const x = e.target.closest('[data-acc]'); if(x) tvDisposToque(x.dataset.acc); });
   const agregar = () => {
     const inp = b('tvvIn'), q = inp.value.trim();
     if(!q) return showToast('Escribe la canción o el artista.');
@@ -22960,8 +23058,9 @@ function iniVivo(){
   b('tvvIn').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); agregar(); } });
   setInterval(() => { lngVivo(); }, 8000);
   setInterval(() => { try{ const s = document.getElementById('view-musica'); if(lngOn() && s && s.classList.contains('active')) lngVivoPintar(); }catch(e){} }, 1000);
-  const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', () => setTimeout(() => lngVivo(true), 300));
-  lngVivoPintar();
+  const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', () => setTimeout(() => { lngVivo(true); tvWifiBuscar(false); }, 300));
+  if(lngCfg().screenId) lngRecordar(lngCfg().screenId, lngCfg().nombre);
+  lngVivoPintar(); tvDisposPintar();
 }
 /* ---------- Registro de lo que pasa con el TV ----------
    Sin esto no hay forma de saber por qué el TV no arranca: queda lo que Vento le mandó,
