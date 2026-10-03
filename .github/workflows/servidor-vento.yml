@@ -102,6 +102,23 @@ jobs:
             echo "ℹ️ Sin correo propio (secretos VENTO_SMTP_*): se usa el de Supabase (enlace; solo a los correos del equipo de Supabase)."
           fi
 
+      - name: IA de Vento (Edge Function vento-ia con la clave de Gemini del proveedor)
+        if: steps.listo.outputs.ok == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -n "$GEMINI_API_KEY" ]; then
+            supabase secrets set --project-ref "$PROJECT_REF" GEMINI_API_KEY="$GEMINI_API_KEY" >/dev/null && echo "✅ Clave de Gemini guardada en el servidor (no se muestra)."
+          else
+            echo "::notice title=IA de Vento::Agrega el secreto GEMINI_API_KEY (Settings → Secrets and variables → Actions) para que la IA quede configurada en todos los negocios."
+          fi
+          supabase functions deploy vento-ia --project-ref "$PROJECT_REF" --no-verify-jwt
+          for i in 1 2 3 4 5 6; do
+            if R=$(curl -fsS "https://${PROJECT_REF}.supabase.co/functions/v1/vento-ia/salud"); then echo "IA de Vento: $R"; exit 0; fi
+            sleep 10
+          done
+          echo "::warning title=IA de Vento::La función se desplegó pero no responde todavía."
+
       - name: Servidor de pagos (Edge Function vento-pagos)
         if: steps.listo.outputs.ok == 'true'
         run: supabase functions deploy vento-pagos --project-ref "$PROJECT_REF" --no-verify-jwt

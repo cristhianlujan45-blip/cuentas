@@ -9759,6 +9759,28 @@ const GEMINI_MODEL_DEFAULT = 'gemini-2.5-flash-lite';
 // (y, si ninguno sirve, la app le pregunta a Google qué modelos "flash" tiene tu clave).
 const GEMINI_MODEL_FALLBACKS = ['gemini-2.5-flash', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-2.0-flash'];
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+/* IA de Vento ya configurada: si el negocio no puso su propia clave, Vento usa la IA del PROVEEDOR a través del
+   Servidor Vento (Supabase → función vento-ia). La clave de Gemini vive allá como secreto del servidor: nunca está
+   en la app ni en GitHub. Nadie tiene que configurar nada. */
+const IA_VENTO = 'vento-servidor';
+function iaVentoBase(){ try{ const n = window.VENTO_NUBE_DEFAULT; return n && n.url ? String(n.url).replace(/\/+$/, '') + '/functions/v1/vento-ia' : ''; }catch(e){ return ''; } }
+let iaVentoOk = (() => { try{ return localStorage.getItem('vento-ia-servidor') === '1'; }catch(e){ return false; } })();
+async function iaVentoRevisar(){
+  const b = iaVentoBase(); if(!b) return false;
+  try{
+    const r = await fetch(b + '/salud', { cache: 'no-store' }); const j = await r.json().catch(() => ({}));
+    iaVentoOk = !!(r.ok && j && j.gemini);
+    try{ localStorage.setItem('vento-ia-servidor', iaVentoOk ? '1' : '0'); }catch(e){}
+  }catch(e){}
+  return iaVentoOk;
+}
+setTimeout(iaVentoRevisar, 1500); setInterval(iaVentoRevisar, 30 * 60000);
+// Llama a Gemini: directo con la clave propia, o por el Servidor Vento si es la IA de Vento.
+function gFetch(ruta, init, key){
+  init = Object.assign({}, init || {}); const h = Object.assign({}, init.headers || {});
+  if(key === IA_VENTO){ delete h['x-goog-api-key']; init.headers = h; return fetch(iaVentoBase() + '/v1beta' + ruta, init); }
+  h['x-goog-api-key'] = key; init.headers = h; return fetch(GEMINI_BASE + ruta, init);
+}
 let aiLastModel = '';
 let aiLastNotice = 0;
 
@@ -9771,7 +9793,7 @@ function lsSet(k, v){ try{ if(v) localStorage.setItem(k, v); else localStorage.r
 function getGeminiKey(){
   let k = (lsGet(GEMINI_KEY_STORAGE) || '').replace(/\s+/g, '');
   if(!k){ try{ const d = typeof data !== 'undefined' && data && data.iaClave; if(d && /^[\x21-\x7e]{20,}$/.test(d)){ k = d; lsSet(GEMINI_KEY_STORAGE, d); } }catch(e){} }
-  return k || BUILTIN_GEMINI_KEY || '';
+  return k || BUILTIN_GEMINI_KEY || (iaVentoOk && iaVentoBase() ? IA_VENTO : '');
 }
 function setGeminiKey(k){
   k = (k || '').replace(/\s+/g, '');
@@ -9899,7 +9921,7 @@ function geminiExtractText(json){
 
 // Pregunta a Google qué modelos "flash" puede usar esta clave (por si cambian los nombres).
 async function geminiDiscoverModels(key){
-  const res = await fetch(GEMINI_BASE + '/models?pageSize=200', { headers: { 'x-goog-api-key': key } });
+  const res = await gFetch('/models?pageSize=200', {}, key);
   if(!res.ok) return [];
   const j = await res.json();
   return (j.models || [])
@@ -9930,16 +9952,17 @@ async function geminiGenerate(o){
       const timer = setTimeout(() => ctrl.abort(), Math.min(o.timeoutMs || OPENAI_DEFAULT_TIMEOUT_MS, left));
       let retryDelay = 0;
       try{
-        const res = await fetch(GEMINI_BASE + '/models/' + encodeURIComponent(model) + ':generateContent', {
+        const res = await gFetch('/models/' + encodeURIComponent(model) + ':generateContent', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(geminiBody(o, model)),
           signal: ctrl.signal
-        });
+        }, key);
         const raw = await res.text();
         if(!res.ok){
           if(res.status === 400 && /thinking/i.test(raw) && !aiSinPensarNo.has(model)){ aiSinPensarNo.add(model); attempt--; continue; }
           const err = geminiErrorFromResponse(res.status, raw);
+          if(key === IA_VENTO && (err.kind === 'auth' || res.status === 503 || res.status === 403)) err.message = 'La IA de Vento no está disponible en este momento (el proveedor debe revisar la clave del servidor). Si quieres, pon tu propia clave en ⚙️ Configurar IA.';
           if(err.kind === 'model'){ skippedForModel = true; lastErr = err; break; }
           if(err.kind === 'daily'){ lastErr = err; break; }              // otro modelo tiene su propia cuota
           if(err.kind === 'rate' || err.kind === 'server'){
@@ -10013,12 +10036,12 @@ async function geminiStreamText(o, onDelta){
   const timer = setTimeout(() => ctrl.abort(), Math.min(o.timeoutMs || OPENAI_DEFAULT_TIMEOUT_MS, left));
   let full = '';
   try{
-    const res = await fetch(GEMINI_BASE + '/models/' + encodeURIComponent(model) + ':streamGenerateContent?alt=sse', {
+    const res = await gFetch('/models/' + encodeURIComponent(model) + ':streamGenerateContent?alt=sse', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(geminiBody(o, model)),
       signal: ctrl.signal
-    });
+    }, key);
     if(!res.ok) throw geminiErrorFromResponse(res.status, await res.text());
     const reader = res.body.getReader(), dec = new TextDecoder();
     let buf = '';
@@ -10057,7 +10080,7 @@ function aiWarmUp(){
   aiWarmAt = Date.now();
   try{
     if(getAIProvider() === 'openai') fetch('https://api.openai.com/v1/models/' + encodeURIComponent(getOpenAIModel()), { headers: { 'Authorization': 'Bearer ' + getOpenAIKey() } }).catch(() => {});
-    else fetch(GEMINI_BASE + '/models/' + encodeURIComponent(getGeminiModel()), { headers: { 'x-goog-api-key': getGeminiKey() } }).catch(() => {});
+    else gFetch('/models/' + encodeURIComponent(getGeminiModel()), {}, getGeminiKey()).catch(() => {});
   }catch(e){}
 }
 
@@ -10172,7 +10195,7 @@ function openAIConfigDialog(){
     keyEl.value = vals[current].key;
     modelEl.value = vals[current].model;
     const has = current === 'gemini' ? getGeminiKey() : getOpenAIKey();
-    statusEl.textContent = vals[current].key ? 'Hay una clave guardada en este dispositivo.' : (has ? 'Usando la clave incluida dentro del archivo de la app.' : 'Aún no hay clave guardada.');
+    statusEl.textContent = vals[current].key ? 'Hay una clave guardada en este dispositivo.' : (has === IA_VENTO ? '✅ IA de Vento ya configurada: no tienes que poner nada. (Si quieres usar tu propia clave, pégala arriba.)' : has ? 'Usando la clave incluida dentro del archivo de la app.' : 'Aún no hay clave guardada.');
   };
   paint();
   provEl.onchange = () => {
@@ -10202,7 +10225,7 @@ function openAIConfigDialog(){
   // Navegador con la IA ya conectada: un toque la pasa a la app de Android (que tiene su propia memoria).
   try{
     const k = getGeminiKey();
-    if(k && !window.VentoAndroid && window.esAndroid && window.esAndroid()){
+    if(k && k !== IA_VENTO && !window.VentoAndroid && window.esAndroid && window.esAndroid()){
       const ln = document.createElement('a'); ln.className = 'btn-primary'; ln.style.cssText = 'display:block;text-align:center;padding:12px;border-radius:12px;text-decoration:none;margin-top:10px';
       ln.textContent = '📲 Pasar la IA a la app Vento'; ln.href = 'vento://abrir#iaclave=' + encodeURIComponent(k);
       const n = document.createElement('div'); n.className = 'settings-desc'; n.textContent = 'Abre la app Vento de este celular y le deja la IA conectada (no hay que volver a pegar la clave).';
@@ -22351,7 +22374,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-03 · v1.27.0';
+const MESORA_VERSION = '2026-10-03 · v1.27.1';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22924,7 +22947,7 @@ async function tvApkConectar(tv){
     }
     lngLog('   ✅ vinculado con el TV');
     SS(LNG_KEY, Object.assign(lngCfg(), { nombre: tv.nombre, codigo: true }));
-    lngRecordar(lngCfg().screenId, tv.nombre);
+    lngRecordar(lngCfg().screenId, tv.nombre, tv.ip);
     lngReloj0('TV «' + tv.nombre + '»');
     // El saludo es lo que hace que el TV muestre «Vento se conectó». Antes, si fallaba, Vento decía «Conectado» igual.
     let saludo = '';
@@ -22945,13 +22968,23 @@ async function tvApkConectar(tv){
    vinculación, el que ya funcionaba); si no se puede y el TV dio su screenId, se usa ese; y si no, el código del TV. */
 async function tvConectarAparato(tv){
   if(!tv) return false;
+  const rec = (lngCfg().pantallas || []).find(x => (tv.ip && x.ip === tv.ip) || (x.nombre && x.nombre === tv.nombre));
+  const sid = tv.screenId || (rec && rec.screenId) || '';
+  // YouTube YA abierto en el TV (por ejemplo, con otro celular conectado): el TV no acepta un código de vinculación
+  // nuevo mientras está en uso, así que se entra a ESA MISMA sesión con su código de pantalla, sin volver a abrir
+  // YouTube y sin cortar lo que suena (las canciones de las mesas quedan en cola detrás).
+  if(tv.youtube && sid){
+    lngLog('TV «' + tv.nombre + '» ya tiene YouTube abierto → me uno a esa sesión con su código de pantalla');
+    if(await lngUsarPantalla(sid, tv.nombre, true, true)) return true;
+    lngLog('   → no se pudo así; abro YouTube con código de vinculación');
+  }
   if(tv.appUrl && !tv.soloCodigo){
     const ok = await tvApkConectar(tv);
-    if(ok || !tv.screenId) return ok;
-    lngLog('   → pruebo con el código de pantalla que dio el TV');
-    return lngUsarPantalla(tv.screenId, tv.nombre, !!tv.youtube);
+    if(ok || !sid || tv.youtube) return ok;
+    lngLog('   → pruebo con el código de pantalla del TV');
+    return lngUsarPantalla(sid, tv.nombre, !!tv.youtube);
   }
-  if(tv.screenId) return lngUsarPantalla(tv.screenId, tv.nombre, !!tv.youtube);
+  if(sid) return lngUsarPantalla(sid, tv.nombre, !!tv.youtube);
   return tvApkConectar(tv);
 }
 // Sin lista de aparatos: aviso corto (sin ventana) y se abre la opción del código del TV.
@@ -24005,10 +24038,10 @@ function lngTVEnLinea(){
   if(!lng.disp || !lng.tvAt || Date.now() - lng.tvAt > 3 * 60000) return null;
   return lng.disp.some(x => /SCREEN/i.test(x.tipo));
 }
-function lngRecordar(screenId, nombre){
+function lngRecordar(screenId, nombre, ip){
   if(!screenId) return;
-  const c = lngCfg(), l = (c.pantallas || []).filter(x => x.screenId !== screenId);
-  l.unshift({ screenId, nombre: nombre || 'TV', at: Date.now() });
+  const c = lngCfg(), viejo = (c.pantallas || []).find(x => x.screenId === screenId), l = (c.pantallas || []).filter(x => x.screenId !== screenId);
+  l.unshift({ screenId, nombre: nombre || 'TV', at: Date.now(), ip: ip || (viejo && viejo.ip) || '' });
   c.pantallas = l.slice(0, 6); SS(LNG_KEY, c);
 }
 const tvWifi = {};
@@ -24077,7 +24110,7 @@ function tvDisposPintar(){
   try{ castDevsPintar(); }catch(e){}
 }
 // Pasa la música de Vento a otro TV ya conocido (por su screenId), sin volver a abrir YouTube allá.
-async function lngUsarPantalla(screenId, nombre, yaSuena){
+async function lngUsarPantalla(screenId, nombre, yaSuena, silencioso){
   for(let i = 0; i < 40 && lng.ocupado && Date.now() - lng.ocupadoT < 90000; i++) await new Promise(r => setTimeout(r, 500));
   lng.ocupado = true; lng.ocupadoT = Date.now(); lng.fallas = 0; lng.pausaHasta = 0;
   const c = lngCfg(), antes = { screenId: c.screenId, loungeToken: c.loungeToken, exp: c.exp, nombre: c.nombre, on: c.on };
@@ -24097,7 +24130,7 @@ async function lngUsarPantalla(screenId, nombre, yaSuena){
     return true;
   }catch(e){
     Object.assign(c, antes); SS(LNG_KEY, c); lng.sid = null;
-    lngLog('   ❌ ' + (e.message || e)); showToast('⚠️ No pude conectar con «' + (nombre || 'TV') + '»: ' + (e.message || e), 9000);
+    lngLog('   ❌ ' + (e.message || e)); if(!silencioso) showToast('⚠️ No pude conectar con «' + (nombre || 'TV') + '»: ' + (e.message || e), 9000);
     return false;
   }finally{ lng.ocupado = false; lngEstado(); lngVivoPintar(); }
 }
