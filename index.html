@@ -3229,6 +3229,8 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <button class="btn-primary cast-big" id="tvTransmitir" type="button">📡 Transmitir al TV</button>
       <div class="cast-devs" id="castDevs" hidden><span class="cast-dot"></span><span id="castDevsTxt"></span></div>
       <a class="btn-ghost" id="tvApk" hidden href="https://github.com/cristhianlujan45-blip/cuentas/releases/latest/download/vento.apk" style="text-align:center;margin:8px 0;padding:11px;border-radius:12px;text-decoration:none">📲 ¿Tu TV no sale? Instala la app Vento para Android: encuentra TODOS los TV del wifi (LG, Samsung, TV Box, Fire TV…)</a>
+      <div class="settings-row" id="apkFondoFila" hidden><div class="settings-row-text"><strong>🔋 Trabajar con la app cerrada</strong><span id="apkFondoTxt">Pedidos y música siguen funcionando aunque cierres la app o apagues la pantalla.</span></div><label class="switch"><input type="checkbox" id="apkFondo"><span class="switch-slider"></span></label></div>
+      <button class="btn-ghost" id="apkBateria" type="button" hidden style="width:100%;margin:4px 0 8px">⚡ Quitar el ahorro de batería para Vento</button>
       <div class="settings-desc" id="tvAyuda">Toca <b>Transmitir al TV</b>: salen los TV y TV Box de tu wifi. Elige el tuyo y listo: las canciones que pidan las mesas suenan allá solas, una tras otra.</div>
       <details class="tv-opt" id="tvOptCodigo"><summary><span class="tv-opt-t">¿Tu TV no aparece? Conectar con el código del TV</span><small>Smart TV LG/Samsung, TV Box y Fire TV sin Chromecast.</small></summary>
         <div class="settings-desc">Vento se conecta a la <b>app de YouTube de tu televisor</b> (LG, Samsung, Android TV…) con el código del TV y le va <b>agregando cada canción que piden las mesas a su cola, en vivo</b>, sin tocar nada. Suena en el TV (no en el celular) y sin bloqueos de sello. <b>Esto NO usa ninguna cuenta de Google</b> — funciona igual que el control remoto de tu celular con la app de YouTube, sin iniciar sesión con nadie, así que no hay ninguna cuenta que confirmar aquí. Si quieres que las canciones se guarden en tu propia biblioteca/lista de YouTube Music, eso es la sección de abajo, <b>▶ YouTube Music automático</b>, con «Conectar con Google». Se configura una sola vez:</div>
@@ -21631,7 +21633,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.20.1';
+const MESORA_VERSION = '2026-10-02 · v1.21';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22081,7 +22083,7 @@ async function tvApkConectar(tv){
   if(tv.soloCodigo || !tv.appUrl){ tvSinLista('«' + tv.nombre + '» no deja abrirle YouTube desde el wifi. Conéctalo con su código: en ese TV abre YouTube → Configuración → «Vincular con código de TV».'); return; }
   if(!lngHayPuente()){
     showToast('Falta el puente (se crea gratis una sola vez). Te llevo al paso: Música → «¿Tu TV no aparece?» → paso 1.', 9000);
-    const d = document.getElementById('tvOptCodigo'); if(d){ d.open = true; d.querySelectorAll('[hidden]').forEach(x => { if(x.classList.contains('lng-step') || x.classList.contains('settings-desc')) x.hidden = false; }); d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+    const d = document.getElementById('tvOptCodigo'); if(d){ d.open = true; d.querySelectorAll('[hidden]').forEach(x => { if(x.classList.contains('lng-step') || x.classList.contains('settings-desc') || x.classList.contains('pair-n')){ x.hidden = false; x.style.display = ''; } }); d.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
     return;
   }
   const box = document.getElementById('castDevs'), txt = document.getElementById('castDevsTxt');
@@ -22126,6 +22128,15 @@ function tvSinLista(msg){
 function iniCast(){
   if(!document.getElementById('castPres')) return;
   const tb = document.getElementById('tvTransmitir'); if(tb) tb.onclick = tvTransmitirToque;
+  try{
+    const A = window.VentoAndroid, fila = document.getElementById('apkFondoFila'), sw = document.getElementById('apkFondo'), bat = document.getElementById('apkBateria');
+    if(A && typeof A.fondo === 'function' && fila && sw){
+      fila.hidden = false; bat.hidden = false;
+      sw.checked = !!A.fondo();
+      sw.onchange = () => { A.fondoActivar(sw.checked); showToast(sw.checked ? '🔋 Vento seguirá trabajando con la app cerrada (verás un aviso fijo en la barra).' : 'Vento solo trabajará con la app abierta.', 6000); setTimeout(() => { try{ sw.checked = !!A.fondo(); }catch(e){} }, 1500); };
+      bat.onclick = () => { try{ A.ajustesBateria(); }catch(e){} };
+    }
+  }catch(e){}
   const ta = document.getElementById('tvApk'); if(ta){ const ver = !window.VentoAndroid && !!(window.esAndroid && window.esAndroid()); ta.hidden = !ver; ta.style.display = ver ? 'block' : 'none'; }
   // Llegó desde Brave (se abrió en Chrome para transmitir): se lleva a Música y se resalta el botón.
   if(/[?&]transmitir=1/.test(location.search)){
@@ -22688,6 +22699,16 @@ function lngPorTiempo(enTV){
   SS(LNG_KEY, Object.assign(lngCfg(), { cursor: t }));
   try{ m.renderMusica(); }catch(e){}
 }
+/* Latido de la app de Android: con la app cerrada, el servicio de fondo despierta a Vento cada 5 s
+   (Android frena los relojes de una página que no se ve). Se manda lo pendiente al TV y se revisa
+   qué suena, igual que con la app abierta. */
+let latidoN = 0;
+window.ventoLatido = () => {
+  latidoN++;
+  try{ if(lngOn()) lngSync(); }catch(e){}
+  try{ if(lngOn() && latidoN % 3 === 0) lngVigilar(); }catch(e){}
+  try{ if(vm().tvOn && vm().tvOn() && latidoN % 4 === 0 && typeof tvPublicar === 'function') tvPublicar(); }catch(e){}
+};
 // «Saltar» en Vento cuando suena en el YouTube del TV: el TV pasa a la siguiente de su cola.
 function lngSaltar(){ if(lngOn()) lngCmd('next', {}).then(() => { lng.ultimoEnvio = Date.now(); }).catch(e => lngLog('   ⚠️ saltar: ' + (e.message || e))); }
 /* ---------- Registro de lo que pasa con el TV ----------
@@ -22724,7 +22745,7 @@ function lngEstado(){
   box.classList.remove('ok', 'no');
   document.getElementById('lngOff').hidden = !c.screenId;
   document.getElementById('lngPlay').hidden = !lngOn();
-  if(!lngOn()){ e.textContent = lngHayPuente() ? 'Falta conectar el TV (paso 2).' : 'Sin conectar. Sigue los pasos 1 y 2.'; return; }
+  if(!lngOn()){ e.textContent = lngHayPuente() ? 'Falta conectar el TV: escribe su código arriba o toca «Transmitir al TV».' : 'Sin conectar. Sigue los pasos 1 y 2.'; return; }
   if(lng.error){ box.classList.add('no'); e.textContent = '⚠️ ' + lng.error; return; }
   box.classList.add('ok');
   const n = vm().cola ? vm().cola().filter(x => x.lng && x.lngAt > Date.now() - 36e5).length : 0;
@@ -22776,9 +22797,11 @@ function iniLounge(){
   try{
     const det = document.getElementById('tvOptCodigo');
     if(det && lngHayPuente()){
-      const paso1 = relay.closest('.lng-step'); if(paso1) paso1.hidden = true;
-      const largo = det.querySelector(':scope > .settings-desc'); if(largo) largo.hidden = true;
-      const n2 = det.querySelectorAll('.pair-n'); n2.forEach(x => { x.hidden = true; });
+      // Con estilo directo: el «hidden» solo no alcanzaba (el estilo de .lng-step le ganaba y se seguía viendo).
+      const ocultar = x => { if(x){ x.hidden = true; x.style.display = 'none'; } };
+      ocultar(relay.closest('.lng-step'));
+      det.querySelectorAll(':scope > .settings-desc').forEach(ocultar);
+      det.querySelectorAll('.pair-n').forEach(ocultar);
       const nota = document.createElement('div'); nota.className = 'settings-desc'; nota.textContent = (lngPuenteApp() ? '✅ Puente incluido en la app.' : '✅ Puente listo.') + ' En el TV: YouTube → Configuración → «Vincular con código de TV». Escribe aquí los 12 números y toca Conectar.';
       det.insertBefore(nota, det.querySelector('.lng-step'));
     }
