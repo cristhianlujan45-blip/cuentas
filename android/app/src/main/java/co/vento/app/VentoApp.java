@@ -184,6 +184,8 @@ public class VentoApp extends Application {
 
     // ---------------------------------------------------------------- Puente con la página (window.VentoAndroid)
     class Puente {
+        private Thread escucha;
+        private java.net.HttpURLConnection escuchaCon;
 
         @JavascriptInterface
         public String info() {
@@ -257,6 +259,55 @@ public class VentoApp extends Application {
                 }
                 js("window.__ventoCb&&window.__ventoCb(" + q(id) + ",{status:" + st + ",text:" + q(txt) + "})");
             }).start();
+        }
+
+        /**
+         * Escuchar al TV en vivo: el canal de vuelta del «YouTube del TV» (GET bc/bind con RID=rpc), el mismo que
+         * usa la app de YouTube. Queda abierto y el TV va contando al instante qué suena, si pausó, si cambió de
+         * canción o de lista. Cada trozo llega a window.__ventoTVev(id, texto); al cerrarse, window.__ventoTVcerro(id, código).
+         * Hay un solo canal a la vez: abrir uno nuevo cierra el anterior.
+         */
+        @JavascriptInterface
+        public void escucharTV(final String id, final String query, final String token) {
+            pararTV(null);
+            final Thread t = new Thread(() -> {
+                int st = -1;
+                java.net.HttpURLConnection c = null;
+                try {
+                    String base = System.getProperty("vento.lounge", "https://www.youtube.com/api/lounge/");
+                    c = (java.net.HttpURLConnection) new java.net.URL(base + "bc/bind?" + (query == null ? "" : query)).openConnection();
+                    synchronized (Puente.class) { escuchaCon = c; }
+                    c.setConnectTimeout(12000);
+                    c.setReadTimeout(90000);                    // el TV manda «noop» cada medio minuto más o menos
+                    if (token != null && !token.isEmpty()) c.setRequestProperty("X-YouTube-LoungeId-Token", token);
+                    st = c.getResponseCode();
+                    if (st >= 200 && st < 300) {
+                        try (java.io.InputStream in = c.getInputStream()) {
+                            byte[] buf = new byte[16384]; int n;
+                            while (!Thread.currentThread().isInterrupted() && (n = in.read(buf)) > 0) {
+                                js("window.__ventoTVev&&window.__ventoTVev(" + q(id) + "," + q(new String(buf, 0, n, java.nio.charset.StandardCharsets.UTF_8)) + ")");
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    if (st < 0) st = -1;
+                } finally {
+                    if (c != null) c.disconnect();
+                    synchronized (Puente.class) { if (escuchaCon == c) escuchaCon = null; }
+                }
+                js("window.__ventoTVcerro&&window.__ventoTVcerro(" + q(id) + "," + st + ")");
+            });
+            synchronized (Puente.class) { escucha = t; }
+            t.start();
+        }
+
+        /** Cierra el canal en vivo con el TV (si id es null, cierra el que haya). */
+        @JavascriptInterface
+        public void pararTV(String id) {
+            Thread t; java.net.HttpURLConnection c;
+            synchronized (Puente.class) { t = escucha; c = escuchaCon; escucha = null; escuchaCon = null; }
+            if (t != null) t.interrupt();
+            if (c != null) new Thread(c::disconnect).start();
         }
 
         @JavascriptInterface

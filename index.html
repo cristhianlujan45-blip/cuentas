@@ -4195,14 +4195,14 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
 
     <div class="section-divider">Compartir cuenta</div>
     <div class="share-row">
-      <button class="btn-ghost" id="shareTextBtn">📤 Enviar factura por WhatsApp</button>
+      <button class="btn-ghost" id="shareTextBtn" hidden>📤 Enviar factura por WhatsApp</button>
       <button class="btn-ghost" id="shareImageBtn">🖼️ Enviar captura por WhatsApp</button>
       <button class="btn-ghost" id="printReceiptBtn">🖨️ Imprimir recibo</button>
     </div>
 
     <div class="modal-actions">
       <button class="btn-close" id="closeModalBtn">Cerrar</button>
-      <button class="btn-primary" id="chargeBtn">Cobrar saldo y liberar mesa</button>
+      <button class="btn-primary" id="chargeBtn">💰 Cobrar todo y liberar mesa</button>
     </div>
   </div>
 </div>
@@ -8784,6 +8784,27 @@ document.getElementById('qtyPlusBtn').addEventListener('click', ()=>{
 });
 
 // ---------- Propina opcional al cobrar (si está activada en Ajustes) ----------
+/* Cobrar y liberar con un toque: se elige cómo pagaron TODO el saldo y la mesa queda libre. Antes, si no se
+   escribía cuánto pagó cada quien, todo lo no registrado quedaba como deuda al cerrar. */
+function askPagoCierre(saldo, etiqueta){
+  return new Promise(resolve => {
+    const o = document.createElement('div');
+    o.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;padding:14px';
+    o.innerHTML = '<div style="background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:16px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:9px">' +
+      '<b style="font-size:17px">💰 Cobrar ' + String(etiqueta).replace(/[&<>"]/g, '') + '</b><small style="color:var(--ink-soft)">Saldo por cobrar: <b style="font-size:15px;color:var(--ink)">' + fmt(saldo) + '</b> · ¿cómo pagaron?</small>' +
+      '<button type="button" class="btn-primary" data-m="efectivo" style="padding:14px;font-size:15px">💵 Pagaron todo en efectivo</button>' +
+      '<button type="button" class="btn-primary" data-m="transferencia" style="padding:14px;font-size:15px">📲 Pagaron todo por transferencia</button>' +
+      '<button type="button" class="btn-ghost" data-m="debe">📝 Queda debiendo ' + fmt(saldo) + '</button>' +
+      '<button type="button" class="btn-ghost" data-close="1" style="opacity:.7">Cancelar</button>' +
+      '</div>';
+    o.addEventListener('click', e => {
+      const b = e.target.closest('button[data-m]');
+      if(b){ o.remove(); resolve(b.dataset.m); return; }
+      if(e.target.closest('[data-close]') || e.target === o){ o.remove(); resolve(null); }
+    });
+    document.body.appendChild(o);
+  });
+}
 function askTip(baseTotal){
   return new Promise(resolve => {
     const redondeo = Math.ceil(baseTotal / 1000) * 1000 - baseTotal;
@@ -8816,13 +8837,24 @@ document.getElementById('chargeBtn').addEventListener('click', async ()=>{
       renderModalItems();
     }
   }
-  const ok = await showConfirm({
-    title: '¿Cerrar esta cuenta?',
-    message: 'Vas a cobrar el saldo y liberar la ' + tableLabel(currentTable) + '. Esta acción no se puede deshacer.',
-    confirmText: 'Sí, cerrar cuenta',
-    icon: '🔒'
-  });
-  if(!ok) return;
+  const saldo = tableBalance(currentTable);
+  if(saldo > 0){
+    // Un solo paso: cómo pagaron todo el saldo. Se registra ese pago y la mesa se libera sin deuda.
+    const metodo = await askPagoCierre(saldo, tableLabel(currentTable));
+    if(!metodo) return;
+    if(metodo !== 'debe'){
+      if(!t.payments) t.payments = [];
+      t.payments.push({ note: metodo === 'transferencia' ? 'Pagó todo (transferencia)' : 'Pagó todo (efectivo)', amount: saldo, method: metodo, at: Date.now() });
+    }
+  } else {
+    const ok = await showConfirm({
+      title: '¿Cerrar esta cuenta?',
+      message: 'La cuenta ya está pagada. Vas a liberar la ' + tableLabel(currentTable) + '.',
+      confirmText: 'Sí, liberar mesa',
+      icon: '🔒'
+    });
+    if(!ok) return;
+  }
   const loyaltyPhone = data.loyaltyOn ? document.getElementById('loyaltyPhone').value : '';
   const loyaltyName = data.loyaltyOn ? document.getElementById('loyaltyName').value : '';
   const entry = closeTableToHistory(currentTable);
@@ -15428,8 +15460,7 @@ function histFila(h, idx){
         ${paymentsHtml}
         ${debtHtml}
         <div class="hist-share-row">
-          <button class="hist-share-text" data-idx="${idx}">📤 Factura</button>
-          <button class="hist-share-image" data-idx="${idx}">🖼️ Captura</button>
+          <button class="hist-share-image" data-idx="${idx}">🖼️ Enviar captura por WhatsApp</button>
         </div>
       </div>
     `;
@@ -15942,7 +15973,7 @@ const GUIDE_ENTRIES = [
   { title: '🧩 Modo fácil', keywords: 'modo facil simple sencillo basico', body: 'El modo fácil simplifica la pantalla para que sea más sencillo de usar, ideal si alguien nuevo va a manejar la app.' },
   { title: '💾 Respaldo y transferir datos', keywords: 'respaldo backup transferir datos copia seguridad exportar importar puntos restauracion automatico', body: 'En Ajustes puedes descargar una copia de respaldo de toda tu información (productos, mesas, inventario, ventas) en un archivo, y luego restaurarla en este u otro dispositivo si algo pasa o si cambias de celular. Además, la app va guardando sola un punto de restauración interno cada día (Ajustes → Puntos de restauración), por si algo se daña por accidente y no alcanzaste a respaldar a tiempo.' },
   { title: '🏢 Varias sedes o negocios', keywords: 'sede sedes negocio negocios varios locales separar tienda cerveceria', body: 'Si manejas más de un negocio o local, en Ajustes → Sedes o negocios puedes agregar uno nuevo y cambiar entre ellos. Cada sede tiene sus propias mesas, productos, inventario y ventas, totalmente separados, pero todo desde la misma cuenta.' },
-  { title: '🖨️ Imprimir el recibo de una mesa', keywords: 'imprimir recibo factura mesa cobrar papel', body: 'Al cobrar una mesa, junto a "Enviar factura por WhatsApp" hay un botón de "Imprimir recibo" para sacarlo en papel si tienes impresora conectada al celular o computador.' },
+  { title: '🖨️ Imprimir el recibo de una mesa', keywords: 'imprimir recibo factura mesa cobrar papel', body: 'Al cobrar una mesa, junto a "Enviar captura por WhatsApp" hay un botón de "Imprimir recibo" para sacarlo en papel si tienes impresora conectada al celular o computador.' },
   { title: '👤 Agregar un usuario', keywords: 'agregar usuario cuenta nueva empleado crear cuenta', body: 'Puedes crear cuentas adicionales para que otras personas del negocio (empleados) usen la app con su propio usuario y contraseña.' },
   { title: '🔑 Recuperar contraseña', keywords: 'recuperar contraseña olvide clave acceso perdido restaurar', body: 'Si olvidaste tu contraseña, en la pantalla de inicio toca "¿Olvidaste tu contraseña?" para recuperarla por WhatsApp. Si perdiste el acceso por completo (celular nuevo, app reinstalada), usa "Restaura tu copia de respaldo" con el archivo que descargaste antes.' },
   { title: '📋 Carta o menú para clientes (QR)', keywords: 'carta menu qr clientes ver productos mas vendido destacado agotado orden', body: 'Puedes compartir un menú o carta para que tus clientes vean los productos disponibles, por ejemplo con un código QR. Se ve en tarjetas por categoría, con las promociones destacadas arriba de todo, lo más vendido primero, y lo agotado al final para no interrumpir la lectura.' },
@@ -21723,7 +21754,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-03 · v1.22.3';
+const MESORA_VERSION = '2026-10-03 · v1.23';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22174,6 +22205,8 @@ function tvApkLista(){
     if(!Object.keys(vistos).length) sub.textContent = (lngOn() ? 'Arriba está el TV que ya tienes conectado. ' : '') + 'No encontré otros TV en este wifi. Revisa que el celular y el TV estén en el MISMO wifi y el TV encendido, y toca «Buscar otra vez». Si aun así no sale, usa el código del TV.';
   };
   ov.classList.add('show');
+  // Los TV que ya se encontraron hace poco salen de una vez (no se espera a la búsqueda nueva).
+  Object.values(tvWifi).filter(x => Date.now() - (x.visto || 0) < 5 * 60000).forEach(x => { try{ window.__ventoTV(x); }catch(e){} });
   try{ window.VentoAndroid.buscarTVs(); }catch(e){ sub.textContent = 'No pude buscar los TV: ' + (e.message || e); }
 }
 window.__ventoCb = (id, d) => { const f = window.__ventoCbs && window.__ventoCbs[id]; if(f){ delete window.__ventoCbs[id]; f(d || {}); } };
@@ -22518,7 +22551,9 @@ async function lngBind(){
   // hecho que hay una cola viva: es lo que hacía que la canción entrara como «agregada»
   // a una cola que nunca existió y se quedara callada.
   if(lng.tvPlay === true) SS(LNG_KEY, Object.assign(lngCfg(), { visto: Date.now() }));
+  try{ const ev = lngEventos(t); lng.aid = ev.length ? Math.max(...ev.map(x => x[2] || 0)) : 0; }catch(e){ lng.aid = 0; }
   lngLog('saludo al TV: ok · el TV está ' + lngEstadoNombre(lng.tvPlay));
+  try{ lngEscuchar(); }catch(e){}
 }
 /* El TV cuenta en el saludo qué está haciendo ahora mismo (eventos «nowPlaying» /
    «onStateChange»). Códigos de YouTube: -1 sin empezar, 0 terminó, 1 reproduciendo,
@@ -22576,7 +22611,12 @@ function lngEstadoTV(t){
    mantiene el canal de vuelta abierto). Por eso, antes de cada canción, se saluda de
    nuevo: sale barato, garantiza que el envío no se pierda y de paso trae el estado real
    del TV. Antes se esperaba 5 minutos y por eso la segunda canción ya no entraba. */
-async function lngAsegurar(fresca){ if(fresca || !lng.sid || Date.now() - lng.t > 60000) await lngBind(); }
+async function lngAsegurar(fresca){
+  // Con el canal en vivo abierto (app de Android), el TV ya contó todo al instante y la sesión sigue viva:
+  // no se vuelve a saludar (cada saludo abría una sesión nueva).
+  if(lng.sid && lngEscVivo()){ lng.t = Date.now(); return; }
+  if(fresca || !lng.sid || Date.now() - lng.t > 60000) await lngBind();
+}
 async function lngCmd(sc, datos, reintento){
   await lngAsegurar();
   const tok = await lngToken();
@@ -22766,7 +22806,9 @@ async function lngVigilar(){
       }
     } else if(suena && (st === 0 || st === -1 || st === 5 || vid === '' || !!vid)){
       // Sonaba una de Vento y el TV ya no la tiene: terminó (o se fue a un recomendado).
-      vm().mzTermino(suena.id, suena.dur && (suena.playedSeconds || 0) < suena.dur * 0.8 && st !== 0 ? 'skipped' : 'played');
+      const acabo = lng.terminoVid && lng.terminoVid === suena.vid;
+      vm().mzTermino(suena.id, acabo || !(suena.dur && (suena.playedSeconds || 0) < suena.dur * 0.8 && st !== 0) ? 'played' : 'skipped', acabo && lng.terminoT ? lng.terminoT : undefined);
+      if(acabo) lng.terminoVid = null;
     }
     if(st === 1 && vid && !it && !suena) return;                  // está sonando algo que puso otra persona: no se corta
     }
@@ -22847,6 +22889,73 @@ window.ventoLatido = () => {
 };
 // «Saltar» en Vento cuando suena en el YouTube del TV: el TV pasa a la siguiente de su cola.
 function lngSaltar(){ if(lngOn()) lngCmd('next', {}).then(() => { lng.ultimoEnvio = Date.now(); }).catch(e => lngLog('   ⚠️ saltar: ' + (e.message || e))); }
+/* ---------- Canal en vivo con el TV (app de Android) ----------
+   La app deja abierto el canal de vuelta del «YouTube del TV», como la app de YouTube: el TV cuenta al instante
+   qué suena, si pausó, si pasó a la siguiente o si cambió la lista. Sin la app (navegador) se sigue preguntando
+   cada pocos segundos, como antes. */
+const lngEscOk = () => lngPuenteApp() && typeof window.VentoAndroid.escucharTV === 'function';
+const lngEscVivo = () => !!(lng.escId && lng.escSid === lng.sid && Date.now() - (lng.escUlt || 0) < 100000);
+async function lngEscuchar(){
+  if(!lngEscOk() || !lngOn() || !lng.sid) return;
+  if(lng.escId && lng.escSid === lng.sid) return;               // ya escuchando esta sesión
+  let tok; try{ tok = await lngToken(); }catch(e){ return; }
+  const id = 'e' + Date.now().toString(36);
+  lng.escId = id; lng.escSid = lng.sid; lng.escUlt = Date.now(); lng.escBuf = '';
+  const q = Object.assign({ SID: lng.sid, gsessionid: lng.gs, RID: 'rpc', CI: 0, AID: lng.aid || 0, TYPE: 'xmlhttp' }, lngBase(tok));
+  try{ window.VentoAndroid.escucharTV(id, String(new URLSearchParams(q)), tok); lngLog('📡 escuchando al TV en vivo'); }
+  catch(e){ lng.escId = null; }
+}
+function lngEscParar(){ try{ if(lng.escId && lngEscOk()) window.VentoAndroid.pararTV(lng.escId); }catch(e){} lng.escId = null; }
+let lngEscVig = null;
+window.__ventoTVev = (id, txt) => {
+  if(id !== lng.escId) return;
+  lng.escUlt = Date.now(); lngEscFallas = 0;
+  lng.escBuf = (lng.escBuf || '') + String(txt || '');
+  if(lng.escBuf.length > 400000) lng.escBuf = lng.escBuf.slice(-200000);
+  const r = {}, ev = lngEventos(lng.escBuf, r);
+  lng.escBuf = lng.escBuf.slice(r.i || 0);
+  if(!ev.length) return;
+  const antes = lng.tvVid + '|' + lng.tvSt;
+  ev.forEach(([n, d, k]) => {
+    if(k > (lng.aid || 0)) lng.aid = k;
+    if(n === 'nowPlaying'){
+      lng.tvVid = d && d.videoId ? String(d.videoId) : '';
+      if(d && d.state != null && d.state !== '') lng.tvSt = Number(d.state); else if(!lng.tvVid) lng.tvSt = null;
+      lng.tvT = d && d.currentTime != null && d.currentTime !== '' ? Number(d.currentTime) : (lng.tvVid ? lng.tvT : null);
+      lng.tvD = d && d.duration != null && d.duration !== '' ? Number(d.duration) : (lng.tvVid ? lng.tvD : null);
+    } else if(n === 'onStateChange'){
+      // «Terminó» se guarda: si en el mismo trozo ya viene la siguiente, la que acabó cuenta como sonada (no saltada).
+      if(String(d.state) === '0' && lng.tvVid){ lng.terminoVid = lng.tvVid; lng.terminoT = d.currentTime != null && d.currentTime !== '' ? Number(d.currentTime) : null; }
+      if(d.state != null && d.state !== '') lng.tvSt = Number(d.state);
+      if(d.currentTime != null && d.currentTime !== '') lng.tvT = Number(d.currentTime);
+      if(d.duration != null && d.duration !== '') lng.tvD = Number(d.duration);
+    } else if(n === 'loungeScreenDisconnected' || n === 'noop'){ /* nada */ }
+  });
+  // el resto (aparatos conectados, lista del TV) con el mismo lector del saludo
+  try{ lngLeerMas(JSON.stringify(ev.map(([n, d, k]) => [k, [n, d]]))); }catch(e){}
+  lng.tvAt = Date.now();
+  if(lng.tvSt != null) lng.tvPlay = lng.tvSt === 1 || lng.tvSt === 2 || lng.tvSt === 3;
+  if((lng.tvSt !== null || lng.tvVid) && !lngCfg().reporta) SS(LNG_KEY, Object.assign(lngCfg(), { reporta: Date.now() }));
+  try{ lngVivoPintar(); }catch(e){}
+  // Cambió la canción o su estado: Vento pone al día su cola (sonando / terminada / siguiente) enseguida.
+  if(lng.tvVid + '|' + lng.tvSt !== antes){ clearTimeout(lngEscVig); lngEscVig = setTimeout(() => { try{ lngVigilar(); }catch(e){} }, 700); }
+};
+let lngEscFallas = 0;
+window.__ventoTVcerro = (id, st) => {
+  if(id !== lng.escId) return;
+  lng.escId = null;
+  if(!lngOn()) return;
+  if(st >= 400 && st < 500){ lng.sid = null; lngEscFallas = 0; }      // la sesión venció: se saluda de nuevo
+  else lngEscFallas++;
+  setTimeout(lngEscReintentar, Math.min(30000, 1500 * Math.pow(2, Math.min(lngEscFallas, 4))));
+};
+async function lngEscReintentar(){
+  if(!lngOn() || lng.escId) return;
+  if(lng.sid) return lngEscuchar();
+  if(!lngTomar(true)){ setTimeout(lngEscReintentar, 3000); return; }     // otro trabajo con el TV en curso: se espera
+  try{ await lngBind(); }catch(e){ lngEscFallas++; setTimeout(lngEscReintentar, Math.min(30000, 3000 * lngEscFallas)); }
+  finally{ lng.ocupado = false; }
+}
 /* ---------- En vivo en el TV ----------
    Lo que cuenta el TV en cada saludo, además de qué suena: los aparatos conectados a él (el TV mismo,
    el celular que le transmite desde YouTube / YouTube Music, otros controles) y, si el TV la comparte,
@@ -22854,8 +22963,8 @@ function lngSaltar(){ if(lngOn()) lngCmd('next', {}).then(() => { lng.ultimoEnvi
    (aunque la haya puesto otro celular con su cuenta de Google), su tiempo y lo que sigue, y deja
    agregar canciones a esa misma cola. */
 // La respuesta del TV viene en trozos «largo + [[n,["evento",{datos}]],…]»: se leen todos los eventos.
-function lngEventos(t){
-  const s = String(t || ''), out = []; let i = 0;
+function lngEventos(t, resto){
+  const s = String(t || ''), out = []; let i = 0, hasta = 0;
   while(i < s.length){
     const a = s.indexOf('[', i); if(a < 0) break;
     let d = 0, str = false, esc = false, j = a;
@@ -22865,9 +22974,10 @@ function lngEventos(t){
       if(ch === '"') str = true; else if(ch === '[') d++; else if(ch === ']'){ d--; if(!d) break; }
     }
     if(d) break;
-    try{ const arr = JSON.parse(s.slice(a, j + 1)); if(Array.isArray(arr)) arr.forEach(e => { if(Array.isArray(e) && Array.isArray(e[1]) && typeof e[1][0] === 'string') out.push([e[1][0], e[1][1] || {}]); }); }catch(e){}
-    i = j + 1;
+    try{ const arr = JSON.parse(s.slice(a, j + 1)); if(Array.isArray(arr)) arr.forEach(e => { if(Array.isArray(e) && Array.isArray(e[1]) && typeof e[1][0] === 'string') out.push([e[1][0], e[1][1] || {}, Number(e[0])]); }); }catch(e){}
+    i = j + 1; hasta = i;
   }
+  if(resto) resto.i = hasta;
   return out;
 }
 const lngJSON = v => { if(v && typeof v === 'object') return v; try{ return JSON.parse(v); }catch(e){ return null; } };
@@ -23000,7 +23110,7 @@ function lngVivoPintar(){
 async function lngVivo(forzar){
   if(!lngOn() || document.visibilityState !== 'visible') return;
   const sec = document.getElementById('view-musica'); if(!forzar && (!sec || !sec.classList.contains('active'))) return;
-  if(!forzar && Date.now() - lng.t < 7000){ lngVivoPintar(); return; }
+  if(!forzar && (Date.now() - lng.t < 7000 || lngEscVivo())){ lngVivoPintar(); if(!lngEscVivo()) lngEscuchar(); return; }
   if(!lngTomar(!!forzar)) return;
   try{ await lngBind(); lngResultado(true); }
   catch(e){ lngResultado(false); }
@@ -23294,7 +23404,7 @@ function iniLounge(){
     try{ await navigator.clipboard.writeText('Vento ' + MESORA_VERSION + ' · YouTube del TV\n' + txt); showToast('📋 Registro copiado.'); }
     catch(e){ showToast('⚠️ No se pudo copiar.'); }
   };
-  document.getElementById('lngOff').onclick = () => { lngReloj0('desconectado'); const c = lngCfg(); ['screenId', 'loungeToken', 'exp', 'nombre', 'on', 'ultimo', 'hasta', 'visto', 'arranco'].forEach(k => delete c[k]); SS(LNG_KEY, c); lng.sid = null; lng.error = ''; lngEstado(); autoRestaurar(); showToast('Desconectado del YouTube del TV.'); };
+  document.getElementById('lngOff').onclick = () => { lngEscParar(); lngReloj0('desconectado'); const c = lngCfg(); ['screenId', 'loungeToken', 'exp', 'nombre', 'on', 'ultimo', 'hasta', 'visto', 'arranco'].forEach(k => delete c[k]); SS(LNG_KEY, c); lng.sid = null; lng.error = ''; lngEstado(); autoRestaurar(); showToast('Desconectado del YouTube del TV.'); };
   setInterval(() => { lngSync(); }, 4000);
   setInterval(() => { lngVigilar(); }, 12000);
   const ahora = () => { lng.pausaHasta = 0; lngSync(); setTimeout(lngVigilar, 1500); };
