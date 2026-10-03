@@ -2187,6 +2187,24 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   .cast-app{ display:flex; gap:6px; margin:10px 0 4px; padding:4px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line); }
   .cast-app button{ flex:1; padding:9px 6px; border-radius:9px; border:0; background:transparent; color:var(--ink-soft); font:700 13.5px var(--font-main); }
   .cast-app button.on{ background:var(--amber); color:#fff; }
+  .tv-vivo{ margin:10px 0; padding:12px; border-radius:14px; background:var(--surface-2, var(--surface)); border:1px solid var(--line); }
+  .tvv-h{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:8px; }
+  .tvv-h small{ opacity:.7; font-size:12px; }
+  .tvv-disp{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+  .tvv-dev{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; border:1px solid var(--line); font-size:13.5px; line-height:1.3; }
+  .tvv-dev.on{ border-color:var(--paid); }
+  .tvv-dev small{ display:block; opacity:.75; font-size:12px; }
+  .tvv-now{ display:flex; gap:12px; align-items:center; }
+  .tvv-now img{ width:96px; height:54px; object-fit:cover; border-radius:8px; flex:none; background:#000; }
+  .tvv-now .tvv-tt{ min-width:0; flex:1; }
+  .tvv-now small{ display:block; opacity:.75; font-size:12px; line-height:1.3; }
+  .tvv-now .mzs-time{ font-size:12.5px; }
+  .tvv-now b{ display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tvv-li{ display:flex; gap:10px; align-items:center; padding:6px 0; border-top:1px solid var(--line); font-size:13.5px; }
+  .tvv-li img{ width:64px; height:36px; object-fit:cover; border-radius:6px; flex:none; background:#000; }
+  .tvv-li span{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tvv-add{ display:flex; gap:8px; margin-top:10px; }
+  .tvv-add input{ flex:1; min-width:0; }
   .cast-devs{ display:flex; align-items:center; gap:8px; margin:10px 0 4px; padding:10px 12px; border-radius:12px; background:var(--surface-2, var(--surface)); border:1px solid var(--line); font-size:13.5px; line-height:1.35; }
   .cast-dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; background:var(--ink-soft); }
   .cast-devs.ok .cast-dot{ background:var(--paid); box-shadow:0 0 0 4px color-mix(in srgb, var(--paid) 25%, transparent); }
@@ -3215,6 +3233,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <div class="settings-desc" id="mzAutoTxt" style="font-weight:700"></div>
       <div class="settings-desc" id="mzCrono" hidden style="font-weight:700"></div>
       <div class="mz-sonando" id="mzSonando" hidden aria-live="polite"></div>
+      <div class="mz-sonando" id="mzTvAhora" hidden></div>
       <div id="mzList"></div>
       <button class="btn-ghost" id="mzHistBtn" type="button" style="margin-top:8px">📜 Historial de música</button>
     </div>
@@ -3228,6 +3247,14 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <h2>📺 Música en el TV</h2>
       <button class="btn-primary cast-big" id="tvTransmitir" type="button">📡 Transmitir al TV</button>
       <div class="cast-devs" id="castDevs" hidden><span class="cast-dot"></span><span id="castDevsTxt"></span></div>
+      <div class="tv-vivo" id="tvVivo" hidden aria-live="polite">
+        <div class="tvv-h"><b>🔴 En vivo en el TV</b><small id="tvvAct"></small></div>
+        <div class="tvv-disp" id="tvvDisp"></div>
+        <div id="tvvAhora"></div>
+        <div class="mz-actions tvv-ctl"><button class="btn-ghost" id="tvvPausa" type="button">⏸ Pausa</button><button class="btn-ghost" id="tvvSig" type="button">⏭ Siguiente</button><button class="btn-ghost" id="tvvRef" type="button">🔄 Actualizar</button></div>
+        <div id="tvvLista"></div>
+        <div class="tvv-add"><input id="tvvIn" class="mz-in" placeholder="Agregar canción al TV" autocomplete="off" enterkeyhint="send"><button class="btn-primary" id="tvvAdd" type="button">➕ Agregar</button></div>
+      </div>
       <a class="btn-ghost" id="tvApk" hidden href="https://github.com/cristhianlujan45-blip/cuentas/releases/latest/download/vento.apk" style="text-align:center;margin:8px 0;padding:11px;border-radius:12px;text-decoration:none">📲 ¿Tu TV no sale? Instala la app Vento para Android: encuentra TODOS los TV del wifi (LG, Samsung, TV Box, Fire TV…)</a>
       <div class="settings-row" id="apkFondoFila" hidden><div class="settings-row-text"><strong>🔋 Trabajar con la app cerrada</strong><span id="apkFondoTxt">Pedidos y música siguen funcionando aunque cierres la app o apagues la pantalla.</span></div><label class="switch"><input type="checkbox" id="apkFondo"><span class="switch-slider"></span></label></div>
       <button class="btn-ghost" id="apkBateria" type="button" hidden style="width:100%;margin:4px 0 8px">⚡ Quitar el ahorro de batería para Vento</button>
@@ -5023,6 +5050,7 @@ function showToast(msg, ms){
 
 function tableLabel(id){
   const t = data.tables[id];
+  if(id === 0 && !t) return '🎧 Caja';            // canciones que pone el negocio desde Vento (no una mesa)
   return (t && t.name && t.name.trim()) ? t.name.trim() : (i18nPut(espacioN()) + ' ' + id);
 }
 
@@ -18829,7 +18857,7 @@ function agregarCancion(mesa,song,reqId){
   const dup=l.concat(mzHist()).find(x=>(reqId&&x.reqId===reqId)||(x.mesa===mesa&&normVoiceText(x.song||'')===nk&&now-(x.ts||x.requestedAt||0)<3*6e4&&x.status!=='cancelled'));
   if(dup)return{msg:'🎵 Esa canción ya está en la cola.',nuevo:false};
   const rec=l.filter(x=>x.mesa===mesa&&now-x.ts<VENT).sort((x,y)=>x.ts-y.ts);
-  if(rec.length>=MAX)return{msg:'🎵 '+tableLabel(mesa)+' ya pidió '+MAX+' canciones; podrá pedir otra en '+Math.ceil((rec[0].ts+VENT-now)/6e4)+' min.'};
+  if(mesa!==0&&rec.length>=MAX)return{msg:'🎵 '+tableLabel(mesa)+' ya pidió '+MAX+' canciones; podrá pedir otra en '+Math.ceil((rec[0].ts+VENT-now)/6e4)+' min.'};
   const it={id:now+'-'+Math.random().toString(36).slice(2,6),reqId:reqId||null,mesa,mesaNombre:tableLabel(mesa),song:song.slice(0,120),pedido:pedidoOriginal,title:lim.title.slice(0,80),artist:lim.artist.slice(0,60),ts:now,done:false,status:'pending'};
   l.push(it);SS('vito_cola',l);mzRespaldo();
   // Busca el video y la agrega sola a la lista/reproductor apenas llega el pedido,
@@ -19715,7 +19743,7 @@ async function publicarCatalogo(force){
 window.vitoPublicarCatalogo = publicarCatalogo;
 window.vitoQCfg = qCfg;   // lo usan los domicilios por web/WhatsApp, que viven fuera de este módulo
 // Lo que usan las fotos de la carta y la transmisión al TV (script del final).
-window.vitoMod = { yRenovarServidor, linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, mzEmpezo, mzTermino, mzProgreso, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente, ytDur, ytPosicionSiguiente, ytTanda: () => ytTanda, procesar, notifPedidos, notifMusica };
+window.vitoMod = { yRenovarServidor, linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, mzEmpezo, mzTermino, mzProgreso, yLista, ytAgregar, ySearch, yGet, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente, ytDur, ytPosicionSiguiente, ytTanda: () => ytTanda, procesar, notifPedidos, notifMusica };
 function publicarCuentas(){
   if(typeof data==='undefined'||!data)return;
   try{publicarCatalogo();}catch(e){}             // la carta se publica siempre (aunque "en vivo" esté apagado)
@@ -21633,7 +21661,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-02 · v1.21.1';
+const MESORA_VERSION = '2026-10-03 · v1.22';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -21684,7 +21712,7 @@ function castDevsPintar(){
   const box = document.getElementById('castDevs'), t = document.getElementById('castDevsTxt');
   if(!box) return;
   if(ccSes){ ccPintar(); return; }
-  if(typeof lngOn === 'function' && lngOn() && !box.classList.contains('busy')){ box.hidden = false; box.classList.remove('no'); box.classList.add('ok'); t.textContent = '📺 Conectado a «' + (lngCfg().nombre || 'TV') + '»: las canciones de las mesas suenan allá solas.'; return; }
+  if(typeof lngOn === 'function' && lngOn() && !box.classList.contains('busy')){ box.hidden = false; box.classList.remove('no'); box.classList.add('ok'); t.textContent = '📺 Conectado a «' + (lngCfg().nombre || 'TV') + '»' + (lng.tvSt === 1 ? ' · sonando ahora' : '') + ': las canciones de las mesas suenan allá solas. Abajo ves en vivo lo que suena.'; return; }
   box.classList.remove('ok', 'no', 'busy');
   box.hidden = !((presConn && presConn.state === 'connected') || presDisp === true);
   if(presConn && presConn.state === 'connected'){ box.classList.add('ok'); t.textContent = '📡 Transmitiendo a tu dispositivo: la música de las mesas suena allá en vivo.'; return; }
@@ -22062,6 +22090,14 @@ function tvApkLista(){
   }
   const L = ov.querySelector('#tvApkLista'), sub = ov.querySelector('#tvApkSub'), vistos = {};
   L.innerHTML = ''; sub.textContent = '⏳ Buscando los TV de tu wifi…';
+  if(lngOn()){
+    // El TV que ya está sonando con Vento va de primero (como en YouTube), aunque el wifi no lo muestre.
+    const b0 = document.createElement('button'); b0.type = 'button'; b0.className = 'btn-primary';
+    b0.style.cssText = 'display:flex;align-items:center;gap:12px;text-align:left;padding:13px 14px;width:100%;outline:2px solid var(--paid)';
+    b0.innerHTML = '<span style="font-size:24px">🟢</span><span><b>YouTube en el TV · ' + tvEsc(lngCfg().nombre || 'TV') + '</b><br><small style="opacity:.85">Conectado' + (lng.tvSt === 1 ? ' y sonando ahora' : '') + ' · tocar para ver lo que suena</small></span>';
+    b0.onclick = () => { ov.classList.remove('show'); const v = document.getElementById('tvVivo'); if(v){ v.scrollIntoView({ block: 'center', behavior: 'smooth' }); } lngVivo(true); };
+    L.appendChild(b0);
+  }
   window.__ventoTV = tv => {
     if(!tv || vistos[tv.id]) return; vistos[tv.id] = tv;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-primary';
@@ -22073,7 +22109,7 @@ function tvApkLista(){
     sub.textContent = 'Toca tu TV: se abre YouTube allá y las canciones de las mesas suenan solas.';
   };
   window.__ventoTVfin = () => {
-    if(!Object.keys(vistos).length) sub.textContent = 'No encontré TV en este wifi. Revisa que el celular y el TV estén en el MISMO wifi y el TV encendido, y toca «Buscar otra vez». Si aun así no sale, usa el código del TV.';
+    if(!Object.keys(vistos).length) sub.textContent = (lngOn() ? 'Arriba está el TV que ya tienes conectado. ' : '') + 'No encontré otros TV en este wifi. Revisa que el celular y el TV estén en el MISMO wifi y el TV encendido, y toca «Buscar otra vez». Si aun así no sale, usa el código del TV.';
   };
   ov.classList.add('show');
   try{ window.VentoAndroid.buscarTVs(); }catch(e){ sub.textContent = 'No pude buscar los TV: ' + (e.message || e); }
@@ -22440,6 +22476,7 @@ function lngLeerTV(t){
   re = /"duration"\s*:\s*"?([\d.]+)"?/g; while((m = re.exec(t))) du = Number(m[1]);
   lng.tvT = ct; lng.tvD = du;
   if((lng.tvSt !== null || lng.tvVid) && !lngCfg().reporta) SS(LNG_KEY, Object.assign(lngCfg(), { reporta: Date.now() }));
+  try{ lngLeerMas(t); lngVivoPintar(); }catch(e){}
 }
 /* Hay TV que NUNCA dicen qué están haciendo (el saludo siempre trae «no se sabe»), ni sonando.
    Con esos no se puede deducir nada del silencio: se confía en que el TV reproduce su cola, como
@@ -22744,6 +22781,188 @@ window.ventoLatido = () => {
 };
 // «Saltar» en Vento cuando suena en el YouTube del TV: el TV pasa a la siguiente de su cola.
 function lngSaltar(){ if(lngOn()) lngCmd('next', {}).then(() => { lng.ultimoEnvio = Date.now(); }).catch(e => lngLog('   ⚠️ saltar: ' + (e.message || e))); }
+/* ---------- En vivo en el TV ----------
+   Lo que cuenta el TV en cada saludo, además de qué suena: los aparatos conectados a él (el TV mismo,
+   el celular que le transmite desde YouTube / YouTube Music, otros controles) y, si el TV la comparte,
+   la lista que tiene en cola. Con eso Vento muestra en vivo el aparato que está sonando, la canción
+   (aunque la haya puesto otro celular con su cuenta de Google), su tiempo y lo que sigue, y deja
+   agregar canciones a esa misma cola. */
+// La respuesta del TV viene en trozos «largo + [[n,["evento",{datos}]],…]»: se leen todos los eventos.
+function lngEventos(t){
+  const s = String(t || ''), out = []; let i = 0;
+  while(i < s.length){
+    const a = s.indexOf('[', i); if(a < 0) break;
+    let d = 0, str = false, esc = false, j = a;
+    for(; j < s.length; j++){
+      const ch = s[j];
+      if(str){ if(esc) esc = false; else if(ch === '\\') esc = true; else if(ch === '"') str = false; continue; }
+      if(ch === '"') str = true; else if(ch === '[') d++; else if(ch === ']'){ d--; if(!d) break; }
+    }
+    if(d) break;
+    try{ const arr = JSON.parse(s.slice(a, j + 1)); if(Array.isArray(arr)) arr.forEach(e => { if(Array.isArray(e) && Array.isArray(e[1]) && typeof e[1][0] === 'string') out.push([e[1][0], e[1][1] || {}]); }); }catch(e){}
+    i = j + 1;
+  }
+  return out;
+}
+const lngJSON = v => { if(v && typeof v === 'object') return v; try{ return JSON.parse(v); }catch(e){ return null; } };
+function lngLeerMas(t){
+  const ev = lngEventos(t);
+  ev.forEach(([n, d]) => {
+    if(!d || typeof d !== 'object') return;
+    if(n === 'loungeStatus' && d.devices != null){
+      const ds = lngJSON(d.devices);
+      if(Array.isArray(ds)) lng.disp = ds.filter(x => x && x.id !== lngUuid()).map(x => {
+        const inf = lngJSON(x.deviceInfo) || {};
+        return { id: x.id || '', nombre: x.name || '', tipo: x.type || '', app: x.app || '', marca: inf.brand || '', modelo: inf.model || '' };
+      });
+    }
+    if(typeof d.videoIds === 'string' && d.videoIds){ lng.tvLista = d.videoIds.split(',').filter(Boolean); }
+    if((n === 'nowPlaying' || n === 'playlistModified') && d.currentIndex != null && d.currentIndex !== '') lng.tvIdx = Number(d.currentIndex);
+    if((n === 'nowPlaying' || n === 'playlistModified') && d.listId) lng.tvListId = d.listId;
+  });
+  lng.tvAt = Date.now();
+}
+// Título, canal y duración de un video: primero de las canciones de Vento; si no, de YouTube.
+const lngInfo = {};
+function lngInfoVideo(vid){
+  if(!vid) return null;
+  if(lngInfo[vid]) return lngInfo[vid];
+  const m = vm(), propias = (m.cola ? m.cola() : []).concat(window.vitoMusica && window.vitoMusica.hist ? window.vitoMusica.hist() : []);
+  const p = propias.find(x => x.vid === vid && (x.title || x.song));
+  if(p){ lngInfo[vid] = { t: p.title || p.song, c: p.artist || '', dur: p.dur || p.duration || 0, mesa: p.mesa }; return lngInfo[vid]; }
+  lngInfo[vid] = { t: '', c: '', cargando: true };
+  (async () => {
+    let r = null;
+    try{
+      if(m.yGet && m.yCfg && (m.yCfg().key || (m.yTok && m.yTok()))){
+        const j = await m.yGet('videos?part=snippet,contentDetails&id=' + encodeURIComponent(vid));
+        const it = j && j.items && j.items[0];
+        if(it) r = { t: it.snippet.title, c: it.snippet.channelTitle || '', dur: m.ytDur ? m.ytDur(it.contentDetails && it.contentDetails.duration) : 0 };
+      }
+    }catch(e){}
+    if(!r){
+      try{ const x = await fetch('https://noembed.com/embed?url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + vid)); const j = await x.json(); if(j && j.title) r = { t: j.title, c: j.author_name || '' }; }catch(e){}
+    }
+    lngInfo[vid] = r || { t: '', c: '' };
+    lngVivoPintar();
+  })();
+  return lngInfo[vid];
+}
+const lngMini = vid => 'https://i.ytimg.com/vi/' + encodeURIComponent(vid) + '/mqdefault.jpg';
+// Segundo en que va el TV ahora mismo (lo que dijo + lo que ha pasado desde que lo dijo, si está sonando).
+function lngTiempoAhora(){
+  if(lng.tvT == null) return null;
+  let t = lng.tvT; if(lng.tvSt === 1 && lng.tvAt) t += (Date.now() - lng.tvAt) / 1000;
+  return lng.tvD ? Math.min(t, lng.tvD) : t;
+}
+const lngNombreEstado = st => ({ 1: '▶ Sonando', 2: '⏸ En pausa', 3: '⏳ Cargando', 0: '⏹ Terminó', '-1': '⏹ Sin empezar', 5: '⏹ En espera' }[st] || '');
+const lngMmss = s => { s = Math.max(0, Math.round(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+function lngVivoPintar(){
+  const box = document.getElementById('tvVivo'), mini = document.getElementById('mzTvAhora');
+  if(!box) return;
+  if(!lngOn()){ box.hidden = true; if(mini) mini.hidden = true; return; }
+  box.hidden = false;
+  const c = lngCfg(), m = vm(), vid = lng.tvVid;
+  const hace = lng.tvAt ? Math.round((Date.now() - lng.tvAt) / 1000) : null;
+  document.getElementById('tvvAct').textContent = hace == null ? 'conectando…' : hace < 5 ? 'actualizado ahora' : 'hace ' + hace + ' s';
+  // Aparatos: el TV (el que suena) y los demás conectados a él, como los muestra YouTube.
+  const disp = lng.disp || [], pant = disp.find(x => /SCREEN/i.test(x.tipo));
+  const nomTV = pant && (pant.marca || pant.modelo) ? '[' + (pant.marca || 'TV') + '] ' + (pant.modelo || pant.nombre) : (c.nombre || (pant && pant.nombre) || 'TV');
+  const suena = lng.tvSt === 1 || lng.tvSt === 3;
+  const otroNom = [pant && pant.nombre, c.nombre].filter(x => x && x !== nomTV)[0] || '';
+  let h = '<div class="tvv-dev on">📺<div><b>' + tvEsc(nomTV) + '</b><small>' + (suena ? '🟢 Sonando ahora' : lng.tvSt === 2 ? '🟡 En pausa' : '🟢 Conectado') + (otroNom ? ' · ' + tvEsc(otroNom) : '') + '</small></div></div>';
+  disp.filter(x => !/SCREEN/i.test(x.tipo)).forEach(x => {
+    const app = /music/i.test(x.app) ? 'YouTube Music' : /youtube|android|ios|web|m?web/i.test(x.app) ? 'YouTube' : '';
+    h += '<div class="tvv-dev">📱<div><b>' + tvEsc(x.nombre || 'Otro control') + '</b><small>También conectado al TV' + (app ? ' · ' + app : '') + '</small></div></div>';
+  });
+  document.getElementById('tvvDisp').innerHTML = h;
+  // Lo que suena.
+  const ahora = document.getElementById('tvvAhora');
+  const propia = m.cola ? m.cola().find(x => x.status === 'playing' && x.fuente === 'tvyt') : null;
+  const v = vid || (propia && propia.vid) || '';
+  let titulo = '';
+  if(v){
+    const inf = lngInfoVideo(v) || {}, dur = lng.tvD || inf.dur || (propia && propia.dur) || 0;
+    let t = vid ? lngTiempoAhora() : (propia && propia.startedAt ? (Date.now() - propia.startedAt) / 1000 : null);
+    if(t != null && dur) t = Math.min(t, dur);
+    const de = propia && propia.vid === v ? ' · pedida por ' + tableLabel(propia.mesa) : !vid ? '' : (m.cola && m.cola().some(x => x.vid === v) ? '' : ' · puesta desde otro celular');
+    titulo = inf.t || (propia && propia.vid === v ? propia.title || propia.song : '') || (inf.cargando ? 'Buscando el nombre…' : 'Video ' + v);
+    const pct = dur && t != null ? Math.min(100, t / dur * 100) : 0;
+    const key = v + '|' + titulo + '|' + (inf.c || '') + '|' + de + '|' + lng.tvSt;
+    if(ahora.dataset.k !== key){
+      ahora.dataset.k = key;
+      ahora.innerHTML = '<div class="tvv-now"><img alt="" loading="lazy" src="' + lngMini(v) + '"><div class="tvv-tt"><b>' + tvEsc(titulo) + '</b><small>' + tvEsc((inf.c || '') + de) + '</small>' +
+        '<div class="mzs-bar"><i id="tvvBar" style="width:' + pct.toFixed(1) + '%"></i></div><div class="mzs-time" id="tvvTiempo"></div></div></div>';
+    }
+    const bar = document.getElementById('tvvBar'); if(bar) bar.style.width = pct.toFixed(1) + '%';
+    const tt = document.getElementById('tvvTiempo');
+    if(tt) tt.textContent = (lngNombreEstado(lng.tvSt) || (vid ? '' : '▶ Según el tiempo de Vento')) + (t != null ? ' · ' + lngMmss(t) + ' / ' + (dur ? lngMmss(dur) : '--:--') : '');
+  } else {
+    if(ahora.dataset.k !== '-'){ ahora.dataset.k = '-'; ahora.innerHTML = '<div class="settings-desc">' + (lng.tvAt ? 'El TV no tiene nada sonando ahora. Las canciones que pidan las mesas (o las que agregues abajo) arrancan solas.' : 'Preguntándole al TV qué está sonando…') + '</div>'; }
+  }
+  const bp = document.getElementById('tvvPausa'); if(bp) bp.textContent = lng.tvSt === 2 ? '▶ Seguir' : '⏸ Pausa';
+  // Lo que sigue: la lista del TV (si la comparte) o, si no, las que Vento ya le mandó.
+  let sig = [];
+  if(lng.tvLista && lng.tvLista.length){
+    const i0 = vid ? lng.tvLista.indexOf(vid) : (lng.tvIdx != null ? lng.tvIdx : -1);
+    const deV = vv => m.cola ? m.cola().filter(y => y.vid === vv && y.lng).pop() : null;
+    sig = lng.tvLista.slice(Math.max(0, i0 + 1)).map(x => ({ vid: x, it: deV(x) }));
+  }
+  const enTV = lngEnTV().filter(x => x.vid !== v);
+  enTV.forEach(x => { if(!sig.some(y => y.vid === x.vid)) sig.push({ vid: x.vid, it: x }); });
+  const pend = m.ordenJusto && m.cola ? m.ordenJusto(m.cola()).filter(x => !x.lng && !x.done) : [];
+  let lh = '';
+  if(sig.length || pend.length){
+    lh += '<div class="settings-desc" style="margin:10px 0 2px"><b>Sigue en el TV</b>' + (lng.tvLista ? '' : ' <small>(las que Vento le mandó)</small>') + '</div>';
+    sig.slice(0, 20).forEach((x, i) => {
+      const inf = x.it ? { t: x.it.title || x.it.song, c: tableLabel(x.it.mesa) } : (lngInfoVideo(x.vid) || {});
+      lh += '<div class="tvv-li"><img alt="" loading="lazy" src="' + lngMini(x.vid) + '"><span>' + (i + 1) + '. ' + tvEsc(inf.t || 'Cargando…') + (inf.c ? ' <small>· ' + tvEsc(inf.c) + '</small>' : '') + '</span></div>';
+    });
+    pend.slice(0, 10).forEach(x => { lh += '<div class="tvv-li"><span>⏳ ' + tvEsc(x.title || x.song) + ' <small>· ' + tvEsc(tableLabel(x.mesa)) + ' · ' + (x.vid ? 'entrando al TV…' : 'buscando el video…') + '</small></span></div>'; });
+  }
+  const L = document.getElementById('tvvLista'); if(L.dataset.h !== lh){ L.dataset.h = lh; L.innerHTML = lh; }
+  // Arriba, en la cola de música: qué suena en el TV cuando no es una canción de las mesas.
+  if(mini){
+    const ajena = vid && !propia && lng.tvSt != null && lng.tvSt !== 0;
+    mini.hidden = !ajena;
+    if(ajena){ const t = lngTiempoAhora(); mini.innerHTML = '<div class="mzs-t">📺 En el TV suena: <b>' + tvEsc(titulo) + '</b> <span>· ' + tvEsc(lngNombreEstado(lng.tvSt)) + (t != null ? ' · ' + lngMmss(t) + (lng.tvD ? ' / ' + lngMmss(lng.tvD) : '') : '') + '</span></div>'; }
+  }
+}
+// Se le pregunta al TV qué está pasando cada 8 s mientras la pantalla de Música está a la vista.
+async function lngVivo(forzar){
+  if(!lngOn() || document.visibilityState !== 'visible') return;
+  const sec = document.getElementById('view-musica'); if(!forzar && (!sec || !sec.classList.contains('active'))) return;
+  if(!forzar && Date.now() - lng.t < 7000){ lngVivoPintar(); return; }
+  if(!lngTomar(!!forzar)) return;
+  try{ await lngBind(); lngResultado(true); }
+  catch(e){ lngResultado(false); }
+  finally{ lng.ocupado = false; lngVivoPintar(); try{ vm().renderMusica(); }catch(e){} }
+}
+async function lngVivoCmd(sc, txt){
+  try{ await lngCmd(sc, {}); if(sc === 'next') lng.ultimoEnvio = Date.now(); showToast(txt, 3000); setTimeout(() => lngVivo(true), 1500); }
+  catch(e){ showToast('⚠️ El TV no recibió la orden: ' + (e.message || e), 6000); }
+}
+function iniVivo(){
+  const b = id => document.getElementById(id);
+  if(!b('tvVivo')) return;
+  b('tvvPausa').onclick = () => lng.tvSt === 2 ? lngVivoCmd('play', '▶ Sigue sonando en el TV') : lngVivoCmd('pause', '⏸ En pausa en el TV');
+  b('tvvSig').onclick = () => lngVivoCmd('next', '⏭ El TV pasa a la siguiente');
+  b('tvvRef').onclick = () => lngVivo(true);
+  const agregar = () => {
+    const inp = b('tvvIn'), q = inp.value.trim();
+    if(!q) return showToast('Escribe la canción o el artista.');
+    const msg = window.vitoAddSong ? window.vitoAddSong(0, q) : '';
+    inp.value = '';
+    showToast(/^⚠️|ya está|ya pidió/.test(msg) ? msg : '➕ «' + q + '» va a entrar a la cola del TV.', 5000);
+    lngVivoPintar();
+  };
+  b('tvvAdd').onclick = agregar;
+  b('tvvIn').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); agregar(); } });
+  setInterval(() => { lngVivo(); }, 8000);
+  setInterval(() => { try{ const s = document.getElementById('view-musica'); if(lngOn() && s && s.classList.contains('active')) lngVivoPintar(); }catch(e){} }, 1000);
+  const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', () => setTimeout(() => lngVivo(true), 300));
+  lngVivoPintar();
+}
 /* ---------- Registro de lo que pasa con el TV ----------
    Sin esto no hay forma de saber por qué el TV no arranca: queda lo que Vento le mandó,
    lo que el TV contestó y en qué estado quedó. Se puede copiar y mandar para revisarlo. */
@@ -22940,6 +23159,7 @@ function iniLounge(){
   setInterval(() => { try{ if(!lngOn()) return; const m = vm(); m.cola().filter(x => !x.done && !x.vid && !x.novid).forEach(x => m.ytAgregar(x.id)); lngEstado(); }catch(e){} }, 20000);
   const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', lngEstado);
   lngEstado();
+  try{ iniVivo(); }catch(e){}
 }
 
 /* ---------- Contabilidad: entradas, gastos y resultado del negocio ----------
