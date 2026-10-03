@@ -3722,7 +3722,8 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <h2 id="qrGrupoT">QR de las mesas (permanentes)</h2>
       <div class="settings-desc" data-mod="q">Imprímelos una sola vez. Una vez los "Fijas" abajo, los QR que ya pegaste en las mesas SIGUEN SIRVIENDO PARA SIEMPRE, aunque después cambies de proveedor (por ejemplo, sigas usando GitHub Pages, gratis, o te pases a otro): eso solo cambia a dónde apuntan los QR que imprimas de ahora en adelante, nunca los que ya están pegados.</div>
       <div class="lic-plan" id="qrFijoEstado" data-mod="q"></div>
-      <div class="mz-actions" style="margin-bottom:8px" data-mod="q"><button class="btn-primary" id="qrFijoBtn" type="button">📌 Fijar mis QR impresos</button></div>
+      <div class="mz-actions" style="margin-bottom:8px" data-mod="q"><button class="btn-primary" id="qrFijoBtn" type="button">📌 Fijar mis QR impresos</button><button class="btn-ghost" id="qrProbar" type="button">🩺 Probar pedidos</button></div>
+      <div class="settings-desc" id="qrProbarRes" hidden style="white-space:pre-line;font-weight:600"></div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
         <input id="qrUrl" class="mz-in" placeholder="🌐 Proveedor: dirección donde vive tu página de pedidos" autocapitalize="none" autocomplete="off">
         <input id="qrWa" class="mz-in" placeholder="WhatsApp de respaldo con indicativo (573001234567)" inputmode="numeric">
@@ -18196,12 +18197,38 @@ const qCfg=()=>{
   if(!c.url&&/\.github\.io$/.test(location.hostname))c.url=location.origin+location.pathname.replace(/[^/]*$/,'')+'pedido.html';   // todo desde GitHub: los QR nuevos apuntan a esta misma página
   if(!c.topic){
     const f=qrFijoDe();
+    const usados=qCanalesDatos();
     if(f){c.topic=f.topic;if(!c.url)c.url=f.url||'';if(!c.wa)c.wa=f.wa||'';c.v=Object.assign({},f.v||{},c.v||{});c.fijo=true;}
-    else c.topic='vito'+Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>(b%36).toString(36)).join('');
+    else if(usados.length){c.topic=usados[0];c.deDatos=true;}       // otro celular del negocio ya tiene canal: se usa ese (los QR impresos apuntan ahí)
+    else{c.topic='vito'+Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>(b%36).toString(36)).join('');c.nuevo=Date.now();}
     SS('vito_qr',c);
   }
   return c;
 };
+/* Canales de pedidos del negocio. Cada celular tenía su propio canal guardado SOLO en ese celular: si se
+   borraba, o en un celular nuevo, o en la app de Android (que no comparte memoria con Chrome), Vento creaba
+   un canal nuevo sin avisar y los QR pegados en las mesas seguían mandando al viejo — los pedidos y las
+   canciones no llegaban. Ahora todos los canales que ha usado el negocio quedan en sus datos (viajan con
+   Vento Nube y los respaldos) y Vento escucha TODOS a la vez: llegue por donde llegue, el pedido entra. */
+function qCanalOk(t){return typeof t==='string'&&/^[\w-]{6,64}$/.test(t);}
+function qCanalesDatos(){
+  if(typeof data==='undefined'||!data)return[];
+  const l=(Array.isArray(data.qrCanales)?data.qrCanales:[]).filter(qCanalOk);
+  const f=data.qrFijo&&data.qrFijo.topic;if(qCanalOk(f)&&!l.includes(f))l.unshift(f);
+  return l;
+}
+function qCanales(){
+  const c=qCfg(),l=[c.topic].concat(qCanalesDatos()).filter((t,i,a)=>qCanalOk(t)&&a.indexOf(t)===i);
+  return l.slice(0,6);
+}
+function qCanalRegistrar(){
+  if(typeof data==='undefined'||!data)return;
+  const c=qCfg();if(!qCanalOk(c.topic))return;
+  const l=(Array.isArray(data.qrCanales)?data.qrCanales:[]).filter(qCanalOk);
+  if(l.includes(c.topic))return;
+  if(c.fijo)l.unshift(c.topic);else l.push(c.topic);   // el primero que quedó (o el de los QR fijados) va de primero
+  data.qrCanales=l.slice(0,6);saveData();
+}
 function qrFijoSync(){
   const c=LS('vito_qr',{});
   if(!c.fijo||!c.topic||typeof data==='undefined'||!data)return;
@@ -18377,6 +18404,7 @@ function imprimirQR(){
   setTimeout(()=>{window.addEventListener('afterprint',quitar);try{window.print();}catch(e){}setTimeout(()=>document.addEventListener('pointerdown',quitar,true),1500);},400);
 }
 let es=null,esOn=false,esAct=0,esTime=0,esTimer=null,esRetry=0,esPolling=false;
+let esCanales='';
 function estado(s){
   const t={on:'🟢 Conectado: los pedidos, cuentas y canciones llegan solos.',err:'🟠 Sin conexión. Reintentando…',off:'⚪ Apagado.'}[s];
   ['mzEstado','qrEstado'].forEach(i=>{if($(i))$(i).textContent=t;});
@@ -18391,7 +18419,7 @@ function recibir(m){
   if(m.topic&&m.topic===mTopic()){try{procesarMesero(String(m.message||'').slice(0,1500));}catch(e){console.error(e);}return;}
   if(m.topic&&m.topic===pTopic()+'r'){try{procesarPrep(String(m.message||'').slice(0,1500));}catch(e){console.error(e);}return;}
   // 600: un domicilio (nombre + teléfono + dirección + productos) es más largo que un pedido de mesa.
-  window.__ntfyMsgId=m.id;
+  window.__ntfyMsgId=m.id;window.__ntfyTopic=m.topic||'';
   try{procesar(String(m.message||'').slice(0,4000));}catch(e){console.error(e);}
 }
 /* ---------- App de meseros (mesero.html) ----------
@@ -18513,7 +18541,9 @@ function conectar(){
   if(es){es.close();es=null;}
   if(!c.live){estado('off');return;}
   // Al reconectar se pide solo lo que llegó desde el último mensaje (no las 12 h otra vez)
-  const tops=c.topic+(mCfg().on?','+mTopic():'')+(prepOn()?','+pTopic()+'r':'');
+  try{qCanalRegistrar();}catch(e){}
+  esCanales=qCanales().join(',');
+  const tops=esCanales+(mCfg().on?','+mTopic():'')+(prepOn()?','+pTopic()+'r':'');
   try{es=new EventSource('https://ntfy.sh/'+tops+'/sse?since='+(esTime||'12h'));}catch(e){estado('err');esProgramar();return;}
   const mine=es;esTouch();
   es.onopen=()=>{esTouch();esRetry=0;estado('on');};
@@ -18530,13 +18560,30 @@ async function sondear(){
   const c=qCfg();if(!c.live||esPolling||!esOn)return;esPolling=true;
   try{
     const ctrl=new AbortController(),tmo=setTimeout(()=>ctrl.abort(),8000);
-    const r=await fetch('https://ntfy.sh/'+c.topic+(mCfg().on?','+mTopic():'')+(prepOn()?','+pTopic()+'r':'')+'/json?poll=1&since='+(esTime||Math.floor(Date.now()/1000)-1800),{signal:ctrl.signal,cache:'no-store'});
+    const r=await fetch('https://ntfy.sh/'+qCanales().join(',')+(mCfg().on?','+mTopic():'')+(prepOn()?','+pTopic()+'r':'')+'/json?poll=1&since='+(esTime||Math.floor(Date.now()/1000)-1800),{signal:ctrl.signal,cache:'no-store'});
     clearTimeout(tmo);
     if(!r.ok)return;
     (await r.text()).split('\n').forEach(l=>{if(!l.trim())return;try{recibir(JSON.parse(l));}catch(e){}});
     try{if(window.vitoCheckNotif)window.vitoCheckNotif();}catch(e){}
   }catch(e){}finally{esPolling=false;}
 }
+// 🩺 Probar pedidos: se manda un mensaje de prueba por el canal de los QR y se espera verlo llegar.
+async function qProbarPedidos(){
+  const c=qCfg(),out=[],can=qCanales();
+  out.push((es&&es.readyState===1?'✅':'⚠️')+' Recepción en vivo: '+(es&&es.readyState===1?'conectada':'reconectando…')+'.');
+  out.push('📡 Escuchando '+can.length+(can.length===1?' canal':' canales')+' de pedidos: '+can.map(t=>t.slice(0,8)+'…').join(', ')+'.');
+  const id='pr'+Date.now().toString(36);window.__qPrueba=window.__qPrueba||{};
+  const llego=new Promise(res=>{window.__qPrueba[id]=res;setTimeout(()=>res(null),15000);});
+  try{const r=await fetch('https://ntfy.sh/'+c.topic,{method:'POST',body:JSON.stringify({t:'prueba',id,at:Date.now()})});
+    if(!r.ok)out.push('❌ ntfy no dejó enviar (error '+r.status+(r.status===429?': se acabó el cupo de mensajes de hoy en esta conexión; prueba con datos móviles':'')+').');}
+  catch(e){out.push('❌ Sin internet para enviar la prueba.');}
+  setTimeout(()=>{try{sondear();}catch(e){}},2500);
+  const t=await llego;delete window.__qPrueba[id];
+  out.push(t?'✅ La prueba llegó: los pedidos y canciones de los QR entran a Vento.':'❌ La prueba NO llegó en 15 s. Revisa el internet de este celular; si sigue, toca «📌 Fijar mis QR impresos» y escanea un QR de una mesa.');
+  if(!c.fijo&&!(data.qrCanales||[]).length)out.push('ℹ️ Si tus QR se imprimieron en OTRO celular, toca «📌 Fijar mis QR impresos» para que este escuche ese canal.');
+  return out;
+}
+window.vitoDespertarPedidos=()=>{try{despertar();}catch(e){}};
 function despertar(){
   if(!esOn)return;
   if(!es||es.readyState===2||Date.now()-esAct>45000)conectar();
@@ -18544,7 +18591,7 @@ function despertar(){
 }
 setInterval(()=>{
   if(!esOn||!qCfg().live)return;
-  if(!es||es.readyState===2||Date.now()-esAct>100000)conectar();   // sin señales de vida: se reconecta sola
+  if(!es||es.readyState===2||Date.now()-esAct>100000||qCanales().join(',')!==esCanales)conectar();   // sin señales de vida: se reconecta sola
 },15000);
 setInterval(()=>{if(document.visibilityState==='visible')sondear();},20000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')despertar();});
@@ -18582,6 +18629,7 @@ function procesar(txt){
     if(o&&o.t==='pedido'){pedidoEntrante(o,'qr');return;}
     if(o&&o.t==='cancion'){const id=parseInt(o.mesa,10);if(!id)return;const r=agregarCancion(id,String(o.s||'').slice(0,120),String(o.id||'').slice(0,40));if(r.nuevo!==false&&notifMusica())showToast(r.msg);renderMusica();return;}
     if(o&&o.t==='estado')return;                                   // eco de nuestros propios avisos
+    if(o&&o.t==='prueba'){if(o.id&&window.__qPrueba&&window.__qPrueba[o.id])window.__qPrueba[o.id](window.__ntfyTopic);return;}
   }
   const dm=/^DOMICILIO\s*:?\s*([\s\S]*)$/i.exec(txt.trim());
   if(dm){ domRecibir(dm[1]); if(navigator.vibrate)navigator.vibrate(200); return; }
@@ -18633,7 +18681,7 @@ function pedidoProducto(nombre){
   return data.products.find(p=>!p.oculto&&normVoiceText(p.name)===k)||data.products.find(p=>normVoiceText(p.name+' '+(p.size||''))===k)||matchProductVoice(nombre)||null;
 }
 function pedidoPublicar(p){
-  try{fetch('https://ntfy.sh/'+qCfg().topic+'e',{method:'POST',body:JSON.stringify({t:'estado',id:p.id,e:p.estado,m:p.mesa,n:PEDIDO_EST[p.estado],at:Date.now()})}).catch(()=>{});}catch(e){}
+  try{fetch('https://ntfy.sh/'+(p.canal&&qCanalOk(p.canal)?p.canal:qCfg().topic)+'e',{method:'POST',body:JSON.stringify({t:'estado',id:p.id,e:p.estado,m:p.mesa,n:PEDIDO_EST[p.estado],at:Date.now()})}).catch(()=>{});}catch(e){}
 }
 function pedidoAplicar(p){
   if(p.aplicado)return;
@@ -18663,7 +18711,7 @@ function pedidoEntrante(o,origen){
   }).filter(x=>x.name);
   if(!items.length)return null;
   const p={id,mesa,mesaNombre:tableLabel(mesa),items,total:items.reduce((s,i)=>s+i.qty*i.price,0),nota:String(o.nota||'').slice(0,140),
-    at:Number(o.at)||Date.now(),recibidoEn:Date.now(),estado:'nuevo',origen:origen||'qr',negocio:qCfg().topic,hist:[{e:'nuevo',at:Date.now()}]};
+    at:Number(o.at)||Date.now(),recibidoEn:Date.now(),estado:'nuevo',origen:origen||'qr',negocio:qCfg().topic,canal:qCanalOk(window.__ntfyTopic)?window.__ntfyTopic:qCfg().topic,hist:[{e:'nuevo',at:Date.now()}]};
   pedidosLista().push(p);
   try{const g=window.vitoGrupos&&window.vitoGrupos.de(mesa);if(g&&window.ventoAuditar)window.ventoAuditar('pedido en grupo','Nuevo pedido de '+tableLabel(mesa)+' agregado al grupo '+window.vitoGrupos.etiqueta(g)+': '+items.map(i=>i.qty+' '+i.name).join(', '),[mesa]);}catch(e){}
   if(pedidosAuto()){pedidoAplicar(p);p.estado='recibido';p.hist.push({e:'recibido',at:Date.now()});}
@@ -18765,6 +18813,9 @@ function iniQR(){
   }
   $('qrGen').onclick=()=>pintarQR($('qrGrid'));
   $('qrFijoBtn').onclick=qrFijoDialogo;
+  $('qrProbar').onclick=async()=>{const b=$('qrProbar'),r=$('qrProbarRes');b.disabled=true;b.textContent='⏳ Probando…';r.hidden=false;r.textContent='Mandando un pedido de prueba por el canal de tus QR…';
+    try{const o=await qProbarPedidos();r.textContent=o.join('\n');showToast(o.some(x=>x.startsWith('❌'))?'⚠️ '+o.find(x=>x.startsWith('❌')).replace(/^❌\s*/,''):'✅ Los pedidos y canciones de los QR están llegando.',9000);}
+    finally{b.disabled=false;b.textContent='🩺 Probar pedidos';}};
   $('qrUrl').addEventListener('change',()=>{const f=qrFijoDe();if(f&&f.url&&$('qrUrl').value.trim()!==f.url)showToast('✅ Cambiaste de proveedor: los QR que YA pegaste en las mesas (con «'+f.url+'») siguen sirviendo exactamente igual. Esto solo define a dónde apuntan los QR NUEVOS que imprimas de aquí en adelante.',9000);});
   qrFijoSync();qrFijoEstado();qrFijoDesdeHash();
   window.addEventListener('hashchange',qrFijoDesdeHash);
@@ -19750,7 +19801,7 @@ async function publicarCatalogo(force){
 window.vitoPublicarCatalogo = publicarCatalogo;
 window.vitoQCfg = qCfg;   // lo usan los domicilios por web/WhatsApp, que viven fuera de este módulo
 // Lo que usan las fotos de la carta y la transmisión al TV (script del final).
-window.vitoMod = { yRenovarServidor, linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, mzEmpezo, mzTermino, mzProgreso, yLista, ytAgregar, ySearch, yGet, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente, ytDur, ytPosicionSiguiente, ytTanda: () => ytTanda, procesar, notifPedidos, notifMusica };
+window.vitoMod = { yRenovarServidor, linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, qCanales, qProbarPedidos, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, mzEmpezo, mzTermino, mzProgreso, yLista, ytAgregar, ySearch, yGet, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente, ytDur, ytPosicionSiguiente, ytTanda: () => ytTanda, procesar, notifPedidos, notifMusica };
 function publicarCuentas(){
   if(typeof data==='undefined'||!data)return;
   try{publicarCatalogo();}catch(e){}             // la carta se publica siempre (aunque "en vivo" esté apagado)
@@ -21668,7 +21719,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-03 · v1.22.1';
+const MESORA_VERSION = '2026-10-03 · v1.22.2';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22788,6 +22839,7 @@ window.ventoLatido = () => {
   try{ if(lngOn()) lngSync(); }catch(e){}
   try{ if(lngOn() && latidoN % 3 === 0) lngVigilar(); }catch(e){}
   try{ if(vm().tvOn && vm().tvOn() && latidoN % 4 === 0 && typeof tvPublicar === 'function') tvPublicar(); }catch(e){}
+  try{ if(latidoN % 3 === 0 && window.vitoDespertarPedidos) window.vitoDespertarPedidos(); }catch(e){}
 };
 // «Saltar» en Vento cuando suena en el YouTube del TV: el TV pasa a la siguiente de su cola.
 function lngSaltar(){ if(lngOn()) lngCmd('next', {}).then(() => { lng.ultimoEnvio = Date.now(); }).catch(e => lngLog('   ⚠️ saltar: ' + (e.message || e))); }
