@@ -22074,7 +22074,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-03 · v1.26';
+const MESORA_VERSION = '2026-10-03 · v1.26.1';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22930,7 +22930,7 @@ async function lngBind(){
   }, tok);
   const sid = (t.match(/"c"\s*,\s*"([^"]+)"/) || [])[1], gs = (t.match(/"S"\s*,\s*"([^"]+)"/) || [])[1];
   if(!sid) throw new Error('El TV no respondió. Enciéndelo y abre la app de YouTube.');
-  lng.sid = sid; lng.gs = gs || ''; lng.t = Date.now();
+  lng.sid = sid; lng.gs = gs || ''; lng.t = Date.now(); lng.pantallaFuera = 0;
   lng.fallas = 0; lng.pausaHasta = 0;   // el TV respondió: se olvidan los errores de antes (no se espera nada)
   lng.tvPlay = lngEstadoTV(t); lngLeerTV(t);
   // Prueba de que el TV DE VERDAD llegó a reproducir. Sin esta prueba no se puede dar por
@@ -23001,6 +23001,9 @@ async function lngAsegurar(fresca){
   // Con el canal en vivo abierto (app de Android), el TV ya contó todo al instante y la sesión sigue viva:
   // no se vuelve a saludar (cada saludo abría una sesión nueva).
   if(lng.sid && lngEscVivo()){ lng.t = Date.now(); return; }
+  // «vigilar» (revisión periódica en el navegador): como mucho un saludo cada 20 s, para que el TV no vea a Vento
+  // conectarse y desconectarse a cada rato.
+  if(fresca === 'vigilar'){ if(!lng.sid || Date.now() - lng.t > 20000) await lngBind(); return; }
   if(fresca || !lng.sid || Date.now() - lng.t > 60000) await lngBind();
 }
 async function lngCmd(sc, datos, reintento){
@@ -23280,7 +23283,10 @@ function lngSaltar(){ if(lngOn()) lngCmd('next', {}).then(() => { lng.ultimoEnvi
    qué suena, si pausó, si pasó a la siguiente o si cambió la lista. Sin la app (navegador) se sigue preguntando
    cada pocos segundos, como antes. */
 const lngEscOk = () => lngPuenteApp() && typeof window.VentoAndroid.escucharTV === 'function';
-const lngEscVivo = () => !!(lng.escId && lng.escSid === lng.sid && Date.now() - (lng.escUlt || 0) < 100000);
+// El canal está vivo mientras esté abierto (si se cae, la app avisa con __ventoTVcerro). Antes se daba por muerto si el TV
+// pasaba 100 s sin decir nada (p. ej. sonando una canción larga): Vento abría otra sesión y el TV veía que Vento se
+// desconectaba y se volvía a conectar todo el tiempo.
+const lngEscVivo = () => !!(lng.escId && lng.escSid === lng.sid);
 async function lngEscuchar(){
   if(!lngEscOk() || !lngOn() || !lng.sid) return;
   if(lng.escId && lng.escSid === lng.sid) return;               // ya escuchando esta sesión
@@ -23315,7 +23321,8 @@ window.__ventoTVev = (id, txt) => {
       if(d.state != null && d.state !== '') lng.tvSt = Number(d.state);
       if(d.currentTime != null && d.currentTime !== '') lng.tvT = Number(d.currentTime);
       if(d.duration != null && d.duration !== '') lng.tvD = Number(d.duration);
-    } else if(n === 'loungeScreenDisconnected' || n === 'noop'){ /* nada */ }
+    } else if(n === 'loungeScreenDisconnected'){ lng.pantallaFuera = Date.now(); lngLog('📴 el TV se desconectó (apagado o cerró YouTube)'); }
+    else if(n === 'loungeScreenConnected' || n === 'loungeStatus'){ if(n === 'loungeScreenConnected' || (d && d.devices && /SCREEN/.test(String(d.devices)))) lng.pantallaFuera = 0; }
   });
   // el resto (aparatos conectados, lista del TV) con el mismo lector del saludo
   try{ lngLeerMas(JSON.stringify(ev.map(([n, d, k]) => [k, [n, d]]))); }catch(e){}
@@ -23496,7 +23503,11 @@ function lngVivoPintar(){
 async function lngVivo(forzar){
   if(!lngOn() || document.visibilityState !== 'visible') return;
   const sec = document.getElementById('view-musica'); if(!forzar && (!sec || !sec.classList.contains('active'))) return;
-  if(!forzar && (Date.now() - lng.t < 7000 || lngEscVivo())){ lngVivoPintar(); if(!lngEscVivo()) lngEscuchar(); return; }
+  // Con el canal en vivo NUNCA se abre otra sesión (ni a mano): el TV ya contó todo al instante.
+  if(lngEscVivo()){ lngVivoPintar(); return; }
+  // Sin canal en vivo (navegador): cada saludo es una sesión nueva y el TV lo ve como «se conectó / se desconectó»;
+  // por eso se pregunta cada 25 s y no cada 8 s.
+  if(!forzar && Date.now() - lng.t < (lngEscOk() ? 7000 : 25000)){ lngVivoPintar(); if(lngEscOk()) lngEscuchar(); return; }
   if(!lngTomar(!!forzar)) return;
   try{ await lngBind(); lngResultado(true); }
   catch(e){ lngResultado(false); }
@@ -23513,6 +23524,8 @@ async function lngVivoCmd(sc, txt){
 // ¿El TV vinculado está prendido? Lo dice el TV en cada saludo: si en la lista de aparatos conectados no
 // está la pantalla, el TV está apagado o sin internet (o en otra red). null = todavía no se sabe.
 function lngTVEnLinea(){
+  if(lng.pantallaFuera && Date.now() - lng.pantallaFuera < 10 * 60000) return false;   // el TV avisó que se desconectó
+  if(lngEscVivo() || ((lng.tvSt === 1 || lng.tvSt === 2 || lng.tvSt === 3) && lng.tvAt && Date.now() - lng.tvAt < 5 * 60000)) return true;
   if(!lng.disp || !lng.tvAt || Date.now() - lng.tvAt > 3 * 60000) return null;
   return lng.disp.some(x => /SCREEN/i.test(x.tipo));
 }
