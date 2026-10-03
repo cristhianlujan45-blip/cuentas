@@ -51,6 +51,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Enlaces «vento://abrir…» (p. ej. el del correo para cambiar la contraseña): abren Vento en la app. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="vento" android:host="abrir" />
+            </intent-filter>
         </activity>
 
         <!-- Vento trabajando de fondo (aviso fijo en la barra): no se cierra al quitar la app de recientes -->

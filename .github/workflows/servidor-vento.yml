@@ -70,17 +70,37 @@ jobs:
             VENTO_ORIGENES="https://${OWNER}.github.io,http://localhost:8765,http://127.0.0.1:8765" \
             VENTO_CRON_SECRETO="$CRON"
 
-      - name: Correo con código para recuperar la contraseña
+      - name: Correo para recuperar la contraseña
         if: steps.listo.outputs.ok == 'true'
+        env:
+          SMTP_HOST: ${{ secrets.VENTO_SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.VENTO_SMTP_PORT }}
+          SMTP_USER: ${{ secrets.VENTO_SMTP_USER }}
+          SMTP_PASS: ${{ secrets.VENTO_SMTP_PASS }}
+          SMTP_FROM: ${{ secrets.VENTO_SMTP_FROM }}
         run: |
-          # El correo de acceso (Magic Link / confirmación) trae un CÓDIGO de 6 números: Vento lo pide en la app
-          # para cambiar la contraseña (funciona igual en el navegador y en la app de Android).
-          CUERPO='<h2>Vento</h2><p>Tu código para entrar o cambiar la contraseña es:</p><p style="font-size:30px;font-weight:bold;letter-spacing:6px">{{ .Token }}</p><p>Escríbelo en Vento. Vence en 15 minutos. Si no lo pediste, ignora este correo.</p>'
-          jq -n --arg c "$CUERPO" '{mailer_subjects_magic_link:"Tu código de Vento", mailer_templates_magic_link_content:$c, mailer_subjects_confirmation:"Tu código de Vento", mailer_templates_confirmation_content:$c, mailer_otp_exp:900, mailer_otp_length:6}' > /tmp/auth.json
-          C=$(curl -s -o /tmp/auth.out -w '%{http_code}' -X PATCH "https://api.supabase.com/v1/projects/${PROJECT_REF}/config/auth" \
-            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H 'Content-Type: application/json' --data @/tmp/auth.json)
-          echo "Respuesta de Supabase: $C"
-          if [ "$C" -ge 200 ] && [ "$C" -lt 300 ]; then echo "✅ Correo con código configurado"; else echo "::warning title=Correo de recuperación::No se pudo configurar la plantilla ($C): $(head -c 300 /tmp/auth.out)"; fi
+          API="https://api.supabase.com/v1/projects/${PROJECT_REF}/config/auth"
+          H=(-H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H 'Content-Type: application/json')
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"; REPO="${GITHUB_REPOSITORY#*/}"; SITIO="https://${OWNER}.github.io/${REPO}/"
+          # 1) El enlace del correo puede volver a Vento (si no, Supabase lo manda a otra dirección).
+          ACT=$(curl -s "${H[@]}" "$API")
+          LISTA=$(echo "$ACT" | jq -r --arg s "${SITIO}**" '(.uri_allow_list // "") | split(",") | map(select(length>0)) | (. + [$s]) | unique | join(",")')
+          jq -n --arg l "$LISTA" --arg s "$SITIO" --arg cur "$(echo "$ACT" | jq -r '.site_url // ""')" '{uri_allow_list:$l} + (if ($cur|length)==0 or ($cur|test("localhost")) then {site_url:$s} else {} end)' > /tmp/a1.json
+          C=$(curl -s -o /tmp/a1.out -w '%{http_code}' -X PATCH "${H[@]}" "$API" --data @/tmp/a1.json); echo "Direcciones permitidas: $C"
+          [ "$C" -ge 200 ] && [ "$C" -lt 300 ] || echo "::warning title=Correo de recuperación::No se pudo permitir la vuelta a Vento ($C): $(head -c 300 /tmp/a1.out)"
+          # 2) Opcional: correo propio (SMTP). Sin él, Supabase gratis solo manda a los correos del equipo de Supabase
+          #    y con su texto de siempre (enlace). Con él: a cualquier correo y con código de 6 números.
+          if [ -n "$SMTP_HOST" ] && [ -n "$SMTP_USER" ] && [ -n "$SMTP_PASS" ]; then
+            CUERPO='<h2>Vento</h2><p>Tu código para entrar o cambiar la contraseña es:</p><p style="font-size:30px;font-weight:bold;letter-spacing:6px">{{ .Token }}</p><p>O toca este enlace desde tu celular: <a href="{{ .ConfirmationURL }}">cambiar mi contraseña</a></p><p>Vence en 15 minutos. Si no lo pediste, ignora este correo.</p>'
+            jq -n --arg h "$SMTP_HOST" --arg p "${SMTP_PORT:-587}" --arg u "$SMTP_USER" --arg w "$SMTP_PASS" --arg f "${SMTP_FROM:-$SMTP_USER}" --arg c "$CUERPO" \
+              '{external_email_enabled:true, smtp_host:$h, smtp_port:$p, smtp_user:$u, smtp_pass:$w, smtp_admin_email:$f, smtp_sender_name:"Vento", rate_limit_email_sent:30,
+                mailer_subjects_magic_link:"Tu código de Vento", mailer_templates_magic_link_content:$c, mailer_subjects_confirmation:"Tu código de Vento", mailer_templates_confirmation_content:$c,
+                mailer_subjects_recovery:"Cambiar tu contraseña de Vento", mailer_templates_recovery_content:$c, mailer_otp_exp:900, mailer_otp_length:6}' > /tmp/a2.json
+            C=$(curl -s -o /tmp/a2.out -w '%{http_code}' -X PATCH "${H[@]}" "$API" --data @/tmp/a2.json); echo "Correo propio (SMTP): $C"
+            [ "$C" -ge 200 ] && [ "$C" -lt 300 ] && echo "✅ Correo propio configurado: llegan a cualquier correo y con código" || echo "::warning title=Correo propio::No se pudo configurar el SMTP ($C): $(head -c 300 /tmp/a2.out)"
+          else
+            echo "ℹ️ Sin correo propio (secretos VENTO_SMTP_*): se usa el de Supabase (enlace; solo a los correos del equipo de Supabase)."
+          fi
 
       - name: Servidor de pagos (Edge Function vento-pagos)
         if: steps.listo.outputs.ok == 'true'

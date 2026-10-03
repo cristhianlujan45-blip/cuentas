@@ -50,12 +50,32 @@ public class MainActivity extends Activity {
         if (web.getParent() instanceof ViewGroup) ((ViewGroup) web.getParent()).removeView(web);
         setContentView(web);
 
+        abrirEnlace(getIntent());
+
         // Trabajar de fondo: prendido por defecto (se puede apagar desde Vento).
         if (getSharedPreferences("vento", MODE_PRIVATE).getBoolean("fondo", true)) {
             pedirPermisoAvisos();
             VentoServicio.arrancar(this);
             pedirSinAhorroBateria(false);
         }
+    }
+
+    @Override
+    protected void onNewIntent(Intent i) {
+        super.onNewIntent(i);
+        setIntent(i);
+        abrirEnlace(i);
+    }
+
+    /** «vento://abrir?…#…» → abre esa misma dirección dentro de Vento (con sus datos, p. ej. el enlace del correo). */
+    private void abrirEnlace(Intent i) {
+        try {
+            Uri u = i == null ? null : i.getData();
+            if (u == null || !"vento".equals(u.getScheme())) return;
+            String q = u.getEncodedQuery(), f = u.getEncodedFragment();
+            String url = VentoApp.URL_VENTO + (q == null || q.isEmpty() ? "" : "?" + q) + (f == null || f.isEmpty() ? "" : "#" + f);
+            if (web != null) web.loadUrl(url);
+        } catch (Exception ignorado) { }
     }
 
     @Override

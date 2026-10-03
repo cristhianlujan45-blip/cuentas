@@ -228,10 +228,26 @@
   // ---------- Código por correo (recuperar contraseña) ----------
   // Supabase manda al correo un código de 6 números (plantilla «Magic Link» con {{ .Token }}, la configura el
   // flujo «Servidor Vento»). Con ese código se comprueba que la persona es dueña del correo.
-  function codigoCorreo(email){
-    return cliente().then(function(c){ return c.auth.signInWithOtp({ email: email, options: { shouldCreateUser: true } }); })
+  function codigoCorreo(email, volverA){
+    var o = { shouldCreateUser: true }; if(volverA) o.emailRedirectTo = volverA;
+    return cliente().then(function(c){ return c.auth.signInWithOtp({ email: email, options: o }); })
       .then(function(r){ if(r.error) throw r.error; return true; });
   }
+  // Cuenta de Vento Nube: enlace para poner contraseña nueva.
+  function enlaceClave(email, volverA){
+    return cliente().then(function(c){ return c.auth.resetPasswordForEmail(email, { redirectTo: volverA }); })
+      .then(function(r){ if(r.error) throw r.error; return true; });
+  }
+  // El enlace del correo trae un permiso (access_token). Se le pregunta al servidor de quién es (así no se
+  // puede inventar uno), se cambia la contraseña con él y después se cierra.
+  function api(ruta, token, metodo, cuerpo){
+    var c = cfg();
+    return fetch(c.url.replace(/\/+$/, '') + '/auth/v1/' + ruta, { method: metodo || 'GET', headers: { apikey: c.key, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: cuerpo ? JSON.stringify(cuerpo) : undefined })
+      .then(function(r){ return r.text().then(function(t){ var j = {}; try{ j = JSON.parse(t); }catch(e){} if(!r.ok) throw new Error(j.msg || j.message || j.error_description || ('Error ' + r.status)); return j; }); });
+  }
+  function correoDeEnlace(token){ return api('user', token).then(function(u){ if(!u || !u.email) throw new Error('El enlace no es válido.'); return String(u.email).toLowerCase(); }); }
+  function claveConEnlace(token, pass){ return api('user', token, 'PUT', { password: pass }).then(function(){ return true; }); }
+  function soltarEnlace(token){ return api('logout?scope=local', token, 'POST').catch(function(){}); }
   function verificarCorreo(email, codigo){
     return cliente().then(function(c){ return c.auth.verifyOtp({ email: email, token: String(codigo || '').replace(/\D/g, ''), type: 'email' }); })
       .then(function(r){ if(r.error) throw r.error; return true; });
@@ -321,7 +337,7 @@
         '<label>Contraseña<input id="nubePass" type="password" autocomplete="current-password"></label>' +
         '<label>Tu nombre (solo para crear la cuenta)<input id="nubeNombre" autocomplete="name" placeholder="Ej: Ana"></label>' +
         '<div class="nube-fila"><button type="button" class="btn-primary" id="nubeEntrar">Entrar</button><button type="button" class="btn-ghost" id="nubeCrear">Crear cuenta</button></div>' +
-        '<button type="button" class="auth-link" id="nubeOlvide">¿Olvidaste tu contraseña? Te mando un código al correo</button>' +
+        '<button type="button" class="auth-link" id="nubeOlvide">¿Olvidaste tu contraseña? Te mando un enlace al correo</button>' +
         '<button type="button" class="auth-link" id="nubeCambiarCfg">Cambiar la base de datos conectada</button>';
       var datos = function(){ return { e: q('nubeEmail').value.trim().toLowerCase(), p: q('nubePass').value, n: q('nubeNombre').value.trim() }; };
       q('nubeEntrar').onclick = function(){ var d = datos(); if(!d.e || !d.p) return msg('Escribe tu correo y contraseña.', true); accion(this, function(){ return entrar(d.e, d.p).then(pintar); }); };
@@ -330,13 +346,8 @@
       q('nubeOlvide').onclick = function(){
         var e = q('nubeEmail').value.trim().toLowerCase();
         if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return msg('Escribe arriba tu correo y vuelve a tocar aquí.', true);
-        var b = this;
-        accion(b, function(){ return codigoCorreo(e).then(function(){
-          msg('📧 Te mandé un código de 6 números a ' + e + '. Revisa también «Spam».');
-          var cod = prompt('Escribe el código que te llegó a ' + e + ':'); if(!cod) return;
-          var p1 = prompt('Escribe tu contraseña nueva (mínimo 6 caracteres):'); if(!p1) return;
-          if(p1.length < 6) return msg('La contraseña debe tener al menos 6 caracteres.', true);
-          return verificarCorreo(e, cod).then(function(){ return nuevaClave(p1); }).then(function(){ st.email = e; guardarSt(); msg('✅ Contraseña cambiada. Ya entraste.'); pintar(); });
+        accion(this, function(){ return enlaceClave(e, location.origin + location.pathname + '?nubeclave=1').then(function(){
+          msg('📧 Te mandé un enlace a ' + e + ' (revisa también «Spam»). Ábrelo desde este celular: Vento te pide la contraseña nueva.');
         }); });
       };
       q('nubeCambiarCfg').onclick = function(){ if(confirm('¿Desconectar esta base de datos de este celular?')){ localStorage.removeItem(K_CFG); sb = null; pintar(); } };
@@ -406,7 +417,7 @@
     // Para el módulo de pagos (nube/vento-pagos.js): mismo cliente, sesión y negocio.
     negocio: function(){ return st.negocio && configurada() ? { id: st.negocio.id, nombre: st.negocio.nombre, rol: st.negocio.rol } : null; },
     cliente: cliente, config: cfg,
-    msgError: msgError, codigoCorreo: codigoCorreo, verificarCorreo: verificarCorreo, nuevaClave: nuevaClave, soltarSesion: soltarSesion,
+    msgError: msgError, codigoCorreo: codigoCorreo, enlaceClave: enlaceClave, correoDeEnlace: correoDeEnlace, claveConEnlace: claveConEnlace, soltarEnlace: soltarEnlace, verificarCorreo: verificarCorreo, nuevaClave: nuevaClave, soltarSesion: soltarSesion,
     _fusionar: fusionar
   };
   if(st.negocio && configurada()){ if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar); else arrancar(); }

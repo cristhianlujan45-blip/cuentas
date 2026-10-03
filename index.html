@@ -3426,7 +3426,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
         <button class="btn-warn" id="accRcBtn" type="button">🔐 Crear mis códigos</button>
       </div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch">
-        <div class="settings-row-text"><strong>📧 Correo de recuperación</strong><span>Si olvidas la contraseña, te llega un código de 6 números a este correo para poner una nueva. Se comprueba con un código antes de guardarlo.</span><span id="accMailState" style="margin-top:4px;font-weight:700"></span></div>
+        <div class="settings-row-text"><strong>📧 Correo de recuperación</strong><span>Si olvidas la contraseña, te llega un correo con un enlace para poner una nueva (desde el mismo celular). Para cambiarlo te pide tu contraseña actual.</span><span id="accMailState" style="margin-top:4px;font-weight:700"></span></div>
         <button class="btn-ghost" id="accMailBtn" type="button">📧 Agregar mi correo</button>
       </div>
       <div class="settings-row">
@@ -4681,7 +4681,7 @@ export default {
     <h2>Recuperar contraseña</h2>
     <div class="auth-hint">Usa uno de tus <b>códigos de recuperación</b> (los que imprimiste o guardaste al crearlos en Ajustes → Negocio). Cada código sirve una sola vez.<br>¿No los tienes? Si hay <b>otro administrador</b>, pídele que te ponga una contraseña nueva en Ajustes → Usuarios (🔑).</div>
     <label>Usuario<input id="recUser" autocapitalize="none" autocomplete="username"></label>
-    <div class="auth-hint" id="recMailBox">📧 <b>Con tu correo</b> (si lo guardaste en Ajustes → Negocio): <button type="button" class="btn-ghost" id="recMailBtn" style="margin-top:6px;width:100%">📧 Enviarme un código al correo</button><div id="recMailTxt" style="margin-top:6px"></div></div>
+    <div class="auth-hint" id="recMailBox">📧 <b>Con tu correo</b> (si lo guardaste en Ajustes → Negocio): <button type="button" class="btn-ghost" id="recMailBtn" style="margin-top:6px;width:100%">📧 Enviarme un enlace al correo</button><div id="recMailTxt" style="margin-top:6px"></div></div>
     <label>Código (de recuperación o el que te llegó al correo)<input id="recCode" placeholder="XXXX-XXXX-XXXX  ó  123456" autocapitalize="characters" autocomplete="one-time-code"></label>
     <label>Contraseña nueva<input id="recNew" type="password" autocomplete="new-password"></label>
     <label>Repite la contraseña nueva<input id="recNew2" type="password" autocomplete="new-password"></label>
@@ -16859,6 +16859,69 @@ async function authRecover(user, code, newPass, newPass2){
   const q = authCodigosQuedan(u);
   return { ok: true, quedan: q };
 }
+/* Enlace del correo (recuperar contraseña): llega con un permiso en la dirección (#access_token=…). Se guarda y se
+   borra de la dirección de inmediato (no queda a la vista ni en el historial) y luego se le pide al servidor de quién es. */
+const authEnlace = (() => {
+  try{
+    const h = new URLSearchParams(location.hash.replace(/^#/, '')), q = new URLSearchParams(location.search);
+    const tok = h.get('access_token'), tipo = h.get('type') || '', err = h.get('error_description') || h.get('error');
+    if(!tok && !err) return null;
+    const r = { tok, tipo, err, user: q.get('recuperar') || '', nube: q.get('nubeclave') === '1', hash: location.hash.replace(/^#/, ''), query: location.search.replace(/^\?/, '') };
+    history.replaceState(null, '', location.pathname);
+    return r;
+  }catch(e){ return null; }
+})();
+function authEnlaceDialogo(titulo, texto, conClave){
+  return new Promise(res => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2147483100;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML = '<form style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:10px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:18px">' +
+      '<b style="font-size:18px"></b><div class="auth-hint" style="white-space:pre-line"></div>' +
+      (conClave ? '<label>Contraseña nueva<input type="password" name="a" autocomplete="new-password"></label><label>Repite la contraseña nueva<input type="password" name="b" autocomplete="new-password"></label><div class="auth-err"></div><button class="btn-primary" type="submit">Guardar contraseña</button>' : '') +
+      '<div class="ex" style="display:flex;flex-direction:column;gap:8px"></div><button class="btn-ghost" type="button" data-x>Cerrar</button></form>';
+    ov.querySelector('b').textContent = titulo; ov.querySelector('.auth-hint').textContent = texto;
+    document.body.appendChild(ov);
+    const f = ov.querySelector('form');
+    ov.querySelector('[data-x]').onclick = () => { ov.remove(); res(null); };
+    if(conClave) f.onsubmit = e => { e.preventDefault(); const a = f.a.value, b = f.b.value, er = f.querySelector('.auth-err');
+      if(a.length < 6) return er.textContent = 'Debe tener al menos 6 caracteres.'; if(a !== b) return er.textContent = 'Las dos no son iguales.'; ov.remove(); res(a); };
+    res.ov = ov; ov.__res = res;
+    authEnlaceDialogo.ultimo = ov;
+  });
+}
+async function authEnlaceProcesar(){
+  const L = authEnlace; if(!L) return;
+  const nb = window.ventoNube;
+  if(L.err) return authEnlaceDialogo('📧 El enlace no sirvió', 'El enlace del correo ya se usó o venció. Vuelve a pedir otro en «¿Olvidaste tu contraseña?».');
+  let correo;
+  try{ correo = await nb.correoDeEnlace(L.tok); }
+  catch(e){ return authEnlaceDialogo('📧 El enlace no sirvió', 'El enlace del correo ya se usó o venció. Vuelve a pedir otro en «¿Olvidaste tu contraseña?».'); }
+  if(L.nube){                                                  // cuenta de Vento Nube
+    const p = await authEnlaceDialogo('🔑 Contraseña nueva', 'Correo comprobado: ' + correo + '.\nEscribe tu contraseña nueva de Vento Nube.', true);
+    if(!p) return nb.soltarEnlace(L.tok);
+    try{ await nb.claveConEnlace(L.tok, p); showToast('✅ Contraseña de Vento Nube cambiada. Entra con tu correo y la contraseña nueva.', 8000); }
+    catch(e){ showToast('⚠️ ' + (nb.msgError ? nb.msgError(e) : e.message), 8000); }
+    return nb.soltarEnlace(L.tok);
+  }
+  const users = authUsers(), u = users.find(x => x.user === String(L.user || '').toLowerCase());
+  if(!u){
+    // El enlace se abrió en el navegador, pero la cuenta está en la app Vento (o en otro navegador).
+    const enApp = !window.VentoAndroid;
+    const d = authEnlaceDialogo('📧 Correo comprobado', 'Este enlace es para cambiar la contraseña de «' + (L.user || '?') + '», pero esa cuenta no está en ' + (enApp ? 'este navegador.\nSi usas la app Vento, toca «Abrir en la app Vento».' : 'este celular.'));
+    if(enApp){ const ov = authEnlaceDialogo.ultimo, a = document.createElement('a'); a.className = 'btn-primary'; a.style.cssText = 'text-align:center;padding:13px;border-radius:12px;text-decoration:none';
+      a.textContent = '📲 Abrir en la app Vento'; a.href = 'vento://abrir?' + L.query + '#' + L.hash; ov.querySelector('.ex').appendChild(a); }
+    return d;
+  }
+  if(!u.email || u.email !== correo){ nb.soltarEnlace(L.tok); return authEnlaceDialogo('📧 No coincide', 'Ese correo (' + correo + ') no es el de recuperación de «' + u.user + '».'); }
+  const p = await authEnlaceDialogo('🔑 Contraseña nueva', 'Correo comprobado: ' + authMascara(correo) + '.\nUsuario: ' + u.user + '. Escribe tu contraseña nueva.', true);
+  nb.soltarEnlace(L.tok);
+  if(!p) return;
+  u.hash = await authHash(p, u.salt); u.claveCambiada = Date.now();
+  localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users)); localStorage.removeItem('cm-rec-lock');
+  try{ document.getElementById('authUser').value = u.user; const er = document.getElementById('authErr'); if(er) er.textContent = '✅ Contraseña cambiada con el enlace del correo. Ya puedes entrar.'; }catch(e){}
+  showToast('✅ Contraseña cambiada. Ya puedes entrar con la nueva.', 8000);
+}
+if(authEnlace) setTimeout(() => { authEnlaceProcesar().catch(() => {}); }, 900);
 /* Recuperar la contraseña con un código que llega al CORREO del usuario (el que guardó en Ajustes → Negocio).
    El código lo manda el Servidor Vento (Supabase); solo prueba que la persona es dueña de ese correo. */
 const authMascara = e => { const m = /^(.)(.*)(@.*)$/.exec(String(e || '')); return m ? m[1] + '***' + m[3] : ''; };
@@ -16868,7 +16931,8 @@ async function authCorreoEnviar(user){
   if(!u) return { error: 'Escribe tu usuario (como entras a Vento).' };
   if(!u.email) return { error: 'Ese usuario no tiene correo de recuperación guardado. Usa un código de recuperación, o pídele a otro administrador que te cambie la contraseña.' };
   const nb = authNube(); if(!nb) return { error: 'Para mandar el código hace falta internet y el Servidor Vento conectado.' };
-  try{ await nb.codigoCorreo(u.email); }catch(e){ return { error: (window.ventoNube.msgError ? window.ventoNube.msgError(e) : (e.message || String(e))) }; }
+  const volver = location.origin + location.pathname.replace(/[^/]*$/, '') + '?recuperar=' + encodeURIComponent(u.user);
+  try{ await nb.codigoCorreo(u.email, volver); }catch(e){ return { error: (window.ventoNube.msgError ? window.ventoNube.msgError(e) : (e.message || String(e))) }; }
   try{ sessionStorage.setItem('cm-rec-mail', JSON.stringify({ user: u.user, at: Date.now() })); }catch(e){}
   return { ok: true, mascara: authMascara(u.email) };
 }
@@ -16892,15 +16956,12 @@ async function authRecoverCorreo(user, code, newPass, newPass2){
 // Ajustes → Negocio: guardar el correo de recuperación (se comprueba con un código antes de guardarlo).
 async function authCorreoGuardar(){
   const users = authUsers(), u = users.find(x => x.user === authUser); if(!u) return;
-  const nb = authNube(); if(!nb) return showToast('⚠️ Para guardar el correo hace falta internet (Servidor Vento).', 6000);
+  const actual = prompt('Para proteger tu cuenta, escribe tu contraseña actual:'); if(actual == null) return;
+  if(await authHash(actual, u.salt) !== u.hash) return showToast('⚠️ Contraseña incorrecta: no se cambió el correo.');
   const e = (prompt('Tu correo para recuperar la contraseña:', u.email || '') || '').trim().toLowerCase(); if(!e) return;
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return showToast('⚠️ Ese correo no está bien escrito.');
-  try{ await nb.codigoCorreo(e); }catch(x){ return showToast('⚠️ ' + (nb.msgError ? nb.msgError(x) : (x.message || x)), 8000); }
-  const cod = prompt('Te mandé un código de 6 números a ' + e + ' (revisa también «Spam»). Escríbelo aquí:'); if(!cod) return;
-  try{ await nb.verificarCorreo(e, cod); }catch(x){ return showToast('⚠️ Ese código no sirve o ya venció. Vuelve a intentarlo.', 7000); }
-  try{ await nb.soltarSesion(); }catch(x){}
   u.email = e; u.emailAt = Date.now(); localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
-  showToast('✅ Correo guardado: si olvidas la contraseña, te llega un código a ' + authMascara(e) + '.', 7000);
+  showToast('✅ Correo guardado: si olvidas la contraseña, te llega un enlace a ' + authMascara(e) + '.', 7000);
   try{ authCorreoEstado(); }catch(x){}
 }
 function authCorreoEstado(){
@@ -17282,9 +17343,9 @@ function showAuth(firstRun){
   g('recMailBtn').onclick = async () => {
     const b = g('recMailBtn'), t = g('recMailTxt'); b.disabled = true; b.textContent = '⏳ Enviando…'; t.textContent = '';
     try{ const r = await authCorreoEnviar(g('recUser').value);
-      t.textContent = r.ok ? '✅ Te mandé un código de 6 números a ' + r.mascara + ' (revisa también «Spam»). Escríbelo abajo con tu contraseña nueva.' : '⚠️ ' + r.error;
+      t.textContent = r.ok ? '✅ Te mandé un correo a ' + r.mascara + ' (revisa también «Spam»). Toca el enlace desde ESTE celular: Vento se abre y te pide la contraseña nueva. Si en el correo viene un código de números, escríbelo abajo.' : '⚠️ ' + r.error;
       if(r.ok) g('recCode').focus(); }
-    finally{ b.disabled = false; b.textContent = '📧 Enviarme otro código al correo'; }
+    finally{ b.disabled = false; b.textContent = '📧 Enviarme otro correo'; }
   };
   rf.onsubmit = async (e) => {
     e.preventDefault(); g('recErr').textContent = '';
@@ -21884,7 +21945,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-03 · v1.24';
+const MESORA_VERSION = '2026-10-03 · v1.24.1';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
