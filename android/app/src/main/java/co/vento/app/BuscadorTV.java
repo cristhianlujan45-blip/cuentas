@@ -105,6 +105,28 @@ final class BuscadorTV {
         for (Oyente o : a) try { o.encontrado(tv); } catch (Exception ignorado) { }
     }
 
+    static void emitirExterno(JSONObject tv) { emitir(tv); }
+
+    /** Un aparato con Chromecast integrado ya identificado (nombre como lo muestra YouTube): se le mira YouTube por DIAL. */
+    static JSONObject describirCastIp(String ip, String nombre, String modelo, String muestra) {
+        try {
+            String appUrl = "http://" + ip + ":8008/apps/";
+            String[] ytr = estadoYouTube(appUrl + "YouTube");
+            int yt = Integer.parseInt(ytr[0]);
+            JSONObject tv = new JSONObject();
+            tv.put("nombre", nombre == null || nombre.isEmpty() ? "Chromecast" : nombre);
+            tv.put("fabricante", "Chromecast integrado");
+            tv.put("modelo", modelo == null ? "" : modelo);
+            tv.put("ip", ip);
+            String t = ((modelo == null ? "" : modelo) + " " + nombre).toLowerCase(Locale.ROOT);
+            tv.put("tipo", t.contains("tv") && !t.contains("chromecast") ? "androidtv" : "chromecast");
+            if (yt >= 200 && yt < 300) tv.put("appUrl", appUrl); else tv.put("soloCodigo", true);
+            if (muestra != null && !muestra.isEmpty()) tv.put("app", muestra);
+            marcarYouTube(tv, ytr, muestra == null ? "" : muestra);
+            return tv;
+        } catch (Exception e) { return null; }
+    }
+
     private static boolean yaEsta(String ip) { synchronized (CANDADO) { return hallados.containsKey(ip); } }
 
     private void buscarAhora() {
@@ -113,6 +135,9 @@ final class BuscadorTV {
             final long hasta = System.currentTimeMillis() + 7000;
             // Chromecast, Google TV, Android TV y TV Box con Chromecast se anuncian por mDNS: se buscan a la vez.
             final Runnable pararCast = buscarCast(hasta);
+            Runnable pararCastGoogle = () -> { };
+            try { pararCastGoogle = BuscadorCast.buscar(ctx, 8000); } catch (Throwable ignorado) { }
+            final Runnable pararGoogle = pararCastGoogle;
             // Respaldo: si el router no deja pasar la búsqueda «a todos» (muchos la bloquean), se pregunta
             // TV por TV en la red del wifi por los puertos donde los TV abren YouTube.
             final Thread barrido = new Thread(() -> barrer(hasta));
@@ -176,6 +201,7 @@ final class BuscadorTV {
             if (falta > 0) Thread.sleep(falta);   // que alcancen a llegar los Chromecast, el barrido y las descripciones
             try { barrido.join(3000); } catch (Exception ignorado) { }
             try { pararCast.run(); } catch (Exception ignorado) { }
+            try { pararGoogle.run(); } catch (Throwable ignorado) { }
         } catch (Exception ignorado) {
         } finally {
             List<Oyente> a; int n;
@@ -231,33 +257,38 @@ final class BuscadorTV {
     private void barrer(long hasta) {
         final String base = subred();
         if (base == null) return;
-        ExecutorService pool = Executors.newFixedThreadPool(48);
-        try {
-            for (int h = 1; h <= 254; h++) {
-                final String ip = base + h;
-                pool.execute(() -> {
-                    for (int puerto : PUERTOS) {
-                        if (System.currentTimeMillis() > hasta || yaEsta(ip)) return;
-                        if (!abierto(ip, puerto)) continue;
-                        // Se espera un poco para que gane la descripción completa que llega por la búsqueda normal.
-                        try { Thread.sleep(Math.max(0, Math.min(2500, hasta - 4500 - System.currentTimeMillis()))); } catch (Exception ignorado) { }
-                        if (yaEsta(ip)) return;
-                        JSONObject tv = describirPuerto(ip, puerto);
-                        if (tv != null) { emitir(tv); return; }
-                    }
-                });
+        // Por puertos (primero el de los Chromecast/Android TV), y en cada uno todas las direcciones a la vez:
+        // así se recorre todo el wifi en 1–2 s. Antes se iba dirección por dirección y no alcanzaba a llegar
+        // a las altas (p. ej. .150) antes de que se acabara el tiempo.
+        final long fin = Math.max(hasta, System.currentTimeMillis() + 6000);
+        for (final int puerto : PUERTOS) {
+            if (System.currentTimeMillis() > fin) break;
+            ExecutorService pool = Executors.newFixedThreadPool(64);
+            final List<String> abiertos = Collections.synchronizedList(new ArrayList<>());
+            try {
+                for (int h = 1; h <= 254; h++) {
+                    final String ip = base + h;
+                    pool.execute(() -> { if (!yaEsta(ip) && abierto(ip, puerto)) abiertos.add(ip); });
+                }
+                pool.shutdown();
+                pool.awaitTermination(Math.max(500, fin - System.currentTimeMillis()), TimeUnit.MILLISECONDS);
+            } catch (Exception ignorado) {
+            } finally { pool.shutdownNow(); }
+            for (final String ip : new ArrayList<>(abiertos)) {
+                new Thread(() -> {
+                    // Un momento para que gane la descripción completa que llega por las otras búsquedas.
+                    try { Thread.sleep(1200); } catch (Exception ignorado) { }
+                    if (!yaEsta(ip)) emitir(describirPuerto(ip, puerto));
+                }).start();
             }
-            pool.shutdown();
-            pool.awaitTermination(Math.max(1000, hasta + 1000 - System.currentTimeMillis()), TimeUnit.MILLISECONDS);
-        } catch (Exception ignorado) {
-        } finally { pool.shutdownNow(); }
+        }
     }
 
     private static boolean abierto(String ip, int puerto) {
         try (Socket so = new Socket()) {
             Network red = redWifi;
             if (red != null && android.os.Build.VERSION.SDK_INT >= 23) try { red.bindSocket(so); } catch (Exception ignorado) { }
-            so.connect(new InetSocketAddress(ip, puerto), 350);
+            so.connect(new InetSocketAddress(ip, puerto), 300);
             return true;
         } catch (Exception e) { return false; }
     }
@@ -369,7 +400,7 @@ final class BuscadorTV {
                     });
                     listo.await(3, TimeUnit.SECONDS);
                 } catch (Exception ignorado) { }
-                if (r[0] == null || r[0].getHost() == null) continue;
+                if (r[0] == null) continue;
                 final NsdServiceInfo x = r[0];
                 new Thread(() -> emitir(describirCast(x))).start();
             }
@@ -388,8 +419,12 @@ final class BuscadorTV {
     @SuppressWarnings("deprecation")
     private static JSONObject describirCast(NsdServiceInfo x) {
         try {
-            String ip = x.getHost().getHostAddress();
-            if (ip == null || ip.contains(":")) return null;               // solo IPv4 del wifi
+            String ip = null;
+            if (android.os.Build.VERSION.SDK_INT >= 34) {
+                try { for (InetAddress h : x.getHostAddresses()) if (h instanceof Inet4Address) { ip = h.getHostAddress(); break; } } catch (Throwable ignorado) { }
+            }
+            if (ip == null && x.getHost() instanceof Inet4Address) ip = x.getHost().getHostAddress();
+            if (ip == null) return null;               // antes se botaba si Android la daba en IPv6 (así no salía el Chromecast)
             String nombre = atributo(x, "fn"), modelo = atributo(x, "md");
             boolean esCast = x.getServiceType() != null && x.getServiceType().contains("googlecast");
             if (nombre.isEmpty()) nombre = x.getServiceName().replaceAll("-[0-9a-f]{20,}$", "").replace('-', ' ');

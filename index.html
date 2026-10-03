@@ -21754,7 +21754,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-03 · v1.23';
+const MESORA_VERSION = '2026-10-03 · v1.23.1';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -21805,6 +21805,7 @@ function castDevsPintar(){
   const box = document.getElementById('castDevs'), t = document.getElementById('castDevsTxt');
   if(!box) return;
   if(ccSes){ ccPintar(); return; }
+  if(typeof lngOn === 'function' && lngOn() && !box.classList.contains('busy') && lngTVEnLinea() === false){ box.hidden = false; box.classList.remove('ok'); box.classList.add('no'); t.textContent = '📴 «' + (lngCfg().nombre || 'TV') + '» no responde ahora (apagado o en otra red). Toca «Transmitir al TV» y elige uno de este wifi.'; return; }
   if(typeof lngOn === 'function' && lngOn() && !box.classList.contains('busy')){ box.hidden = false; box.classList.remove('no'); box.classList.add('ok'); t.textContent = '📺 Conectado a «' + (lngCfg().nombre || 'TV') + '»' + (lng.tvSt === 1 ? ' · sonando ahora' : '') + ': las canciones de las mesas suenan allá solas. Abajo ves en vivo lo que suena.'; return; }
   box.classList.remove('ok', 'no', 'busy');
   box.hidden = !((presConn && presConn.state === 'connected') || presDisp === true);
@@ -22183,14 +22184,22 @@ function tvApkLista(){
   }
   const L = ov.querySelector('#tvApkLista'), sub = ov.querySelector('#tvApkSub'), vistos = {};
   L.innerHTML = ''; sub.textContent = '⏳ Buscando los TV de tu wifi…';
-  if(lngOn()){
-    // El TV que ya está sonando con Vento va de primero (como en YouTube), aunque el wifi no lo muestre.
-    const b0 = document.createElement('button'); b0.type = 'button'; b0.className = 'btn-primary';
-    b0.style.cssText = 'display:flex;align-items:center;gap:12px;text-align:left;padding:13px 14px;width:100%;outline:2px solid var(--paid)';
-    b0.innerHTML = '<span style="font-size:24px">🟢</span><span><b>YouTube en el TV · ' + tvEsc(lngCfg().nombre || 'TV') + '</b><br><small style="opacity:.85">Conectado' + (lng.tvSt === 1 ? ' y sonando ahora' : '') + ' · tocar para ver lo que suena</small></span>';
+  const vinc = document.createElement('div'); vinc.id = 'tvApkVinc';
+  const pintarVinc = () => {
+    vinc.innerHTML = '';
+    if(!lngOn()) return;
+    // El TV vinculado por internet («YouTube en el TV») va APARTE de los del wifi: puede estar en otra red.
+    const enl = lngTVEnLinea(), b0 = document.createElement('button'); b0.type = 'button'; b0.className = 'btn-ghost';
+    b0.style.cssText = 'display:flex;align-items:center;gap:12px;text-align:left;padding:11px 14px;width:100%;margin-bottom:6px' + (enl ? ';outline:2px solid var(--paid)' : '');
+    b0.innerHTML = '<span style="font-size:22px">' + (enl === false ? '📴' : enl ? '🟢' : '🔗') + '</span><span><b>' + tvEsc(lngCfg().nombre || 'TV') + '</b><br><small style="opacity:.85">' +
+      (enl === false ? 'Vinculado por internet · no responde ahora (apagado o en otra red)' : enl ? 'Conectado por internet' + (lng.tvSt === 1 ? ' · sonando ahora' : '') + ' · tocar para ver lo que suena' : 'Vinculado por internet · revisando si responde…') + '</small></span>';
     b0.onclick = () => { ov.classList.remove('show'); const v = document.getElementById('tvVivo'); if(v){ v.scrollIntoView({ block: 'center', behavior: 'smooth' }); } lngVivo(true); };
-    L.appendChild(b0);
-  }
+    vinc.appendChild(b0);
+  };
+  pintarVinc();
+  L.appendChild(vinc);
+  const tit = document.createElement('div'); tit.className = 'settings-desc'; tit.style.margin = '4px 0 0'; tit.innerHTML = '<b>En este wifi:</b>'; L.appendChild(tit);
+  if(lngOn()) lngVivo(true).then(pintarVinc).catch(() => {});
   window.__ventoTV = tv => {
     if(!tv || vistos[tv.id]) return; vistos[tv.id] = tv; tvWifiGuardar(tv);
     const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-primary';
@@ -22202,7 +22211,7 @@ function tvApkLista(){
     sub.textContent = 'Toca tu TV: se abre YouTube allá y las canciones de las mesas suenan solas.';
   };
   window.__ventoTVfin = () => {
-    if(!Object.keys(vistos).length) sub.textContent = (lngOn() ? 'Arriba está el TV que ya tienes conectado. ' : '') + 'No encontré otros TV en este wifi. Revisa que el celular y el TV estén en el MISMO wifi y el TV encendido, y toca «Buscar otra vez». Si aun así no sale, usa el código del TV.';
+    if(!Object.keys(vistos).length) sub.textContent = 'No encontré TV en este wifi. Revisa que el celular y el TV estén en el MISMO wifi y el TV encendido, y toca «Buscar otra vez». Si aun así no sale, usa el código del TV.';
   };
   ov.classList.add('show');
   // Los TV que ya se encontraron hace poco salen de una vez (no se espera a la búsqueda nueva).
@@ -23124,6 +23133,12 @@ async function lngVivoCmd(sc, txt){
    Salen juntos: el TV conectado a Vento, los otros TV que se vincularon antes con su código («YouTube on
    TV») y, en la app de Android, los TV del wifi (LG, Samsung, Chromecast, TV Box…), con «Reproduciendo
    YouTube» cuando tienen YouTube abierto. Tocar uno pasa la música de las mesas a ese TV. */
+// ¿El TV vinculado está prendido? Lo dice el TV en cada saludo: si en la lista de aparatos conectados no
+// está la pantalla, el TV está apagado o sin internet (o en otra red). null = todavía no se sabe.
+function lngTVEnLinea(){
+  if(!lng.disp || !lng.tvAt || Date.now() - lng.tvAt > 3 * 60000) return null;
+  return lng.disp.some(x => /SCREEN/i.test(x.tipo));
+}
 function lngRecordar(screenId, nombre){
   if(!screenId) return;
   const c = lngCfg(), l = (c.pantallas || []).filter(x => x.screenId !== screenId);
@@ -23152,8 +23167,9 @@ function tvDisposPintar(){
   const fila = (ic, nombre, sub, cls, accion, go) => filas.push({ ic, nombre, sub, cls, accion, go });
   if(on){
     const nom = lng.nomTV || c.nombre || 'TV';
-    const est = lng.tvSt === 1 || lng.tvSt === 3 ? 'Reproduciendo YouTube' : lng.tvSt === 2 ? 'En pausa' : 'Conectado';
-    fila('🟢', nom, '✓ Conectado a Vento · ' + est + (lng.otroNom && lng.otroNom !== nom ? ' · ' + lng.otroNom : ''), 'on', 'vivo', 'Ver');
+    const enl = lngTVEnLinea();
+    const est = enl === false ? 'no responde ahora (apagado o en otra red)' : lng.tvSt === 1 || lng.tvSt === 3 ? 'Reproduciendo YouTube' : lng.tvSt === 2 ? 'En pausa' : 'Conectado';
+    fila(enl === false ? '📴' : '🟢', nom, (enl === false ? 'Vinculado a Vento por internet · ' : '✓ Conectado a Vento · ') + est + (lng.otroNom && lng.otroNom !== nom ? ' · ' + lng.otroNom : ''), enl === false ? '' : 'on', 'vivo', 'Ver');
   }
   (c.pantallas || []).filter(x => !(on && x.screenId === c.screenId)).forEach(x => fila('📺', x.nombre || 'YouTube on TV', 'Vinculado antes con su código', '', 'p:' + x.screenId, 'Usar'));
   Object.values(tvWifi).sort((a, b) => (b.youtube ? 1 : 0) - (a.youtube ? 1 : 0)).forEach(tv => {
@@ -23169,6 +23185,7 @@ function tvDisposPintar(){
   else if(!filas.length) h = '';
   if(!app && window.esAndroid && window.esAndroid()) h += '<div class="settings-desc">Los TV de tu wifi (como los que ves en YouTube) solo los puede buscar la <b>app Vento para Android</b>; desde el navegador conecta con el código del TV.</div>';
   if(L.dataset.h !== h){ L.dataset.h = h; L.innerHTML = h; }
+  try{ castDevsPintar(); }catch(e){}
 }
 // Pasa la música de Vento a otro TV ya conocido (por su screenId), sin volver a abrir YouTube allá.
 async function lngUsarPantalla(screenId, nombre, yaSuena){

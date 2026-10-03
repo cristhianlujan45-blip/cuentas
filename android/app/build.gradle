@@ -49,3 +49,9 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+
+dependencies {
+    // Buscar los Chromecast / Google TV igual que la app de YouTube (Google Play Services).
+    implementation 'androidx.mediarouter:mediarouter:1.7.0'
+    implementation 'com.google.android.gms:play-services-cast:21.5.0'
+}
