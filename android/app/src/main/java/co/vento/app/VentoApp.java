@@ -152,8 +152,10 @@ public class VentoApp extends Application {
                 boolean sinOir = !vozHablo && (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY);
                 if (vozReintentos < 2 && (arranque || sinOir) && dura < 9000) {
                     vozReintentos++;
-                    final boolean recrear = error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_SERVER;
-                    ui.postDelayed(() -> escucharVoz(recrear), recrear ? 350 : 150);
+                    // Primer tropiezo: se vuelve a pedir con el MISMO reconocedor (crearlo de nuevo es lo que tarda y
+                    // hace perder lo que se dice); solo si vuelve a fallar se crea uno nuevo.
+                    final boolean recrear = vozReintentos >= 2 && (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_SERVER);
+                    ui.postDelayed(() -> escucharVoz(recrear), error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY ? 450 : 200);
                     return;
                 }
                 String e;
@@ -195,6 +197,14 @@ public class VentoApp extends Application {
             if (vozReintentos < 2) { vozReintentos++; ui.postDelayed(() -> escucharVoz(true), 350); return; }
             js("window.__ventoVoz&&window.__ventoVoz('error',{error:'aborted'});window.__ventoVoz&&window.__ventoVoz('end',{})");
         }
+    }
+
+    /** Deja el reconocedor creado y listo (al abrir la app), para que la primera vez que se toque el micrófono ya escuche. */
+    void prepararVoz() {
+        try {
+            if (voz == null && tiene(Manifest.permission.RECORD_AUDIO) && SpeechRecognizer.isRecognitionAvailable(this))
+                voz = SpeechRecognizer.createSpeechRecognizer(this);
+        } catch (Exception ignorado) { }
     }
 
     void vozNegada() {
@@ -651,6 +661,9 @@ public class VentoApp extends Application {
                 iniciarVoz();
             });
         }
+
+        @JavascriptInterface
+        public void vozPreparar() { ui.post(() -> prepararVoz()); }
 
         @JavascriptInterface
         public void vozParar() { ui.post(() -> { try { if (voz != null) voz.stopListening(); } catch (Exception ignorado) { } }); }

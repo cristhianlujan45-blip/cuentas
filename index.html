@@ -38,6 +38,8 @@
     if(tipo === 'end'){ if(!r._vivo && r._finAvisado) return; r._vivo = false; r._finAvisado = true; if(activo === r) activo = null; r.onend && r.onend({}); setTimeout(function(){ r._finAvisado = false; }, 0); }
   };
   window.SpeechRecognition = window.webkitSpeechRecognition = SR;
+  // El reconocedor queda listo desde que abre la app: así la PRIMERA vez que se toca el micrófono ya escucha.
+  try{ if(A.vozPreparar){ A.vozPreparar(); document.addEventListener('visibilitychange', function(){ if(!document.hidden) try{ A.vozPreparar(); }catch(e){} }); } }catch(e){}
   // Voz de Laya (leer en voz alta)
   if(!('speechSynthesis' in window) || !window.speechSynthesis || !window.speechSynthesis.speak){
     var hablando = null;
@@ -7378,6 +7380,7 @@ const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRec
 let voiceRecognizer = null;
 let voiceListening = false;
 let voiceFinalBuffer = '';
+let voiceInterim = '';        // lo último que se oyó aunque no llegara «final» (frases cortas: «una póker»)
 let voiceSilenceTimer = null;
 const VOICE_SILENCE_MS = 1700;      // silencio tras hablar antes de procesar el comando
 const VOICE_INITIAL_TIMEOUT_MS = 6000; // tiempo máximo esperando que empiece a hablar
@@ -7459,13 +7462,23 @@ function ensureVoiceRecognizer(){
       else finals.push(best);
     }
     voiceFinalBuffer = finals.join(' ').trim();
+    // Android, con frases cortas, a veces entrega solo el resultado parcial y luego «no entendí»:
+    // se guarda lo último oído para no perder el pedido (antes había que tocar el micrófono dos veces).
+    const ult = e.results[e.results.length - 1];
+    if(ult && !ult.isFinal){ const t = pickBestVoiceAlternative(ult); if(t && t.trim()) voiceInterim = t.trim(); }
+  };
+  voiceRecognizer.onstart = () => {
+    if(!voiceListening) return;
+    try{ navigator.vibrate && navigator.vibrate(35); }catch(e){}
+    showToast(voiceModoIA ? '🤖 Habla ahora: di tu pedido con tus palabras.' : '🎤 Habla ahora…', 2500);
+    scheduleVoiceSilenceStop(VOICE_INITIAL_TIMEOUT_MS);   // el tiempo de espera cuenta desde que de verdad escucha
   };
   voiceRecognizer.onerror = (e) => {
     if(voiceSilenceTimer) clearTimeout(voiceSilenceTimer);
     voiceListening = false;
     updateVoiceFabUI();
     if(e.error === 'no-speech'){
-      if(!voiceFinalBuffer) showToast('No escuché nada. Intenta de nuevo.');
+      if(!voiceFinalBuffer && !voiceInterim) showToast('No escuché nada. Intenta de nuevo.');
     } else if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
       showToast('Necesitas dar permiso de micrófono para usar el comando por voz.');
     } else if(e.error !== 'aborted'){
@@ -7476,8 +7489,8 @@ function ensureVoiceRecognizer(){
     if(voiceSilenceTimer) clearTimeout(voiceSilenceTimer);
     voiceListening = false;
     updateVoiceFabUI();
-    const transcript = voiceFinalBuffer.trim();
-    voiceFinalBuffer = '';
+    const transcript = (voiceFinalBuffer.trim() || voiceInterim).trim();
+    voiceFinalBuffer = ''; voiceInterim = '';
     if(transcript) handleVoiceTranscript(transcript);
   };
   return voiceRecognizer;
@@ -7498,9 +7511,10 @@ function startVoiceCommand(conIA){
   if(voiceListening) return;
   try{
     voiceListening = true;
-    voiceFinalBuffer = '';
+    voiceFinalBuffer = ''; voiceInterim = '';
     updateVoiceFabUI();
-    showToast(conIA ? '🤖 Escuchando con IA… di tu pedido con tus palabras. Toca de nuevo para terminar.' : '🎤 Escuchando… ej: "mesa 1, 5 águilas", "agrega una mesa a nombre de Juan con dos póker", "deshacer". Di "comandos" para ver todos. Toca 🎤 de nuevo para terminar.');
+    if(window.VentoAndroid) showToast('⏳ Abriendo el micrófono…', 2500);
+    else showToast(conIA ? '🤖 Escuchando con IA… di tu pedido con tus palabras. Toca de nuevo para terminar.' : '🎤 Escuchando… ej: "mesa 1, 5 águilas", "agrega una mesa a nombre de Juan con dos póker", "deshacer". Di "comandos" para ver todos. Toca 🎤 de nuevo para terminar.');
     rec.start();
     scheduleVoiceSilenceStop(VOICE_INITIAL_TIMEOUT_MS);
   }catch(e){

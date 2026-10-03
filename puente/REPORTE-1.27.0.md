@@ -26,6 +26,14 @@ Además se mantiene lo de la 1.26.4/1.26.5: conexión con el TV como en la 1.22 
 - Prueba `suscrip.js`: 20/20.
 
 ## 3. Voz
+- **El micrófono no cogía el pedido a la primera (había que tocarlo dos veces).** Dos causas:
+  1) al primer toque Android creaba el reconocedor desde cero (1–2 s) mientras la pantalla ya decía
+     «Escuchando»: lo que se decía en ese rato se perdía. Ahora el reconocedor queda listo desde que abre
+     la app, no se destruye al primer tropiezo, y la pantalla dice «⏳ Abriendo el micrófono…» y luego
+     «🎤 Habla ahora» (con una vibración corta) cuando de verdad escucha.
+  2) con frases cortas («una póker») Android a veces da solo el resultado parcial y luego «no entendí»:
+     Vento lo botaba y decía «No escuché nada». Ahora usa ese parcial. Prueba `voz1ra.js`: antes 2/7,
+     ahora 7/7. (La parte de Android llega con la APK nueva.)
 - «Borra / deshace / elimina / anula / quita el pedido anterior» ya deshace (antes lo tomaba como
   «recuérdame el pedido»).
 - Nuevos: «¿cuántas Póker quedan?», «abre la mesa 3», «cobra la mesa 3», «agrega a Juan a la mesa 4»,
