@@ -50,9 +50,11 @@ final class BuscadorCast {
                 };
                 mr.addCallback(sel, cb, MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN | MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY);
                 estado[0] = mr; estado[1] = cb;
+                BuscadorTV.anotar("castGoogle", "buscando");
                 for (MediaRouter.RouteInfo ruta : mr.getRoutes()) ver(ruta, sel, hechos);   // los que ya conocía
                 VentoApp.ui.postDelayed(parar, ms);
             } catch (Throwable sinPlayServices) {
+                BuscadorTV.anotar("castGoogle", "no disponible: " + sinPlayServices.getClass().getSimpleName());
                 // celular sin Google Play Services o sin la librería: siguen las demás búsquedas
             }
         });
@@ -62,11 +64,12 @@ final class BuscadorCast {
     private static void ver(MediaRouter.RouteInfo ruta, MediaRouteSelector sel, Set<String> hechos) {
         try {
             if (ruta == null || ruta.isDefault() || !ruta.matchesSelector(sel)) return;
+            BuscadorTV.agregar("castRutas", String.valueOf(ruta.getName()));
             Bundle extras = ruta.getExtras();
             final CastDevice d = extras == null ? null : CastDevice.getFromBundle(extras);
             if (d == null) return;
             InetAddress a = d.getInetAddress();
-            if (!(a instanceof Inet4Address)) return;
+            if (!(a instanceof Inet4Address)) { BuscadorTV.agregar("castSinIp", String.valueOf(ruta.getName())); return; }
             final String ip = a.getHostAddress();
             final String que = ruta.getDescription() == null ? "" : ruta.getDescription().toString();
             if (!hechos.add(ip + "|" + que)) return;

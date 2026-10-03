@@ -3425,6 +3425,14 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
         <div class="settings-row-text"><strong>🔐 Códigos de recuperación</strong><span>Si olvidas tu contraseña, entras con uno de estos códigos. Son 8, cada uno sirve <b>una sola vez</b>, y no viajan por WhatsApp ni por internet: los guardas tú, en papel.</span><span id="accRcState" style="margin-top:4px;font-weight:700"></span></div>
         <button class="btn-warn" id="accRcBtn" type="button">🔐 Crear mis códigos</button>
       </div>
+      <div class="settings-row" style="flex-direction:column;align-items:stretch">
+        <div class="settings-row-text"><strong>📧 Correo de recuperación</strong><span>Si olvidas la contraseña, te llega un código de 6 números a este correo para poner una nueva. Se comprueba con un código antes de guardarlo.</span><span id="accMailState" style="margin-top:4px;font-weight:700"></span></div>
+        <button class="btn-ghost" id="accMailBtn" type="button">📧 Agregar mi correo</button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-text"><strong>🔒 Bloqueo automático</strong><span>Si nadie usa la app un rato, se tapa y pide la contraseña para seguir. Debajo sigue trabajando: los pedidos y la música siguen llegando.</span></div>
+        <select id="accAutoLock" class="mz-in" style="max-width:150px"><option value="0">Nunca</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hora</option></select>
+      </div>
       <div class="settings-row">
         <div class="settings-row-text"><strong>Cerrar sesión</strong><span>Te pedirá usuario y contraseña al volver a entrar.</span></div>
         <button class="btn-danger-outline" id="accLogoutBtn" type="button">Salir</button>
@@ -4673,7 +4681,8 @@ export default {
     <h2>Recuperar contraseña</h2>
     <div class="auth-hint">Usa uno de tus <b>códigos de recuperación</b> (los que imprimiste o guardaste al crearlos en Ajustes → Negocio). Cada código sirve una sola vez.<br>¿No los tienes? Si hay <b>otro administrador</b>, pídele que te ponga una contraseña nueva en Ajustes → Usuarios (🔑).</div>
     <label>Usuario<input id="recUser" autocapitalize="none" autocomplete="username"></label>
-    <label>Código de recuperación<input id="recCode" placeholder="XXXX-XXXX-XXXX" autocapitalize="characters" autocomplete="off"></label>
+    <div class="auth-hint" id="recMailBox">📧 <b>Con tu correo</b> (si lo guardaste en Ajustes → Negocio): <button type="button" class="btn-ghost" id="recMailBtn" style="margin-top:6px;width:100%">📧 Enviarme un código al correo</button><div id="recMailTxt" style="margin-top:6px"></div></div>
+    <label>Código (de recuperación o el que te llegó al correo)<input id="recCode" placeholder="XXXX-XXXX-XXXX  ó  123456" autocapitalize="characters" autocomplete="one-time-code"></label>
     <label>Contraseña nueva<input id="recNew" type="password" autocomplete="new-password"></label>
     <label>Repite la contraseña nueva<input id="recNew2" type="password" autocomplete="new-password"></label>
     <div class="auth-err" id="recErr"></div>
@@ -16850,6 +16859,56 @@ async function authRecover(user, code, newPass, newPass2){
   const q = authCodigosQuedan(u);
   return { ok: true, quedan: q };
 }
+/* Recuperar la contraseña con un código que llega al CORREO del usuario (el que guardó en Ajustes → Negocio).
+   El código lo manda el Servidor Vento (Supabase); solo prueba que la persona es dueña de ese correo. */
+const authMascara = e => { const m = /^(.)(.*)(@.*)$/.exec(String(e || '')); return m ? m[1] + '***' + m[3] : ''; };
+const authNube = () => window.ventoNube && window.ventoNube.configurada && window.ventoNube.configurada() && window.ventoNube.codigoCorreo ? window.ventoNube : null;
+async function authCorreoEnviar(user){
+  const u = authUsers().find(x => x.user === String(user || '').trim().toLowerCase());
+  if(!u) return { error: 'Escribe tu usuario (como entras a Vento).' };
+  if(!u.email) return { error: 'Ese usuario no tiene correo de recuperación guardado. Usa un código de recuperación, o pídele a otro administrador que te cambie la contraseña.' };
+  const nb = authNube(); if(!nb) return { error: 'Para mandar el código hace falta internet y el Servidor Vento conectado.' };
+  try{ await nb.codigoCorreo(u.email); }catch(e){ return { error: (window.ventoNube.msgError ? window.ventoNube.msgError(e) : (e.message || String(e))) }; }
+  try{ sessionStorage.setItem('cm-rec-mail', JSON.stringify({ user: u.user, at: Date.now() })); }catch(e){}
+  return { ok: true, mascara: authMascara(u.email) };
+}
+async function authRecoverCorreo(user, code, newPass, newPass2){
+  if((newPass || '').length < 6) return 'La contraseña nueva debe tener al menos 6 caracteres.';
+  if(newPass2 !== undefined && newPass !== newPass2) return 'Las dos contraseñas nuevas no son iguales.';
+  let lock; try{ lock = JSON.parse(localStorage.getItem('cm-rec-lock')) || { n: 0, t: 0, nivel: 0 }; }catch(e){ lock = { n: 0, t: 0, nivel: 0 }; }
+  const espera = [10, 60, 24 * 60][Math.min(lock.nivel || 0, 2)] * 60e3;
+  if(lock.n >= 5 && Date.now() - lock.t < espera) return 'Demasiados intentos. Espera ' + (espera >= 864e5 ? 'un día' : espera >= 36e5 ? 'una hora' : '10 minutos') + ' para volver a intentar.';
+  const users = authUsers(), u = users.find(x => x.user === String(user || '').trim().toLowerCase());
+  if(!u || !u.email) return 'Ese usuario no tiene correo de recuperación.';
+  const nb = authNube(); if(!nb) return 'Sin conexión con el Servidor Vento.';
+  try{ await nb.verificarCorreo(u.email, code); }
+  catch(e){ localStorage.setItem('cm-rec-lock', JSON.stringify({ n: (lock.n || 0) + 1, t: Date.now(), nivel: lock.nivel || 0 })); return 'El código del correo no sirve o ya venció. Pide uno nuevo.'; }
+  try{ await nb.soltarSesion(); }catch(e){}
+  u.hash = await authHash(newPass, u.salt); u.claveCambiada = Date.now();
+  localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users)); localStorage.removeItem('cm-rec-lock');
+  try{ sessionStorage.removeItem('cm-rec-mail'); }catch(e){}
+  return { ok: true, correo: true };
+}
+// Ajustes → Negocio: guardar el correo de recuperación (se comprueba con un código antes de guardarlo).
+async function authCorreoGuardar(){
+  const users = authUsers(), u = users.find(x => x.user === authUser); if(!u) return;
+  const nb = authNube(); if(!nb) return showToast('⚠️ Para guardar el correo hace falta internet (Servidor Vento).', 6000);
+  const e = (prompt('Tu correo para recuperar la contraseña:', u.email || '') || '').trim().toLowerCase(); if(!e) return;
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return showToast('⚠️ Ese correo no está bien escrito.');
+  try{ await nb.codigoCorreo(e); }catch(x){ return showToast('⚠️ ' + (nb.msgError ? nb.msgError(x) : (x.message || x)), 8000); }
+  const cod = prompt('Te mandé un código de 6 números a ' + e + ' (revisa también «Spam»). Escríbelo aquí:'); if(!cod) return;
+  try{ await nb.verificarCorreo(e, cod); }catch(x){ return showToast('⚠️ Ese código no sirve o ya venció. Vuelve a intentarlo.', 7000); }
+  try{ await nb.soltarSesion(); }catch(x){}
+  u.email = e; u.emailAt = Date.now(); localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
+  showToast('✅ Correo guardado: si olvidas la contraseña, te llega un código a ' + authMascara(e) + '.', 7000);
+  try{ authCorreoEstado(); }catch(x){}
+}
+function authCorreoEstado(){
+  const el = document.getElementById('accMailState'), b = document.getElementById('accMailBtn'); if(!el) return;
+  const u = authUsers().find(x => x.user === authUser);
+  el.textContent = u && u.email ? '✅ ' + authMascara(u.email) : '⚠️ Sin correo: agrégalo para poder recuperar la contraseña por correo.';
+  if(b) b.textContent = u && u.email ? '📧 Cambiar correo' : '📧 Agregar mi correo';
+}
 function authCodigosDialogo(alTerminar){
   let ov = document.getElementById('rcOverlay');
   if(!ov){ ov = document.createElement('div'); ov.id = 'rcOverlay'; ov.className = 'overlay'; document.body.appendChild(ov); }
@@ -17104,6 +17163,65 @@ document.getElementById('tutorialNext').addEventListener('click', () => {
   if(tutorialStep < TUTORIAL_SLIDES.length - 1){ tutorialStep++; tutorialRender(); }
   else tutorialClose();
 });
+/* Pantalla de bloqueo: tapa la app y pide la contraseña del usuario. La app sigue trabajando debajo
+   (pedidos, música, TV); no se recarga nada. */
+function bloquearApp(){
+  if(typeof authUser === 'undefined' || !authUser || document.getElementById('lockOv')) return;
+  const ov = document.createElement('div'); ov.id = 'lockOv';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:var(--bg,#0b0b0b);display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = '<form style="width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px">' +
+    '<div style="font-size:40px;text-align:center">🔒</div><b style="text-align:center;font-size:18px">Vento bloqueado</b><div class="auth-hint" style="text-align:center">Usuario: <b></b></div>' +
+    '<label>Contraseña<input id="lockPass" type="password" autocomplete="current-password"></label><div class="auth-err" id="lockErr"></div>' +
+    '<button class="btn-primary" type="submit">Desbloquear</button><button class="auth-link" type="button" id="lockOtro">Entrar con otro usuario</button></form>';
+  ov.querySelector('.auth-hint b').textContent = authUser;
+  document.body.appendChild(ov);
+  const f = ov.querySelector('form'), inp = ov.querySelector('#lockPass'), err = ov.querySelector('#lockErr');
+  f.onsubmit = async e => {
+    e.preventDefault(); err.textContent = '';
+    const espera = authLoginLocked(authUser); if(espera){ err.textContent = '🔒 Demasiados intentos. Espera ' + espera + ' min.'; return; }
+    const u = authUsers().find(x => x.user === authUser);
+    if(!u || await authHash(inp.value, u.salt) !== u.hash){ authLoginFail(authUser); err.textContent = 'Contraseña incorrecta.'; inp.value = ''; return; }
+    authLoginClear(authUser); ov.remove();
+  };
+  ov.querySelector('#lockOtro').onclick = () => { try{ saveData(); }catch(e){} localStorage.removeItem(AUTH_SESSION_KEY); location.reload(); };
+  setTimeout(() => inp.focus(), 100);
+}
+window.bloquearApp = bloquearApp;
+/* 🔒 Bloqueo automático por inactividad (opcional, por celular). */
+(function(){
+  let ult = Date.now();
+  ['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(ev => document.addEventListener(ev, () => { ult = Date.now(); }, { passive: true, capture: true }));
+  setInterval(() => {
+    try{
+      const min = +localStorage.getItem('cm-autolock') || 0;
+      if(!min || typeof authUser === 'undefined' || !authUser) return;
+      const ov = document.getElementById('authOverlay'); if(ov && !ov.hidden) return;
+      if(Date.now() - ult > min * 6e4){ ult = Date.now(); bloquearApp(); }
+    }catch(e){}
+  }, 20000);
+})();
+/* 👁 Ver la contraseña mientras se escribe: un ojo en TODOS los campos de contraseña (entrada, recuperar,
+   usuarios, Vento Nube…), también en los que se crean después. */
+(function(){
+  const st = document.createElement('style');
+  st.textContent = '.pw-wrap{position:relative;display:block}.pw-wrap>input{width:100%;box-sizing:border-box;padding-right:46px!important}.pw-ojo{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--ink-soft,#999);font-size:19px;line-height:1;padding:8px;cursor:pointer;border-radius:8px}.pw-ojo:focus-visible{outline:2px solid var(--amber,#f59e0b)}';
+  document.head.appendChild(st);
+  const poner = inp => {
+    if(!inp || inp.dataset.ojo || inp.type !== 'password') return;
+    inp.dataset.ojo = '1';
+    const w = document.createElement('span'); w.className = 'pw-wrap';
+    inp.parentNode.insertBefore(w, inp); w.appendChild(inp);
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'pw-ojo'; b.textContent = '👁'; b.setAttribute('aria-label', 'Ver contraseña');
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); const ver = inp.type === 'password'; inp.type = ver ? 'text' : 'password'; b.textContent = ver ? '🙈' : '👁'; b.setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Ver contraseña'); inp.focus(); });
+    w.appendChild(b);
+  };
+  const todos = root => { try{ (root.querySelectorAll ? root : document).querySelectorAll('input[type="password"]').forEach(poner); }catch(e){} };
+  const ini = () => { todos(document); new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if(n.nodeType === 1){ if(n.matches && n.matches('input[type="password"]')) poner(n); else todos(n); } }))).observe(document.body, { childList: true, subtree: true }); };
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ini); else ini();
+  // Al salir de la entrada, la contraseña vuelve a quedar oculta.
+  document.addEventListener('submit', e => { try{ e.target.querySelectorAll('input[data-ojo]').forEach(i => { i.type = 'password'; const b = i.parentNode.querySelector('.pw-ojo'); if(b) b.textContent = '👁'; }); }catch(x){} }, true);
+})();
 function showAuth(firstRun){
   const ov = document.getElementById('authOverlay');
   document.getElementById('authTitle').textContent = firstRun ? 'Crear cuenta' : 'Iniciar sesión';
@@ -17161,14 +17279,24 @@ function showAuth(firstRun){
     else if(file) showToast('No se pudo abrir el restaurador de respaldo.');
     e.target.value = '';
   };
+  g('recMailBtn').onclick = async () => {
+    const b = g('recMailBtn'), t = g('recMailTxt'); b.disabled = true; b.textContent = '⏳ Enviando…'; t.textContent = '';
+    try{ const r = await authCorreoEnviar(g('recUser').value);
+      t.textContent = r.ok ? '✅ Te mandé un código de 6 números a ' + r.mascara + ' (revisa también «Spam»). Escríbelo abajo con tu contraseña nueva.' : '⚠️ ' + r.error;
+      if(r.ok) g('recCode').focus(); }
+    finally{ b.disabled = false; b.textContent = '📧 Enviarme otro código al correo'; }
+  };
   rf.onsubmit = async (e) => {
     e.preventDefault(); g('recErr').textContent = '';
-    const m = await authRecover(g('recUser').value, g('recCode').value, g('recNew').value, g('recNew2').value);
+    let pend = null; try{ pend = JSON.parse(sessionStorage.getItem('cm-rec-mail') || 'null'); }catch(x){}
+    const esMail = /^\s*\d[\d\s]{5,9}\s*$/.test(g('recCode').value) && pend && pend.user === g('recUser').value.trim().toLowerCase() && Date.now() - pend.at < 60 * 6e4;
+    const m = esMail ? await authRecoverCorreo(g('recUser').value, g('recCode').value, g('recNew').value, g('recNew2').value)
+                     : await authRecover(g('recUser').value, g('recCode').value, g('recNew').value, g('recNew2').value);
     if(typeof m === 'string'){ g('recErr').textContent = m; return; }
     g('authUser').value = g('recUser').value.trim().toLowerCase();
     ['recCode','recNew','recNew2'].forEach(i => g(i).value = '');
     rf.hidden = true; af.hidden = false;
-    g('authErr').textContent = '✅ Contraseña cambiada. Ya puedes entrar. Ese código ya no sirve más' + (m.quedan ? ' (te quedan ' + m.quedan + ').' : ': crea códigos nuevos en Ajustes → Negocio.');
+    g('authErr').textContent = m.correo ? '✅ Contraseña cambiada con el código del correo. Ya puedes entrar.' : '✅ Contraseña cambiada. Ya puedes entrar. Ese código ya no sirve más' + (m.quedan ? ' (te quedan ' + m.quedan + ').' : ': crea códigos nuevos en Ajustes → Negocio.');
   };
   document.getElementById('authForm').onsubmit = async (e) => {
     e.preventDefault();
@@ -17251,6 +17379,8 @@ function wireAccountUI(){
   };
   rcState();
   document.getElementById('accRcBtn').onclick = () => authCodigosDialogo(rcState);
+  try{ authCorreoEstado(); document.getElementById('accMailBtn').onclick = () => authCorreoGuardar(); }catch(e){}
+  try{ const al = document.getElementById('accAutoLock'); al.value = String(+localStorage.getItem('cm-autolock') || 0); al.onchange = () => { localStorage.setItem('cm-autolock', al.value); showToast(+al.value ? '🔒 La app se bloquea sola tras ' + al.options[al.selectedIndex].text + ' sin uso.' : 'Bloqueo automático apagado.'); }; }catch(e){}
   document.getElementById('accLogoutBtn').onclick = () => cerrarSesion();
   accUsuariosPintar();
   const ai = document.getElementById('voiceAiToggle');
@@ -21754,7 +21884,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-03 · v1.23.1';
+const MESORA_VERSION = '2026-10-03 · v1.24';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22168,6 +22298,32 @@ async function tvTransmitirToque(){
    Al tocar uno, abre YouTube en ese TV con un código de vinculación y Vento se vincula sola con ese
    código (el mismo sistema de «Vincular con código de TV», sin escribir nada). Desde ahí la cola de
    las mesas suena allá sola, como con el código. */
+/* Informe de la búsqueda de TV (app de Android): qué encontró cada forma de buscar. Si un TV no sale, con
+   esto se sabe por qué (sin wifi, router que bloquea, Google Play Services…). */
+function tvDiagTexto(d){
+  if(!d) return '';
+  const l = [];
+  l.push('Wifi: ' + (d.wifi || '—') + (d.subred ? ' · red ' + d.subred : ''));
+  l.push('Buscador de Google (como YouTube): ' + (d.castGoogle || 'no corrió') + (d.castRutas ? ' · vio: ' + d.castRutas : ' · no vio aparatos') + (d.castSinIp ? ' · sin dirección: ' + d.castSinIp : ''));
+  l.push('Chromecast por mDNS: ' + (d.mdns || 0) + ' anunciados, ' + (d.mdnsResueltos || 0) + ' resueltos' + (d.mdnsSinResolver ? ', ' + d.mdnsSinResolver + ' sin resolver' : '') + (d.mdnsError ? ' · error ' + d.mdnsError : ''));
+  l.push('TV por SSDP/DIAL: ' + (d.ssdp || 0) + ' respuestas' + (d.ssdpError ? ' · error ' + d.ssdpError : ''));
+  l.push('Barrido del wifi: ' + (d.puertos ? 'puertos abiertos ' + d.puertos : 'ningún TV con puertos abiertos'));
+  l.push('En la lista: ' + (d.vistos || 'ninguno'));
+  return l.join('\n');
+}
+function tvDiagPintar(ov, diag){
+  try{
+    window.__tvDiag = diag || null;
+    let box = ov.querySelector('#tvDiag');
+    if(!box){ box = document.createElement('details'); box.id = 'tvDiag'; box.className = 'settings-desc'; box.style.marginTop = '8px';
+      box.innerHTML = '<summary>🔍 Detalles de la búsqueda</summary><pre style="white-space:pre-wrap;font-size:12px;margin:6px 0"></pre><button type="button" class="btn-ghost" style="width:100%">📋 Copiar detalles</button>';
+      box.querySelector('button').onclick = () => { try{ navigator.clipboard.writeText('Vento ' + MESORA_VERSION + ' · búsqueda de TV\n' + tvDiagTexto(window.__tvDiag)); showToast('📋 Copiado. Mándamelo para revisarlo.'); }catch(e){} };
+      ov.querySelector('#tvApkLista').after(box); }
+    box.hidden = !diag;
+    box.querySelector('pre').textContent = tvDiagTexto(diag);
+    try{ lngLog('🔍 búsqueda de TV · ' + tvDiagTexto(diag).replace(/\n/g, ' | ')); }catch(e){}
+  }catch(e){}
+}
 const tvEsc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const tvIcono = t => ({ lg: '📺', samsung: '📺', tv: '📺', chromecast: '📡', androidtv: '🤖', firetv: '🔥', roku: '🟣', tvbox: '📦' }[t] || '📺');
 function tvApkLista(){
@@ -22210,7 +22366,8 @@ function tvApkLista(){
     L.appendChild(b);
     sub.textContent = 'Toca tu TV: se abre YouTube allá y las canciones de las mesas suenan solas.';
   };
-  window.__ventoTVfin = () => {
+  window.__ventoTVfin = (n, diag) => {
+    tvDiagPintar(ov, diag);
     if(!Object.keys(vistos).length) sub.textContent = 'No encontré TV en este wifi. Revisa que el celular y el TV estén en el MISMO wifi y el TV encendido, y toca «Buscar otra vez». Si aun así no sale, usa el código del TV.';
   };
   ov.classList.add('show');
@@ -25585,6 +25742,7 @@ window.mesoraCelebrar = function(emojis){
     if(vistos[k] && Date.now() - vistos[k] < (cada || 6 * 36e5)) return;
     vistos[k] = Date.now(); recientes.unshift({ t: Date.now(), txt }); recientes.length = Math.min(recientes.length, 30);
     if(Date.now() - ultimoToast < 45000) return;                 // máximo un aviso cada 45 s
+    if(typeof data !== 'undefined' && data && data.layaAuto && data.layaAuto.avisos === false) return;   // avisos de Laya apagados (quedan en «Avisos recientes»)
     ultimoToast = Date.now(); try{ showToast('🧠 Laya: ' + txt, 7000); }catch(e){}
   }
   function revisar(){
@@ -26083,7 +26241,7 @@ window.mesoraCelebrar = function(emojis){
   const bul = l => l.map(x => '• ' + x).join('\n');
   const esAdmin = () => { try{ return typeof authIsAdmin !== 'function' || authIsAdmin(); }catch(e){ return true; } };
   const reg = (c, t) => { try{ window.Laya.registrar(c, t); }catch(e){} };
-  const AUTO_DEF = { tarjeta: true, resumen: true, compras: true, precios: true, mesas: true, fiados: true, quietos: true };
+  const AUTO_DEF = { avisos: true, tarjeta: true, resumen: true, compras: true, precios: true, mesas: true, fiados: true, quietos: true };
   const auto = () => Object.assign({}, AUTO_DEF, (listo() && data.layaAuto) || {});
 
   // ---------- Ventas por período ----------
@@ -26204,6 +26362,39 @@ window.mesoraCelebrar = function(emojis){
     const t = N(raw).replace(/^(oye |hola |ey |hey )?laya\b ?/, '');
     if(!t) return null;
     if(/\b(abre|abrir|abreme|muestrame|pon)\b.*\bcalculadora\b|^calculadora$/.test(t)) return { text: '🧮 Abro la calculadora.', run: () => { try{ asisClose(); }catch(e){} window.calculadoraAbrir && window.calculadoraAbrir(); } };
+    // Avisos de Laya: «Laya, desactiva tus notificaciones» / «Laya, vuelve a mostrar los avisos»
+    if(/\b(avisos|notificaciones|alertas|mensajes)\b/.test(t) && /\b(desactiva|desactivar|apaga|apagar|quita|quitar|silencia|calla|no me (mandes|muestres|salgan))\b/.test(t)){
+      data.layaAuto = Object.assign({}, auto(), { avisos: false }); saveData(); reg('ejecución', 'Avisos de Laya apagados');
+      return { text: '🔕 Listo: ya no te salen mis avisos en pantalla. Los sigo guardando en Ajustes → Laya IA → «Avisos recientes». Para volver: «Laya, activa tus avisos».' };
+    }
+    if(/\b(avisos|notificaciones|alertas)\b/.test(t) && /\b(activa|activar|prende|enciende|vuelve a|muestrame de nuevo)\b/.test(t)){
+      data.layaAuto = Object.assign({}, auto(), { avisos: true }); saveData(); reg('ejecución', 'Avisos de Laya prendidos');
+      return { text: '🔔 Listo: te vuelvo a avisar lo importante.' };
+    }
+    // Música y TV
+    const mus = window.vitoMusica, enTV = typeof lngOn === 'function' && lngOn();
+    if(/\b(que (cancion )?(esta sonando|suena|esta en el tv|estan poniendo)|que cancion es (esta|esa)|que suena)\b/.test(t)){
+      let txt = '';
+      if(enTV && typeof lng !== 'undefined' && lng.tvVid){ const inf = (typeof lngInfoVideo === 'function' && lngInfoVideo(lng.tvVid)) || {}; txt = '📺 En el TV ' + (lng.tvSt === 2 ? 'está en pausa' : 'suena') + ': «' + (inf.t || 'un video de YouTube') + '»' + (inf.c ? ' · ' + inf.c : '') + '.'; }
+      const a = mus && mus.actual && mus.actual();
+      if(!txt && a) txt = '🎵 Suena «' + (a.title || a.song) + '», pedida por ' + tableLabel(a.mesa) + '.';
+      const cola = mus && mus.cola ? mus.cola().filter(x => !x.done || x.status === 'tv').length : 0;
+      return { text: (txt || '🎵 Ahora no está sonando nada de Vento.') + (cola ? '\n' + cola + (cola === 1 ? ' canción espera' : ' canciones esperan') + ' en la cola.' : '') };
+    }
+    if(/\b(salta|saltar|pasa|pasar|cambia|siguiente)\b.*\b(cancion|tema|musica)\b|^siguiente( cancion)?$/.test(t) && !/\bmesa\b/.test(t)){
+      if(enTV && typeof lngSaltar === 'function'){ lngSaltar(); return { text: '⏭ Le dije al TV que pase a la siguiente.' }; }
+      if(mus && mus.saltar){ mus.saltar(); return { text: '⏭ Pasé a la siguiente canción.' }; }
+    }
+    if(/^(pausa|pausar|para|parar|deten|detener)( la)?( musica| cancion| tv)?$|\b(pausa|pon en pausa|deten) (la )?(musica|cancion)\b/.test(t) && enTV && typeof lngVivoCmd === 'function'){ lngVivoCmd('pause', '⏸ En pausa en el TV'); return { text: '⏸ Pausé la música en el TV.' }; }
+    if(/^(sigue|seguir|reanuda|continua|play|dale play)( la)?( musica| cancion)?$|\b(reanuda|continua|sigue con) (la )?(musica|cancion)\b/.test(t) && enTV && typeof lngVivoCmd === 'function'){ lngVivoCmd('play', '▶ Sigue sonando en el TV'); return { text: '▶ La música sigue en el TV.' }; }
+    const pc = t.match(/^(?:pon(?:me|le)?|agrega(?:me)?|coloca(?:me)?|reproduce|mete)\s+(?:la cancion|el tema|una cancion de|la musica de|musica de|cancion de|la de)\s+(.{2,80})$/) || t.match(/^(?:agrega|pon|mete)\s+(.{2,80}?)\s+(?:a|en) la (?:cola|musica|lista)$/);
+    if(pc && window.vitoAddSong){ const msg = window.vitoAddSong(0, pc[1]); reg('ejecución', 'Canción agregada: ' + pc[1]); return { text: /ya está|⚠️/.test(msg) ? msg : '🎵 Agregué «' + pc[1] + '» a la cola' + (enTV ? ': entra al TV detrás de la que suena.' : '.') }; }
+    if(/\b(cuantas|que) canciones\b.*\b(cola|esperan|faltan|hay)\b/.test(t) && mus){
+      const l = mus.cola().filter(x => !x.done || x.status === 'tv'); return { text: l.length ? '🎵 En la cola (' + l.length + '):\n' + bul(l.slice(0, 10).map(x => (x.title || x.song) + ' · ' + tableLabel(x.mesa))) : '🎵 La cola está vacía.' };
+    }
+    if(/\b(busca|buscar|conecta|conectar|muestrame|transmite|transmitir|manda)\b.*\b(tv|tele|televisor|televisores|chromecast)\b/.test(t) && typeof tvTransmitirToque === 'function'){
+      return { text: '📺 Busco los TV de tu wifi.', run: () => { try{ asisClose(); }catch(e){} const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.click(); setTimeout(() => { try{ tvTransmitirToque(); }catch(e){} }, 400); } };
+    }
     if(/\b(nequi|daviplata|bre b|transferencias?|pagos? (digitales|de hoy|recibidos|que llegaron)|me (ha |han )?llegado|cuanto (me )?llego|llego (el )?pago|llegaron pagos)\b/.test(t) && window.pagosResumen){
       const mesaP = (t.match(/\bmesa (\d+)\b/) || [])[1]; return { text: window.pagosResumen(periodo(t), mesaP ? +mesaP : null), actions: [{ tipo: 'laya', op: 'pagosPanel', label: '💜 Ver los pagos' }] };
     }
@@ -26342,8 +26533,10 @@ window.mesoraCelebrar = function(emojis){
 
   // ---------- Ajustes → Laya IA: interruptores del piloto automático ----------
   function panelAuto(){
-    const g = document.getElementById('layaGrupo'); if(!g || document.getElementById('layaAutoCard') || !listo()) return;
-    const OPS = [['tarjeta', 'Tarjeta de Laya en el inicio'], ['resumen', 'Resumen del día anterior'], ['compras', 'Lista de compras cuando algo se acaba'], ['precios', 'Sugerir precio cuando sube el costo'], ['mesas', 'Avisar mesas sin movimiento (más de 3 h)'], ['fiados', 'Recordar fiados de más de 15 días'], ['quietos', 'Productos que no se venden en 30 días']];
+    const g = document.getElementById('layaGrupo'); if(!g || !listo()) return;
+    const ya = document.getElementById('layaAutoCard');
+    if(ya){ ya.querySelectorAll('[data-auto]').forEach(x => { x.checked = !!auto()[x.dataset.auto]; }); return; }
+    const OPS = [['avisos', '🔔 Avisos de Laya en pantalla (apágalo para que no te salgan mensajes)'], ['tarjeta', 'Tarjeta de Laya en el inicio'], ['resumen', 'Resumen del día anterior'], ['compras', 'Lista de compras cuando algo se acaba'], ['precios', 'Sugerir precio cuando sube el costo'], ['mesas', 'Avisar mesas sin movimiento (más de 3 h)'], ['fiados', 'Recordar fiados de más de 15 días'], ['quietos', 'Productos que no se venden en 30 días']];
     const c = document.createElement('div'); c.className = 'jm-card'; c.id = 'layaAutoCard';
     c.innerHTML = '<b>🤖 Piloto automático</b><div class="settings-desc">Laya revisa el negocio sola y te propone qué hacer. Nada se cambia sin que lo confirmes.</div>' +
       OPS.map(([k, l]) => '<label class="lh-sw"><input type="checkbox" data-auto="' + k + '"' + (auto()[k] ? ' checked' : '') + '> ' + l + '</label>').join('');

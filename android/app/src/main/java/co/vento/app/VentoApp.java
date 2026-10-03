@@ -207,7 +207,7 @@ public class VentoApp extends Application {
         public void buscarTVs() {
             new BuscadorTV(VentoApp.this).buscar(new BuscadorTV.Oyente() {
                 @Override public void encontrado(JSONObject tv) { js("window.__ventoTV&&window.__ventoTV(" + tv + ")"); }
-                @Override public void terminado(int n) { js("window.__ventoTVfin&&window.__ventoTVfin(" + n + ")"); }
+                @Override public void terminado(int n) { js("window.__ventoTVfin&&window.__ventoTVfin(" + n + "," + BuscadorTV.diagnostico() + ")"); }
             });
         }
 

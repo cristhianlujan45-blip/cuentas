@@ -75,6 +75,12 @@ final class BuscadorTV {
     private static final Map<String, JSONObject> hallados = new LinkedHashMap<>();
     /** Red wifi del celular: la búsqueda y las llamadas al TV van SIEMPRE por ahí (no por datos ni VPN). */
     static volatile Network redWifi = null;
+    /** Informe de la última búsqueda (qué encontró cada método): sirve para saber por qué no sale un TV. */
+    private static final JSONObject diag = new JSONObject();
+    static void anotar(String k, Object v) { synchronized (diag) { try { diag.put(k, v); } catch (Exception ignorado) { } } }
+    static void sumar(String k) { synchronized (diag) { try { diag.put(k, diag.optInt(k, 0) + 1); } catch (Exception ignorado) { } } }
+    static void agregar(String k, String v) { synchronized (diag) { try { String a = diag.optString(k, ""); if (a.length() < 600) diag.put(k, a.isEmpty() ? v : a + ", " + v); } catch (Exception ignorado) { } } }
+    static String diagnostico() { synchronized (diag) { return diag.toString(); } }
 
     /** Busca durante unos segundos. Llama a {@code oyente} por cada TV nuevo (desde otro hilo). */
     void buscar(final Oyente oyente) {
@@ -102,6 +108,7 @@ final class BuscadorTV {
             hallados.put(ip, tv);
             a = new ArrayList<>(oyentes);
         }
+        agregar("vistos", tv.optString("nombre") + " (" + ip + ")");
         for (Oyente o : a) try { o.encontrado(tv); } catch (Exception ignorado) { }
     }
 
@@ -130,8 +137,11 @@ final class BuscadorTV {
     private static boolean yaEsta(String ip) { synchronized (CANDADO) { return hallados.containsKey(ip); } }
 
     private void buscarAhora() {
+        synchronized (diag) { java.util.Iterator<String> it = diag.keys(); List<String> ks = new ArrayList<>(); while (it.hasNext()) ks.add(it.next()); for (String k : ks) diag.remove(k); }
+        anotar("inicio", System.currentTimeMillis());
         try {
             redWifi = buscarRedWifi();
+            anotar("wifi", redWifi != null ? "sí" : "no encontrado (¿datos móviles o sin wifi?)");
             final long hasta = System.currentTimeMillis() + 7000;
             // Chromecast, Google TV, Android TV y TV Box con Chromecast se anuncian por mDNS: se buscan a la vez.
             final Runnable pararCast = buscarCast(hasta);
@@ -186,6 +196,7 @@ final class BuscadorTV {
                         String resp = new String(p.getData(), 0, p.getLength(), StandardCharsets.UTF_8);
                         final String ubicacion = cabecera(resp, "LOCATION");
                         if (ubicacion == null || !vistos.add(ubicacion)) continue;
+                        sumar("ssdp");
                         final String usn = cabecera(resp, "USN");
                         new Thread(() -> emitir(describir(ubicacion, usn))).start();
                     } catch (SocketTimeoutException t) {
@@ -194,6 +205,7 @@ final class BuscadorTV {
                 }
             } catch (Exception e) {
                 // sin wifi o red que no deja: siguen el mDNS y el barrido
+                anotar("ssdpError", String.valueOf(e.getMessage()));
             } finally {
                 try { if (candado != null) candado.release(); } catch (Exception ignorado) { }
             }
@@ -256,6 +268,7 @@ final class BuscadorTV {
 
     private void barrer(long hasta) {
         final String base = subred();
+        anotar("subred", base == null ? "no se supo" : base + "x");
         if (base == null) return;
         // Por puertos (primero el de los Chromecast/Android TV), y en cada uno todas las direcciones a la vez:
         // así se recorre todo el wifi en 1–2 s. Antes se iba dirección por dirección y no alcanzaba a llegar
@@ -274,6 +287,7 @@ final class BuscadorTV {
                 pool.awaitTermination(Math.max(500, fin - System.currentTimeMillis()), TimeUnit.MILLISECONDS);
             } catch (Exception ignorado) {
             } finally { pool.shutdownNow(); }
+            for (String ip : abiertos) agregar("puertos", ip + ":" + puerto);
             for (final String ip : new ArrayList<>(abiertos)) {
                 new Thread(() -> {
                     // Un momento para que gane la descripción completa que llega por las otras búsquedas.
@@ -375,11 +389,11 @@ final class BuscadorTV {
         final NsdManager.DiscoveryListener[] oyentes = new NsdManager.DiscoveryListener[tipos.length];
         for (int i = 0; i < tipos.length; i++) {
             oyentes[i] = new NsdManager.DiscoveryListener() {
-                @Override public void onStartDiscoveryFailed(String t, int e) { }
+                @Override public void onStartDiscoveryFailed(String t, int e) { anotar("mdnsError", t + " " + e); }
                 @Override public void onStopDiscoveryFailed(String t, int e) { }
                 @Override public void onDiscoveryStarted(String t) { }
                 @Override public void onDiscoveryStopped(String t) { }
-                @Override public void onServiceFound(NsdServiceInfo s) { cola.offer(s); }
+                @Override public void onServiceFound(NsdServiceInfo s) { sumar("mdns"); cola.offer(s); }
                 @Override public void onServiceLost(NsdServiceInfo s) { }
             };
             try { nsd.discoverServices(tipos[i], NsdManager.PROTOCOL_DNS_SD, oyentes[i]); } catch (Exception e) { oyentes[i] = null; }
@@ -400,7 +414,8 @@ final class BuscadorTV {
                     });
                     listo.await(3, TimeUnit.SECONDS);
                 } catch (Exception ignorado) { }
-                if (r[0] == null) continue;
+                if (r[0] == null) { sumar("mdnsSinResolver"); continue; }
+                sumar("mdnsResueltos");
                 final NsdServiceInfo x = r[0];
                 new Thread(() -> emitir(describirCast(x))).start();
             }
