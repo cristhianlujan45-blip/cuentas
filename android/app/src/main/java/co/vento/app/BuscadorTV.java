@@ -102,9 +102,18 @@ final class BuscadorTV {
     private static void emitir(JSONObject tv) {
         if (tv == null) return;
         String ip = tv.optString("ip");
+        String nom = tv.optString("nombre").trim().toLowerCase(Locale.ROOT);
         List<Oyente> a;
         synchronized (CANDADO) {
             if (ip.isEmpty() || hallados.containsKey(ip)) return;
+            // Un mismo aparato sin dirección IPv4 (solo por su nombre) no se repite si ya salió con su dirección, y al revés.
+            boolean sinIp = ip.startsWith("nombre:");
+            for (JSONObject o : hallados.values()) {
+                if (!nom.isEmpty() && nom.equals(o.optString("nombre").trim().toLowerCase(Locale.ROOT)) && (sinIp || o.optString("ip").startsWith("nombre:"))) {
+                    if (sinIp) return;
+                    hallados.remove(o.optString("ip")); break;     // llegó la versión completa: reemplaza a la que no tenía dirección
+                }
+            }
             hallados.put(ip, tv);
             a = new ArrayList<>(oyentes);
         }
@@ -169,7 +178,8 @@ final class BuscadorTV {
                 sock.setBroadcast(true);
                 InetAddress grupo = InetAddress.getByName(GRUPO);
                 InetAddress todos = InetAddress.getByName("255.255.255.255");
-                String[] busquedas = {ST_DIAL, "urn:dial-multiscreen-org:device:dial:1"};
+                // DIAL (TV que abren YouTube) + reproductores multimedia (TV Box genéricos, DLNA) + todo lo que conteste.
+                String[] busquedas = {ST_DIAL, "urn:dial-multiscreen-org:device:dial:1", "urn:schemas-upnp-org:device:MediaRenderer:1", "ssdp:all"};
                 long fin = System.currentTimeMillis() + 5500;
                 long proximoEnvio = 0;
                 int envios = 0;
@@ -264,37 +274,44 @@ final class BuscadorTV {
     private static String prefijo(String ip) { int k = ip.lastIndexOf('.'); return k > 0 ? ip.substring(0, k + 1) : null; }
 
     /** Puertos donde los TV abren apps (DIAL): Chromecast/Android TV, LG webOS, Samsung, Roku. */
-    private static final int[] PUERTOS = {8008, 36866, 8080, 8060};
+    /** Puertos de TV y TV Box, en orden de preferencia: Chromecast/Android TV, LG, Samsung, Roku, Samsung (nuevo),
+     *  LG (control), Philips, control remoto de Android TV, depuración de TV Box Android genéricos, AirPlay, Cast seguro. */
+    private static final int[] PUERTOS = {8008, 36866, 8080, 8060, 8001, 3000, 1925, 6466, 5555, 7000, 8009};
 
     private void barrer(long hasta) {
         final String base = subred();
         anotar("subred", base == null ? "no se supo" : base + "x");
         if (base == null) return;
-        // Por puertos (primero el de los Chromecast/Android TV), y en cada uno todas las direcciones a la vez:
-        // así se recorre todo el wifi en 1–2 s. Antes se iba dirección por dirección y no alcanzaba a llegar
-        // a las altas (p. ej. .150) antes de que se acabara el tiempo.
-        final long fin = Math.max(hasta, System.currentTimeMillis() + 6000);
-        for (final int puerto : PUERTOS) {
-            if (System.currentTimeMillis() > fin) break;
-            ExecutorService pool = Executors.newFixedThreadPool(64);
-            final List<String> abiertos = Collections.synchronizedList(new ArrayList<>());
-            try {
-                for (int h = 1; h <= 254; h++) {
-                    final String ip = base + h;
-                    pool.execute(() -> { if (!yaEsta(ip) && abierto(ip, puerto)) abiertos.add(ip); });
-                }
-                pool.shutdown();
-                pool.awaitTermination(Math.max(500, fin - System.currentTimeMillis()), TimeUnit.MILLISECONDS);
-            } catch (Exception ignorado) {
-            } finally { pool.shutdownNow(); }
-            for (String ip : abiertos) agregar("puertos", ip + ":" + puerto);
-            for (final String ip : new ArrayList<>(abiertos)) {
-                new Thread(() -> {
-                    // Un momento para que gane la descripción completa que llega por las otras búsquedas.
-                    try { Thread.sleep(1200); } catch (Exception ignorado) { }
-                    if (!yaEsta(ip)) emitir(describirPuerto(ip, puerto));
-                }).start();
+        // Todas las direcciones y todos los puertos a la vez (~3–4 s para todo el wifi). Un aparato que no existe
+        // tarda lo que dura la espera; uno que existe contesta al instante, abierto o cerrado.
+        final long fin = Math.max(hasta, System.currentTimeMillis() + 6500);
+        final Map<String, Set<Integer>> abiertos = new java.util.concurrent.ConcurrentHashMap<>();
+        ExecutorService pool = Executors.newFixedThreadPool(160);
+        try {
+            for (final int puerto : PUERTOS) for (int h = 1; h <= 254; h++) {
+                final String ip = base + h;
+                pool.execute(() -> {
+                    if (System.currentTimeMillis() > fin || yaEsta(ip)) return;
+                    if (abierto(ip, puerto)) abiertos.computeIfAbsent(ip, k -> Collections.synchronizedSet(new HashSet<>())).add(puerto);
+                });
             }
+            pool.shutdown();
+            pool.awaitTermination(Math.max(500, fin - System.currentTimeMillis()), TimeUnit.MILLISECONDS);
+        } catch (Exception ignorado) {
+        } finally { pool.shutdownNow(); }
+        for (Map.Entry<String, Set<Integer>> e : abiertos.entrySet()) agregar("puertos", e.getKey() + ":" + e.getValue());
+        for (final Map.Entry<String, Set<Integer>> e : abiertos.entrySet()) {
+            new Thread(() -> {
+                // Un momento para que gane la descripción completa que llega por las otras búsquedas.
+                try { Thread.sleep(1200); } catch (Exception ignorado) { }
+                String ip = e.getKey();
+                for (int puerto : PUERTOS) {
+                    if (yaEsta(ip)) return;
+                    if (!e.getValue().contains(puerto)) continue;
+                    JSONObject tv = describirPuerto(ip, puerto);
+                    if (tv != null) { emitir(tv); return; }
+                }
+            }).start();
         }
     }
 
@@ -302,7 +319,7 @@ final class BuscadorTV {
         try (Socket so = new Socket()) {
             Network red = redWifi;
             if (red != null && android.os.Build.VERSION.SDK_INT >= 23) try { red.bindSocket(so); } catch (Exception ignorado) { }
-            so.connect(new InetSocketAddress(ip, puerto), 300);
+            so.connect(new InetSocketAddress(ip, puerto), 250);
             return true;
         } catch (Exception e) { return false; }
     }
@@ -321,6 +338,17 @@ final class BuscadorTV {
                 appUrl = "http://" + ip + ":36866/apps/"; fabricante = "LG Electronics"; nombre = "LG webOS TV"; tipo = "lg";
             } else if (puerto == 8080) {
                 appUrl = "http://" + ip + ":8080/ws/app/"; fabricante = "Samsung"; nombre = "Samsung TV"; tipo = "samsung";
+            } else if (puerto != 8060) {
+                // Aparato sin forma de abrirle YouTube desde el wifi: sale con su nombre en la red y se conecta con el código del TV.
+                String n = nombreEnRed(ip);
+                String[] q = {
+                        puerto == 8001 ? "Samsung TV" : puerto == 3000 ? "LG webOS TV" : puerto == 1925 ? "Philips TV" : puerto == 6466 ? "Android TV / TV Box" : puerto == 5555 ? "TV Box Android" : puerto == 7000 ? "TV con AirPlay" : "Chromecast / Google TV",
+                        puerto == 8001 ? "samsung" : puerto == 3000 ? "lg" : puerto == 8009 ? "chromecast" : puerto == 7000 ? "tv" : "tvbox"};
+                JSONObject g = new JSONObject();
+                g.put("id", "ip:" + ip);
+                g.put("nombre", n != null ? n : q[0] + " (" + ip + ")");
+                g.put("fabricante", n != null ? q[0] : ""); g.put("modelo", ""); g.put("ip", ip); g.put("tipo", q[1]); g.put("soloCodigo", true);
+                return g;
             } else {
                 String[] d = pedir("http://" + ip + ":8060/query/device-info");
                 if (!"200".equals(d[0])) return null;
@@ -345,6 +373,16 @@ final class BuscadorTV {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /** Nombre que el router le da al aparato (p. ej. «onn-4k», «android-1a2b…»); null si no tiene. */
+    private static String nombreEnRed(String ip) {
+        try {
+            String h = InetAddress.getByName(ip).getCanonicalHostName();
+            if (h == null || h.equals(ip) || h.matches("[0-9.]+")) return null;
+            h = h.replaceAll("\\.(lan|local|home|localdomain|router|domain|gateway)$", "");
+            return h.isEmpty() ? null : h;
+        } catch (Exception e) { return null; }
     }
 
     /** GET con respuesta: {código, texto, cabecera Application-URL}. */
@@ -385,7 +423,7 @@ final class BuscadorTV {
         final NsdManager nsd = (NsdManager) ctx.getSystemService(Context.NSD_SERVICE);
         if (nsd == null) return () -> { };
         final LinkedBlockingQueue<NsdServiceInfo> cola = new LinkedBlockingQueue<>();
-        final String[] tipos = {"_googlecast._tcp", "_androidtvremote2._tcp"};
+        final String[] tipos = {"_googlecast._tcp", "_androidtvremote2._tcp", "_androidtvremote._tcp", "_amzn-wplay._tcp", "_airplay._tcp"};
         final NsdManager.DiscoveryListener[] oyentes = new NsdManager.DiscoveryListener[tipos.length];
         for (int i = 0; i < tipos.length; i++) {
             oyentes[i] = new NsdManager.DiscoveryListener() {
@@ -439,7 +477,17 @@ final class BuscadorTV {
                 try { for (InetAddress h : x.getHostAddresses()) if (h instanceof Inet4Address) { ip = h.getHostAddress(); break; } } catch (Throwable ignorado) { }
             }
             if (ip == null && x.getHost() instanceof Inet4Address) ip = x.getHost().getHostAddress();
-            if (ip == null) return null;               // antes se botaba si Android la daba en IPv6 (así no salía el Chromecast)
+            if (ip == null) {
+                // Android no dio dirección IPv4 (pasa con algunos Google TV / TV Box): sale igual en la lista, con su
+                // nombre, y se conecta con el código del TV. Antes se botaba y el aparato no aparecía.
+                String n = atributo(x, "fn"); if (n.isEmpty()) n = x.getServiceName().replaceAll("-[0-9a-f]{20,}$", "").replace('-', ' ');
+                JSONObject tv = new JSONObject();
+                tv.put("id", "mdns:" + x.getServiceName()); tv.put("nombre", n); tv.put("fabricante", "Chromecast integrado");
+                tv.put("modelo", atributo(x, "md")); tv.put("ip", "nombre:" + n.toLowerCase(Locale.ROOT)); tv.put("tipo", "androidtv"); tv.put("soloCodigo", true);
+                String rs = atributo(x, "rs"); if (!rs.isEmpty()) { tv.put("app", rs); if (rs.toLowerCase(Locale.ROOT).contains("youtube")) tv.put("youtube", true); }
+                agregar("sinIPv4", n);
+                return tv;
+            }
             String nombre = atributo(x, "fn"), modelo = atributo(x, "md");
             boolean esCast = x.getServiceType() != null && x.getServiceType().contains("googlecast");
             if (nombre.isEmpty()) nombre = x.getServiceName().replaceAll("-[0-9a-f]{20,}$", "").replace('-', ' ');
@@ -449,11 +497,12 @@ final class BuscadorTV {
             JSONObject tv = new JSONObject();
             tv.put("id", "mdns:" + ip);
             tv.put("nombre", nombre);
-            tv.put("fabricante", esCast ? "Chromecast integrado" : "Android TV");
+            String st = x.getServiceType() == null ? "" : x.getServiceType();
+            tv.put("fabricante", esCast ? "Chromecast integrado" : st.contains("amzn") ? "Fire TV" : st.contains("airplay") ? "AirPlay" : "Android TV");
             tv.put("modelo", modelo);
             tv.put("ip", ip);
             String t = (modelo + " " + nombre).toLowerCase(Locale.ROOT);
-            tv.put("tipo", t.contains("chromecast") || t.contains("google tv") ? "chromecast" : (esCast && !t.contains("tv") ? "chromecast" : "androidtv"));
+            tv.put("tipo", t.contains("chromecast") || t.contains("google tv") ? "chromecast" : (esCast && !t.contains("tv") ? "chromecast" : st.contains("amzn") ? "firetv" : st.contains("airplay") ? "tv" : "androidtv"));
             if (yt >= 200 && yt < 300) tv.put("appUrl", appUrl);
             else tv.put("soloCodigo", true);                               // sale en la lista, pero se conecta con el código del TV
             // «rs» es lo que el aparato está mostrando ahora (p. ej. «YouTube»): lo mismo que YouTube pone como «Reproduciendo YouTube».
@@ -490,7 +539,22 @@ final class BuscadorTV {
             String appUrl = c.getHeaderField("Application-URL");
             if (appUrl == null) appUrl = c.getHeaderField("Application-Url");
             String xml = leer(c.getInputStream());
-            if (appUrl == null || appUrl.isEmpty()) return null;            // no abre aplicaciones: no sirve para YouTube
+            if (appUrl == null || appUrl.isEmpty()) {
+                // No abre YouTube desde el wifi, pero si es un reproductor (TV, TV Box genérico, DLNA) sale en la lista
+                // y se conecta con el código del TV. Routers, impresoras y discos de red no.
+                String tipoDisp = etiqueta(xml, "deviceType"), n0 = etiqueta(xml, "friendlyName"), f0 = etiqueta(xml, "manufacturer"), m0 = etiqueta(xml, "modelName");
+                String todo = (tipoDisp + " " + n0 + " " + f0 + " " + m0).toLowerCase(Locale.ROOT);
+                boolean esTV = tipoDisp.contains("MediaRenderer") || todo.matches(".*\\b(tv|tvbox|tv box|box|android|cast|player|onn|roku|fire|stick|dongle|kodi|smart|bravia|aquos|hisense|tcl|philips|vizio|xiaomi|mibox|mi box)\\b.*");
+                if (!esTV || todo.matches(".*(internetgatewaydevice|wanconnection|printer|scanner|mediaserver|nas|router|gateway).*")) return null;
+                URL u0 = new URL(ubicacion);
+                JSONObject g = new JSONObject();
+                g.put("id", usn != null ? usn : ubicacion);
+                g.put("nombre", n0.isEmpty() ? (m0.isEmpty() ? "Reproductor (" + u0.getHost() + ")" : m0) : n0);
+                g.put("fabricante", f0); g.put("modelo", m0); g.put("ip", u0.getHost());
+                g.put("tipo", "tv".equals(tipo(todo)) ? "tvbox" : tipo(todo)); g.put("soloCodigo", true);
+                sumar("ssdpReproductores");
+                return g;
+            }
             if (!appUrl.endsWith("/")) appUrl = appUrl + "/";
             String nombre = etiqueta(xml, "friendlyName");
             String fabricante = etiqueta(xml, "manufacturer");

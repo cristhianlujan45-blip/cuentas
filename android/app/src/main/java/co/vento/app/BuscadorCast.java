@@ -69,9 +69,21 @@ final class BuscadorCast {
             final CastDevice d = extras == null ? null : CastDevice.getFromBundle(extras);
             if (d == null) return;
             InetAddress a = d.getInetAddress();
-            if (!(a instanceof Inet4Address)) { BuscadorTV.agregar("castSinIp", String.valueOf(ruta.getName())); return; }
-            final String ip = a.getHostAddress();
             final String que = ruta.getDescription() == null ? "" : ruta.getDescription().toString();
+            if (!(a instanceof Inet4Address)) {
+                // Sin dirección IPv4: sale igual (como en YouTube), y se conecta con el código del TV.
+                BuscadorTV.agregar("castSinIp", String.valueOf(ruta.getName()));
+                if (!hechos.add("sinip|" + ruta.getName() + "|" + que)) return;
+                JSONObject tv = new JSONObject();
+                String n = d.getFriendlyName() != null ? d.getFriendlyName() : String.valueOf(ruta.getName());
+                tv.put("id", "cast:" + d.getDeviceId()); tv.put("nombre", n); tv.put("fabricante", "Chromecast integrado");
+                tv.put("modelo", d.getModelName() == null ? "" : d.getModelName()); tv.put("ip", "nombre:" + n.toLowerCase(java.util.Locale.ROOT));
+                tv.put("tipo", "androidtv"); tv.put("soloCodigo", true);
+                if (!que.isEmpty()) { tv.put("app", que); if (que.toLowerCase(java.util.Locale.ROOT).contains("youtube")) tv.put("youtube", true); }
+                BuscadorTV.emitirExterno(tv);
+                return;
+            }
+            final String ip = a.getHostAddress();
             if (!hechos.add(ip + "|" + que)) return;
             final String nombre = d.getFriendlyName() != null ? d.getFriendlyName() : String.valueOf(ruta.getName());
             final String modelo = d.getModelName() == null ? "" : d.getModelName();

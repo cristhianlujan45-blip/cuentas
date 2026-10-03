@@ -49,6 +49,8 @@ public class VentoApp extends Application {
     static VentoApp app;
     static WebView web;                         // la página de Vento (una sola, para que nada se duplique)
     static MutableContextWrapper envoltura;     // la página usa la ventana cuando hay, o la app cuando no
+    static volatile boolean alFrente = false;   // la ventana de Vento se está viendo ahora
+    static int avisoN = 100;
     static MainActivity ventana;                // la ventana abierta (null si está cerrada)
     static final Handler ui = new Handler(Looper.getMainLooper());
 
@@ -308,6 +310,79 @@ public class VentoApp extends Application {
             synchronized (Puente.class) { t = escucha; c = escuchaCon; escucha = null; escuchaCon = null; }
             if (t != null) t.interrupt();
             if (c != null) new Thread(c::disconnect).start();
+        }
+
+        /**
+         * Aviso del celular (con sonido) aunque Vento esté cerrada o la pantalla apagada: pedido nuevo, piden la
+         * cuenta, canción pedida… Si la ventana de Vento se está viendo, no hace falta (ya sale en pantalla),
+         * salvo que se pida «siempre». canal: pedidos | musica | avisos.
+         */
+        @JavascriptInterface
+        public boolean notificar(String titulo, String texto, String canal, boolean siempre) {
+            try {
+                if (alFrente && !siempre) return false;
+                android.app.NotificationManager nm = (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                if (nm == null) return false;
+                if (Build.VERSION.SDK_INT >= 33 && !tiene("android.permission.POST_NOTIFICATIONS")) return false;
+                String id = "musica".equals(canal) ? "vento_musica2" : "avisos".equals(canal) ? "vento_avisos2" : "vento_pedidos2";
+                if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(id) == null) {
+                    int imp = "avisos".equals(canal) ? android.app.NotificationManager.IMPORTANCE_DEFAULT : android.app.NotificationManager.IMPORTANCE_HIGH;
+                    android.app.NotificationChannel ch = new android.app.NotificationChannel(id,
+                            "musica".equals(canal) ? "Canciones pedidas" : "avisos".equals(canal) ? "Avisos de Laya" : "Pedidos y cuentas", imp);
+                    ch.setDescription("Suena aunque Vento esté cerrada.");
+                    ch.enableVibration(!"avisos".equals(canal));
+                    ch.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
+                    nm.createNotificationChannel(ch);
+                }
+                int flags = Build.VERSION.SDK_INT >= 23 ? android.app.PendingIntent.FLAG_IMMUTABLE : 0;
+                android.app.PendingIntent abrir = android.app.PendingIntent.getActivity(VentoApp.this, 2,
+                        new Intent(VentoApp.this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NEW_TASK), flags);
+                android.app.Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new android.app.Notification.Builder(VentoApp.this, id) : new android.app.Notification.Builder(VentoApp.this);
+                b.setSmallIcon(android.R.drawable.ic_dialog_info)
+                        .setContentTitle(titulo == null ? "Vento" : titulo)
+                        .setContentText(texto == null ? "" : texto)
+                        .setStyle(new android.app.Notification.BigTextStyle().bigText(texto == null ? "" : texto))
+                        .setAutoCancel(true)
+                        .setContentIntent(abrir)
+                        .setWhen(System.currentTimeMillis()).setShowWhen(true);
+                if (Build.VERSION.SDK_INT < 26) b.setDefaults(android.app.Notification.DEFAULT_ALL).setPriority(android.app.Notification.PRIORITY_HIGH);
+                if (Build.VERSION.SDK_INT >= 21) b.setCategory("musica".equals(canal) ? android.app.Notification.CATEGORY_EVENT : android.app.Notification.CATEGORY_MESSAGE);
+                nm.notify(avisoN++, b.build());
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        /** Abre el permiso de «inicio automático» de cada marca (Xiaomi, Huawei, Oppo, Vivo…) para que Android no cierre Vento. */
+        @JavascriptInterface
+        public void ajustesInicio() {
+            ui.post(() -> {
+                String[][] c = {
+                        {"com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"},
+                        {"com.letv.android.letvsafe", "com.letv.android.letvsafe.AutobootManageActivity"},
+                        {"com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"},
+                        {"com.huawei.systemmanager", "com.huawei.systemmanager.optimize.process.ProtectActivity"},
+                        {"com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity"},
+                        {"com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity"},
+                        {"com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity"},
+                        {"com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"},
+                        {"com.samsung.android.lool", "com.samsung.android.sm.battery.ui.BatteryActivity"},
+                        {"com.asus.mobilemanager", "com.asus.mobilemanager.MainActivity"}};
+                Context x = ventana != null ? ventana : VentoApp.this;
+                for (String[] k : c) {
+                    try {
+                        Intent i = new Intent().setComponent(new android.content.ComponentName(k[0], k[1]));
+                        if (ventana == null) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        if (getPackageManager().resolveActivity(i, 0) != null) { x.startActivity(i); return; }
+                    } catch (Exception ignorado) { }
+                }
+                try {
+                    Intent i = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()));
+                    if (ventana == null) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    x.startActivity(i);
+                } catch (Exception ignorado) { }
+            });
         }
 
         @JavascriptInterface

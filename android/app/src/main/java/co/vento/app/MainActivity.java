@@ -82,6 +82,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         VentoApp.ventana = this;
+        VentoApp.alFrente = true;
         VentoApp.motor(this);
         try { web.onResume(); } catch (Exception ignorado) { }
         VentoApp.js("try{document.dispatchEvent(new Event('visibilitychange'))}catch(e){}");
@@ -90,6 +91,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         // OJO: no se llama web.onPause(): con eso la página dejaría de trabajar de fondo.
+        VentoApp.alFrente = false;
         super.onPause();
     }
 
