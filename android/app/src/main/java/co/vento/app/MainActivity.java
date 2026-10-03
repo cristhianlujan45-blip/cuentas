@@ -123,7 +123,7 @@ public class MainActivity extends Activity {
     }
 
     // ---------------------------------------------------------------- Permisos de fondo
-    private void pedirPermisoAvisos() {
+    void pedirPermisoAvisos() {
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, RC_PERM_AVISOS);
         }

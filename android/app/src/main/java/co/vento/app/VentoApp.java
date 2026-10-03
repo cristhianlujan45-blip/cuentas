@@ -354,6 +354,158 @@ public class VentoApp extends Application {
             }
         }
 
+        /** Estado de los avisos del celular: si están prendidos, si falta el permiso y cómo está cada canal. */
+        @JavascriptInterface
+        public String avisosEstado() {
+            try {
+                JSONObject o = new JSONObject();
+                android.app.NotificationManager nm = (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                boolean on = nm != null && (Build.VERSION.SDK_INT < 24 || nm.areNotificationsEnabled());
+                o.put("prendidos", on);
+                o.put("permiso", Build.VERSION.SDK_INT < 33 || tiene("android.permission.POST_NOTIFICATIONS"));
+                JSONObject ch = new JSONObject();
+                if (nm != null && Build.VERSION.SDK_INT >= 26) {
+                    for (String id : new String[]{"vento_pedidos2", "vento_musica2", "vento_avisos2"}) {
+                        android.app.NotificationChannel c = nm.getNotificationChannel(id);
+                        if (c != null) ch.put(id, new JSONObject().put("importancia", c.getImportance()).put("bloqueo", c.getLockscreenVisibility()).put("sonido", c.getSound() != null).put("vibra", c.shouldVibrate()));
+                    }
+                }
+                o.put("canales", ch);
+                o.put("escucha", escuchaPermitida());
+                return o.toString();
+            } catch (Exception e) { return "{}"; }
+        }
+
+        /** Prender los avisos: pide el permiso (Android 13+) o abre la pantalla de notificaciones de Vento. */
+        @JavascriptInterface
+        public void avisosActivar() {
+            ui.post(() -> {
+                MainActivity a = ventana;
+                if (Build.VERSION.SDK_INT >= 33 && !tiene("android.permission.POST_NOTIFICATIONS") && a != null && !a.shouldShowRequestPermissionRationale("android.permission.POST_NOTIFICATIONS")
+                        && !getSharedPreferences("vento", MODE_PRIVATE).getBoolean("avisosPedidos", false)) {
+                    getSharedPreferences("vento", MODE_PRIVATE).edit().putBoolean("avisosPedidos", true).apply();
+                    a.pedirPermisoAvisos();
+                    return;
+                }
+                avisosAjustesAbrir();
+            });
+        }
+
+        @JavascriptInterface
+        public void avisosAjustes() { ui.post(this::avisosAjustesAbrir); }
+
+        private void avisosAjustesAbrir() {
+            Context x = ventana != null ? ventana : VentoApp.this;
+            try {
+                Intent i = new Intent(Build.VERSION.SDK_INT >= 26 ? android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS : android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                if (Build.VERSION.SDK_INT >= 26) i.putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, getPackageName());
+                else i.setData(Uri.parse("package:" + getPackageName()));
+                if (ventana == null) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                x.startActivity(i);
+            } catch (Exception e) {
+                try { Intent i = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName())); if (ventana == null) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); x.startActivity(i); } catch (Exception ignorado) { }
+            }
+        }
+
+        // ---------------------------------------------------------------- Música que ya suena desde el celular
+        private boolean escuchaPermitida() {
+            try {
+                String s = android.provider.Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
+                return s != null && s.contains(getPackageName());
+            } catch (Exception e) { return false; }
+        }
+
+        /** Abre el permiso «Acceso a notificaciones» para Vento. */
+        @JavascriptInterface
+        public void mediosPermiso() {
+            ui.post(() -> {
+                Context x = ventana != null ? ventana : VentoApp.this;
+                try {
+                    Intent i;
+                    if (Build.VERSION.SDK_INT >= 30) {
+                        i = new Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS);
+                        i.putExtra(android.provider.Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, new android.content.ComponentName(VentoApp.this, VentoEscucha.class).flattenToString());
+                    } else i = new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS");
+                    if (ventana == null) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    x.startActivity(i);
+                } catch (Exception e) {
+                    try { Intent i = new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"); if (ventana == null) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); x.startActivity(i); } catch (Exception ignorado) { }
+                }
+            });
+        }
+
+        private java.util.List<android.media.session.MediaController> controles() {
+            android.media.session.MediaSessionManager msm = (android.media.session.MediaSessionManager) getSystemService(MEDIA_SESSION_SERVICE);
+            return msm.getActiveSessions(new android.content.ComponentName(VentoApp.this, VentoEscucha.class));
+        }
+
+        /**
+         * Lo que suena ahora desde el celular: por cada reproductor (YouTube Music, YouTube, Spotify…) su canción, si
+         * suena o está en pausa, si suena en OTRO aparato (TV, Chromecast…) y el nombre de ese aparato tal como lo
+         * muestra la app en su aviso («YouTube on TV», «Sala familiar»…). JSON: {permiso, lista:[…]}.
+         */
+        @JavascriptInterface
+        public String medios() {
+            JSONObject o = new JSONObject();
+            try {
+                boolean ok = escuchaPermitida();
+                o.put("permiso", ok);
+                JSONArray l = new JSONArray();
+                if (ok) {
+                    android.service.notification.StatusBarNotification[] avisos = null;
+                    try { VentoEscucha e = VentoEscucha.activa; if (e != null) avisos = e.getActiveNotifications(); } catch (Exception ignorado) { }
+                    for (android.media.session.MediaController c : controles()) {
+                        String pkg = c.getPackageName();
+                        if (getPackageName().equals(pkg)) continue;
+                        JSONObject m = new JSONObject();
+                        m.put("app", pkg);
+                        try { m.put("nombreApp", String.valueOf(getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(pkg, 0)))); } catch (Exception ignorado) { m.put("nombreApp", pkg); }
+                        android.media.MediaMetadata md = c.getMetadata();
+                        if (md != null) {
+                            m.put("titulo", String.valueOf(md.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)));
+                            String ar = md.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST);
+                            if (ar == null) ar = md.getString(android.media.MediaMetadata.METADATA_KEY_ALBUM_ARTIST);
+                            m.put("artista", ar == null ? "" : ar);
+                            m.put("dur", md.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION));
+                        }
+                        android.media.session.PlaybackState ps = c.getPlaybackState();
+                        if (ps != null) { m.put("estado", ps.getState()); m.put("pos", ps.getPosition()); m.put("vel", ps.getPlaybackSpeed()); m.put("act", ps.getLastPositionUpdateTime()); }
+                        android.media.session.MediaController.PlaybackInfo pi = c.getPlaybackInfo();
+                        m.put("remoto", pi != null && pi.getPlaybackType() == android.media.session.MediaController.PlaybackInfo.PLAYBACK_TYPE_REMOTE);
+                        // Nombre del aparato: lo que la app pone en su aviso («Reproduciendo en …» o el texto pequeño).
+                        if (avisos != null) for (android.service.notification.StatusBarNotification sb : avisos) {
+                            if (!pkg.equals(sb.getPackageName())) continue;
+                            android.os.Bundle ex = sb.getNotification().extras;
+                            if (ex == null || ex.get(android.app.Notification.EXTRA_MEDIA_SESSION) == null) continue;
+                            CharSequence sub = ex.getCharSequence(android.app.Notification.EXTRA_SUB_TEXT);
+                            if (sub != null && sub.length() > 0) m.put("donde", sub.toString());
+                            break;
+                        }
+                        l.put(m);
+                    }
+                }
+                o.put("lista", l);
+            } catch (Exception e) {
+                try { o.put("error", String.valueOf(e.getMessage())); } catch (Exception ignorado) { }
+            }
+            return o.toString();
+        }
+
+        /** Pausar / seguir / siguiente / anterior en el reproductor de esa app (lo que suena en el TV también). */
+        @JavascriptInterface
+        public boolean medioAccion(String pkg, String accion) {
+            try {
+                for (android.media.session.MediaController c : controles()) {
+                    if (!c.getPackageName().equals(pkg)) continue;
+                    android.media.session.MediaController.TransportControls t = c.getTransportControls();
+                    if ("play".equals(accion)) t.play(); else if ("pause".equals(accion)) t.pause();
+                    else if ("next".equals(accion)) t.skipToNext(); else if ("prev".equals(accion)) t.skipToPrevious();
+                    return true;
+                }
+            } catch (Exception ignorado) { }
+            return false;
+        }
+
         /** Abre el permiso de «inicio automático» de cada marca (Xiaomi, Huawei, Oppo, Vivo…) para que Android no cierre Vento. */
         @JavascriptInterface
         public void ajustesInicio() {

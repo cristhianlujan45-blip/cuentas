@@ -60,6 +60,17 @@
             </intent-filter>
         </activity>
 
+        <!-- Ver la música que ya suena desde el celular y dónde (solo si el dueño da «Acceso a notificaciones») -->
+        <service
+            android:name=".VentoEscucha"
+            android:exported="true"
+            android:label="Vento: ver la música que ya suena"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <!-- Vento trabajando de fondo (aviso fijo en la barra): no se cierra al quitar la app de recientes -->
         <service
             android:name=".VentoServicio"

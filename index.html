@@ -2187,6 +2187,15 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   .cast-app{ display:flex; gap:6px; margin:10px 0 4px; padding:4px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line); }
   .cast-app button{ flex:1; padding:9px 6px; border-radius:9px; border:0; background:transparent; color:var(--ink-soft); font:700 13.5px var(--font-main); }
   .cast-app button.on{ background:var(--amber); color:#fff; }
+  .aj-buscar{ margin:0 0 12px; position:relative; }
+  .aj-buscar input{ width:100%; box-sizing:border-box; }
+  .aj-res{ display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+  .aj-res button{ text-align:left; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:var(--surface); color:inherit; font:inherit; cursor:pointer; }
+  .aj-res small{ display:block; opacity:.7; font-size:12px; }
+  .aj-flash{ outline:3px solid var(--amber,#f59e0b); outline-offset:3px; border-radius:10px; transition:outline-color 1.2s; }
+  .av-barra{ position:fixed; left:10px; right:10px; top:10px; z-index:99990; display:flex; gap:10px; align-items:center; padding:10px 12px; border-radius:14px; background:#7a1f1f; color:#fff; font-size:14px; box-shadow:0 6px 24px rgba(0,0,0,.4); }
+  .av-barra button{ border:0; border-radius:10px; padding:8px 12px; font:inherit; font-weight:700; cursor:pointer; }
+  .av-barra .x{ background:transparent; color:#fff; padding:6px; }
   .tv-vivo{ margin:10px 0; padding:12px; border-radius:14px; background:var(--surface-2, var(--surface)); border:1px solid var(--line); }
   .tvv-h{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:8px; }
   .tvv-h small{ opacity:.7; font-size:12px; }
@@ -3340,7 +3349,9 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
   </section>
 
   <section id="view-ajustes">
+    <div class="aj-buscar" id="ajBuscarBox"><input id="ajBuscar" class="mz-in" type="search" placeholder="🔎 Buscar en ajustes (ej. notificaciones, QR, contraseña, IVA…)" autocomplete="off" enterkeyhint="search"><div id="ajBuscarRes" class="aj-res" hidden></div></div>
     <div class="ajustes-cats" id="ajustesCats">
+      <button type="button" class="ajustes-cat" data-cat="avisos"><span class="ac-icon">🔔</span><span class="ac-label">Notificaciones del celular</span><span class="ac-arrow">›</span></button>
       <button type="button" class="ajustes-cat" data-cat="negocio"><span class="ac-icon">🏢</span><span class="ac-label">Negocio y facturación</span><span class="ac-arrow">›</span></button>
       <button type="button" class="ajustes-cat" data-cat="pedidos"><span class="ac-icon">🛎️</span><span class="ac-label">Pedidos, QR y caja</span><span class="ac-arrow">›</span></button>
       <button type="button" class="ajustes-cat" data-cat="apariencia"><span class="ac-icon">🎨</span><span class="ac-label">Apariencia</span><span class="ac-arrow">›</span></button>
@@ -3685,6 +3696,19 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
         <input type="text" id="prepLink" class="mz-in" readonly>
         <div class="mz-actions"><button type="button" class="btn-ghost" id="prepCopy">📋 Copiar link</button><button type="button" class="btn-ghost" id="prepNuevo">🔄 Link nuevo</button></div>
       </div>
+    </div>
+    <div class="settings-group" hidden data-cat="avisos" id="avGrupo">
+      <h2>🔔 Notificaciones del celular</h2>
+      <div class="settings-desc">Para que te lleguen los pedidos, las cuentas y las canciones <b>con la app cerrada, en segundo plano y con la pantalla bloqueada</b>, con sonido y vibración.</div>
+      <div class="cast-devs" id="avEstadoBox"><span class="cast-dot"></span><span id="avEstado">Revisando…</span></div>
+      <div class="settings-desc" id="avLista" style="white-space:pre-line"></div>
+      <button class="btn-primary" id="avActivar" type="button" style="width:100%;margin:6px 0">🔔 Activar las notificaciones</button>
+      <button class="btn-ghost" id="avAjustes" type="button" style="width:100%;margin:0 0 6px">📲 Abrir las notificaciones de Vento en el celular</button>
+      <div class="settings-desc" id="avGuia">En esa pantalla del celular prende: <b>Mostrar notificaciones</b>, <b>Notificaciones flotantes</b>, <b>Notificaciones en la Pantalla de bloqueo</b>, <b>Sonido</b> y <b>Vibración</b> (y en cada categoría de Vento: «Pedidos y cuentas», «Canciones pedidas»).</div>
+      <button class="btn-ghost" id="avProbar" type="button" style="width:100%;margin:6px 0">🔔 Probar el aviso con sonido</button>
+      <button class="btn-ghost" id="avInicio" type="button" style="width:100%;margin:0 0 6px">🚀 Permitir que Vento arranque sola (Xiaomi, Huawei, Oppo, Vivo…)</button>
+      <button class="btn-ghost" id="avBateria" type="button" style="width:100%;margin:0 0 6px">⚡ Quitar el ahorro de batería para Vento</button>
+      <div class="settings-desc" id="avWeb" hidden>En el navegador los avisos solo llegan con Vento abierta. Para recibirlos con la app cerrada y la pantalla bloqueada, instala la <b>app Vento para Android</b>.</div>
     </div>
     <div class="settings-group" hidden data-cat="pedidos">
       <h2>🛎️ Personalizar la página de pedidos</h2>
@@ -18303,20 +18327,114 @@ function mostrarCategoriaAjustes(cat){
   document.querySelectorAll('#view-ajustes .settings-group[data-cat]').forEach(g=>{ g.hidden = g.dataset.cat !== cat || g.dataset.off === '1'; });
   $('ajustesCats').hidden = true;
   $('ajustesBackBtn').hidden = false;
+  try{ $('ajBuscarBox').hidden = true; }catch(e){}
   window.scrollTo({ top: 0 });
 }
 function volverACategoriasAjustes(){
   document.querySelectorAll('#view-ajustes .settings-group[data-cat]').forEach(g=>{ g.hidden = true; });
   $('ajustesCats').hidden = false;
   $('ajustesBackBtn').hidden = true;
+  try{ $('ajBuscarBox').hidden = false; }catch(e){}
 }
 window.volverACategoriasAjustes = volverACategoriasAjustes;
 window.mostrarCategoriaAjustes = mostrarCategoriaAjustes;
+/* 🔎 Buscador de ajustes: busca en todos los títulos, opciones, botones y explicaciones de Ajustes y lleva directo. */
+function ajNorm(t){ return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9ñ ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+const AJ_SINON = { notificacion: 'avisos alertas sonido bloqueo segundo plano', clave: 'contrasena', contrasena: 'clave password', qr: 'codigo mesas pedidos', iva: 'impuesto factura', musica: 'cancion youtube tv', tv: 'televisor transmitir musica', correo: 'email recuperar' };
+function ajIndice(){
+  const out = [], cats = {};
+  document.querySelectorAll('#ajustesCats .ajustes-cat').forEach(b => { cats[b.dataset.cat] = (b.querySelector('.ac-label') || b).textContent.trim(); });
+  document.querySelectorAll('#view-ajustes .settings-group[data-cat]').forEach(g => {
+    if(g.dataset.off === '1') return;
+    const cat = g.dataset.cat, tg = (g.querySelector('h2') || {}).textContent || '';
+    g.querySelectorAll('h2, h3, .settings-row, button, label, summary, .lng-step strong').forEach(el => {
+      if(el.closest('[hidden]') && el.closest('[hidden]') !== g) return;
+      if(el.matches('button') && el.closest('.settings-row')) return;          // el renglón ya lo incluye
+      const titulo = (el.querySelector && el.querySelector('strong') ? el.querySelector('strong').textContent : el.textContent).trim().replace(/\s+/g, ' ').slice(0, 90);
+      const texto = el.textContent.replace(/\s+/g, ' ').trim();
+      if(!titulo || titulo.length < 2) return;
+      out.push({ el, cat, catNom: cats[cat] || cat, grupo: tg.trim(), titulo, n: ajNorm(texto + ' ' + tg + ' ' + (cats[cat] || '')) });
+    });
+  });
+  return out;
+}
+function ajBuscar(q){
+  const box = document.getElementById('ajBuscarRes'); if(!box) return;
+  const qn = ajNorm(q);
+  if(qn.length < 2){ box.hidden = true; box.innerHTML = ''; return; }
+  const palabras = qn.split(' ').map(w => w + ' ' + (AJ_SINON[w.replace(/(es|s)$/, '')] || AJ_SINON[w] || ''));
+  const res = ajIndice().map(x => {
+    let p = 0;
+    palabras.forEach(w => { const alt = w.trim().split(' '); if(alt.some(a => a && x.n.includes(a))) p += x.n.indexOf(alt[0]) >= 0 ? 2 : 1; else p -= 5; });
+    if(ajNorm(x.titulo).includes(qn)) p += 4;
+    return [p, x];
+  }).filter(r => r[0] > 0).sort((a, b) => b[0] - a[0]);
+  const vistos = new Set(), top = [];
+  res.forEach(([, x]) => { const k = x.cat + '|' + x.titulo; if(!vistos.has(k) && top.length < 12){ vistos.add(k); top.push(x); } });
+  box.hidden = false;
+  box.innerHTML = '';
+  if(!top.length){ box.innerHTML = '<div class="settings-desc">No encontré nada con «' + q.replace(/[<>&]/g, '') + '». Prueba con otra palabra.</div>'; return; }
+  top.forEach(x => {
+    const b = document.createElement('button'); b.type = 'button';
+    b.innerHTML = '<b></b><small></small>'; b.querySelector('b').textContent = x.titulo; b.querySelector('small').textContent = x.catNom + (x.grupo && x.grupo !== x.titulo ? ' › ' + x.grupo : '');
+    b.onclick = () => {
+      mostrarCategoriaAjustes(x.cat); box.hidden = true;
+      const el = x.el.closest('.settings-row') || x.el;
+      setTimeout(() => { try{ el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.add('aj-flash'); setTimeout(() => el.classList.remove('aj-flash'), 2200); }catch(e){} }, 120);
+    };
+    box.appendChild(b);
+  });
+}
+/* 🔔 Notificaciones del celular (app de Android): estado real y botones para prenderlas. */
+function avEstado(){
+  const A = window.VentoAndroid, e = document.getElementById('avEstado'), box = document.getElementById('avEstadoBox'), l = document.getElementById('avLista');
+  if(!e) return null;
+  const app = !!(A && typeof A.avisosEstado === 'function');
+  ['avActivar', 'avAjustes', 'avGuia', 'avProbar', 'avInicio', 'avBateria'].forEach(id => { const x = document.getElementById(id); if(x) x.hidden = !app; });
+  document.getElementById('avWeb').hidden = app;
+  if(!app){ box.classList.remove('ok'); e.textContent = 'ℹ️ Estás en el navegador.'; l.textContent = ''; return null; }
+  let st = {}; try{ st = JSON.parse(A.avisosEstado() || '{}'); }catch(x){}
+  const ch = st.canales || {}, mal = [];
+  if(!st.prendidos) mal.push('«Mostrar notificaciones» está APAGADO');
+  Object.entries({ vento_pedidos2: 'Pedidos y cuentas', vento_musica2: 'Canciones pedidas' }).forEach(([k, n]) => { const c = ch[k]; if(!c) return; if(c.importancia === 0) mal.push('la categoría «' + n + '» está apagada'); else { if(c.importancia < 4) mal.push('«' + n + '» no sale flotante'); if(c.bloqueo === -1) mal.push('«' + n + '» no sale en la pantalla de bloqueo'); if(!c.sonido) mal.push('«' + n + '» sin sonido'); } });
+  box.classList.toggle('ok', !mal.length); box.classList.toggle('no', !!mal.length);
+  e.textContent = mal.length ? '🔕 No te van a llegar bien los avisos con la app cerrada.' : '✅ Notificaciones prendidas: te llegan con la app cerrada y la pantalla bloqueada.';
+  l.textContent = mal.length ? 'Falta: ' + mal.join('; ') + '.' : '';
+  return { ok: !mal.length, st };
+}
+function avBarra(){
+  const A = window.VentoAndroid; if(!A || typeof A.avisosEstado !== 'function') return;
+  let st = {}; try{ st = JSON.parse(A.avisosEstado() || '{}'); }catch(x){}
+  let b = document.getElementById('avBarra');
+  if(st.prendidos){ if(b) b.remove(); return; }
+  try{ if(sessionStorage.getItem('avBarraNo')) return; }catch(x){}
+  if(b) return;
+  b = document.createElement('div'); b.id = 'avBarra'; b.className = 'av-barra';
+  b.innerHTML = '<span style="flex:1">🔕 Las notificaciones de Vento están apagadas en tu celular: no te llegan los pedidos con la app cerrada.</span><button type="button" class="si">Activar</button><button type="button" class="x" aria-label="Cerrar">✕</button>';
+  b.querySelector('.si').onclick = () => { try{ A.avisosActivar(); }catch(x){} showToast('En la pantalla que se abre prende «Mostrar notificaciones», «flotantes», «pantalla de bloqueo», sonido y vibración.', 9000); };
+  b.querySelector('.x').onclick = () => { b.remove(); try{ sessionStorage.setItem('avBarraNo', '1'); }catch(x){} };
+  document.body.appendChild(b);
+}
+function iniAvisos(){
+  const A = window.VentoAndroid, g = id => document.getElementById(id);
+  if(g('avActivar')) g('avActivar').onclick = () => { try{ A.avisosActivar(); }catch(x){} showToast('Prende: «Mostrar notificaciones», «Notificaciones flotantes», «Pantalla de bloqueo», «Sonido» y «Vibración».', 9000); };
+  if(g('avAjustes')) g('avAjustes').onclick = () => { try{ A.avisosAjustes(); }catch(x){} };
+  if(g('avProbar')) g('avProbar').onclick = () => { let ok = false; try{ ok = A.notificar('🆕 Pedido de prueba · Mesa 1', '2 Poker, 1 Águila — así te avisa Vento aunque esté cerrada.', 'pedidos', true); }catch(x){} showToast(ok ? '🔔 Mira la barra de notificaciones.' : '⚠️ Android no deja mostrar avisos: toca «Activar las notificaciones».', 7000); setTimeout(avEstado, 800); };
+  if(g('avInicio')) g('avInicio').onclick = () => { try{ A.ajustesInicio(); }catch(x){} };
+  if(g('avBateria')) g('avBateria').onclick = () => { try{ A.ajustesBateria(); }catch(x){} };
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible'){ avEstado(); avBarra(); } });
+  avEstado(); setTimeout(avBarra, 5000);
+  const bq = g('ajBuscar');
+  if(bq){ let t = null; bq.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => ajBuscar(bq.value), 150); }); bq.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); const f = document.querySelector('#ajBuscarRes button'); if(f) f.click(); } }); }
+}
+window.ajBuscar = ajBuscar; window.avEstado = avEstado;
 function iniAjustesCats(){
   document.querySelectorAll('.ajustes-cat').forEach(b=>{
     b.addEventListener('click', ()=>mostrarCategoriaAjustes(b.dataset.cat));
   });
   $('ajustesBackBtn').addEventListener('click', volverACategoriasAjustes);
+  try{ iniAvisos(); }catch(e){}
+  document.querySelectorAll('.ajustes-cat[data-cat="avisos"]').forEach(b => b.addEventListener('click', () => setTimeout(avEstado, 50)));
 }
 
 /* ---------- Cierre automático de caja ---------- */
@@ -21956,7 +22074,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-03 · v1.25';
+const MESORA_VERSION = '2026-10-03 · v1.26';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22426,6 +22544,25 @@ function tvApkLista(){
   };
   pintarVinc();
   L.appendChild(vinc);
+  // Los TV a los que YA transmites desde el celular (YouTube Music, YouTube, Spotify…), como «YouTube on TV» en YouTube.
+  const med = document.createElement('div'); L.appendChild(med);
+  try{
+    const md = mediosLeer();
+    if(md && md.permiso) (md.lista || []).filter(m => m.remoto && m.titulo).forEach(m => {
+      const b1 = document.createElement('button'); b1.type = 'button'; b1.className = 'btn-ghost';
+      b1.style.cssText = 'display:flex;align-items:center;gap:12px;text-align:left;padding:11px 14px;width:100%;margin-bottom:6px;outline:2px solid var(--paid)';
+      b1.innerHTML = '<span style="font-size:22px">📡</span><span><b>' + tvEsc(m.donde || 'TV al que ya transmites') + '</b><br><small style="opacity:.85">' + (m.estado === 3 ? '▶ Reproduciendo ' : '⏸ ') + tvEsc(m.titulo) + ' · desde ' + tvEsc(m.nombreApp) + '</small></span>';
+      b1.onclick = () => { ov.classList.remove('show'); tvDisposToque('codigo'); };
+      med.appendChild(b1);
+    });
+    else if(md && md.permiso === false){
+      const b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'btn-ghost';
+      b2.style.cssText = 'display:flex;align-items:center;gap:12px;text-align:left;padding:11px 14px;width:100%;margin-bottom:6px';
+      b2.innerHTML = '<span style="font-size:22px">📡</span><span><b>Ver los TV a los que ya transmites</b><br><small style="opacity:.85">Lo que suena desde YouTube Music, YouTube o Spotify de este celular y en qué TV</small></span>';
+      b2.onclick = () => tvDisposToque('mperm');
+      med.appendChild(b2);
+    }
+  }catch(e){}
   const tit = document.createElement('div'); tit.className = 'settings-desc'; tit.style.margin = '4px 0 0'; tit.innerHTML = '<b>En este wifi:</b>'; L.appendChild(tit);
   // Como en YouTube: siempre se puede vincular con el código del TV (sirve para cualquier TV o TV Box, esté o no en este wifi).
   if(!ov.querySelector('#tvApkCodigo')){
@@ -23417,10 +23554,23 @@ function tvDisposPintar(){
     const extra = [tv.fabricante, tv.modelo].filter(x => x && !String(tv.nombre).includes(x)).join(' · ');
     fila(tvIcono(tv.tipo), tv.nombre, (tv.youtube ? '▶ Reproduciendo YouTube' : (tv.app ? tv.app : 'En tu wifi')) + (extra ? ' · ' + extra : '') + (tv.soloCodigo && !tv.screenId ? ' · se conecta con su código' : ''), '', 'w:' + tv.ip, 'Usar');
   });
+  // Lo que ya suena desde el celular (YouTube Music, YouTube, Spotify…) y en qué aparato: el TV al que ya estás transmitiendo.
+  const md = window.__medios;
+  if(md && md.permiso){
+    (md.lista || []).filter(m => m.titulo).forEach(m => {
+      const suena = m.estado === 3, donde = m.donde || (m.remoto ? 'otro aparato (TV / Chromecast)' : 'este celular');
+      filas.push({ ic: m.remoto ? '📡' : '📱', nombre: (m.remoto ? m.donde || 'TV al que ya transmites' : m.nombreApp + ' en este celular'), sub: (suena ? '▶ ' : '⏸ ') + m.titulo + (m.artista ? ' · ' + m.artista : '') + ' — desde ' + m.nombreApp + (m.remoto ? ' en ' + donde : ''), cls: suena ? 'on' : '', accion: 'm:' + m.app, go: suena ? '⏸' : '▶', extra: m });
+    });
+  } else if(md && md.permiso === false){
+    filas.push({ ic: '📡', nombre: 'Ver los TV a los que ya transmites', sub: 'Permite a Vento ver la música que ya suena desde tu celular (YouTube Music, YouTube, Spotify…) y en qué TV', cls: '', accion: 'mperm', go: 'Permitir' });
+  }
   const app = lngPuenteApp();
   box.hidden = !filas.length && !app;
   const act = document.getElementById('tvdAct'); if(act) act.textContent = tvWifiBuscando ? '⏳ buscando en el wifi…' : app ? '' : '';
-  let h = filas.map(f => '<button type="button" class="tvv-dev ' + f.cls + '" data-acc="' + tvEsc(f.accion) + '"><span class="tvv-ic">' + f.ic + '</span><div><b>' + tvEsc(f.nombre) + '</b><small>' + tvEsc(f.sub) + '</small></div><span class="tvv-go">' + f.go + ' ›</span></button>').join('');
+  let h = filas.map(f => f.extra
+    ? '<div class="tvv-dev ' + f.cls + '"><span class="tvv-ic">' + f.ic + '</span><div style="flex:1;min-width:0"><b>' + tvEsc(f.nombre) + '</b><small>' + tvEsc(f.sub) + '</small></div><span style="display:flex;gap:4px"><button type="button" class="btn-ghost" data-acc="mp:' + tvEsc(f.extra.app) + '" style="padding:6px 10px">' + f.go + '</button><button type="button" class="btn-ghost" data-acc="mn:' + tvEsc(f.extra.app) + '" style="padding:6px 10px">⏭</button></span></div>' +
+      (f.extra.remoto && !(lngOn() && lngTVEnLinea() !== false) ? '<button type="button" class="tvv-dev" data-acc="codigo"><span class="tvv-ic">🔗</span><div><b>Mandarle las canciones de las mesas a ' + tvEsc(f.extra.donde || 'ese TV') + '</b><small>Vincúlalo una vez con su código: en ese TV, YouTube → Configuración → «Vincular con código de TV». No se corta lo que suena.</small></div><span class="tvv-go">›</span></button>' : '')
+    : '<button type="button" class="tvv-dev ' + f.cls + '" data-acc="' + tvEsc(f.accion) + '"><span class="tvv-ic">' + f.ic + '</span><div><b>' + tvEsc(f.nombre) + '</b><small>' + tvEsc(f.sub) + '</small></div><span class="tvv-go">' + f.go + ' ›</span></button>').join('');
   if(app) h += '<button type="button" class="tvv-dev" data-acc="buscar"><span class="tvv-ic">🔄</span><div><b>Buscar TV en el wifi</b><small>' + (tvWifiBuscando ? 'Buscando…' : 'LG, Samsung, Chromecast, Android TV, TV Box, Fire TV') + '</small></div></button>';
   else if(!filas.length) h = '';
   if(!app && window.esAndroid && window.esAndroid()) h += '<div class="settings-desc">Los TV de tu wifi (como los que ves en YouTube) solo los puede buscar la <b>app Vento para Android</b>; desde el navegador conecta con el código del TV.</div>';
@@ -23452,7 +23602,25 @@ async function lngUsarPantalla(screenId, nombre, yaSuena){
     return false;
   }finally{ lng.ocupado = false; lngEstado(); lngVivoPintar(); }
 }
+function mediosLeer(){
+  const A = window.VentoAndroid; if(!A || typeof A.medios !== 'function') return;
+  let m = null; try{ m = JSON.parse(A.medios() || '{}'); }catch(e){}
+  const ahora = JSON.stringify(m ? { p: m.permiso, l: (m.lista || []).map(x => [x.app, x.titulo, x.estado, x.donde, x.remoto]) } : null);
+  const cambio = ahora !== window.__mediosHuella;
+  window.__mediosHuella = ahora; window.__medios = m;
+  if(cambio) try{ tvDisposPintar(); }catch(e){}
+  return m;
+}
 function tvDisposToque(acc){
+  const A = window.VentoAndroid;
+  if(acc === 'mperm'){ showToast('En la pantalla que se abre, prende «Vento». Solo mira los reproductores de música, no tus mensajes.', 9000); try{ A.mediosPermiso(); }catch(e){} return; }
+  if(acc === 'codigo'){ tvSinLista('Escribe los 12 números que muestra ese TV en YouTube → Configuración → «Vincular con código de TV». Lo que suena no se corta.'); setTimeout(() => { const c = document.getElementById('lngCode'); if(c) c.focus(); }, 500); return; }
+  if(/^m[pn]:/.test(acc) || /^m:/.test(acc)){
+    const pkg = acc.replace(/^m[pn]?:/, ''), m = ((window.__medios || {}).lista || []).find(x => x.app === pkg);
+    const que = acc.startsWith('mn:') ? 'next' : (m && m.estado === 3 ? 'pause' : 'play');
+    try{ A.medioAccion(pkg, que); }catch(e){}
+    setTimeout(mediosLeer, 700); return;
+  }
   if(acc === 'buscar') return tvWifiBuscar(true);
   if(acc === 'vivo'){ const v = document.getElementById('tvVivo'); if(v) v.scrollIntoView({ block: 'start', behavior: 'smooth' }); return lngVivo(true); }
   if(acc.startsWith('p:')){ const p = (lngCfg().pantallas || []).find(x => x.screenId === acc.slice(2)); if(p) lngUsarPantalla(p.screenId, p.nombre, false); return; }
@@ -23480,6 +23648,8 @@ function iniVivo(){
   b('tvvAdd').onclick = agregar;
   b('tvvIn').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); agregar(); } });
   setInterval(() => { lngVivo(); }, 8000);
+  setInterval(() => { try{ const sc = document.getElementById('view-musica'); if(sc && sc.classList.contains('active') && document.visibilityState === 'visible') mediosLeer(); }catch(e){} }, 3000);
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') setTimeout(mediosLeer, 400); });
   setInterval(() => { try{ const s = document.getElementById('view-musica'); if(lngOn() && s && s.classList.contains('active')) lngVivoPintar(); }catch(e){} }, 1000);
   const nb = document.querySelector('nav button[data-view="musica"]'); if(nb) nb.addEventListener('click', () => setTimeout(() => { lngVivo(true); tvWifiBuscar(false); }, 300));
   if(lngCfg().screenId) lngRecordar(lngCfg().screenId, lngCfg().nombre);
