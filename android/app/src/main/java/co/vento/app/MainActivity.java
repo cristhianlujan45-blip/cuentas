@@ -410,6 +410,7 @@ public class MainActivity extends Activity {
                 o.put("codigo", BuildConfig.VERSION_CODE);
                 o.put("android", Build.VERSION.SDK_INT);
                 o.put("tv", true);
+                o.put("puente", true);
                 return o.toString();
             } catch (Exception e) { return "{}"; }
         }
@@ -429,6 +430,47 @@ public class MainActivity extends Activity {
             new Thread(() -> {
                 int st = BuscadorTV.abrirYouTube(appUrl, codigo);
                 js("window.__ventoCb&&window.__ventoCb(" + q(id) + ",{status:" + st + "})");
+            }).start();
+        }
+
+        /**
+         * Puente del «YouTube del TV» DENTRO de la app: reenvía la llamada a www.youtube.com/api/lounge/…
+         * (lo mismo que hace el puente de Cloudflare). Una app instalada no tiene el bloqueo del navegador,
+         * así que ya no hace falta crear ni configurar el puente. Respuesta: window.__ventoCb(id, {status, text}).
+         */
+        @JavascriptInterface
+        public void lounge(final String id, final String ruta, final String query, final String cuerpo, final String token) {
+            new Thread(() -> {
+                int st = -1; String txt = "";
+                java.net.HttpURLConnection c = null;
+                try {
+                    if (ruta == null || !ruta.matches("[a-z_/]+")) throw new IllegalArgumentException("ruta");
+                    String u = "https://www.youtube.com/api/lounge/" + ruta + (query == null || query.isEmpty() ? "" : "?" + query);
+                    byte[] b = (cuerpo == null ? "" : cuerpo).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                    c = (java.net.HttpURLConnection) new java.net.URL(u).openConnection();
+                    c.setConnectTimeout(12000);
+                    c.setReadTimeout(15000);
+                    c.setRequestMethod("POST");
+                    c.setDoOutput(true);
+                    c.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                    if (token != null && !token.isEmpty()) c.setRequestProperty("X-YouTube-LoungeId-Token", token);
+                    c.setFixedLengthStreamingMode(b.length);
+                    try (OutputStream o = c.getOutputStream()) { o.write(b); }
+                    st = c.getResponseCode();
+                    java.io.InputStream in = st >= 400 ? c.getErrorStream() : c.getInputStream();
+                    if (in != null) {
+                        try (java.io.InputStream i = in; java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+                            byte[] buf = new byte[8192]; int n;
+                            while ((n = i.read(buf)) > 0 && out.size() < 2_000_000) out.write(buf, 0, n);
+                            txt = out.toString("UTF-8");
+                        }
+                    }
+                } catch (Exception e) {
+                    st = -1; txt = String.valueOf(e.getMessage());
+                } finally {
+                    if (c != null) c.disconnect();
+                }
+                js("window.__ventoCb&&window.__ventoCb(" + q(id) + ",{status:" + st + ",text:" + q(txt) + "})");
             }).start();
         }
 
