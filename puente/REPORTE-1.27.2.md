@@ -34,3 +34,8 @@ Organizado como los paneles de SaaS (resumen, clientes/CRM, suscripciones, pagos
 - Buscador de productos en tarjeta: lupa, sugerencias oscuras con precio en verde, cantidad en píldora
   (− 0 +) y botón «＋ Agregar» grande. Igual en la cuenta de cada persona.
 - Personas como fichas con su inicial y lo que deben. «Dividir cuenta» con el mismo estilo.
+
+## 4. Pago dividido entre personas
+En «Registrar un pago o abono», el botón de dividir ahora tiene **− ÷ N +**: se elige entre cuántas
+personas se divide, muestra «Entre N personas: $X cada una» y pone ese valor como monto. Usa el mismo
+número que «Dividir cuenta». Prueba `divtest.js` 6/6.
