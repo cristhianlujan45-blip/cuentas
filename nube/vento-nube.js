@@ -52,7 +52,7 @@
   function cliente(){
     if(!configurada()) return Promise.reject(new Error('Falta configurar la nube (dirección y clave pública de Supabase).'));
     if(sb) return Promise.resolve(sb);
-    return cargarSDK().then(function(){ var c = cfg(); sb = window.supabase.createClient(c.url, c.key, { auth: { persistSession: true, autoRefreshToken: true } }); return sb; });
+    return cargarSDK().then(function(){ var c = cfg(); sb = window.supabase.createClient(c.url, c.key, { auth: { persistSession: true, autoRefreshToken: true, flowType: 'implicit' } }); return sb; });
   }
   function msgError(e){
     var m = String((e && (e.message || e.error_description || e.msg)) || e || '');
@@ -225,6 +225,34 @@
     return cliente().then(function(c){ return c.auth.signInWithPassword({ email: email, password: pass }); })
       .then(function(r){ if(r.error) throw r.error; st.email = email; guardarSt(); return true; });
   }
+  // ---------- Entrar con Google (Gmail) ----------
+  // ¿El servidor tiene Google activado? (Supabase → Authentication → Providers → Google; lo configura el flujo «Servidor Vento».)
+  var googleOk = null;
+  function googleDisponible(){
+    if(googleOk !== null) return Promise.resolve(googleOk);
+    if(!configurada()) return Promise.resolve(false);
+    var c = cfg();
+    return fetch(c.url.replace(/\/+$/, '') + '/auth/v1/settings', { headers: { apikey: c.key } }).then(function(r){ return r.json(); })
+      .then(function(j){ googleOk = !!(j && j.external && j.external.google); return googleOk; }).catch(function(){ return false; });
+  }
+  function conGoogle(){
+    return cliente().then(function(c){ return c.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname + '?nubegoogle=1', queryParams: { prompt: 'select_account' } } }); })
+      .then(function(r){ if(r.error) throw r.error; return true; });
+  }
+  // Al volver de Google: la app guardó el permiso (y lo quitó de la dirección); aquí se abre la sesión con él.
+  function volvioDeGoogle(){
+    var g = null, err = '';
+    try{ g = JSON.parse(sessionStorage.getItem('vento-google') || 'null'); err = sessionStorage.getItem('vento-google-err') || ''; sessionStorage.removeItem('vento-google'); sessionStorage.removeItem('vento-google-err'); }catch(e){}
+    if(err) return Promise.reject(new Error(err));
+    if(!g || !g.a) return Promise.resolve(false);
+    return cliente().then(function(c){ return c.auth.setSession({ access_token: g.a, refresh_token: g.r || '' }); }).then(function(r){
+      if(r.error) throw r.error;
+      var u = r.data && r.data.user; if(!u || !u.email) throw new Error('Google no devolvió el correo.');
+      st.email = String(u.email).toLowerCase(); st.nombre = (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || st.nombre || ''; guardarSt();
+      return true;
+    });
+  }
+
   // ---------- Código por correo (recuperar contraseña) ----------
   // Supabase manda al correo un código de 6 números (plantilla «Magic Link» con {{ .Token }}, la configura el
   // flujo «Servidor Vento»). Con ese código se comprueba que la persona es dueña del correo.
@@ -301,7 +329,8 @@
         '#nubeCuerpo input,#nubeCuerpo select{padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2,transparent);color:inherit;font:inherit;font-size:16px}' +
         '.nube-fila{display:flex;gap:8px;flex-wrap:wrap}.nube-fila>*{flex:1}.nube-p{font-size:13px;color:var(--ink-soft);margin:0;line-height:1.45}.nube-msg{min-height:20px;margin-top:10px;font-size:14px}' +
         '.nube-li{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px;overflow-wrap:anywhere}.nube-li small{color:var(--ink-soft)}' +
-        '.nube-cod{font:800 26px/1.2 monospace;letter-spacing:.12em;text-align:center;padding:10px;border:2px dashed var(--amber,#f59e0b);border-radius:12px}';
+        '.nube-cod{font:800 26px/1.2 monospace;letter-spacing:.12em;text-align:center;padding:10px;border:2px dashed var(--amber,#f59e0b);border-radius:12px}' +
+        '.nube-google{display:flex;align-items:center;justify-content:center;gap:10px;min-height:48px;border-radius:12px;border:1px solid #dadce0;background:#fff;color:#1f1f1f;font:600 15px/1 inherit;cursor:pointer}.nube-google[hidden]{display:none}';
       document.head.appendChild(css);
       ov.addEventListener('click', function(e){ if(e.target === ov || (e.target.closest && e.target.closest('[data-n="cerrar"]'))) cerrar(); });
     }
@@ -332,13 +361,15 @@
       return;
     }
     if(!st.email){
-      c.innerHTML = '<p class="nube-p">Entra con tu correo. Si es tu primera vez, crea la cuenta (el dueño la crea primero y después invita a los demás).</p>' +
+      c.innerHTML = '<button type="button" class="nube-google" id="nubeGoogle" hidden><svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Continuar con Google</button>' +
+        '<p class="nube-p">O entra con tu correo. Si es tu primera vez, crea la cuenta (el dueño la crea primero y después invita a los demás).</p>' +
         '<label>Correo<input id="nubeEmail" type="email" autocomplete="username" autocapitalize="none"></label>' +
         '<label>Contraseña<input id="nubePass" type="password" autocomplete="current-password"></label>' +
         '<label>Tu nombre (solo para crear la cuenta)<input id="nubeNombre" autocomplete="name" placeholder="Ej: Ana"></label>' +
         '<div class="nube-fila"><button type="button" class="btn-primary" id="nubeEntrar">Entrar</button><button type="button" class="btn-ghost" id="nubeCrear">Crear cuenta</button></div>' +
         '<button type="button" class="auth-link" id="nubeOlvide">¿Olvidaste tu contraseña? Te mando un enlace al correo</button>' +
         '<button type="button" class="auth-link" id="nubeCambiarCfg">Cambiar la base de datos conectada</button>';
+      googleDisponible().then(function(ok){ var gb = q('nubeGoogle'); if(gb){ gb.hidden = !ok; gb.onclick = function(){ accion(gb, conGoogle); }; } });
       var datos = function(){ return { e: q('nubeEmail').value.trim().toLowerCase(), p: q('nubePass').value, n: q('nubeNombre').value.trim() }; };
       q('nubeEntrar').onclick = function(){ var d = datos(); if(!d.e || !d.p) return msg('Escribe tu correo y contraseña.', true); accion(this, function(){ return entrar(d.e, d.p).then(pintar); }); };
       q('nubeCrear').onclick = function(){ var d = datos(); if(!d.e || d.p.length < 6) return msg('Escribe tu correo y una contraseña de al menos 6 caracteres.', true);
@@ -417,6 +448,7 @@
     // Para el módulo de pagos (nube/vento-pagos.js): mismo cliente, sesión y negocio.
     negocio: function(){ return st.negocio && configurada() ? { id: st.negocio.id, nombre: st.negocio.nombre, rol: st.negocio.rol } : null; },
     cliente: cliente, config: cfg,
+    googleDisponible: googleDisponible, conGoogle: conGoogle, volvioDeGoogle: volvioDeGoogle,
     msgError: msgError, codigoCorreo: codigoCorreo, enlaceClave: enlaceClave, correoDeEnlace: correoDeEnlace, claveConEnlace: claveConEnlace, soltarEnlace: soltarEnlace, verificarCorreo: verificarCorreo, nuevaClave: nuevaClave, soltarSesion: soltarSesion,
     _fusionar: fusionar
   };

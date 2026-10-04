@@ -98,6 +98,9 @@
   .hist div:first-child{ border-top:0; }
   .steps{ margin:6px 0 0 18px; padding:0; font-size:13.5px; color:var(--soft); }
   .steps li{ margin:3px 0; }
+  .guia h3{ margin:16px 0 6px; color:var(--acc2); }
+  .guia ul, .guia ol{ margin:0; padding-left:20px; font-size:14px; }
+  .guia li{ margin:4px 0; }
 </style>
 </head>
 <body>
@@ -129,6 +132,7 @@
     <button type="button" data-t="equipo">🧑‍💻 Equipo</button>
     <button type="button" data-t="app">⚙️ Configurar la app</button>
     <button type="button" data-t="datos">💾 Respaldo</button>
+    <button type="button" data-t="guia">📘 Cómo funciona</button>
   </nav>
 </header>
 
@@ -215,7 +219,7 @@
   <section data-tab="planes">
     <div class="card">
       <h2>📦 Planes que vendes</h2>
-      <p class="soft">Se usan al crear o renovar un cliente (precio sugerido y sedes incluidas).</p>
+      <p class="soft">Se usan al activar un cliente y se muestran en la app para que el negocio elija y pague (al publicar en «⚙️ Configurar la app»).</p>
       <div class="list" id="plLista"></div>
       <div class="row"><button class="b p" id="plNuevo" type="button">➕ Nuevo plan</button></div>
     </div>
@@ -232,6 +236,14 @@
         <div><label for="aPrueba">Días de prueba gratis</label><input id="aPrueba" type="number" min="0" max="90"></div>
         <div><label for="aGracia">Días de gracia al vencer</label><input id="aGracia" type="number" min="0" max="30"></div>
       </div>
+      <h3 style="margin-top:16px">💳 Cómo te pagan los clientes</h3>
+      <div class="f2">
+        <div><label for="aNequi">Nequi / Daviplata (número)</label><input id="aNequi" inputmode="tel" placeholder="3001234567"></div>
+        <div><label for="aBreb">Llave Bre-B (opcional)</label><input id="aBreb" placeholder="@vento o número"></div>
+        <div><label for="aBanco">Cuenta bancaria (opcional)</label><input id="aBanco" placeholder="Bancolombia ahorros 123-456789-00"></div>
+        <div><label for="aTitular">Titular</label><input id="aTitular" placeholder="Nombre de quien recibe"></div>
+      </div>
+      <p class="soft">Los planes (con su precio, lo que incluyen y su link de pago) salen de «📦 Planes». Al publicar, la app les muestra todo en «💳 Planes y pagos».</p>
       <label for="aAnuncio">📣 Anuncio para todos los negocios (vacío = sin anuncio)</label>
       <textarea id="aAnuncio" placeholder="Ej: El domingo 12 hay mantenimiento de 2 a 3 a. m."></textarea>
       <label for="aSusp">⛔ Negocios suspendidos (códigos de negocio, uno por línea)</label>
@@ -284,6 +296,8 @@
       <p class="soft">Para invitar, tu token de GitHub (⚙️ Configurar la app) necesita además el permiso <b>Administration: Read and write</b> en el repositorio <b>cuentas</b>.</p></div>
   </section>
 
+  <section data-tab="guia"><div id="guiaBox"></div></section>
+
   <!-- ===================== RESPALDO ===================== -->
   <section data-tab="datos">
     <div class="card">
@@ -298,6 +312,41 @@
     </div>
   </section>
 </main>
+
+<!-- ===================== GUÍA ===================== -->
+<template id="tplGuia">
+  <div class="card guia">
+    <h2>📘 Cómo funciona Vento como empresa</h2>
+    <p class="soft">Así trabajan los sistemas de punto de venta que se venden por suscripción (Alegra POS, Loyverse, Siigo POS, Square): planes por niveles, prueba gratis, cuenta en la nube por negocio, pago mensual o licencia, soporte y datos protegidos. Vento ya tiene cada pieza:</p>
+    <h3>1. La empresa (tú)</h3>
+    <ul><li><b>Vento Admin</b> (este panel): solo tú, con tu código personal. Clientes, planes, pagos, licencias, configuración de la app y equipo.</li>
+      <li><b>Tu equipo técnico</b>: entra al código por GitHub (🧑‍💻 Equipo). No ve tus clientes ni puede crear licencias.</li>
+      <li><b>Tu propio negocio</b> en Vento: actívalo con «👑 Tú como proveedor».</li></ul>
+    <h3>2. El cliente (cada negocio)</h3>
+    <ul><li><b>Cuenta</b>: entra con su correo o con <b>Google</b> (Vento Nube). El dueño crea el negocio y invita a su equipo (administrador, cajero, mesero) con un código.</li>
+      <li><b>Código del negocio</b> (Ajustes → Negocio → Plan): con él lo identificas para activar, renovar o suspender.</li>
+      <li><b>Prueba gratis</b> (días que defines aquí) → paga → queda activo. Si no paga, no pierde datos ni pedidos: solo no puede hacer ventas nuevas.</li></ul>
+    <h3>3. Cómo se vende (embudo)</h3>
+    <ol><li>Le pasas el link de la app o la APK.</li><li>Se registra y usa la prueba gratis.</li><li>En «💳 Planes y pagos» elige plan y paga (link de tarjeta/PSE/Nequi o transferencia).</li>
+      <li>Te llega el comprobante por WhatsApp → en 👥 Clientes tocas «🔑 Activar / renovar» → le mandas el link y queda activo en todos sus celulares.</li></ol>
+    <h3>4. Cobro de suscripciones</h3>
+    <ul><li><b>Planes</b> (📦 Planes): nombre, precio, qué incluye y link de pago. Se publican en la app.</li>
+      <li><b>Links de pago</b>: créalos en Wompi, Mercado Pago o PayU (cobran tarjeta, PSE y Nequi). Pégalos en cada plan.</li>
+      <li><b>Licencia</b>: de por vida o por meses. Si es mensual, en 📊 Resumen ves quién vence y le mandas el recordatorio por WhatsApp.</li>
+      <li><b>Factura electrónica</b>: lo que cobras por Vento debe facturarse ante la DIAN (con tu proveedor de facturación).</li></ul>
+    <h3>5. Datos y base de datos</h3>
+    <ul><li><b>Vento Nube (Supabase)</b>: cada negocio tiene sus datos aparte; cada persona solo ve los negocios a los que pertenece (seguridad por filas). Respaldos automáticos en la nube.</li>
+      <li><b>Sin internet</b>: la app sigue funcionando en el celular y sincroniza cuando vuelve la conexión.</li>
+      <li><b>Tus datos de empresa</b> (clientes y pagos de este panel) viven en este equipo: descarga el 💾 respaldo cada semana.</li></ul>
+    <h3>6. Seguridad</h3>
+    <ul><li>Licencias firmadas: nadie puede fabricarlas sin tu código.</li><li>Claves privadas (Gemini, Google, Supabase) solo como secretos de GitHub/servidor, nunca en la app.</li>
+      <li>Cierra la sesión del panel (🔒) en equipos que no sean tuyos.</li></ul>
+    <h3>7. Lo legal en Colombia (checklist)</h3>
+    <ul><li>Términos y condiciones del servicio y política de tratamiento de datos (Ley 1581 de 2012 – Habeas Data).</li><li>Facturación electrónica DIAN de tus suscripciones.</li><li>Registro de la marca «Vento» ante la SIC (opcional, recomendado).</li></ul>
+    <h3>8. Rutina semanal</h3>
+    <ul><li>📊 Resumen: cobra a los que vencen.</li><li>💵 Pagos: revisa lo cobrado del mes (descarga CSV para tu contador).</li><li>💾 Respaldo: descárgalo y guárdalo en Drive.</li><li>⚙️ Configurar la app: anuncios para todos (mantenimientos, novedades).</li></ul>
+  </div>
+</template>
 
 <!-- ===================== FICHA DEL CLIENTE ===================== -->
 <dialog id="dlgC">
@@ -352,7 +401,9 @@
       <div><label for="plPre">Precio mensual</label><input id="plPre" type="number" min="0" step="100"></div>
       <div><label for="plSed">Sedes adicionales incluidas</label><input id="plSed" type="number" min="0" max="50" value="0"></div>
     </div>
-    <label for="plDesc">Qué incluye</label><textarea id="plDesc"></textarea>
+    <label for="plDesc">Qué incluye (lo ven los clientes)</label><textarea id="plDesc" placeholder="Mesas ilimitadas, inventario, Laya IA, música en el TV…"></textarea>
+    <label for="plLink">Link de pago con tarjeta / PSE / Nequi (Wompi, Mercado Pago, PayU…)</label><input id="plLink" type="url" placeholder="https://checkout.wompi.co/l/…">
+    <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="plPub" style="width:auto" checked>Mostrar este plan en la app (al pagar o renovar)</label>
     <div class="row"><button class="b p" id="plGuardar" type="button">💾 Guardar</button><button class="b bad" id="plBorrar" type="button">🗑 Borrar</button></div>
   </div>
 </dialog>
@@ -542,8 +593,8 @@
   }
   $('plLista').addEventListener('click', e => { const it = e.target.closest('[data-plan]'); if(!it) return; e.stopPropagation(); abrirPlan(it.dataset.plan); });
   $('plNuevo').onclick = () => abrirPlan(null);
-  function abrirPlan(id){ planAct = id ? planDe(id) : null; const p = planAct || {}; $('plNom').value = p.nombre || ''; $('plPre').value = p.precio || ''; $('plSed').value = p.sedes || 0; $('plDesc').value = p.desc || ''; $('plBorrar').hidden = !planAct; $('dlgP').showModal(); }
-  $('plGuardar').onclick = () => { const n = $('plNom').value.trim(); if(!n){ toast('Ponle nombre al plan.'); return; } const f = { nombre: n, precio: +$('plPre').value || 0, sedes: +$('plSed').value || 0, desc: $('plDesc').value.trim() }; if(planAct) Object.assign(planAct, f); else db.planes.push(Object.assign({ id: uid() }, f)); guardar(); $('dlgP').close(); };
+  function abrirPlan(id){ planAct = id ? planDe(id) : null; const p = planAct || {}; $('plNom').value = p.nombre || ''; $('plPre').value = p.precio || ''; $('plSed').value = p.sedes || 0; $('plDesc').value = p.desc || ''; $('plLink').value = p.link || ''; $('plPub').checked = p.pub !== false; $('plBorrar').hidden = !planAct; $('dlgP').showModal(); }
+  $('plGuardar').onclick = () => { const n = $('plNom').value.trim(); if(!n){ toast('Ponle nombre al plan.'); return; } const link = $('plLink').value.trim(); if(link && !/^https:\/\//.test(link)){ toast('El link de pago debe empezar por https://'); return; } const f = { nombre: n, precio: +$('plPre').value || 0, sedes: +$('plSed').value || 0, desc: $('plDesc').value.trim(), link, pub: $('plPub').checked }; if(planAct) Object.assign(planAct, f); else db.planes.push(Object.assign({ id: uid() }, f)); guardar(); $('dlgP').close(); };
   $('plBorrar').onclick = () => { if(!planAct || !confirm('¿Borrar el plan «' + planAct.nombre + '»?')) return; db.planes = db.planes.filter(p => p !== planAct); guardar(); $('dlgP').close(); };
 
   // ---------------- Licencias (firma con la llave privada; misma que licencias.html) ----------------
@@ -611,12 +662,14 @@
   function cfgLeerForm(){
     return { precioTexto: $('aPrecio').value.trim(), whatsapp: waNum($('aWa').value), pruebaDias: $('aPrueba').value === '' ? null : Math.max(0, +$('aPrueba').value || 0),
       graciaDias: $('aGracia').value === '' ? null : Math.max(0, +$('aGracia').value || 0), anuncio: $('aAnuncio').value.trim(),
-      suspendidos: $('aSusp').value.split(/[\s,;]+/).map(x => x.toUpperCase().replace(/[^A-Z0-9-]/g, '')).filter(x => /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(x)) };
+      suspendidos: $('aSusp').value.split(/[\s,;]+/).map(x => x.toUpperCase().replace(/[^A-Z0-9-]/g, '')).filter(x => /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(x)),
+      pagos: { nequi: $('aNequi').value.replace(/\D/g, ''), breb: $('aBreb').value.trim(), banco: $('aBanco').value.trim(), titular: $('aTitular').value.trim() },
+      planes: db.planes.filter(p => p.pub !== false).map(p => ({ id: p.id, nombre: p.nombre, precio: +p.precio || 0, desc: p.desc || '', link: p.link || '', sedes: +p.sedes || 0 })) };
   }
-  function cfgPintar(c){ c = c || {}; $('aPrecio').value = c.precioTexto || ''; $('aWa').value = c.whatsapp || ''; $('aPrueba').value = c.pruebaDias != null ? c.pruebaDias : 15; $('aGracia').value = c.graciaDias != null ? c.graciaDias : 3; $('aAnuncio').value = c.anuncio || ''; $('aSusp').value = (c.suspendidos || []).join('\n'); }
+  function cfgPintar(c){ c = c || {}; $('aPrecio').value = c.precioTexto || ''; $('aWa').value = c.whatsapp || ''; $('aPrueba').value = c.pruebaDias != null ? c.pruebaDias : 15; $('aGracia').value = c.graciaDias != null ? c.graciaDias : 3; $('aAnuncio').value = c.anuncio || ''; $('aSusp').value = (c.suspendidos || []).join('\n'); const pg = c.pagos || {}; $('aNequi').value = pg.nequi || ''; $('aBreb').value = pg.breb || ''; $('aBanco').value = pg.banco || ''; $('aTitular').value = pg.titular || ''; }
   function cfgGuardarCache(){ try{ localStorage.setItem(CFG_CACHE, JSON.stringify(cfgLeerForm())); }catch(e){} }
   function cfgPintarDesdeCache(){ if($('aPrecio').dataset.ok) return; $('aPrecio').dataset.ok = '1'; let c = null; try{ c = JSON.parse(localStorage.getItem(CFG_CACHE) || 'null'); }catch(e){} cfgPintar(c); }
-  ['aPrecio', 'aWa', 'aPrueba', 'aGracia', 'aAnuncio', 'aSusp'].forEach(id => $(id).addEventListener('change', cfgGuardarCache));
+  ['aPrecio', 'aWa', 'aPrueba', 'aGracia', 'aAnuncio', 'aSusp', 'aNequi', 'aBreb', 'aBanco', 'aTitular'].forEach(id => $(id).addEventListener('change', cfgGuardarCache));
   try{ $('aToken').value = localStorage.getItem(TOKEN_LS) || ''; }catch(e){}
   $('aToken').addEventListener('change', () => { try{ localStorage.setItem(TOKEN_LS, $('aToken').value.trim()); }catch(e){} });
   const gh = async (ruta, op) => {
@@ -743,6 +796,7 @@
   $('salir').onclick = () => { try{ localStorage.removeItem(CODIGO_LS); }catch(e){} location.reload(); };
 
   function copiar(t){ if(!t) return; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('📋 Copiado.'), () => prompt('Copia esto:', t)); }
+  try{ $('guiaBox').appendChild($('tplGuia').content.cloneNode(true)); }catch(e){}
   function pintarTodo(){ pintarResumen(); pintarClientes(); pintarPagos(); pintarPlanes(); pintarLicHist(); pintarRespaldo(); }
   pintarTodo();
   window.ventoAdmin = { db: () => db, estado, firmar: p => firmar(p), cfgLeerForm };

@@ -102,6 +102,22 @@ jobs:
             echo "ℹ️ Sin correo propio (secretos VENTO_SMTP_*): se usa el de Supabase (enlace; solo a los correos del equipo de Supabase)."
           fi
 
+      - name: Entrar con Google (cuentas de Vento con Gmail)
+        if: steps.listo.outputs.ok == 'true'
+        env:
+          G_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          G_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+        run: |
+          if [ -z "$G_ID" ] || [ -z "$G_SECRET" ]; then
+            echo "::notice title=Entrar con Google::Para activar «Continuar con Google» agrega GOOGLE_OAUTH_CLIENT_ID y GOOGLE_OAUTH_CLIENT_SECRET (Settings → Secrets and variables → Actions). En Google Cloud, la dirección de regreso autorizada es https://${PROJECT_REF}.supabase.co/auth/v1/callback"
+            exit 0
+          fi
+          API="https://api.supabase.com/v1/projects/${PROJECT_REF}/config/auth"
+          jq -n --arg i "$G_ID" --arg s "$G_SECRET" '{external_google_enabled:true, external_google_client_id:$i, external_google_secret:$s}' > /tmp/g.json
+          C=$(curl -s -o /tmp/g.out -w '%{http_code}' -X PATCH -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H 'Content-Type: application/json' "$API" --data @/tmp/g.json)
+          rm -f /tmp/g.json
+          [ "$C" -ge 200 ] && [ "$C" -lt 300 ] && echo "✅ «Continuar con Google» activado." || echo "::warning title=Entrar con Google::No se pudo activar ($C): $(head -c 300 /tmp/g.out)"
+
       - name: IA de Vento (Edge Function vento-ia con la clave de Gemini del proveedor)
         if: steps.listo.outputs.ok == 'true'
         env:

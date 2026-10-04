@@ -1374,6 +1374,7 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   :is(#overlay, #personOverlay) #scanSellBtn{ border-radius:999px; min-height:44px; font-size:14px; }
   #overlay #splitCount{ width:64px; height:42px; border-radius:12px; border:1.5px solid var(--line); background:var(--bg); color:var(--ink); font-size:17px; font-weight:800; text-align:center; }
   :is(#overlay, #personOverlay) #scanSellBtn{ margin-bottom:10px; }
+  #overlay .split-row[hidden], #overlay .split-hint[hidden], #overlay .section-divider[hidden]{ display:none !important; }   /* «Dividir cuenta» viejo: ahora va en la tarjeta de pago */
   /* Personas: ficha con inicial */
   #peopleChips .chip{ padding:5px 12px 5px 5px; gap:8px; background:var(--surface); border-color:color-mix(in srgb, var(--amber) 35%, var(--line)); color:var(--ink); font-size:14px; }
   #peopleChips .chip .pc-av{ display:inline-grid; place-items:center; width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg, var(--amber), var(--amber-deep)); color:#fff; font-style:normal; font-weight:800; font-size:13px; }
@@ -2234,6 +2235,22 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   body.modo-mesero #asisFab, body.modo-mesero #voiceFabAI, body.modo-mesero #mesoraFixPill{ display:none !important; }
   .mesero-chip{ display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 6px 0 12px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font:700 13px var(--font-main); }
   .mesero-chip button{ height:30px; padding:0 10px; border-radius:999px; border:1px solid var(--line); background:var(--surface-2); color:var(--brick); font:700 12px var(--font-main); cursor:pointer; }
+  #subOverlay .modal{ max-height:calc(100vh - 32px); overflow-y:auto; }
+  .sp-tit{ text-align:left; font-weight:800; margin:14px 0 8px; font-size:14px; }
+  .sp-planes{ display:grid; gap:10px; }
+  .sp-plan{ text-align:left; padding:14px; border:1.5px solid var(--line); border-radius:16px; background:var(--surface); cursor:pointer; }
+  .sp-plan.on{ border-color:var(--amber); box-shadow:0 0 0 3px color-mix(in srgb, var(--amber) 25%, transparent); }
+  .sp-plan b{ font-size:16px; }
+  .sp-precio{ font-size:22px; font-weight:800; color:var(--paid); margin:2px 0 4px; }
+  .sp-precio small{ font-size:12px; color:var(--ink-soft); font-weight:600; }
+  .sp-desc{ font-size:13px; color:var(--ink-soft); white-space:pre-line; }
+  .sp-pagar{ display:block; text-align:center; margin-top:10px; padding:11px; border-radius:12px; text-decoration:none; font-weight:800; }
+  .sp-medio{ display:flex; align-items:center; justify-content:space-between; gap:8px; text-align:left; padding:10px 12px; border:1px solid var(--line); border-radius:12px; margin-bottom:6px; }
+  .sp-medio span{ display:flex; flex-direction:column; font-size:12px; color:var(--ink-soft); }
+  .sp-medio span b{ font-size:15px; color:var(--ink); }
+  .sp-nota{ font-size:12.5px; color:var(--ink-soft); text-align:left; margin-top:6px; }
+  .auth-google{ display:flex; align-items:center; justify-content:center; gap:10px; min-height:48px; border-radius:12px; border:1px solid #dadce0; background:#fff; color:#1f1f1f; font:600 15px/1 var(--font-main); cursor:pointer; }
+  .auth-google[hidden]{ display:none; }
   .sub-bar{ display:flex; align-items:center; gap:10px; margin:8px 0 4px; padding:9px 12px; border-radius:12px; border:1px solid color-mix(in srgb, var(--amber) 45%, var(--line)); background:color-mix(in srgb, var(--amber) 12%, var(--surface)); color:var(--ink); font-size:13px; line-height:1.35; cursor:pointer; }
   .sub-bar span{ flex:1; min-width:0; }
   .sub-bar b:last-of-type{ white-space:nowrap; color:var(--cream); }
@@ -4250,14 +4267,14 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
 
     <div id="itemsContainer"></div>
 
-    <div class="section-divider" data-mod="d">Dividir cuenta</div>
-    <div class="split-row" data-mod="d">
+    <div class="section-divider" data-mod="d" hidden>Dividir cuenta</div>
+    <div class="split-row" data-mod="d" hidden>
       <span>Entre</span>
       <input type="number" id="splitCount" min="1" value="2">
       <span>personas</span>
       <span class="split-amount" id="splitAmount">$0 c/u</span>
     </div>
-    <div class="split-hint" data-mod="d">Solo de referencia — no cambia la cuenta, úsalo para saber cuánto le toca a cada quien.</div>
+    <div class="split-hint" data-mod="d" hidden>Solo de referencia — no cambia la cuenta, úsalo para saber cuánto le toca a cada quien.</div>
 
     <div class="section-divider">Pagos registrados</div>
     <div class="pay-card" data-scope="table">
@@ -4777,6 +4794,7 @@ export default {
     <button class="btn-primary" type="submit" id="authBtn">Entrar</button>
     <button type="button" class="btn-ghost auth-nueva" id="authNueva" hidden>➕ Crear cuenta nueva</button>
     <button type="button" class="auth-link" id="authForgot">¿Olvidaste tu contraseña?</button>
+    <button type="button" class="auth-google" id="authGoogle" hidden><svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Continuar con Google</button>
     <button type="button" class="btn-ghost" id="authNube">☁️ Entrar con Vento Nube (equipo con varios celulares)</button>
     <button type="button" class="auth-link" id="authRestoreBtn">📥 ¿Ya tenías una cuenta? Restaura tu copia de respaldo</button>
     <input type="file" id="authRestoreFile" accept="application/json,.json" hidden>
@@ -17224,6 +17242,12 @@ const authEnlace = (() => {
     const h = new URLSearchParams(location.hash.replace(/^#/, '')), q = new URLSearchParams(location.search);
     const tok = h.get('access_token'), tipo = h.get('type') || '', err = h.get('error_description') || h.get('error');
     if(!tok && !err) return null;
+    // Volvió de «Continuar con Google»: el permiso es para Vento Nube (no es un enlace de recuperar contraseña).
+    if(q.get('nubegoogle') === '1'){
+      try{ if(tok) sessionStorage.setItem('vento-google', JSON.stringify({ a: tok, r: h.get('refresh_token') || '' })); else sessionStorage.setItem('vento-google-err', err || 'Google no dejó entrar.'); }catch(e){}
+      history.replaceState(null, '', location.pathname);
+      return null;
+    }
     const r = { tok, tipo, err, user: q.get('recuperar') || '', nube: q.get('nubeclave') === '1', hash: location.hash.replace(/^#/, ''), query: location.search.replace(/^\?/, '') };
     history.replaceState(null, '', location.pathname);
     return r;
@@ -22426,7 +22450,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-04 · v1.27.3';
+const MESORA_VERSION = '2026-10-04 · v1.27.4';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -23338,7 +23362,8 @@ const subPuedeVender = () => subEstado().k !== 'vencida';
 const subEsProv = () => subEstado().k === 'proveedor';
 function subRenovarWa(){
   const st = subEstado();
-  const msg = 'Hola, quiero ' + (st.k === 'activa' ? 'renovar' : 'activar') + ' mi suscripción de Vento.\nNegocio: ' + ((typeof data !== 'undefined' && data && data.businessName) || '') + '\nCódigo del negocio: ' + codigoNegocio();
+  const pl = ((ventoCfg && ventoCfg.planes) || []).find(p => p.id === subPlanElegido);
+  const msg = 'Hola, quiero ' + (st.k === 'activa' ? 'renovar' : 'activar') + ' mi suscripción de Vento' + (pl ? ' (plan ' + pl.nombre + (pl.precio ? ', ' + fmt(pl.precio) + '/mes' : '') + ')' : '') + '. Te envío el comprobante de pago.\nNegocio: ' + ((typeof data !== 'undefined' && data && data.businessName) || '') + '\nCódigo del negocio: ' + codigoNegocio();
   window.open('https://wa.me/' + ventoWa() + '?text=' + encodeURIComponent(msg), '_blank');
 }
 function subPaywall(motivo){
@@ -23347,9 +23372,10 @@ function subPaywall(motivo){
     ov = document.createElement('div'); ov.id = 'subOverlay'; ov.className = 'overlay';
     ov.innerHTML = '<div class="modal" style="max-width:420px;text-align:center"><h2 id="subTit">💳 Tu suscripción</h2>' +
       '<div class="modal-sub" id="subTxt"></div>' +
+      '<div id="subPlanes"></div>' +
       '<div class="modal-sub" style="margin-top:10px">Código de tu negocio:</div><div class="lic-code" id="subCod"></div>' +
       '<div class="modal-actions" style="flex-direction:column;gap:8px">' +
-        '<button class="btn-primary" id="subWa" type="button" style="width:100%;padding:13px;font-size:15px">💬 Pagar / renovar por WhatsApp</button>' +
+        '<button class="btn-primary" id="subWa" type="button" style="width:100%;padding:13px;font-size:15px">✅ Ya pagué: enviar comprobante por WhatsApp</button>' +
         '<input id="subInput" class="mz-in" placeholder="¿Ya pagaste? Pega aquí tu código de activación" autocomplete="off" autocapitalize="none" spellcheck="false" style="width:100%;box-sizing:border-box">' +
         '<button class="btn-ghost" id="subGo" type="button" style="width:100%">✅ Activar</button>' +
         '<button class="btn-close" id="subNo" type="button">Cerrar</button></div></div>';
@@ -23359,14 +23385,41 @@ function subPaywall(motivo){
     ov.querySelector('#subGo').onclick = async () => { if(await licActivar(ov.querySelector('#subInput').value)){ ov.classList.remove('show'); } };
   }
   const st = subEstado();
-  ov.querySelector('#subTit').textContent = st.k === 'vencida' ? '🔒 Tu suscripción venció' : '💳 Tu suscripción de Vento';
+  ov.querySelector('#subTit').textContent = st.suspendido ? '⛔ Negocio suspendido' : st.k === 'vencida' ? '🔒 Tu suscripción venció' : '💳 Planes y pagos';
   ov.querySelector('#subTxt').innerHTML = (motivo ? '<b>' + motivo + '</b><br>' : '') +
     (st.suspendido ? 'Tu negocio está suspendido por el proveedor de Vento. Tus datos están a salvo: puedes ver todo, cobrar las cuentas abiertas, recibir los pedidos del QR y guardar respaldo. Para reactivarlo, escríbenos' : st.k === 'vencida' ? 'Tus datos están a salvo: puedes ver todo, cobrar las cuentas abiertas, recibir los pedidos del QR y guardar respaldo. Para seguir vendiendo, renueva tu suscripción' :
      st.k === 'prueba' ? 'Estás en la prueba gratis: te quedan <b>' + st.dias + ' día' + (st.dias === 1 ? '' : 's') + '</b>. Para seguir usando Vento después, activa tu suscripción' :
      st.k === 'gracia' ? 'Tu suscripción está por cortarse: te quedan <b>' + st.dias + ' día' + (st.dias === 1 ? '' : 's') + '</b> de gracia. Renueva tu suscripción' :
      'Renueva tu suscripción') + (SUSCRIPCION_PRECIO_TEXTO ? ': <b>' + SUSCRIPCION_PRECIO_TEXTO + '</b>.' : '.') + ' Escríbenos por WhatsApp con el código de tu negocio y te mandamos tu código de activación.';
   ov.querySelector('#subCod').textContent = codigoNegocio();
+  subPlanesPintar(ov.querySelector('#subPlanes'));
   ov.classList.add('show');
+}
+// Planes y medios de pago que publica el proveedor (Vento Admin → Planes y «Cómo te pagan»).
+let subPlanElegido = '';
+function subPlanesPintar(box){
+  if(!box) return;
+  const c = ventoCfg || {}, planes = Array.isArray(c.planes) ? c.planes : [], pg = c.pagos || {};
+  const e = t => String(t == null ? '' : t).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  let h = '';
+  if(planes.length){
+    h += '<div class="sp-tit">Elige tu plan</div><div class="sp-planes">' + planes.map(p =>
+      '<div class="sp-plan' + (subPlanElegido === p.id ? ' on' : '') + '" data-plan="' + e(p.id) + '"><b>' + e(p.nombre) + '</b><div class="sp-precio">' + (p.precio ? fmt(p.precio) + '<small>/mes</small>' : 'Consulta el precio') + '</div>' +
+      (p.desc ? '<div class="sp-desc">' + e(p.desc) + '</div>' : '') +
+      (p.link ? '<a class="btn-primary sp-pagar" href="' + e(p.link) + '" target="_blank" rel="noopener">💳 Pagar con tarjeta, PSE o Nequi</a>' : '') + '</div>').join('') + '</div>';
+  }
+  const m = [];
+  if(pg.nequi) m.push(['📱 Nequi / Daviplata', pg.nequi]);
+  if(pg.breb) m.push(['⚡ Llave Bre-B', pg.breb]);
+  if(pg.banco) m.push(['🏦 Transferencia', pg.banco]);
+  if(m.length){
+    h += '<div class="sp-tit">O paga por transferencia' + (pg.titular ? ' a nombre de <b>' + e(pg.titular) + '</b>' : '') + '</div>' +
+      m.map(x => '<div class="sp-medio"><span>' + x[0] + '<b>' + e(x[1]) + '</b></span><button type="button" class="btn-ghost" data-copiar="' + e(x[1]) + '">📋 Copiar</button></div>').join('') +
+      '<div class="sp-nota">Después de pagar, toca «Ya pagué» y envía el comprobante. Te activamos con un código que llega por WhatsApp.</div>';
+  }
+  box.innerHTML = h;
+  box.querySelectorAll('[data-plan]').forEach(x => x.onclick = ev => { if(ev.target.closest('a')) return; subPlanElegido = x.dataset.plan; box.querySelectorAll('[data-plan]').forEach(y => y.classList.toggle('on', y === x)); });
+  box.querySelectorAll('[data-copiar]').forEach(b => b.onclick = () => { const t = b.dataset.copiar; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => showToast('📋 Copiado: ' + t), () => prompt('Copia esto:', t)); });
 }
 function subTexto(st){
   if(st.k === 'proveedor') return '👑 <b>Proveedor de Vento</b>: este equipo tiene control total, sin restricciones.';
@@ -23385,9 +23438,9 @@ function subPintar(){
       g = document.createElement('div'); g.className = 'settings-group'; g.id = 'subGrupo'; g.dataset.cat = 'negocio'; g.hidden = ref.hidden;
       g.innerHTML = '<h2>💳 Plan y suscripción</h2><div class="lic-plan" id="subPlan"></div>' +
         '<div class="settings-desc">Vento es un servicio por suscripción. Solo el proveedor de Vento puede cambiar la aplicación, borrar todo o borrar historial; tus datos siempre quedan guardados.</div>' +
-        '<div class="mz-actions" style="flex-wrap:wrap"><button class="btn-warn" id="subRenovarBtn" type="button">💬 Pagar / renovar</button><button class="btn-ghost" id="subCodigoBtn" type="button">🔑 Pegar código de activación</button><a class="btn-ghost" id="subLicLink" href="admin.html" target="_blank" rel="noopener" hidden>👑 Vento Admin (proveedor)</a></div>';
+        '<div class="mz-actions" style="flex-wrap:wrap"><button class="btn-warn" id="subRenovarBtn" type="button">💳 Planes y pagos</button><button class="btn-ghost" id="subCodigoBtn" type="button">🔑 Pegar código de activación</button><a class="btn-ghost" id="subLicLink" href="admin.html" target="_blank" rel="noopener" hidden>👑 Vento Admin (proveedor)</a></div>';
       ref.parentNode.insertBefore(g, ref);
-      g.querySelector('#subRenovarBtn').onclick = subRenovarWa;
+      g.querySelector('#subRenovarBtn').onclick = () => subPaywall('');
       g.querySelector('#subCodigoBtn').onclick = () => subPaywall('');
     }
   }
@@ -27121,6 +27174,17 @@ window.mesoraCelebrar = function(emojis){
   const N = () => window.ventoNube;
   const b1 = document.getElementById('authNube');
   if(b1) b1.addEventListener('click', () => { if(!N()) return; N().abrir({ alEntrar: correo => { try{ enterApp(correo, null); }catch(e){ location.reload(); } } }); });
+  // «Continuar con Google» en la pantalla de entrada (solo si el servidor tiene Google activado).
+  const bg = document.getElementById('authGoogle');
+  const alEntrar = correo => { try{ enterApp(correo, null); }catch(e){ location.reload(); } };
+  (function esperar(n){
+    if(!N()){ if(n < 40) setTimeout(() => esperar(n + 1), 250); return; }
+    if(bg && N().googleDisponible) N().googleDisponible().then(ok => { bg.hidden = !ok; });
+    if(bg) bg.onclick = () => { bg.disabled = true; N().conGoogle().catch(e => { bg.disabled = false; showToast('⚠️ Google: ' + (e.message || e), 7000); }); };
+    // De vuelta de Google: se abre la sesión y se sigue con los negocios de esa cuenta.
+    if(N().volvioDeGoogle) N().volvioDeGoogle().then(ok => { if(ok){ showToast('✅ Entraste con Google.', 4000); N().abrir({ alEntrar }); } })
+      .catch(e => showToast('⚠️ No se pudo entrar con Google: ' + (e.message || e), 8000));
+  })(0);
   const b2 = document.getElementById('nubeAbrirAj');
   if(b2) b2.addEventListener('click', () => { if(N()) N().abrir({}); });
   const pinta = () => { const el = document.getElementById('nubeEstadoAj'); if(el && N()) el.textContent = N().estado(); };
