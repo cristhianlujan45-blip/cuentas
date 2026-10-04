@@ -639,6 +639,19 @@ final class BuscadorTV {
         }
     }
 
+    /** Estado actual de YouTube en el TV: status HTTP, state (running/stopped/hidden…) y screenId si lo da. */
+    static JSONObject infoYouTube(String appUrl) {
+        JSONObject o = new JSONObject();
+        try {
+            String[] ytr = estadoYouTube(appUrl + "YouTube");
+            String xml = ytr[1] == null ? "" : ytr[1];
+            o.put("status", Integer.parseInt(ytr[0]));
+            o.put("state", etiqueta(xml, "state"));
+            o.put("screenId", etiqueta(xml, "screenId"));
+        } catch (Exception ignorado) { }
+        return o;
+    }
+
     private static void marcarYouTube(JSONObject tv, String[] ytr, String rs) {
         try {
             String xml = ytr[1] == null ? "" : ytr[1];

@@ -1348,6 +1348,28 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   #clienteRow button{ min-height:38px; border-radius:999px !important; padding:0 14px !important; }
   .pay-extra button, .pay-quick button{ white-space:nowrap; }
   .pay-card[data-scope="person"] .pay-quick [data-q="split"]{ display:none; }
+  /* Buscador de productos de la mesa (1.27.2): tarjeta con lupa, sugerencias oscuras y cantidad en píldora */
+  :is(#overlay, #personOverlay) .add-row:has(.product-search-wrap){ align-items:center; gap:10px; padding:12px; border:1px solid var(--line); border-radius:16px; background:color-mix(in srgb, var(--amber) 5%, var(--surface)); }
+  :is(#overlay, #personOverlay) .product-search-wrap input[type=text]{ height:48px; padding:0 14px 0 42px; border-radius:999px; border:1.5px solid var(--line); background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23a78bfa' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E") no-repeat 15px center; color:var(--ink); font-size:15px; box-sizing:border-box; }
+  :is(#overlay, #personOverlay) .product-search-wrap input[type=text]:focus{ outline:none; border-color:var(--cream-soft); box-shadow:0 0 0 3px color-mix(in srgb, var(--amber) 25%, transparent); }
+  :is(#overlay, #personOverlay) .product-suggestions{ top:calc(100% + 6px); background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:0 12px 30px rgba(0,0,0,.45); padding:4px; }
+  :is(#overlay, #personOverlay) .product-suggestion-item{ color:var(--ink); border-bottom:0; border-radius:10px; padding:11px 12px; }
+  :is(#overlay, #personOverlay) .product-suggestion-item:hover, :is(#overlay, #personOverlay) .product-suggestion-item.active{ background:color-mix(in srgb, var(--amber) 18%, var(--surface)); }
+  :is(#overlay, #personOverlay) .product-suggestion-item .psi-price{ color:var(--paid); font-weight:700; }
+  :is(#overlay, #personOverlay) .product-suggestion-item .psi-size{ color:var(--ink-soft); }
+  :is(#overlay, #personOverlay) .product-suggestion-header{ background:transparent; color:var(--ink-soft); }
+  :is(#overlay, #personOverlay) .product-suggestion-empty{ color:var(--ink-soft); }
+  :is(#overlay, #personOverlay) .add-row .qty-stepper{ gap:0; padding:3px; border:1.5px solid var(--line); border-radius:999px; background:var(--bg); }
+  :is(#overlay, #personOverlay) .add-row .qty-stepper button{ width:40px; height:40px; border-radius:50%; border:0; background:color-mix(in srgb, var(--amber) 22%, var(--surface)); color:var(--cream); font-size:20px; }
+  :is(#overlay, #personOverlay) .add-row .qty-stepper input[type=number]{ width:46px; border:0; background:transparent; color:var(--ink); font-size:17px; font-weight:800; padding:0; }
+  :is(#overlay, #personOverlay) .add-row:has(.product-search-wrap) > button{ flex:1; min-height:46px; border-radius:999px; background:linear-gradient(135deg, var(--amber), var(--amber-deep)); font-size:15px; font-weight:800; box-shadow:0 6px 16px color-mix(in srgb, var(--amber) 30%, transparent); }
+  :is(#overlay, #personOverlay) #scanSellBtn{ border-radius:999px; min-height:44px; font-size:14px; }
+  #overlay #splitCount{ width:64px; height:42px; border-radius:12px; border:1.5px solid var(--line); background:var(--bg); color:var(--ink); font-size:17px; font-weight:800; text-align:center; }
+  :is(#overlay, #personOverlay) #scanSellBtn{ margin-bottom:10px; }
+  /* Personas: ficha con inicial */
+  #peopleChips .chip{ padding:5px 12px 5px 5px; gap:8px; background:var(--surface); border-color:color-mix(in srgb, var(--amber) 35%, var(--line)); color:var(--ink); font-size:14px; }
+  #peopleChips .chip .pc-av{ display:inline-grid; place-items:center; width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg, var(--amber), var(--amber-deep)); color:#fff; font-style:normal; font-weight:800; font-size:13px; }
+  #peopleChips .chip small{ color:var(--paid); font-weight:700; }
   .pay-select-oculto{ position:absolute !important; width:1px !important; height:1px !important; opacity:0 !important; pointer-events:none !important; }
   .persona-add{ display:flex; align-items:center; gap:8px; padding:6px 6px 6px 12px; margin:4px 0 4px; border:1.5px solid var(--line); border-radius:999px; background:var(--bg); }
   .persona-add:focus-within{ border-color:var(--cream-soft); box-shadow:0 0 0 3px color-mix(in srgb, var(--amber) 25%, transparent); }
@@ -4214,7 +4236,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
         <input type="number" id="addQty" value="0" min="0">
         <button type="button" id="qtyPlusBtn">+</button>
       </div>
-      <button id="addItemBtn">Agregar</button>
+      <button id="addItemBtn">＋ Agregar</button>
     </div>
     <button type="button" class="btn-camera" id="scanSellBtn" style="width:100%;margin-top:8px">🔳 Vender escaneando código</button>
 
@@ -4302,7 +4324,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
         <input type="number" id="personAddQty" value="1" min="1">
         <button type="button" id="personQtyPlusBtn">+</button>
       </div>
-      <button id="personAddItemBtn">Agregar</button>
+      <button id="personAddItemBtn">＋ Agregar</button>
     </div>
 
     <div id="personItemsContainer"></div>
@@ -8567,7 +8589,8 @@ function renderPeople(){
     const chip = document.createElement('span');
     chip.className = 'chip';
     chip.title = 'Ver cuenta aparte de ' + p.name;
-    chip.innerHTML = `${p.name}${bal > 0 ? ' · ' + fmt(bal) : ''}<span class="chip-del" data-id="${p.id}" title="Quitar persona">✕</span>`;
+    const ini = String(p.name || '?').trim().charAt(0).toUpperCase().replace(/[<>&"]/g, '');
+    chip.innerHTML = `<i class="pc-av">${ini}</i>${String(p.name).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}${bal > 0 ? ' <small>' + fmt(bal) + '</small>' : ''}<span class="chip-del" data-id="${p.id}" title="Quitar persona">✕</span>`;
     chip.addEventListener('click', (e)=>{
       if(e.target.classList.contains('chip-del')) return;
       openPersonModal(p.id);
@@ -22374,7 +22397,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-03 · v1.27.1';
+const MESORA_VERSION = '2026-10-04 · v1.27.2';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -22920,7 +22943,7 @@ async function tvApkConectar(tv){
       const r = await new Promise(res => { const id = 'y' + Date.now() + Math.random().toString(36).slice(2, 5); window.__ventoCbs = window.__ventoCbs || {}; window.__ventoCbs[id] = res; try{ window.VentoAndroid.abrirYouTube(id, tv.appUrl, codigo); }catch(e){ res({ status: -1 }); } setTimeout(() => res({ status: -2 }), 15000); });
       return { codigo, st: r.status };
     };
-    const vincular = async codigo => { let err = ''; for(let i = 0; i < 12; i++){ await new Promise(r2 => setTimeout(r2, 2500)); lng.ocupadoT = Date.now(); try{ await lngParear(codigo); return ''; }catch(e){ err = e.message || String(e); } } return err || 'sin respuesta'; };
+    const vincular = async codigo => { let err = ''; for(let i = 0; i < 12; i++){ await new Promise(r2 => setTimeout(r2, 2500)); lng.ocupadoT = Date.now(); try{ await lngParear(codigo); return ''; }catch(e){ err = e.message || String(e); } if(i >= 2 && i % 2 === 0){ const inf = await tvInfoYT(tv.appUrl); if(inf && inf.screenId){ tv.screenId = inf.screenId; tv.youtube = true; return 'PANTALLA'; } } } return err || 'sin respuesta'; };
     pintar('📺 Abriendo YouTube en «' + tv.nombre + '»…', 'busy');
     lngLog('TV del wifi: «' + tv.nombre + '» (' + (tv.fabricante || tv.tipo) + ') → abrir YouTube en ' + tv.appUrl);
     let a = await abrirYT();
@@ -22932,12 +22955,14 @@ async function tvApkConectar(tv){
     lngLog('   ✅ YouTube abierto en el TV (' + a.st + ') · vinculando…');
     pintar('📺 YouTube abierto en «' + tv.nombre + '». Vinculando…', 'busy');
     let err = await vincular(a.codigo);
+    if(err === 'PANTALLA'){ lngLog('   el TV no tomó el código (YouTube en uso) pero dio su código de pantalla → me uno a esa sesión'); return 'PANTALLA'; }
     if(err){
       // Segundo intento: se vuelve a abrir YouTube con un código nuevo (a veces el TV tarda en registrar el primero).
       lngLog('   ⚠️ no se vinculó con el primer código (' + err + ') → otro intento');
       pintar('📺 Vinculando con «' + tv.nombre + '» (segundo intento)…', 'busy');
       a = await abrirYT();
       if(a.st >= 200 && a.st < 300) err = await vincular(a.codigo);
+      if(err === 'PANTALLA') return 'PANTALLA';
     }
     if(err){
       lngLog('   ❌ no se pudo vincular solo: ' + err);
@@ -22966,23 +22991,47 @@ async function tvApkConectar(tv){
 }
 /* Conectar a un aparato de la lista: primero el camino de siempre (abrir YouTube en el TV con un código de
    vinculación, el que ya funcionaba); si no se puede y el TV dio su screenId, se usa ese; y si no, el código del TV. */
+// Estado de YouTube en el TV (DIAL GET, como hacen la app de YouTube y ytcast): { state, screenId } o null.
+function tvInfoYT(appUrl){
+  return new Promise(res => {
+    const A = window.VentoAndroid;
+    if(!appUrl || !A || typeof A.infoYouTube !== 'function') return res(null);
+    const id = 'i' + Date.now() + Math.random().toString(36).slice(2, 6);
+    window.__ventoCbs = window.__ventoCbs || {};
+    const tmo = setTimeout(() => { delete window.__ventoCbs[id]; res(null); }, 6000);
+    window.__ventoCbs[id] = d => { clearTimeout(tmo); let j = null; try{ j = JSON.parse(String((d && d.text) || '{}')); }catch(e){} res(j); };
+    try{ A.infoYouTube(id, appUrl); }catch(e){ clearTimeout(tmo); delete window.__ventoCbs[id]; res(null); }
+  });
+}
 async function tvConectarAparato(tv){
   if(!tv) return false;
+  // 1) Como la app de YouTube: se le pregunta al TV. Si YouTube YA está abierto (aunque otro celular o TV Box esté
+  //    conectado), el TV da su código de pantalla y Vento se une a ESA MISMA sesión, sin volver a abrir YouTube y
+  //    sin cortar lo que suena (las canciones de las mesas quedan en cola detrás).
+  if(tv.appUrl && !tv.soloCodigo){
+    const inf = await tvInfoYT(tv.appUrl);
+    if(inf && /running/i.test(inf.state || '')) tv.youtube = true;
+    if(inf && inf.screenId){ tv.screenId = inf.screenId; tv.youtube = true; }
+  }
   const rec = (lngCfg().pantallas || []).find(x => (tv.ip && x.ip === tv.ip) || (x.nombre && x.nombre === tv.nombre));
   const sid = tv.screenId || (rec && rec.screenId) || '';
-  // YouTube YA abierto en el TV (por ejemplo, con otro celular conectado): el TV no acepta un código de vinculación
-  // nuevo mientras está en uso, así que se entra a ESA MISMA sesión con su código de pantalla, sin volver a abrir
-  // YouTube y sin cortar lo que suena (las canciones de las mesas quedan en cola detrás).
   if(tv.youtube && sid){
     lngLog('TV «' + tv.nombre + '» ya tiene YouTube abierto → me uno a esa sesión con su código de pantalla');
-    if(await lngUsarPantalla(sid, tv.nombre, true, true)) return true;
+    if(await lngUsarPantalla(sid, tv.nombre, true, true)){ lngRecordar(sid, tv.nombre, tv.ip); return true; }
     lngLog('   → no se pudo así; abro YouTube con código de vinculación');
   }
   if(tv.appUrl && !tv.soloCodigo){
     const ok = await tvApkConectar(tv);
-    if(ok || !sid || tv.youtube) return ok;
-    lngLog('   → pruebo con el código de pantalla del TV');
-    return lngUsarPantalla(sid, tv.nombre, !!tv.youtube);
+    if(ok === true) return true;
+    // El TV no tomó el código de vinculación (YouTube en uso por otro): se usa su código de pantalla.
+    const s2 = tv.screenId || sid;
+    if(s2){
+      lngLog('   → me uno a la sesión de YouTube del TV con su código de pantalla');
+      const ok2 = await lngUsarPantalla(s2, tv.nombre, true, ok !== 'PANTALLA');
+      if(ok2){ lngRecordar(s2, tv.nombre, tv.ip); const box = document.getElementById('castDevs'), txt = document.getElementById('castDevsTxt'); if(box && txt){ box.hidden = false; box.classList.remove('no', 'busy'); box.classList.add('ok'); txt.textContent = '📺 Conectado a «' + tv.nombre + '» (junto con el otro celular): las canciones de las mesas entran en cola allá.'; } }
+      return ok2;
+    }
+    return false;
   }
   if(sid) return lngUsarPantalla(sid, tv.nombre, !!tv.youtube);
   return tvApkConectar(tv);
@@ -23187,8 +23236,46 @@ async function licDesdeLink(){
    • Sin suscripción: prueba gratis de PRUEBA_DIAS días + GRACIA_DIAS de gracia. Después, la app NO borra
      nada ni pierde pedidos: deja ver todo, cobrar las cuentas abiertas, recibir los pedidos del QR y sacar
      respaldo, pero no deja hacer ventas nuevas hasta renovar. Nadie puede fabricar una licencia sin la llave. */
-const PRUEBA_DIAS = 15, GRACIA_DIAS = 3;
-const SUSCRIPCION_PRECIO_TEXTO = '';     // ej. '$59.900 al mes' (vacío = «consulta el precio»)
+let PRUEBA_DIAS = 15, GRACIA_DIAS = 3;
+let SUSCRIPCION_PRECIO_TEXTO = '';       // ej. '$59.900 al mes' (vacío = «consulta el precio»)
+/* Configuración que publica el proveedor desde Vento Admin (admin.html → «Configurar la app»): precio, días de prueba
+   y de gracia, WhatsApp de soporte, anuncio para todos y negocios suspendidos. Vive en la rama «vento-config» de
+   GitHub; se lee al abrir y cada hora, y se guarda para cuando no hay internet. */
+const VENTO_CFG_URL = 'https://raw.githubusercontent.com/cristhianlujan45-blip/cuentas/vento-config/vento-config.json';
+let ventoCfg = (() => { try{ return JSON.parse(localStorage.getItem('vento-cfg') || 'null') || {}; }catch(e){ return {}; } })();
+function ventoCfgAplicar(){
+  const c = ventoCfg || {};
+  if(c.pruebaDias != null && isFinite(c.pruebaDias)) PRUEBA_DIAS = Math.max(0, +c.pruebaDias);
+  if(c.graciaDias != null && isFinite(c.graciaDias)) GRACIA_DIAS = Math.max(0, +c.graciaDias);
+  if(typeof c.precioTexto === 'string') SUSCRIPCION_PRECIO_TEXTO = c.precioTexto;
+  try{ subAplicar(); }catch(e){}
+  try{ ventoAnuncioPintar(); }catch(e){}
+}
+async function ventoCfgCargar(){
+  try{
+    const r = await fetch(VENTO_CFG_URL + '?t=' + Math.floor(Date.now() / 6e4), { cache: 'no-store' });
+    if(!r.ok) return;
+    const j = await r.json();
+    if(j && typeof j === 'object'){ ventoCfg = j; try{ localStorage.setItem('vento-cfg', JSON.stringify(j)); }catch(e){} ventoCfgAplicar(); }
+  }catch(e){}
+}
+const ventoWa = () => String((ventoCfg && ventoCfg.whatsapp) || SUPPORT_WA_NUMBER).replace(/\D/g, '') || SUPPORT_WA_NUMBER;
+function ventoAnuncioPintar(){
+  const txt = String((ventoCfg && ventoCfg.anuncio) || '').trim();
+  let bar = document.getElementById('ventoAnuncio');
+  let visto = ''; try{ visto = localStorage.getItem('vento-anuncio-visto') || ''; }catch(e){}
+  if(!txt || visto === txt){ if(bar) bar.hidden = true; return; }
+  if(!bar){
+    const h = document.querySelector('.wrap > header'); if(!h) return;
+    bar = document.createElement('div'); bar.id = 'ventoAnuncio'; bar.className = 'sub-bar';
+    h.parentNode.insertBefore(bar, h.nextSibling);
+    bar.addEventListener('click', e => { if(e.target.closest('[data-x]')){ try{ localStorage.setItem('vento-anuncio-visto', bar.dataset.txt || ''); }catch(x){} bar.hidden = true; } });
+  }
+  bar.dataset.txt = txt; bar.hidden = false;
+  bar.innerHTML = '<span>📣 ' + txt.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch])) + '</span><i data-x title="Entendido">✕</i>';
+}
+setTimeout(() => { ventoCfgAplicar(); ventoCfgCargar(); }, 2500);
+setInterval(ventoCfgCargar, 60 * 60000);
 let subInfo = null, subEsProveedor = false;
 const DIA_MS = 864e5;
 function subPruebaDesde(){
@@ -23203,6 +23290,7 @@ function subPruebaDesde(){
 function subEstado(){
   if(subEsProveedor) return { k: 'proveedor' };
   const now = Date.now();
+  try{ if(ventoCfg && Array.isArray(ventoCfg.suspendidos) && ventoCfg.suspendidos.includes(codigoNegocio())) return { k: 'vencida', suspendido: true }; }catch(e){}
   if(subInfo && !subInfo.vencida && (!subInfo.v || subInfo.v > now)) return { k: 'activa', v: subInfo.v || 0, dias: subInfo.v ? Math.ceil((subInfo.v - now) / DIA_MS) : null, plan: subInfo.pl || '' };
   const finPrueba = subPruebaDesde() + PRUEBA_DIAS * DIA_MS;
   if(!subInfo && now < finPrueba) return { k: 'prueba', dias: Math.ceil((finPrueba - now) / DIA_MS) };
@@ -23216,7 +23304,7 @@ const subEsProv = () => subEstado().k === 'proveedor';
 function subRenovarWa(){
   const st = subEstado();
   const msg = 'Hola, quiero ' + (st.k === 'activa' ? 'renovar' : 'activar') + ' mi suscripción de Vento.\nNegocio: ' + ((typeof data !== 'undefined' && data && data.businessName) || '') + '\nCódigo del negocio: ' + codigoNegocio();
-  window.open('https://wa.me/' + SUPPORT_WA_NUMBER + '?text=' + encodeURIComponent(msg), '_blank');
+  window.open('https://wa.me/' + ventoWa() + '?text=' + encodeURIComponent(msg), '_blank');
 }
 function subPaywall(motivo){
   let ov = document.getElementById('subOverlay');
@@ -23238,7 +23326,7 @@ function subPaywall(motivo){
   const st = subEstado();
   ov.querySelector('#subTit').textContent = st.k === 'vencida' ? '🔒 Tu suscripción venció' : '💳 Tu suscripción de Vento';
   ov.querySelector('#subTxt').innerHTML = (motivo ? '<b>' + motivo + '</b><br>' : '') +
-    (st.k === 'vencida' ? 'Tus datos están a salvo: puedes ver todo, cobrar las cuentas abiertas, recibir los pedidos del QR y guardar respaldo. Para seguir vendiendo, renueva tu suscripción' :
+    (st.suspendido ? 'Tu negocio está suspendido por el proveedor de Vento. Tus datos están a salvo: puedes ver todo, cobrar las cuentas abiertas, recibir los pedidos del QR y guardar respaldo. Para reactivarlo, escríbenos' : st.k === 'vencida' ? 'Tus datos están a salvo: puedes ver todo, cobrar las cuentas abiertas, recibir los pedidos del QR y guardar respaldo. Para seguir vendiendo, renueva tu suscripción' :
      st.k === 'prueba' ? 'Estás en la prueba gratis: te quedan <b>' + st.dias + ' día' + (st.dias === 1 ? '' : 's') + '</b>. Para seguir usando Vento después, activa tu suscripción' :
      st.k === 'gracia' ? 'Tu suscripción está por cortarse: te quedan <b>' + st.dias + ' día' + (st.dias === 1 ? '' : 's') + '</b> de gracia. Renueva tu suscripción' :
      'Renueva tu suscripción') + (SUSCRIPCION_PRECIO_TEXTO ? ': <b>' + SUSCRIPCION_PRECIO_TEXTO + '</b>.' : '.') + ' Escríbenos por WhatsApp con el código de tu negocio y te mandamos tu código de activación.';
@@ -23262,7 +23350,7 @@ function subPintar(){
       g = document.createElement('div'); g.className = 'settings-group'; g.id = 'subGrupo'; g.dataset.cat = 'negocio'; g.hidden = ref.hidden;
       g.innerHTML = '<h2>💳 Plan y suscripción</h2><div class="lic-plan" id="subPlan"></div>' +
         '<div class="settings-desc">Vento es un servicio por suscripción. Solo el proveedor de Vento puede cambiar la aplicación, borrar todo o borrar historial; tus datos siempre quedan guardados.</div>' +
-        '<div class="mz-actions" style="flex-wrap:wrap"><button class="btn-warn" id="subRenovarBtn" type="button">💬 Pagar / renovar</button><button class="btn-ghost" id="subCodigoBtn" type="button">🔑 Pegar código de activación</button><a class="btn-ghost" id="subLicLink" href="licencias.html" target="_blank" rel="noopener" hidden>🔑 Crear licencias (proveedor)</a></div>';
+        '<div class="mz-actions" style="flex-wrap:wrap"><button class="btn-warn" id="subRenovarBtn" type="button">💬 Pagar / renovar</button><button class="btn-ghost" id="subCodigoBtn" type="button">🔑 Pegar código de activación</button><a class="btn-ghost" id="subLicLink" href="admin.html" target="_blank" rel="noopener" hidden>👑 Vento Admin (proveedor)</a></div>';
       ref.parentNode.insertBefore(g, ref);
       g.querySelector('#subRenovarBtn').onclick = subRenovarWa;
       g.querySelector('#subCodigoBtn').onclick = () => subPaywall('');

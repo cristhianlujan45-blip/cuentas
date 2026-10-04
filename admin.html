@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Vento Admin</title>
+<link rel="icon" type="image/png" href="icons/vento-64.png">
+<link rel="apple-touch-icon" href="icons/vento-180.png">
+<meta name="theme-color" content="#0f0f16">
+<style>
+  /* ============================================================
+     Vento Admin — panel del PROVEEDOR de Vento.
+     Clientes, suscripciones (licencias firmadas), pagos, resumen del negocio y la configuración
+     que la app de todos los negocios lee (precio, días de prueba, anuncio, negocios suspendidos).
+     Los datos de los clientes quedan SOLO en este equipo (con respaldo descargable). La llave privada
+     y el token de GitHub tampoco salen de este equipo.
+     ============================================================ */
+  :root{
+    --bg:#0f0f16; --card:#17171f; --card2:#1e1e29; --line:#2a2a38; --ink:#f2f1f7; --soft:#9a97ad;
+    --acc:#7c3aed; --acc2:#c4b5fd; --ok:#34d399; --warn:#fbbf24; --bad:#fb7185;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){ --bg:#f5f4fa; --card:#fff; --card2:#f0eef8; --line:#dcd8ea; --ink:#1b1830; --soft:#6a6585; --acc2:#5b21b6; }
+  }
+  *{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 -apple-system,'Segoe UI',Roboto,sans-serif; overflow-x:clip; }
+  header{ position:sticky; top:0; z-index:5; background:color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
+  .top{ max-width:1100px; margin:0 auto; padding:12px 16px 0; display:flex; align-items:center; gap:10px; }
+  .top img{ width:34px; height:34px; border-radius:9px; }
+  .top h1{ font-size:19px; margin:0; flex:1; }
+  .top h1 small{ display:block; font-size:12px; font-weight:500; color:var(--soft); }
+  nav{ max-width:1100px; margin:0 auto; padding:8px 12px; display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; }
+  nav::-webkit-scrollbar{ display:none; }
+  nav button{ flex:0 0 auto; border:1px solid var(--line); background:var(--card); color:var(--ink); padding:8px 14px; border-radius:999px; font:600 14px inherit; cursor:pointer; }
+  nav button.on{ background:var(--acc); border-color:var(--acc); color:#fff; }
+  main{ max-width:1100px; margin:0 auto; padding:16px 16px 80px; }
+  section[data-tab]{ display:none; }
+  section[data-tab].on{ display:block; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:14px; }
+  h2{ font-size:17px; margin:0 0 10px; }
+  h3{ font-size:15px; margin:0 0 8px; }
+  .soft{ color:var(--soft); font-size:13.5px; }
+  .grid{ display:grid; gap:10px; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); }
+  .kpi{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; }
+  .kpi b{ display:block; font-size:24px; line-height:1.2; }
+  .kpi span{ font-size:12.5px; color:var(--soft); }
+  .kpi.ok b{ color:var(--ok); } .kpi.warn b{ color:var(--warn); } .kpi.bad b{ color:var(--bad); } .kpi.acc b{ color:var(--acc2); }
+  label{ display:block; font-size:13px; color:var(--soft); margin:10px 0 4px; }
+  input, select, textarea{ width:100%; padding:11px 12px; border-radius:10px; border:1px solid var(--line); background:var(--card2); color:var(--ink); font:inherit; }
+  textarea{ min-height:70px; }
+  .f2{ display:grid; gap:0 10px; grid-template-columns:1fr 1fr; }
+  @media (max-width:520px){ .f2{ grid-template-columns:1fr; } }
+  button.b, a.b{ display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:10px 14px; border-radius:10px; border:1px solid var(--line); background:var(--card2); color:var(--ink); font:600 14px inherit; cursor:pointer; text-decoration:none; }
+  button.p, a.p{ background:var(--acc); border-color:var(--acc); color:#fff; }
+  button.ok{ background:color-mix(in srgb, var(--ok) 20%, var(--card2)); border-color:color-mix(in srgb, var(--ok) 50%, var(--line)); }
+  button.bad{ color:var(--bad); }
+  .row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .row > *{ flex:1 1 auto; }
+  .bar{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .bar input{ flex:1 1 200px; }
+  .bar select{ flex:0 1 170px; }
+  .list{ display:flex; flex-direction:column; gap:8px; }
+  .item{ display:flex; align-items:center; gap:12px; padding:12px; border:1px solid var(--line); border-radius:14px; background:var(--card); cursor:pointer; }
+  .item:hover{ border-color:color-mix(in srgb, var(--acc) 50%, var(--line)); }
+  .av{ flex:0 0 40px; height:40px; border-radius:12px; display:grid; place-items:center; font-weight:800; color:#fff; background:linear-gradient(135deg, var(--acc), #5b21b6); }
+  .item .t{ flex:1; min-width:0; }
+  .item .t b{ display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .item .t small{ color:var(--soft); }
+  @media (max-width:560px){ .item{ flex-wrap:wrap; } .item .t{ flex:1 1 calc(100% - 56px); } .item .t small{ display:block; } .item > .pill, .item > button{ margin-left:52px; } .item > button + .pill{ margin-left:0; } }
+  .pill{ flex:0 0 auto; font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; border:1px solid currentColor; white-space:nowrap; }
+  .pill.ok{ color:var(--ok); } .pill.warn{ color:var(--warn); } .pill.bad{ color:var(--bad); } .pill.soft{ color:var(--soft); }
+  .empty{ text-align:center; color:var(--soft); padding:24px 10px; }
+  .out{ word-break:break-all; font-family:ui-monospace,monospace; font-size:12px; background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:10px; margin-top:10px; }
+  .chart{ display:flex; align-items:flex-end; gap:8px; height:150px; padding-top:10px; }
+  .chart div{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px; height:100%; font-size:11px; color:var(--soft); }
+  .chart i{ display:block; width:100%; max-width:46px; border-radius:8px 8px 3px 3px; background:linear-gradient(180deg, var(--acc2), var(--acc)); min-height:2px; }
+  .chart em{ font-style:normal; color:var(--ink); font-weight:700; font-size:11px; }
+  table{ width:100%; border-collapse:collapse; font-size:14px; }
+  th, td{ text-align:left; padding:9px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ font-size:12px; color:var(--soft); font-weight:600; }
+  td.n, th.n{ text-align:right; white-space:nowrap; }
+  .tbl{ overflow-x:auto; }
+  dialog{ width:min(560px, calc(100vw - 24px)); max-height:calc(100vh - 40px); border:1px solid var(--line); border-radius:18px; padding:0; background:var(--card); color:var(--ink); }
+  dialog::backdrop{ background:rgba(0,0,0,.6); }
+  dialog .dh{ position:sticky; top:0; background:var(--card); padding:14px 16px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px; z-index:1; }
+  dialog .dh h2{ flex:1; margin:0; }
+  dialog .db{ padding:4px 16px 16px; }
+  .x{ border:0; background:transparent; color:var(--soft); font-size:22px; cursor:pointer; }
+  .lock{ position:fixed; inset:0; z-index:50; background:var(--bg); display:grid; place-items:center; padding:16px; }
+  .lock[hidden], [hidden]{ display:none !important; }
+  .lock .card{ width:min(380px, 100%); text-align:center; }
+  .toast{ position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:var(--card2); border:1px solid var(--line); padding:10px 16px; border-radius:12px; z-index:60; box-shadow:0 10px 30px rgba(0,0,0,.4); max-width:calc(100vw - 32px); }
+  .ok-t{ color:var(--ok); } .bad-t{ color:var(--bad); } .warn-t{ color:var(--warn); }
+  .hist div{ padding:8px 0; border-top:1px solid var(--line); font-size:13.5px; }
+  .hist div:first-child{ border-top:0; }
+  .steps{ margin:6px 0 0 18px; padding:0; font-size:13.5px; color:var(--soft); }
+  .steps li{ margin:3px 0; }
+</style>
+</head>
+<body>
+
+<div class="lock" id="lock" hidden>
+  <div class="card">
+    <img src="icons/vento-180.png" alt="" style="width:64px;height:64px;border-radius:16px">
+    <h2 id="lockTit" style="margin-top:10px">Vento Admin</h2>
+    <p class="soft" id="lockTxt">Escribe tu PIN de administrador.</p>
+    <input id="lockPin" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN" style="text-align:center;font-size:20px;letter-spacing:6px">
+    <div class="row"><button class="b p" id="lockGo" type="button">Entrar</button></div>
+  </div>
+</div>
+
+<header>
+  <div class="top">
+    <img src="icons/vento-180.png" alt="">
+    <h1>Vento Admin<small>Panel del proveedor · clientes, suscripciones y la app</small></h1>
+    <a class="b" href="index.html" target="_blank" rel="noopener" title="Abrir Vento">📱 Vento</a>
+  </div>
+  <nav id="tabs">
+    <button type="button" data-t="resumen" class="on">📊 Resumen</button>
+    <button type="button" data-t="clientes">👥 Clientes</button>
+    <button type="button" data-t="pagos">💵 Pagos</button>
+    <button type="button" data-t="licencias">🔑 Licencias</button>
+    <button type="button" data-t="planes">📦 Planes</button>
+    <button type="button" data-t="app">⚙️ Configurar la app</button>
+    <button type="button" data-t="datos">💾 Respaldo</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ===================== RESUMEN ===================== -->
+  <section data-tab="resumen" class="on">
+    <div class="grid" id="kpis"></div>
+    <div class="card" style="margin-top:14px">
+      <h2>💵 Ingresos de los últimos 6 meses</h2>
+      <div class="chart" id="chart"></div>
+    </div>
+    <div class="card">
+      <h2>⏰ Por cobrar (vencen en los próximos 7 días o ya vencieron)</h2>
+      <div class="list" id="porCobrar"></div>
+    </div>
+  </section>
+
+  <!-- ===================== CLIENTES ===================== -->
+  <section data-tab="clientes">
+    <div class="bar">
+      <input id="cBuscar" type="search" placeholder="🔎 Buscar por negocio, contacto, ciudad o código">
+      <select id="cFiltro">
+        <option value="">Todos</option>
+        <option value="activa">Activos</option>
+        <option value="porvencer">Por vencer (7 días)</option>
+        <option value="vencida">Vencidos</option>
+        <option value="prueba">En prueba</option>
+        <option value="suspendido">Suspendidos</option>
+      </select>
+      <button class="b p" id="cNuevo" type="button">➕ Nuevo cliente</button>
+    </div>
+    <div class="list" id="cLista"></div>
+  </section>
+
+  <!-- ===================== PAGOS ===================== -->
+  <section data-tab="pagos">
+    <div class="card">
+      <div class="bar" style="margin:0">
+        <select id="pMes"></select>
+        <button class="b" id="pCsv" type="button">⬇️ Descargar CSV</button>
+      </div>
+      <p class="soft" id="pTotal"></p>
+      <div class="tbl"><table><thead><tr><th>Fecha</th><th>Cliente</th><th>Concepto</th><th>Medio</th><th class="n">Valor</th><th></th></tr></thead><tbody id="pTabla"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- ===================== LICENCIAS ===================== -->
+  <section data-tab="licencias">
+    <div class="card">
+      <h2>1. Tu llave privada</h2>
+      <div id="keyState" class="soft">Sin cargar.</div>
+      <label for="keyFile">Abre el archivo <b>LLAVE-PRIVADA-MESORA-NO-COMPARTIR.json</b></label>
+      <input type="file" id="keyFile" accept=".json,application/json">
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="keyRemember" style="width:auto">Recordarla en este equipo (solo si es tu celular o computador personal)</label>
+      <div class="row"><button type="button" class="b" id="keyForget">Olvidar la llave de este equipo</button></div>
+    </div>
+    <div class="card">
+      <h2>2. Crear un código suelto</h2>
+      <p class="soft">Lo normal es renovar desde la ficha del cliente (👥 Clientes). Aquí puedes crear cualquier código, también la licencia de <b>proveedor</b> para tus propios celulares.</p>
+      <div class="f2">
+        <div><label for="lTipo">Tipo</label><select id="lTipo"><option value="sub">💳 Suscripción del negocio</option><option value="sedes">🏢 Sedes adicionales</option><option value="prov">👑 Proveedor (equipo mío)</option></select></div>
+        <div><label for="lCod">Código del negocio / equipo</label><input id="lCod" placeholder="ABCD-1234" autocapitalize="characters" autocomplete="off"></div>
+        <div><label for="lMeses">Vigencia</label><select id="lMeses"><option value="1">1 mes</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option><option value="0">Sin vencimiento</option></select></div>
+        <div><label for="lSedes">Sedes adicionales</label><input id="lSedes" type="number" min="0" max="50" value="0"></div>
+      </div>
+      <div class="row"><button type="button" class="b p" id="lGen">Crear código</button></div>
+      <div id="lRes" hidden><div class="out" id="lLink"></div><div class="row"><button class="b" type="button" id="lCopiar">📋 Copiar link</button></div></div>
+    </div>
+    <div class="card"><h2>Códigos creados</h2><div class="hist" id="lHist"></div></div>
+  </section>
+
+  <!-- ===================== PLANES ===================== -->
+  <section data-tab="planes">
+    <div class="card">
+      <h2>📦 Planes que vendes</h2>
+      <p class="soft">Se usan al crear o renovar un cliente (precio sugerido y sedes incluidas).</p>
+      <div class="list" id="plLista"></div>
+      <div class="row"><button class="b p" id="plNuevo" type="button">➕ Nuevo plan</button></div>
+    </div>
+  </section>
+
+  <!-- ===================== CONFIGURAR LA APP ===================== -->
+  <section data-tab="app">
+    <div class="card">
+      <h2>⚙️ Lo que ven TODOS los negocios</h2>
+      <p class="soft">Se publica en el archivo <code>vento-config.json</code> (rama <code>vento-config</code> de GitHub). La app de cada negocio lo lee al abrir y cada hora. Tarda 1 a 5 minutos en llegar.</p>
+      <div class="f2">
+        <div><label for="aPrecio">Precio que se muestra al renovar</label><input id="aPrecio" placeholder="Ej: $59.900 al mes"></div>
+        <div><label for="aWa">WhatsApp de soporte y pagos</label><input id="aWa" inputmode="tel" placeholder="573001234567"></div>
+        <div><label for="aPrueba">Días de prueba gratis</label><input id="aPrueba" type="number" min="0" max="90"></div>
+        <div><label for="aGracia">Días de gracia al vencer</label><input id="aGracia" type="number" min="0" max="30"></div>
+      </div>
+      <label for="aAnuncio">📣 Anuncio para todos los negocios (vacío = sin anuncio)</label>
+      <textarea id="aAnuncio" placeholder="Ej: El domingo 12 hay mantenimiento de 2 a 3 a. m."></textarea>
+      <label for="aSusp">⛔ Negocios suspendidos (códigos de negocio, uno por línea)</label>
+      <textarea id="aSusp" placeholder="ABCD-1234"></textarea>
+      <p class="soft">Un negocio suspendido no puede hacer ventas nuevas (igual que con la suscripción vencida). Sus datos y pedidos no se borran.</p>
+    </div>
+    <div class="card">
+      <h2>🔐 Permiso para publicar (una sola vez)</h2>
+      <ol class="steps">
+        <li>En GitHub: tu foto → <b>Settings</b> → <b>Developer settings</b> → <b>Fine-grained tokens</b> → <b>Generate new token</b>.</li>
+        <li>Repository access: <b>Only select repositories</b> → <b>cuentas</b>. Permissions → <b>Contents: Read and write</b>.</li>
+        <li>Copia el token y pégalo aquí abajo. Queda guardado SOLO en este equipo.</li>
+      </ol>
+      <label for="aToken">Token de GitHub</label>
+      <input id="aToken" type="password" autocomplete="off" placeholder="github_pat_…">
+      <div class="row">
+        <button class="b" id="aCargar" type="button">⬇️ Traer lo publicado</button>
+        <button class="b p" id="aPublicar" type="button">📤 Publicar en la app</button>
+      </div>
+      <div id="aEstado" class="soft" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <h2>🔗 Accesos rápidos</h2>
+      <div class="row">
+        <a class="b" href="index.html" target="_blank" rel="noopener">📱 Abrir Vento</a>
+        <a class="b" href="https://github.com/cristhianlujan45-blip/cuentas/actions" target="_blank" rel="noopener">⚙️ GitHub Actions</a>
+        <a class="b" href="https://github.com/cristhianlujan45-blip/cuentas/settings/secrets/actions" target="_blank" rel="noopener">🔑 Secretos (GEMINI_API_KEY)</a>
+        <a class="b" href="https://github.com/cristhianlujan45-blip/cuentas/releases/latest/download/vento.apk" target="_blank" rel="noopener">⬇️ APK</a>
+        <a class="b" href="https://supabase.com/dashboard" target="_blank" rel="noopener">☁️ Supabase</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== RESPALDO ===================== -->
+  <section data-tab="datos">
+    <div class="card">
+      <h2>💾 Respaldo de Vento Admin</h2>
+      <p class="soft">Tus clientes, pagos, planes y licencias viven en este equipo. Descarga un respaldo seguido (y guárdalo en Drive) o pásalo a otro equipo.</p>
+      <div class="row">
+        <button class="b p" id="dBajar" type="button">⬇️ Descargar respaldo</button>
+        <button class="b" id="dSubir" type="button">⬆️ Cargar respaldo</button>
+        <input type="file" id="dArchivo" accept=".json,application/json" hidden>
+      </div>
+      <p class="soft" id="dInfo"></p>
+    </div>
+    <div class="card">
+      <h2>🔒 PIN de este panel</h2>
+      <p class="soft">Pide un PIN al abrir el panel en este equipo.</p>
+      <div class="f2"><div><input id="pinNuevo" type="password" inputmode="numeric" placeholder="PIN nuevo (4 a 8 números)"></div><div class="row" style="margin:0"><button class="b" id="pinPoner" type="button">Guardar PIN</button><button class="b bad" id="pinQuitar" type="button">Quitar PIN</button></div></div>
+    </div>
+  </section>
+</main>
+
+<!-- ===================== FICHA DEL CLIENTE ===================== -->
+<dialog id="dlgC">
+  <div class="dh"><h2 id="dcTit">Cliente</h2><button class="x" type="button" data-cerrar>✕</button></div>
+  <div class="db">
+    <div id="dcEstado" style="margin:10px 0"></div>
+    <div class="f2">
+      <div><label for="cNeg">Negocio</label><input id="cNeg" placeholder="Bar La 70"></div>
+      <div><label for="cCon">Contacto</label><input id="cCon" placeholder="Nombre del dueño"></div>
+      <div><label for="cWa">WhatsApp</label><input id="cWa" inputmode="tel" placeholder="3001234567"></div>
+      <div><label for="cCiu">Ciudad</label><input id="cCiu" placeholder="Medellín"></div>
+      <div><label for="cCod">Código del negocio (lo ve en Ajustes → Plan)</label><input id="cCod" placeholder="ABCD-1234" autocapitalize="characters"></div>
+      <div><label for="cPlan">Plan</label><select id="cPlan"></select></div>
+      <div><label for="cPrecio">Precio mensual</label><input id="cPrecio" type="number" min="0" step="100"></div>
+      <div><label for="cVence">Vence</label><input id="cVence" type="date"></div>
+    </div>
+    <label for="cNotas">Notas</label>
+    <textarea id="cNotas" placeholder="Cómo nos conoció, qué usa, acuerdos…"></textarea>
+    <div class="row"><button class="b p" id="cGuardar" type="button">💾 Guardar</button></div>
+    <div id="dcAcciones" hidden>
+      <h3 style="margin-top:18px">Acciones</h3>
+      <div class="row">
+        <button class="b ok" id="cRenovar" type="button">🔑 Renovar y cobrar</button>
+        <button class="b" id="cWaBtn" type="button">💬 WhatsApp</button>
+        <button class="b" id="cRecordar" type="button">⏰ Recordar pago</button>
+        <button class="b bad" id="cSuspender" type="button">⛔ Suspender</button>
+      </div>
+      <div id="cRenov" class="card" style="margin-top:12px" hidden>
+        <h3>🔑 Renovar</h3>
+        <div class="f2">
+          <div><label for="rMeses">Meses</label><select id="rMeses"><option value="1">1 mes</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></div>
+          <div><label for="rValor">Valor pagado</label><input id="rValor" type="number" min="0" step="100"></div>
+          <div><label for="rMedio">Medio</label><select id="rMedio"><option>Nequi</option><option>Daviplata</option><option>Bancolombia</option><option>Efectivo</option><option>Otro</option></select></div>
+          <div><label for="rSedes">Sedes adicionales</label><input id="rSedes" type="number" min="0" max="50" value="0"></div>
+        </div>
+        <div class="row"><button class="b p" id="rGo" type="button">✅ Registrar pago y crear código</button></div>
+        <div id="rRes" hidden><div class="out" id="rLink"></div><div class="row"><button class="b p" id="rEnviar" type="button">💬 Enviar por WhatsApp</button><button class="b" id="rCopiar" type="button">📋 Copiar</button></div></div>
+      </div>
+      <h3 style="margin-top:18px">Historial</h3>
+      <div class="hist" id="cHist"></div>
+      <div class="row"><button class="b bad" id="cBorrar" type="button">🗑 Borrar cliente</button></div>
+    </div>
+  </div>
+</dialog>
+
+<!-- ===================== PLAN ===================== -->
+<dialog id="dlgP">
+  <div class="dh"><h2>Plan</h2><button class="x" type="button" data-cerrar>✕</button></div>
+  <div class="db">
+    <div class="f2">
+      <div><label for="plNom">Nombre</label><input id="plNom" placeholder="Básico"></div>
+      <div><label for="plPre">Precio mensual</label><input id="plPre" type="number" min="0" step="100"></div>
+      <div><label for="plSed">Sedes adicionales incluidas</label><input id="plSed" type="number" min="0" max="50" value="0"></div>
+    </div>
+    <label for="plDesc">Qué incluye</label><textarea id="plDesc"></textarea>
+    <div class="row"><button class="b p" id="plGuardar" type="button">💾 Guardar</button><button class="b bad" id="plBorrar" type="button">🗑 Borrar</button></div>
+  </div>
+</dialog>
+
+<script>
+(function(){
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const DB_KEY = 'vento-admin-db', KEY_LS = 'mesora-lic-llave', HIST_LS = 'mesora-lic-hist', TOKEN_LS = 'vento-admin-gh', PIN_LS = 'vento-admin-pin';
+  const REPO = 'cristhianlujan45-blip/cuentas', CFG_BRANCH = 'vento-config', CFG_FILE = 'vento-config.json', PAGES_BRANCH = 'claude/precio-margen-productos-tabla-mioclt';
+  const APP_URL = location.origin + location.pathname.replace(/[^/]*$/, '') + 'index.html';
+  // Llave pública de la app (para avisar si se carga una llave privada que no es la de Vento).
+  const LIC_PUB_X = '6tWjt1Nt7nzGlVijod0J1_6lSJtXJwEMQ84hG-Jgeko';
+  const DIA = 864e5;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const plata = n => '$' + Math.round(+n || 0).toLocaleString('es-CO');
+  const fecha = t => t ? new Date(t).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const waNum = n => { n = String(n || '').replace(/\D/g, ''); if(n.length === 10) n = '57' + n; return n; };
+  function toast(t, ms){ const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), ms || 3500); }
+
+  // ---------------- Datos (solo en este equipo) ----------------
+  function vacio(){ return { v: 1, clientes: [], pagos: [], planes: [{ id: 'basico', nombre: 'Básico', precio: 0, sedes: 0, desc: '' }], creado: Date.now() }; }
+  let db = vacio();
+  try{ const r = JSON.parse(localStorage.getItem(DB_KEY) || 'null'); if(r && Array.isArray(r.clientes)) db = Object.assign(vacio(), r); }catch(e){}
+  function guardar(){ db.modificado = Date.now(); try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){ toast('⚠️ No se pudo guardar en este equipo: ' + e.message, 6000); } pintarTodo(); }
+
+  function estado(c){
+    if(c.suspendido) return { k: 'suspendido', txt: 'Suspendido', cls: 'bad' };
+    if(!c.vence) return { k: 'prueba', txt: 'En prueba / sin pago', cls: 'soft' };
+    const d = Math.ceil((c.vence - Date.now()) / DIA);
+    if(d < 0) return { k: 'vencida', txt: 'Vencido hace ' + (-d) + ' día' + (d === -1 ? '' : 's'), cls: 'bad', d };
+    if(d <= 7) return { k: 'porvencer', txt: 'Vence en ' + d + ' día' + (d === 1 ? '' : 's'), cls: 'warn', d };
+    return { k: 'activa', txt: 'Activo · vence ' + fecha(c.vence), cls: 'ok', d };
+  }
+
+  // ---------------- Pestañas ----------------
+  $('tabs').addEventListener('click', e => {
+    const b = e.target.closest('button[data-t]'); if(!b) return;
+    document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('section[data-tab]').forEach(s => s.classList.toggle('on', s.dataset.tab === b.dataset.t));
+    try{ sessionStorage.setItem('vento-admin-tab', b.dataset.t); }catch(x){}
+    if(b.dataset.t === 'app') cfgPintarDesdeCache();
+  });
+  try{ const t = sessionStorage.getItem('vento-admin-tab'); if(t){ const b = document.querySelector('#tabs button[data-t="' + t + '"]'); if(b) b.click(); } }catch(e){}
+  document.querySelectorAll('dialog [data-cerrar]').forEach(b => b.onclick = () => b.closest('dialog').close());
+
+  // ---------------- Resumen ----------------
+  function pintarResumen(){
+    const est = db.clientes.map(estado), cuenta = k => est.filter(x => x.k === k).length;
+    const activos = db.clientes.filter((c, i) => ['activa', 'porvencer'].includes(est[i].k));
+    const mrr = activos.reduce((s, c) => s + (+c.precio || 0), 0);
+    const mes = new Date(); mes.setDate(1); mes.setHours(0, 0, 0, 0);
+    const ingMes = db.pagos.filter(p => p.t >= mes.getTime()).reduce((s, p) => s + (+p.valor || 0), 0);
+    const K = [['acc', db.clientes.length, 'Clientes'], ['ok', activos.length, 'Activos'], ['warn', cuenta('porvencer'), 'Por vencer (7 días)'], ['bad', cuenta('vencida'), 'Vencidos'], ['acc', plata(mrr), 'Ingreso mensual esperado'], ['ok', plata(ingMes), 'Cobrado este mes']];
+    $('kpis').innerHTML = K.map(k => '<div class="kpi ' + k[0] + '"><b>' + esc(k[1]) + '</b><span>' + esc(k[2]) + '</span></div>').join('');
+    const meses = []; for(let i = 5; i >= 0; i--){ const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); d.setMonth(d.getMonth() - i); meses.push(d); }
+    const tot = meses.map((d, i) => { const fin = i < 5 ? meses[i + 1].getTime() : Infinity; return db.pagos.filter(p => p.t >= d.getTime() && p.t < fin).reduce((s, p) => s + (+p.valor || 0), 0); });
+    const max = Math.max(1, ...tot);
+    $('chart').innerHTML = meses.map((d, i) => '<div><em>' + (tot[i] ? plata(tot[i]).replace(/\.\d{3}$/, 'k').replace('$', '$') : '') + '</em><i style="height:' + Math.round(tot[i] / max * 100) + '%"></i>' + d.toLocaleDateString('es-CO', { month: 'short' }) + '</div>').join('');
+    const pc = db.clientes.map(c => ({ c, e: estado(c) })).filter(x => ['porvencer', 'vencida'].includes(x.e.k)).sort((a, b) => (a.c.vence || 0) - (b.c.vence || 0));
+    $('porCobrar').innerHTML = pc.length ? pc.map(x => itemHtml(x.c, x.e, true)).join('') : '<div class="empty">🎉 Nadie por cobrar esta semana.</div>';
+  }
+  function itemHtml(c, e, conBoton){
+    return '<div class="item" data-c="' + esc(c.id) + '"><div class="av">' + esc((c.negocio || '?').trim().charAt(0).toUpperCase()) + '</div><div class="t"><b>' + esc(c.negocio || 'Sin nombre') + '</b><small>' + esc([c.contacto, c.ciudad, c.plan && planDe(c.plan) && planDe(c.plan).nombre, c.precio ? plata(c.precio) + '/mes' : ''].filter(Boolean).join(' · ')) + '</small></div>' +
+      (conBoton && c.wa ? '<button class="b" type="button" data-recordar="' + esc(c.id) + '">💬</button>' : '') + '<span class="pill ' + e.cls + '">' + esc(e.txt) + '</span></div>';
+  }
+  document.addEventListener('click', e => {
+    const r = e.target.closest('[data-recordar]'); if(r){ e.stopPropagation(); recordar(db.clientes.find(c => c.id === r.dataset.recordar)); return; }
+    const it = e.target.closest('.item[data-c]'); if(it) abrirCliente(it.dataset.c);
+  });
+
+  // ---------------- Clientes ----------------
+  const planDe = id => db.planes.find(p => p.id === id);
+  function pintarClientes(){
+    const q = $('cBuscar').value.trim().toLowerCase(), f = $('cFiltro').value;
+    const l = db.clientes.map(c => ({ c, e: estado(c) })).filter(x => (!f || x.e.k === f) && (!q || [x.c.negocio, x.c.contacto, x.c.ciudad, x.c.codigo, x.c.wa].join(' ').toLowerCase().includes(q)))
+      .sort((a, b) => (a.c.negocio || '').localeCompare(b.c.negocio || ''));
+    $('cLista').innerHTML = l.length ? l.map(x => itemHtml(x.c, x.e)).join('') : '<div class="empty">' + (db.clientes.length ? 'Ningún cliente coincide.' : 'Todavía no tienes clientes. Toca «➕ Nuevo cliente».') + '</div>';
+  }
+  $('cBuscar').oninput = pintarClientes; $('cFiltro').onchange = pintarClientes;
+  $('cNuevo').onclick = () => abrirCliente(null);
+  let actual = null;
+  function abrirCliente(id){
+    actual = id ? db.clientes.find(c => c.id === id) : null;
+    const c = actual || {};
+    $('dcTit').textContent = actual ? (c.negocio || 'Cliente') : 'Nuevo cliente';
+    $('cPlan').innerHTML = db.planes.map(p => '<option value="' + esc(p.id) + '">' + esc(p.nombre) + (p.precio ? ' · ' + plata(p.precio) : '') + '</option>').join('');
+    $('cNeg').value = c.negocio || ''; $('cCon').value = c.contacto || ''; $('cWa').value = c.wa || ''; $('cCiu').value = c.ciudad || '';
+    $('cCod').value = c.codigo || ''; $('cPlan').value = c.plan || (db.planes[0] && db.planes[0].id) || ''; $('cPrecio').value = c.precio != null ? c.precio : ((planDe($('cPlan').value) || {}).precio || '');
+    $('cVence').value = c.vence ? new Date(c.vence - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 10) : '';
+    $('cNotas').value = c.notas || '';
+    $('dcAcciones').hidden = !actual; $('cRenov').hidden = true; $('rRes').hidden = true;
+    $('dcEstado').innerHTML = actual ? '<span class="pill ' + estado(c).cls + '">' + esc(estado(c).txt) + '</span>' : '';
+    $('cSuspender').textContent = c.suspendido ? '✅ Quitar suspensión' : '⛔ Suspender';
+    pintarHistCliente();
+    $('dlgC').showModal();
+  }
+  $('cPlan').onchange = () => { const p = planDe($('cPlan').value); if(p && p.precio) $('cPrecio').value = p.precio; };
+  function leerFicha(){
+    const cod = $('cCod').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return { negocio: $('cNeg').value.trim(), contacto: $('cCon').value.trim(), wa: $('cWa').value.trim(), ciudad: $('cCiu').value.trim(),
+      codigo: cod.length === 8 ? cod.slice(0, 4) + '-' + cod.slice(4) : $('cCod').value.trim().toUpperCase(), plan: $('cPlan').value, precio: +$('cPrecio').value || 0,
+      vence: $('cVence').value ? new Date($('cVence').value + 'T23:59:00').getTime() : (actual && actual.vence) || 0, notas: $('cNotas').value.trim() };
+  }
+  $('cGuardar').onclick = () => {
+    const f = leerFicha();
+    if(!f.negocio){ toast('Escribe el nombre del negocio.'); return; }
+    if(actual) Object.assign(actual, f); else { actual = Object.assign({ id: uid(), creado: Date.now(), hist: [] }, f); db.clientes.push(actual); }
+    (actual.hist = actual.hist || []).unshift({ t: Date.now(), txt: 'Ficha guardada' });
+    guardar(); toast('✅ Cliente guardado.'); abrirCliente(actual.id);
+  };
+  $('cBorrar').onclick = () => { if(!actual || !confirm('¿Borrar a «' + actual.negocio + '» y su historial? Sus pagos quedan en 💵 Pagos.')) return; db.clientes = db.clientes.filter(c => c !== actual); guardar(); $('dlgC').close(); };
+  $('cWaBtn').onclick = () => { if(!actual || !actual.wa){ toast('Ese cliente no tiene WhatsApp.'); return; } window.open('https://wa.me/' + waNum(actual.wa), '_blank'); };
+  function recordar(c){
+    if(!c || !c.wa){ toast('Ese cliente no tiene WhatsApp.'); return; }
+    const e = estado(c);
+    const txt = 'Hola ' + (c.contacto || '') + ' 👋, te escribimos de Vento. ' + (e.k === 'vencida' ? 'Tu suscripción de «' + c.negocio + '» venció el ' + fecha(c.vence) + '.' : 'Tu suscripción de «' + c.negocio + '» vence el ' + fecha(c.vence) + '.') +
+      ' Para renovarla ' + (c.precio ? 'son ' + plata(c.precio) + ' al mes. ' : '') + 'Cuando pagues, mándanos el comprobante y te enviamos tu código de activación. ¡Gracias!';
+    window.open('https://wa.me/' + waNum(c.wa) + '?text=' + encodeURIComponent(txt), '_blank');
+    (c.hist = c.hist || []).unshift({ t: Date.now(), txt: '⏰ Recordatorio de pago enviado' }); guardar();
+  }
+  $('cRecordar').onclick = () => recordar(actual);
+  $('cSuspender').onclick = () => {
+    if(!actual) return;
+    if(!actual.codigo){ toast('Primero pon el código del negocio.'); return; }
+    actual.suspendido = !actual.suspendido;
+    (actual.hist = actual.hist || []).unshift({ t: Date.now(), txt: actual.suspendido ? '⛔ Suspendido' : '✅ Suspensión quitada' });
+    const cfg = cfgLeerForm(); const set = new Set(cfg.suspendidos); if(actual.suspendido) set.add(actual.codigo); else set.delete(actual.codigo);
+    $('aSusp').value = [...set].join('\n'); cfgGuardarCache();
+    guardar(); abrirCliente(actual.id);
+    toast((actual.suspendido ? '⛔ Suspendido' : '✅ Reactivado') + '. Publica en «⚙️ Configurar la app» para que llegue a su celular.', 6000);
+  };
+  $('cRenovar').onclick = () => { $('cRenov').hidden = !$('cRenov').hidden; $('rValor').value = actual && actual.precio ? actual.precio * (+$('rMeses').value || 1) : ''; const p = planDe(actual && actual.plan); $('rSedes').value = p ? p.sedes || 0 : 0; };
+  $('rMeses').onchange = () => { if(actual && actual.precio) $('rValor').value = actual.precio * (+$('rMeses').value || 1); };
+  let ultimoLink = '';
+  $('rGo').onclick = async () => {
+    if(!actual) return;
+    const f = leerFicha(); Object.assign(actual, f);
+    if(!/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(actual.codigo || '')){ toast('Pon el código del negocio (8 letras/números, ej. ABCD-1234). El cliente lo ve en Ajustes → Negocio → Plan y suscripción.', 7000); return; }
+    if(!privKey){ toast('Carga tu llave privada en 🔑 Licencias.', 6000); return; }
+    const meses = +$('rMeses').value || 1, desde = Math.max(Date.now(), actual.vence || 0), v = new Date(desde); v.setMonth(v.getMonth() + meses);
+    const p = { d: actual.codigo, t: Date.now(), m: 1, v: v.getTime() };
+    const pl = planDe(actual.plan); if(pl) p.pl = pl.nombre.slice(0, 20);
+    const s = +$('rSedes').value || 0; if(s) p.s = s;
+    p.n = (actual.negocio || '').slice(0, 40);
+    const code = await firmar(p), link = APP_URL + '#licencia=' + code;
+    actual.vence = v.getTime(); actual.suspendido = false;
+    const valor = +$('rValor').value || 0;
+    if(valor) db.pagos.push({ id: uid(), t: Date.now(), cliente: actual.id, negocio: actual.negocio, valor, medio: $('rMedio').value, concepto: 'Suscripción ' + meses + ' mes' + (meses > 1 ? 'es' : '') + (pl ? ' · ' + pl.nombre : '') });
+    (actual.hist = actual.hist || []).unshift({ t: Date.now(), txt: '🔑 Renovado ' + meses + ' mes(es) hasta ' + fecha(v) + (valor ? ' · pagó ' + plata(valor) + ' (' + $('rMedio').value + ')' : '') });
+    licHist({ eq: actual.codigo, tipo: 'sub', v: p.v, s, n: actual.negocio });
+    guardar(); ultimoLink = link;
+    $('rLink').textContent = link; $('rRes').hidden = false; $('dcEstado').innerHTML = '<span class="pill ok">' + esc(estado(actual).txt) + '</span>';
+    toast('✅ Pago registrado y código creado.');
+  };
+  $('rEnviar').onclick = () => { if(!actual || !ultimoLink) return; const txt = '¡Gracias por tu pago! 🎉 Abre este link en el celular donde usas Vento para activar tu suscripción (vale para todos los celulares del negocio):\n' + ultimoLink; window.open('https://wa.me/' + waNum(actual.wa) + '?text=' + encodeURIComponent(txt), '_blank'); };
+  $('rCopiar').onclick = () => copiar(ultimoLink);
+  function pintarHistCliente(){
+    const h = (actual && actual.hist) || [];
+    $('cHist').innerHTML = h.length ? h.slice(0, 50).map(x => '<div>' + fecha(x.t) + ' · ' + esc(x.txt) + '</div>').join('') : '<div class="soft">Sin movimientos todavía.</div>';
+  }
+
+  // ---------------- Pagos ----------------
+  function pintarPagos(){
+    const meses = [...new Set(db.pagos.map(p => { const d = new Date(p.t); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }))].sort().reverse();
+    const sel = $('pMes'), act = sel.value;
+    sel.innerHTML = '<option value="">Todos los meses</option>' + meses.map(m => '<option value="' + m + '">' + new Date(m + '-15').toLocaleDateString('es-CO', { month: 'long', year: 'numeric' }) + '</option>').join('');
+    if(meses.includes(act)) sel.value = act;
+    const l = db.pagos.filter(p => { if(!sel.value) return true; const d = new Date(p.t); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') === sel.value; }).sort((a, b) => b.t - a.t);
+    $('pTotal').textContent = l.length + ' pago' + (l.length === 1 ? '' : 's') + ' · total ' + plata(l.reduce((s, p) => s + (+p.valor || 0), 0));
+    $('pTabla').innerHTML = l.length ? l.map(p => '<tr><td>' + fecha(p.t) + '</td><td>' + esc(p.negocio) + '</td><td>' + esc(p.concepto) + '</td><td>' + esc(p.medio) + '</td><td class="n">' + plata(p.valor) + '</td><td><button class="x" type="button" data-borrapago="' + esc(p.id) + '" title="Borrar">🗑</button></td></tr>').join('') : '<tr><td colspan="6" class="empty">Sin pagos.</td></tr>';
+  }
+  $('pMes').onchange = pintarPagos;
+  $('pTabla').addEventListener('click', e => { const b = e.target.closest('[data-borrapago]'); if(!b || !confirm('¿Borrar este pago?')) return; db.pagos = db.pagos.filter(p => p.id !== b.dataset.borrapago); guardar(); });
+  $('pCsv').onclick = () => {
+    const filas = [['Fecha', 'Cliente', 'Concepto', 'Medio', 'Valor']].concat(db.pagos.sort((a, b) => a.t - b.t).map(p => [new Date(p.t).toISOString().slice(0, 10), p.negocio, p.concepto, p.medio, p.valor]));
+    bajar('vento-pagos.csv', filas.map(r => r.map(x => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"').join(',')).join('\n'), 'text/csv');
+  };
+
+  // ---------------- Planes ----------------
+  let planAct = null;
+  function pintarPlanes(){
+    $('plLista').innerHTML = db.planes.length ? db.planes.map(p => '<div class="item" data-plan="' + esc(p.id) + '"><div class="av">📦</div><div class="t"><b>' + esc(p.nombre) + '</b><small>' + esc((p.precio ? plata(p.precio) + '/mes' : 'Sin precio') + (p.sedes ? ' · ' + p.sedes + ' sede(s) extra' : '') + (p.desc ? ' · ' + p.desc : '')) + '</small></div><span class="pill soft">' + db.clientes.filter(c => c.plan === p.id).length + ' clientes</span></div>').join('') : '<div class="empty">Sin planes.</div>';
+  }
+  $('plLista').addEventListener('click', e => { const it = e.target.closest('[data-plan]'); if(!it) return; e.stopPropagation(); abrirPlan(it.dataset.plan); });
+  $('plNuevo').onclick = () => abrirPlan(null);
+  function abrirPlan(id){ planAct = id ? planDe(id) : null; const p = planAct || {}; $('plNom').value = p.nombre || ''; $('plPre').value = p.precio || ''; $('plSed').value = p.sedes || 0; $('plDesc').value = p.desc || ''; $('plBorrar').hidden = !planAct; $('dlgP').showModal(); }
+  $('plGuardar').onclick = () => { const n = $('plNom').value.trim(); if(!n){ toast('Ponle nombre al plan.'); return; } const f = { nombre: n, precio: +$('plPre').value || 0, sedes: +$('plSed').value || 0, desc: $('plDesc').value.trim() }; if(planAct) Object.assign(planAct, f); else db.planes.push(Object.assign({ id: uid() }, f)); guardar(); $('dlgP').close(); };
+  $('plBorrar').onclick = () => { if(!planAct || !confirm('¿Borrar el plan «' + planAct.nombre + '»?')) return; db.planes = db.planes.filter(p => p !== planAct); guardar(); $('dlgP').close(); };
+
+  // ---------------- Licencias (firma con la llave privada; misma que licencias.html) ----------------
+  let privKey = null;
+  function b64u(bytes){ let s = ''; bytes = new Uint8Array(bytes); for(let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  async function cargarJwk(jwk, recordarla){
+    try{
+      if(!jwk || jwk.kty !== 'EC' || !jwk.d) throw new Error('Ese archivo no es la llave privada de Vento.');
+      const clean = { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y, d: jwk.d };
+      privKey = await crypto.subtle.importKey('jwk', clean, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+      if(recordarla){ try{ localStorage.setItem(KEY_LS, JSON.stringify(clean)); }catch(e){} }
+      $('keyState').innerHTML = jwk.x === LIC_PUB_X ? '<span class="ok-t">✅ Llave cargada (es la de Vento).</span>' : '<span class="warn-t">⚠️ Llave cargada, pero NO coincide con la de la app: los códigos que crees no van a funcionar.</span>';
+    }catch(e){ privKey = null; $('keyState').innerHTML = '<span class="bad-t">⚠️ ' + esc(e.message || 'No se pudo leer la llave.') + '</span>'; }
+  }
+  $('keyFile').onchange = function(){ const f = this.files[0]; if(!f) return; f.text().then(t => { let j; try{ j = JSON.parse(t); }catch(e){ j = null; } cargarJwk(j, $('keyRemember').checked); }); };
+  $('keyForget').onclick = () => { try{ localStorage.removeItem(KEY_LS); }catch(e){} privKey = null; $('keyState').textContent = 'Llave olvidada en este equipo.'; };
+  try{ const g = localStorage.getItem(KEY_LS); if(g){ $('keyRemember').checked = true; cargarJwk(JSON.parse(g), false); } }catch(e){}
+  async function firmar(p){
+    const payload = b64u(new TextEncoder().encode(JSON.stringify(p)));
+    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privKey, new TextEncoder().encode(payload));
+    return payload + '.' + b64u(sig);
+  }
+  function licHist(x){ let h = []; try{ h = JSON.parse(localStorage.getItem(HIST_LS) || '[]'); }catch(e){} h.unshift(Object.assign({ at: Date.now() }, x)); try{ localStorage.setItem(HIST_LS, JSON.stringify(h.slice(0, 300))); }catch(e){} }
+  function pintarLicHist(){
+    let h = []; try{ h = JSON.parse(localStorage.getItem(HIST_LS) || '[]'); }catch(e){}
+    $('lHist').innerHTML = h.length ? h.slice(0, 80).map(x => '<div><b>' + esc(x.eq) + '</b> · ' + (x.tipo === 'prov' ? '👑 proveedor' : x.tipo === 'sub' ? '💳 suscripción' : '🏢 ' + (x.s || 0) + ' sede(s)') + (x.v ? ' · vence ' + fecha(x.v) : '') + (x.n ? ' · ' + esc(x.n) : '') + '<br><span class="soft">' + new Date(x.at).toLocaleString('es-CO') + '</span></div>').join('') : '<div class="soft">Todavía ninguno.</div>';
+  }
+  let lUltimo = '';
+  $('lGen').onclick = async () => {
+    if(!privKey){ toast('Primero carga tu llave privada.'); return; }
+    let eq = $('lCod').value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if(eq.length !== 8){ toast('El código tiene 8 letras/números (ej. ABCD-1234).'); return; }
+    eq = eq.slice(0, 4) + '-' + eq.slice(4);
+    const tipo = $('lTipo').value, meses = +$('lMeses').value || 0, s = +$('lSedes').value || 0;
+    if(tipo === 'sedes' && !s){ toast('Pon cuántas sedes adicionales.'); return; }
+    const p = { d: eq, t: Date.now() };
+    if(s && tipo !== 'prov') p.s = s;
+    if(tipo === 'sub') p.m = 1;
+    if(tipo === 'prov') p.r = 'proveedor';
+    if(meses && tipo !== 'prov'){ const v = new Date(); v.setMonth(v.getMonth() + meses); p.v = v.getTime(); }
+    lUltimo = APP_URL + '#licencia=' + await firmar(p);
+    licHist({ eq, tipo, v: p.v || 0, s });
+    $('lLink').textContent = lUltimo; $('lRes').hidden = false; pintarLicHist();
+  };
+  $('lCopiar').onclick = () => copiar(lUltimo);
+
+  // ---------------- Configurar la app (vento-config.json en la rama vento-config) ----------------
+  const CFG_CACHE = 'vento-admin-cfg';
+  function cfgLeerForm(){
+    return { precioTexto: $('aPrecio').value.trim(), whatsapp: waNum($('aWa').value), pruebaDias: $('aPrueba').value === '' ? null : Math.max(0, +$('aPrueba').value || 0),
+      graciaDias: $('aGracia').value === '' ? null : Math.max(0, +$('aGracia').value || 0), anuncio: $('aAnuncio').value.trim(),
+      suspendidos: $('aSusp').value.split(/[\s,;]+/).map(x => x.toUpperCase().replace(/[^A-Z0-9-]/g, '')).filter(x => /^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(x)) };
+  }
+  function cfgPintar(c){ c = c || {}; $('aPrecio').value = c.precioTexto || ''; $('aWa').value = c.whatsapp || ''; $('aPrueba').value = c.pruebaDias != null ? c.pruebaDias : 15; $('aGracia').value = c.graciaDias != null ? c.graciaDias : 3; $('aAnuncio').value = c.anuncio || ''; $('aSusp').value = (c.suspendidos || []).join('\n'); }
+  function cfgGuardarCache(){ try{ localStorage.setItem(CFG_CACHE, JSON.stringify(cfgLeerForm())); }catch(e){} }
+  function cfgPintarDesdeCache(){ if($('aPrecio').dataset.ok) return; $('aPrecio').dataset.ok = '1'; let c = null; try{ c = JSON.parse(localStorage.getItem(CFG_CACHE) || 'null'); }catch(e){} cfgPintar(c); }
+  ['aPrecio', 'aWa', 'aPrueba', 'aGracia', 'aAnuncio', 'aSusp'].forEach(id => $(id).addEventListener('change', cfgGuardarCache));
+  try{ $('aToken').value = localStorage.getItem(TOKEN_LS) || ''; }catch(e){}
+  $('aToken').addEventListener('change', () => { try{ localStorage.setItem(TOKEN_LS, $('aToken').value.trim()); }catch(e){} });
+  const gh = async (ruta, op) => {
+    const tok = $('aToken').value.trim(); if(!tok) throw new Error('Pega primero tu token de GitHub (paso de arriba).');
+    const r = await fetch('https://api.github.com/repos/' + REPO + ruta, Object.assign({}, op, { headers: Object.assign({ Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }, (op && op.headers) || {}) }));
+    const j = await r.json().catch(() => ({}));
+    if(!r.ok){ const e = new Error(r.status === 401 ? 'El token no es válido o venció.' : r.status === 403 ? 'El token no tiene permiso (Contents: Read and write en «cuentas»).' : (j.message || ('Error ' + r.status))); e.status = r.status; throw e; }
+    return j;
+  };
+  const b64utf8 = s => btoa(unescape(encodeURIComponent(s)));
+  const utf8b64 = s => decodeURIComponent(escape(atob(String(s).replace(/\s/g, ''))));
+  async function cfgTraer(){
+    try{ const j = await gh('/contents/' + CFG_FILE + '?ref=' + encodeURIComponent(CFG_BRANCH)); return { sha: j.sha, cfg: JSON.parse(utf8b64(j.content)) }; }
+    catch(e){ if(e.status === 404) return { sha: null, cfg: null }; throw e; }
+  }
+  $('aCargar').onclick = async () => {
+    $('aEstado').textContent = 'Trayendo…';
+    try{ const r = await cfgTraer(); if(r.cfg){ cfgPintar(r.cfg); cfgGuardarCache(); $('aEstado').innerHTML = '<span class="ok-t">✅ Traído lo publicado (' + (r.cfg.publicado ? new Date(r.cfg.publicado).toLocaleString('es-CO') : '') + ').</span>'; } else $('aEstado').textContent = 'Todavía no hay nada publicado: llena los datos y toca «Publicar».'; }
+    catch(e){ $('aEstado').innerHTML = '<span class="bad-t">⚠️ ' + esc(e.message) + '</span>'; }
+  };
+  $('aPublicar').onclick = async () => {
+    const cfg = Object.assign(cfgLeerForm(), { publicado: Date.now(), v: 1 });
+    if(!confirm('¿Publicar esta configuración para TODOS los negocios?')) return;
+    $('aEstado').textContent = 'Publicando…';
+    try{
+      // La rama vento-config se crea sola la primera vez (sale de la rama de la página).
+      try{ await gh('/git/ref/heads/' + CFG_BRANCH); }
+      catch(e){ if(e.status !== 404) throw e; const base = await gh('/git/ref/heads/' + encodeURIComponent(PAGES_BRANCH)); await gh('/git/refs', { method: 'POST', body: JSON.stringify({ ref: 'refs/heads/' + CFG_BRANCH, sha: base.object.sha }) }); }
+      const act = await cfgTraer();
+      await gh('/contents/' + CFG_FILE, { method: 'PUT', body: JSON.stringify(Object.assign({ message: 'Vento Admin: configuración de la app', content: b64utf8(JSON.stringify(cfg, null, 2) + '\n'), branch: CFG_BRANCH }, act.sha ? { sha: act.sha } : {})) });
+      cfgGuardarCache();
+      $('aEstado').innerHTML = '<span class="ok-t">✅ Publicado. Llega a los celulares en 1 a 5 minutos (al abrir Vento o cada hora).</span>';
+    }catch(e){ $('aEstado').innerHTML = '<span class="bad-t">⚠️ ' + esc(e.message) + '</span>'; }
+  };
+
+  // ---------------- Respaldo ----------------
+  function bajar(nombre, texto, tipo){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([texto], { type: tipo || 'application/json' })); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+  $('dBajar').onclick = () => { let h = []; try{ h = JSON.parse(localStorage.getItem(HIST_LS) || '[]'); }catch(e){} bajar('vento-admin-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify({ tipo: 'vento-admin', db, licencias: h, config: cfgLeerForm() }, null, 2)); db.respaldo = Date.now(); guardar(); };
+  $('dSubir').onclick = () => $('dArchivo').click();
+  $('dArchivo').onchange = async function(){
+    const f = this.files[0]; this.value = ''; if(!f) return;
+    try{
+      const j = JSON.parse(await f.text());
+      if(!j || j.tipo !== 'vento-admin' || !j.db || !Array.isArray(j.db.clientes)) throw new Error('Ese archivo no es un respaldo de Vento Admin.');
+      if(!confirm('¿Reemplazar los datos de este equipo con el respaldo (' + j.db.clientes.length + ' clientes, ' + (j.db.pagos || []).length + ' pagos)?')) return;
+      db = Object.assign(vacio(), j.db); if(Array.isArray(j.licencias)) try{ localStorage.setItem(HIST_LS, JSON.stringify(j.licencias)); }catch(e){}
+      if(j.config) cfgPintar(j.config), cfgGuardarCache();
+      guardar(); toast('✅ Respaldo cargado.');
+    }catch(e){ toast('⚠️ ' + e.message, 6000); }
+  };
+  function pintarRespaldo(){ $('dInfo').textContent = db.clientes.length + ' clientes · ' + db.pagos.length + ' pagos · último respaldo: ' + (db.respaldo ? new Date(db.respaldo).toLocaleString('es-CO') : 'nunca'); }
+
+  // ---------------- PIN ----------------
+  const hash = async t => b64u(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('vento-admin:' + t)));
+  $('pinPoner').onclick = async () => { const p = $('pinNuevo').value.trim(); if(!/^\d{4,8}$/.test(p)){ toast('El PIN es de 4 a 8 números.'); return; } localStorage.setItem(PIN_LS, await hash(p)); $('pinNuevo').value = ''; toast('🔒 PIN guardado.'); };
+  $('pinQuitar').onclick = () => { localStorage.removeItem(PIN_LS); toast('PIN quitado.'); };
+  (function bloqueo(){
+    let h = null; try{ h = localStorage.getItem(PIN_LS); }catch(e){}
+    if(!h) return;
+    $('lock').hidden = false; setTimeout(() => $('lockPin').focus(), 100);
+    const ir = async () => { if(await hash($('lockPin').value.trim()) === h){ $('lock').hidden = true; } else { $('lockTxt').innerHTML = '<span class="bad-t">PIN incorrecto.</span>'; $('lockPin').value = ''; } };
+    $('lockGo').onclick = ir; $('lockPin').onkeydown = e => { if(e.key === 'Enter') ir(); };
+  })();
+
+  function copiar(t){ if(!t) return; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('📋 Copiado.'), () => prompt('Copia esto:', t)); }
+  function pintarTodo(){ pintarResumen(); pintarClientes(); pintarPagos(); pintarPlanes(); pintarLicHist(); pintarRespaldo(); }
+  pintarTodo();
+  window.ventoAdmin = { db: () => db, estado, firmar: p => firmar(p), cfgLeerForm };
+})();
+</script>
+</body>
+</html>

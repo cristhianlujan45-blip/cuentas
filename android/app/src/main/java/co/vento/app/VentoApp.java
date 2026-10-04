@@ -270,6 +270,19 @@ public class VentoApp extends Application {
         }
 
         /**
+         * Estado de YouTube en un TV del wifi (DIAL GET, como hace la app de YouTube y ytcast): {status, state, screenId}.
+         * Si YouTube ya está abierto —aunque otro celular esté conectado— el TV da su screenId y Vento se une a esa
+         * misma sesión sin volver a abrir YouTube. Respuesta: window.__ventoCb(id, {status, text: JSON}).
+         */
+        @JavascriptInterface
+        public void infoYouTube(final String id, final String appUrl) {
+            new Thread(() -> {
+                String txt = BuscadorTV.infoYouTube(appUrl).toString();
+                js("window.__ventoCb&&window.__ventoCb(" + q(id) + ",{status:200,text:" + q(txt) + "})");
+            }).start();
+        }
+
+        /**
          * Puente del «YouTube del TV» DENTRO de la app: reenvía la llamada a www.youtube.com/api/lounge/…
          * (lo mismo que hace el puente de Cloudflare). Una app instalada no tiene el bloqueo del navegador,
          * así que no hace falta crear ni configurar el puente. Respuesta: window.__ventoCb(id, {status, text}).
