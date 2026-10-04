@@ -31,6 +31,7 @@
   .top img{ width:34px; height:34px; border-radius:9px; }
   .top h1{ font-size:19px; margin:0; flex:1; }
   .top h1 small{ display:block; font-size:12px; font-weight:500; color:var(--soft); }
+  @media (max-width:520px){ .top h1 small{ display:none; } .top .b{ padding:8px 11px; } }
   nav{ max-width:1100px; margin:0 auto; padding:8px 12px; display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; }
   nav::-webkit-scrollbar{ display:none; }
   nav button{ flex:0 0 auto; border:1px solid var(--line); background:var(--card); color:var(--ink); padding:8px 14px; border-radius:999px; font:600 14px inherit; cursor:pointer; }
@@ -105,9 +106,10 @@
   <div class="card">
     <img src="icons/vento-180.png" alt="" style="width:64px;height:64px;border-radius:16px">
     <h2 id="lockTit" style="margin-top:10px">Vento Admin</h2>
-    <p class="soft" id="lockTxt">Escribe tu PIN de administrador.</p>
-    <input id="lockPin" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN" style="text-align:center;font-size:20px;letter-spacing:6px">
-    <div class="row"><button class="b p" id="lockGo" type="button">Entrar</button></div>
+    <p class="soft" id="lockTxt">Solo para el administrador de Vento. Escribe tu código personal.</p>
+    <input id="lockPin" type="password" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="VENTO-XXXX-XXXX-XXXX-XXXX-XXXX" style="text-align:center;font-size:15px;letter-spacing:1px">
+    <label style="display:flex;gap:8px;align-items:center;justify-content:center"><input type="checkbox" id="lockRec" style="width:auto">Recordar en este equipo (solo si es tuyo)</label>
+    <div class="row"><button class="b p" id="lockGo" type="button">🔓 Entrar</button></div>
   </div>
 </div>
 
@@ -116,6 +118,7 @@
     <img src="icons/vento-180.png" alt="">
     <h1>Vento Admin<small>Panel del proveedor · clientes, suscripciones y la app</small></h1>
     <a class="b" href="index.html" target="_blank" rel="noopener" title="Abrir Vento">📱 Vento</a>
+    <button class="b" id="salir" type="button" title="Cerrar sesión de administrador">🔒</button>
   </div>
   <nav id="tabs">
     <button type="button" data-t="resumen" class="on">📊 Resumen</button>
@@ -123,6 +126,7 @@
     <button type="button" data-t="pagos">💵 Pagos</button>
     <button type="button" data-t="licencias">🔑 Licencias</button>
     <button type="button" data-t="planes">📦 Planes</button>
+    <button type="button" data-t="equipo">🧑‍💻 Equipo</button>
     <button type="button" data-t="app">⚙️ Configurar la app</button>
     <button type="button" data-t="datos">💾 Respaldo</button>
   </nav>
@@ -174,20 +178,31 @@
   <!-- ===================== LICENCIAS ===================== -->
   <section data-tab="licencias">
     <div class="card">
-      <h2>1. Tu llave privada</h2>
+      <h2>🔐 Firma de licencias</h2>
       <div id="keyState" class="soft">Sin cargar.</div>
-      <label for="keyFile">Abre el archivo <b>LLAVE-PRIVADA-MESORA-NO-COMPARTIR.json</b></label>
-      <input type="file" id="keyFile" accept=".json,application/json">
-      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="keyRemember" style="width:auto">Recordarla en este equipo (solo si es tu celular o computador personal)</label>
-      <div class="row"><button type="button" class="b" id="keyForget">Olvidar la llave de este equipo</button></div>
+      <p class="soft">Tu código personal desbloquea la llave que firma las licencias. Nadie puede crear licencias sin ese código.</p>
+      <details style="margin-top:8px"><summary class="soft">Avanzado: usar la llave antigua (archivo LLAVE-PRIVADA-MESORA)</summary>
+        <input type="file" id="keyFile" accept=".json,application/json" style="margin-top:8px">
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="keyRemember" style="width:auto">Recordarla en este equipo</label>
+        <div class="row"><button type="button" class="b" id="keyForget">Volver a la llave del código</button></div>
+      </details>
     </div>
     <div class="card">
-      <h2>2. Crear un código suelto</h2>
-      <p class="soft">Lo normal es renovar desde la ficha del cliente (👥 Clientes). Aquí puedes crear cualquier código, también la licencia de <b>proveedor</b> para tus propios celulares.</p>
+      <h2>👑 Tú como proveedor</h2>
+      <p class="soft">Activa TUS celulares como proveedor (control total, sin vencimiento, sin prueba). Sirve en todos los celulares de tu negocio.</p>
+      <label for="provCod">Código de TU negocio (en Vento: Ajustes → Negocio → Plan y suscripción)</label>
+      <input id="provCod" placeholder="ABCD-1234" autocapitalize="characters" autocomplete="off">
+      <div class="row"><button class="b p" id="provGo" type="button">👑 Crear mi licencia de proveedor</button></div>
+      <div id="provRes" hidden><div class="out" id="provLink"></div>
+        <div class="row"><a class="b p" id="provApp" href="#">📲 Abrir en la app Vento</a><a class="b" id="provWeb" href="#" target="_blank" rel="noopener">🌐 Abrir en el navegador</a><button class="b" id="provCopiar" type="button">📋 Copiar</button></div></div>
+    </div>
+    <div class="card">
+      <h2>🧾 Crear un código suelto</h2>
+      <p class="soft">Lo normal es renovar desde la ficha del cliente (👥 Clientes). Aquí puedes crear cualquier código para un negocio (suscripción o sedes).</p>
       <div class="f2">
-        <div><label for="lTipo">Tipo</label><select id="lTipo"><option value="sub">💳 Suscripción del negocio</option><option value="sedes">🏢 Sedes adicionales</option><option value="prov">👑 Proveedor (equipo mío)</option></select></div>
+        <div><label for="lTipo">Tipo</label><select id="lTipo"><option value="sub">💳 Suscripción del negocio</option><option value="sedes">🏢 Sedes adicionales</option></select></div>
         <div><label for="lCod">Código del negocio / equipo</label><input id="lCod" placeholder="ABCD-1234" autocapitalize="characters" autocomplete="off"></div>
-        <div><label for="lMeses">Vigencia</label><select id="lMeses"><option value="1">1 mes</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option><option value="0">Sin vencimiento</option></select></div>
+        <div><label for="lMeses">Vigencia</label><select id="lMeses"><option value="0">♾️ De por vida</option><option value="1">1 mes</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></div>
         <div><label for="lSedes">Sedes adicionales</label><input id="lSedes" type="number" min="0" max="50" value="0"></div>
       </div>
       <div class="row"><button type="button" class="b p" id="lGen">Crear código</button></div>
@@ -250,6 +265,25 @@
     </div>
   </section>
 
+  <!-- ===================== EQUIPO ===================== -->
+  <section data-tab="equipo">
+    <div class="card">
+      <h2>🧑‍💻 Equipo que te ayuda con el código</h2>
+      <p class="soft">Invita por su usuario de GitHub a quien te ayude a corregir o mejorar Vento. Recibe una invitación al repositorio <b>cuentas</b> y la acepta desde su correo o GitHub. Solo tú (con tu token) puedes invitar o quitar personas. El panel de administrador y las licencias siguen siendo SOLO tuyos.</p>
+      <div class="f2">
+        <div><label for="eqUser">Usuario de GitHub</label><input id="eqUser" placeholder="ej. juanperez" autocapitalize="none" spellcheck="false"></div>
+        <div><label for="eqRol">Permiso</label><select id="eqRol"><option value="push">✍️ Escribir código (recomendado)</option><option value="triage">🗂️ Solo organizar reportes</option><option value="pull">👀 Solo ver el código</option><option value="maintain">🛠️ Mantener (más permisos)</option></select></div>
+        <div><label for="eqNom">Nombre (para ti)</label><input id="eqNom" placeholder="Juan Pérez"></div>
+        <div><label for="eqWa">WhatsApp (opcional)</label><input id="eqWa" inputmode="tel"></div>
+      </div>
+      <div class="row"><button class="b p" id="eqInvitar" type="button">➕ Invitar al equipo</button><button class="b" id="eqActualizar" type="button">🔄 Actualizar lista</button></div>
+      <div id="eqEstado" class="soft" style="margin-top:8px"></div>
+    </div>
+    <div class="card"><h2>Personas con acceso</h2><div class="list" id="eqLista"></div></div>
+    <div class="card"><h2>Invitaciones pendientes</h2><div class="list" id="eqInv"></div>
+      <p class="soft">Para invitar, tu token de GitHub (⚙️ Configurar la app) necesita además el permiso <b>Administration: Read and write</b> en el repositorio <b>cuentas</b>.</p></div>
+  </section>
+
   <!-- ===================== RESPALDO ===================== -->
   <section data-tab="datos">
     <div class="card">
@@ -261,11 +295,6 @@
         <input type="file" id="dArchivo" accept=".json,application/json" hidden>
       </div>
       <p class="soft" id="dInfo"></p>
-    </div>
-    <div class="card">
-      <h2>🔒 PIN de este panel</h2>
-      <p class="soft">Pide un PIN al abrir el panel en este equipo.</p>
-      <div class="f2"><div><input id="pinNuevo" type="password" inputmode="numeric" placeholder="PIN nuevo (4 a 8 números)"></div><div class="row" style="margin:0"><button class="b" id="pinPoner" type="button">Guardar PIN</button><button class="b bad" id="pinQuitar" type="button">Quitar PIN</button></div></div>
     </div>
   </section>
 </main>
@@ -291,15 +320,15 @@
     <div id="dcAcciones" hidden>
       <h3 style="margin-top:18px">Acciones</h3>
       <div class="row">
-        <button class="b ok" id="cRenovar" type="button">🔑 Renovar y cobrar</button>
+        <button class="b ok" id="cRenovar" type="button">🔑 Activar / renovar</button>
         <button class="b" id="cWaBtn" type="button">💬 WhatsApp</button>
         <button class="b" id="cRecordar" type="button">⏰ Recordar pago</button>
         <button class="b bad" id="cSuspender" type="button">⛔ Suspender</button>
       </div>
       <div id="cRenov" class="card" style="margin-top:12px" hidden>
-        <h3>🔑 Renovar</h3>
+        <h3>🔑 Activar licencia</h3>
         <div class="f2">
-          <div><label for="rMeses">Meses</label><select id="rMeses"><option value="1">1 mes</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></div>
+          <div><label for="rMeses">Vigencia</label><select id="rMeses"><option value="0">♾️ De por vida</option><option value="1">1 mes</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></div>
           <div><label for="rValor">Valor pagado</label><input id="rValor" type="number" min="0" step="100"></div>
           <div><label for="rMedio">Medio</label><select id="rMedio"><option>Nequi</option><option>Daviplata</option><option>Bancolombia</option><option>Efectivo</option><option>Otro</option></select></div>
           <div><label for="rSedes">Sedes adicionales</label><input id="rSedes" type="number" min="0" max="50" value="0"></div>
@@ -332,7 +361,7 @@
 (function(){
   'use strict';
   const $ = id => document.getElementById(id);
-  const DB_KEY = 'vento-admin-db', KEY_LS = 'mesora-lic-llave', HIST_LS = 'mesora-lic-hist', TOKEN_LS = 'vento-admin-gh', PIN_LS = 'vento-admin-pin';
+  const DB_KEY = 'vento-admin-db', KEY_LS = 'mesora-lic-llave', HIST_LS = 'mesora-lic-hist', TOKEN_LS = 'vento-admin-gh';
   const REPO = 'cristhianlujan45-blip/cuentas', CFG_BRANCH = 'vento-config', CFG_FILE = 'vento-config.json', PAGES_BRANCH = 'claude/precio-margen-productos-tabla-mioclt';
   const APP_URL = location.origin + location.pathname.replace(/[^/]*$/, '') + 'index.html';
   // Llave pública de la app (para avisar si se carga una llave privada que no es la de Vento).
@@ -353,6 +382,7 @@
 
   function estado(c){
     if(c.suspendido) return { k: 'suspendido', txt: 'Suspendido', cls: 'bad' };
+    if(c.vida) return { k: 'activa', txt: '♾️ Activo de por vida', cls: 'ok', d: 99999 };
     if(!c.vence) return { k: 'prueba', txt: 'En prueba / sin pago', cls: 'soft' };
     const d = Math.ceil((c.vence - Date.now()) / DIA);
     if(d < 0) return { k: 'vencida', txt: 'Vencido hace ' + (-d) + ' día' + (d === -1 ? '' : 's'), cls: 'bad', d };
@@ -375,10 +405,10 @@
   function pintarResumen(){
     const est = db.clientes.map(estado), cuenta = k => est.filter(x => x.k === k).length;
     const activos = db.clientes.filter((c, i) => ['activa', 'porvencer'].includes(est[i].k));
-    const mrr = activos.reduce((s, c) => s + (+c.precio || 0), 0);
+    const mrr = activos.filter(c => !c.vida).reduce((s, c) => s + (+c.precio || 0), 0);
     const mes = new Date(); mes.setDate(1); mes.setHours(0, 0, 0, 0);
     const ingMes = db.pagos.filter(p => p.t >= mes.getTime()).reduce((s, p) => s + (+p.valor || 0), 0);
-    const K = [['acc', db.clientes.length, 'Clientes'], ['ok', activos.length, 'Activos'], ['warn', cuenta('porvencer'), 'Por vencer (7 días)'], ['bad', cuenta('vencida'), 'Vencidos'], ['acc', plata(mrr), 'Ingreso mensual esperado'], ['ok', plata(ingMes), 'Cobrado este mes']];
+    const K = [['acc', db.clientes.length, 'Clientes'], ['ok', activos.length, 'Activos'], ['warn', cuenta('porvencer'), 'Por vencer (7 días)'], ['bad', cuenta('vencida'), 'Vencidos'], ['acc', plata(mrr), 'Mensualidades activas'], ['ok', plata(ingMes), 'Cobrado este mes']];
     $('kpis').innerHTML = K.map(k => '<div class="kpi ' + k[0] + '"><b>' + esc(k[1]) + '</b><span>' + esc(k[2]) + '</span></div>').join('');
     const meses = []; for(let i = 5; i >= 0; i--){ const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); d.setMonth(d.getMonth() - i); meses.push(d); }
     const tot = meses.map((d, i) => { const fin = i < 5 ? meses[i + 1].getTime() : Infinity; return db.pagos.filter(p => p.t >= d.getTime() && p.t < fin).reduce((s, p) => s + (+p.valor || 0), 0); });
@@ -457,25 +487,26 @@
     guardar(); abrirCliente(actual.id);
     toast((actual.suspendido ? '⛔ Suspendido' : '✅ Reactivado') + '. Publica en «⚙️ Configurar la app» para que llegue a su celular.', 6000);
   };
-  $('cRenovar').onclick = () => { $('cRenov').hidden = !$('cRenov').hidden; $('rValor').value = actual && actual.precio ? actual.precio * (+$('rMeses').value || 1) : ''; const p = planDe(actual && actual.plan); $('rSedes').value = p ? p.sedes || 0 : 0; };
+  $('cRenovar').onclick = () => { $('cRenov').hidden = !$('cRenov').hidden; $('rValor').value = actual && actual.precio ? actual.precio * (+$('rMeses').value || 1) : ''; const p = planDe(actual && actual.plan); $('rSedes').value = p ? p.sedes || 0 : 0; $('rRes').hidden = true; };
   $('rMeses').onchange = () => { if(actual && actual.precio) $('rValor').value = actual.precio * (+$('rMeses').value || 1); };
   let ultimoLink = '';
   $('rGo').onclick = async () => {
     if(!actual) return;
     const f = leerFicha(); Object.assign(actual, f);
     if(!/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(actual.codigo || '')){ toast('Pon el código del negocio (8 letras/números, ej. ABCD-1234). El cliente lo ve en Ajustes → Negocio → Plan y suscripción.', 7000); return; }
-    if(!privKey){ toast('Carga tu llave privada en 🔑 Licencias.', 6000); return; }
-    const meses = +$('rMeses').value || 1, desde = Math.max(Date.now(), actual.vence || 0), v = new Date(desde); v.setMonth(v.getMonth() + meses);
-    const p = { d: actual.codigo, t: Date.now(), m: 1, v: v.getTime() };
+    if(!privKey){ toast('Entra con tu código personal para poder firmar.', 6000); return; }
+    const meses = +$('rMeses').value || 0, desde = Math.max(Date.now(), actual.vence || 0), v = new Date(desde); v.setMonth(v.getMonth() + meses);
+    const p = { d: actual.codigo, t: Date.now(), m: 1 }; if(meses) p.v = v.getTime();
     const pl = planDe(actual.plan); if(pl) p.pl = pl.nombre.slice(0, 20);
     const s = +$('rSedes').value || 0; if(s) p.s = s;
     p.n = (actual.negocio || '').slice(0, 40);
     const code = await firmar(p), link = APP_URL + '#licencia=' + code;
-    actual.vence = v.getTime(); actual.suspendido = false;
+    if(meses){ actual.vence = v.getTime(); actual.vida = false; } else { actual.vida = true; actual.vence = 0; }
+    actual.suspendido = false;
     const valor = +$('rValor').value || 0;
-    if(valor) db.pagos.push({ id: uid(), t: Date.now(), cliente: actual.id, negocio: actual.negocio, valor, medio: $('rMedio').value, concepto: 'Suscripción ' + meses + ' mes' + (meses > 1 ? 'es' : '') + (pl ? ' · ' + pl.nombre : '') });
-    (actual.hist = actual.hist || []).unshift({ t: Date.now(), txt: '🔑 Renovado ' + meses + ' mes(es) hasta ' + fecha(v) + (valor ? ' · pagó ' + plata(valor) + ' (' + $('rMedio').value + ')' : '') });
-    licHist({ eq: actual.codigo, tipo: 'sub', v: p.v, s, n: actual.negocio });
+    if(valor) db.pagos.push({ id: uid(), t: Date.now(), cliente: actual.id, negocio: actual.negocio, valor, medio: $('rMedio').value, concepto: (meses ? 'Suscripción ' + meses + ' mes' + (meses > 1 ? 'es' : '') : 'Licencia de por vida') + (pl ? ' · ' + pl.nombre : '') });
+    (actual.hist = actual.hist || []).unshift({ t: Date.now(), txt: '🔑 ' + (meses ? 'Renovado ' + meses + ' mes(es) hasta ' + fecha(v) : 'Licencia de por vida') + (valor ? ' · pagó ' + plata(valor) + ' (' + $('rMedio').value + ')' : '') });
+    licHist({ eq: actual.codigo, tipo: 'sub', v: p.v || 0, s, n: actual.negocio });
     guardar(); ultimoLink = link;
     $('rLink').textContent = link; $('rRes').hidden = false; $('dcEstado').innerHTML = '<span class="pill ok">' + esc(estado(actual).txt) + '</span>';
     toast('✅ Pago registrado y código creado.');
@@ -516,7 +547,7 @@
   $('plBorrar').onclick = () => { if(!planAct || !confirm('¿Borrar el plan «' + planAct.nombre + '»?')) return; db.planes = db.planes.filter(p => p !== planAct); guardar(); $('dlgP').close(); };
 
   // ---------------- Licencias (firma con la llave privada; misma que licencias.html) ----------------
-  let privKey = null;
+  let privKey = null, usandoBoveda = false;
   function b64u(bytes){ let s = ''; bytes = new Uint8Array(bytes); for(let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
   async function cargarJwk(jwk, recordarla){
     try{
@@ -524,12 +555,13 @@
       const clean = { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y, d: jwk.d };
       privKey = await crypto.subtle.importKey('jwk', clean, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
       if(recordarla){ try{ localStorage.setItem(KEY_LS, JSON.stringify(clean)); }catch(e){} }
-      $('keyState').innerHTML = jwk.x === LIC_PUB_X ? '<span class="ok-t">✅ Llave cargada (es la de Vento).</span>' : '<span class="warn-t">⚠️ Llave cargada, pero NO coincide con la de la app: los códigos que crees no van a funcionar.</span>';
+      usandoBoveda = false;
+      $('keyState').innerHTML = (jwk.x === LIC_PUB_X || jwk.x === BOVEDA.x) ? '<span class="ok-t">✅ Usando la llave antigua (también la acepta la app).</span>' : '<span class="warn-t">⚠️ Esa llave NO es de Vento: los códigos que crees no van a funcionar.</span>';
     }catch(e){ privKey = null; $('keyState').innerHTML = '<span class="bad-t">⚠️ ' + esc(e.message || 'No se pudo leer la llave.') + '</span>'; }
   }
   $('keyFile').onchange = function(){ const f = this.files[0]; if(!f) return; f.text().then(t => { let j; try{ j = JSON.parse(t); }catch(e){ j = null; } cargarJwk(j, $('keyRemember').checked); }); };
-  $('keyForget').onclick = () => { try{ localStorage.removeItem(KEY_LS); }catch(e){} privKey = null; $('keyState').textContent = 'Llave olvidada en este equipo.'; };
-  try{ const g = localStorage.getItem(KEY_LS); if(g){ $('keyRemember').checked = true; cargarJwk(JSON.parse(g), false); } }catch(e){}
+  $('keyForget').onclick = () => { try{ localStorage.removeItem(KEY_LS); }catch(e){} location.reload(); };
+  try{ const g = localStorage.getItem(KEY_LS); if(g){ $('keyRemember').checked = true; setTimeout(() => cargarJwk(JSON.parse(g), false), 1500); } }catch(e){}
   async function firmar(p){
     const payload = b64u(new TextEncoder().encode(JSON.stringify(p)));
     const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privKey, new TextEncoder().encode(payload));
@@ -542,7 +574,7 @@
   }
   let lUltimo = '';
   $('lGen').onclick = async () => {
-    if(!privKey){ toast('Primero carga tu llave privada.'); return; }
+    if(!privKey){ toast('Entra con tu código personal para poder firmar.'); return; }
     let eq = $('lCod').value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if(eq.length !== 8){ toast('El código tiene 8 letras/números (ej. ABCD-1234).'); return; }
     eq = eq.slice(0, 4) + '-' + eq.slice(4);
     const tipo = $('lTipo').value, meses = +$('lMeses').value || 0, s = +$('lSedes').value || 0;
@@ -557,6 +589,22 @@
     $('lLink').textContent = lUltimo; $('lRes').hidden = false; pintarLicHist();
   };
   $('lCopiar').onclick = () => copiar(lUltimo);
+  try{ $('provCod').value = localStorage.getItem('vento-negocio') || ''; }catch(e){}
+  let provLink = '';
+  $('provGo').onclick = async () => {
+    if(!privKey){ toast('Entra con tu código personal para poder firmar.'); return; }
+    let eq = $('provCod').value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if(eq.length !== 8){ toast('El código de tu negocio tiene 8 letras/números (ej. ABCD-1234).'); return; }
+    eq = eq.slice(0, 4) + '-' + eq.slice(4);
+    const code = await firmar({ d: eq, t: Date.now(), r: 'proveedor' });
+    provLink = APP_URL + '#licencia=' + code;
+    licHist({ eq, tipo: 'prov', v: 0, s: 0, n: 'Mi negocio (proveedor)' });
+    $('provLink').textContent = provLink; $('provRes').hidden = false;
+    $('provApp').href = 'vento://abrir#licencia=' + code; $('provWeb').href = provLink;
+    // Si Vento está abierto en este mismo navegador, queda activado de una vez.
+    try{ const l = JSON.parse(localStorage.getItem('vento-licencias') || '[]') || []; if(!l.includes(code)) l.push(code); localStorage.setItem('vento-licencias', JSON.stringify(l.slice(-20))); }catch(e){}
+    pintarLicHist(); toast('👑 Listo. Ábrelo en la app Vento (o en el navegador) de tus celulares.', 6000);
+  };
+  $('provCopiar').onclick = () => copiar(provLink);
 
   // ---------------- Configurar la app (vento-config.json en la rama vento-config) ----------------
   const CFG_CACHE = 'vento-admin-cfg';
@@ -574,8 +622,8 @@
   const gh = async (ruta, op) => {
     const tok = $('aToken').value.trim(); if(!tok) throw new Error('Pega primero tu token de GitHub (paso de arriba).');
     const r = await fetch('https://api.github.com/repos/' + REPO + ruta, Object.assign({}, op, { headers: Object.assign({ Authorization: 'Bearer ' + tok, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }, (op && op.headers) || {}) }));
-    const j = await r.json().catch(() => ({}));
-    if(!r.ok){ const e = new Error(r.status === 401 ? 'El token no es válido o venció.' : r.status === 403 ? 'El token no tiene permiso (Contents: Read and write en «cuentas»).' : (j.message || ('Error ' + r.status))); e.status = r.status; throw e; }
+    const j = r.status === 204 ? {} : await r.json().catch(() => ({}));
+    if(!r.ok){ const e = new Error(r.status === 401 ? 'El token no es válido o venció.' : r.status === 403 ? 'El token no tiene permiso para esto (revisa Contents y Administration: Read and write en «cuentas»).' : (j.message || ('Error ' + r.status))); e.status = r.status; throw e; }
     return j;
   };
   const b64utf8 = s => btoa(unescape(encodeURIComponent(s)));
@@ -604,6 +652,42 @@
     }catch(e){ $('aEstado').innerHTML = '<span class="bad-t">⚠️ ' + esc(e.message) + '</span>'; }
   };
 
+  // ---------------- Equipo: colaboradores del repositorio en GitHub ----------------
+  db.equipo = db.equipo || [];
+  const ROLES = { push: '✍️ Escribe código', triage: '🗂️ Organiza reportes', pull: '👀 Solo ve', maintain: '🛠️ Mantiene', admin: '👑 Administrador' };
+  async function eqCargar(){
+    $('eqEstado').textContent = 'Consultando GitHub…';
+    try{
+      const [col, inv] = await Promise.all([gh('/collaborators?per_page=100'), gh('/invitations?per_page=100')]);
+      $('eqLista').innerHTML = (col || []).map(u => { const rol = u.role_name || (u.permissions && (u.permissions.admin ? 'admin' : u.permissions.maintain ? 'maintain' : u.permissions.push ? 'push' : u.permissions.triage ? 'triage' : 'pull')) || '';
+        const nota = db.equipo.find(x => x.user.toLowerCase() === String(u.login).toLowerCase());
+        return '<div class="item" style="cursor:default"><img src="' + esc(u.avatar_url) + '" alt="" style="width:40px;height:40px;border-radius:12px"><div class="t"><b>' + esc(nota && nota.nombre || u.login) + '</b><small>@' + esc(u.login) + (nota && nota.wa ? ' · ' + esc(nota.wa) : '') + '</small></div><span class="pill ' + (rol === 'admin' ? 'ok' : 'soft') + '">' + esc(ROLES[rol] || rol) + '</span>' + (rol === 'admin' ? '' : '<button class="b bad" type="button" data-quitar="' + esc(u.login) + '">Quitar</button>') + '</div>'; }).join('') || '<div class="empty">Solo tú.</div>';
+      $('eqInv').innerHTML = (inv || []).map(v => '<div class="item" style="cursor:default"><div class="av">✉️</div><div class="t"><b>@' + esc(v.invitee && v.invitee.login) + '</b><small>Invitado ' + fecha(Date.parse(v.created_at)) + ' · ' + esc(ROLES[v.permissions] || v.permissions) + '</small></div><button class="b bad" type="button" data-cancelar="' + esc(v.id) + '">Cancelar</button></div>').join('') || '<div class="empty">Ninguna.</div>';
+      $('eqEstado').textContent = '';
+    }catch(e){ $('eqEstado').innerHTML = '<span class="bad-t">⚠️ ' + esc(e.message) + '</span>'; }
+  }
+  $('eqActualizar').onclick = eqCargar;
+  $('eqInvitar').onclick = async () => {
+    const u = $('eqUser').value.trim().replace(/^@/, '');
+    if(!/^[A-Za-z0-9-]{1,39}$/.test(u)){ toast('Escribe un usuario de GitHub válido.'); return; }
+    if(!confirm('¿Invitar a @' + u + ' al código de Vento con permiso «' + ROLES[$('eqRol').value] + '»?')) return;
+    $('eqEstado').textContent = 'Invitando…';
+    try{
+      await gh('/collaborators/' + encodeURIComponent(u), { method: 'PUT', body: JSON.stringify({ permission: $('eqRol').value }) });
+      db.equipo = db.equipo.filter(x => x.user.toLowerCase() !== u.toLowerCase()).concat([{ user: u, nombre: $('eqNom').value.trim(), wa: $('eqWa').value.trim(), at: Date.now() }]); guardar();
+      $('eqEstado').innerHTML = '<span class="ok-t">✅ Invitación enviada a @' + esc(u) + '. Debe aceptarla en GitHub.</span>';
+      if($('eqWa').value.trim()) window.open('https://wa.me/' + waNum($('eqWa').value) + '?text=' + encodeURIComponent('Hola, te invité al código de Vento en GitHub. Acepta la invitación aquí: https://github.com/' + REPO + '/invitations'), '_blank');
+      $('eqUser').value = ''; $('eqNom').value = ''; $('eqWa').value = '';
+      eqCargar();
+    }catch(e){ $('eqEstado').innerHTML = '<span class="bad-t">⚠️ ' + esc(e.message) + '</span>'; }
+  };
+  document.addEventListener('click', async e => {
+    const q = e.target.closest('[data-quitar]'), c = e.target.closest('[data-cancelar]');
+    if(q){ if(!confirm('¿Quitarle el acceso al código a @' + q.dataset.quitar + '?')) return; try{ await gh('/collaborators/' + encodeURIComponent(q.dataset.quitar), { method: 'DELETE' }); toast('Acceso quitado.'); eqCargar(); }catch(x){ toast('⚠️ ' + x.message, 6000); } }
+    if(c){ try{ await gh('/invitations/' + encodeURIComponent(c.dataset.cancelar), { method: 'DELETE' }); toast('Invitación cancelada.'); eqCargar(); }catch(x){ toast('⚠️ ' + x.message, 6000); } }
+  });
+  $('tabs').addEventListener('click', e => { const b = e.target.closest('button[data-t="equipo"]'); if(b && $('aToken').value.trim()) eqCargar(); });
+
   // ---------------- Respaldo ----------------
   function bajar(nombre, texto, tipo){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([texto], { type: tipo || 'application/json' })); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
   $('dBajar').onclick = () => { let h = []; try{ h = JSON.parse(localStorage.getItem(HIST_LS) || '[]'); }catch(e){} bajar('vento-admin-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify({ tipo: 'vento-admin', db, licencias: h, config: cfgLeerForm() }, null, 2)); db.respaldo = Date.now(); guardar(); };
@@ -621,17 +705,42 @@
   };
   function pintarRespaldo(){ $('dInfo').textContent = db.clientes.length + ' clientes · ' + db.pagos.length + ' pagos · último respaldo: ' + (db.respaldo ? new Date(db.respaldo).toLocaleString('es-CO') : 'nunca'); }
 
-  // ---------------- PIN ----------------
-  const hash = async t => b64u(await crypto.subtle.digest('SHA-256', new TextEncoder().encode('vento-admin:' + t)));
-  $('pinPoner').onclick = async () => { const p = $('pinNuevo').value.trim(); if(!/^\d{4,8}$/.test(p)){ toast('El PIN es de 4 a 8 números.'); return; } localStorage.setItem(PIN_LS, await hash(p)); $('pinNuevo').value = ''; toast('🔒 PIN guardado.'); };
-  $('pinQuitar').onclick = () => { localStorage.removeItem(PIN_LS); toast('PIN quitado.'); };
-  (function bloqueo(){
-    let h = null; try{ h = localStorage.getItem(PIN_LS); }catch(e){}
-    if(!h) return;
-    $('lock').hidden = false; setTimeout(() => $('lockPin').focus(), 100);
-    const ir = async () => { if(await hash($('lockPin').value.trim()) === h){ $('lock').hidden = true; } else { $('lockTxt').innerHTML = '<span class="bad-t">PIN incorrecto.</span>'; $('lockPin').value = ''; } };
+  // ---------------- Acceso: código personal del administrador ----------------
+  /* La llave que firma las licencias va CIFRADA aquí (AES-256-GCM con una clave sacada del código personal con
+     PBKDF2-SHA256 de 600.000 vueltas). Sin el código no se puede usar ni leer: ni el panel ni las licencias. */
+  const BOVEDA = {"salt": "Q/87kFkyl1PaH5d3lKEJhg==", "iv": "eXmZpovfx6bk5i1B", "ct": "Gj9qwEL3T8j2h7LRKfYn+p3XeVusiWoyJNXF+zQ1JDl/F4pLiWx5pwmTdsei12C25N8n8u5ZS2aN1VgihiT3A7KDP8ovPHgWE/c02+5aibMB8bRjQKfyRDtQ62vwwXtpe4s1I2VeVcJF57xwd4viqU/NNX6LM0VVJkgMFFmb28ibZXbvE4r+IEXX0YpeH4uPrHy2hkVcbIA2Xio+rNiN2A5zSixmgDwkridPtYt3acYfx3v7UdPrGvLvZ5oOHeQB", "it": 600000, "x": "xWQFWjVmOPxN8n7VwdYkDWkiT9yIC8_hbSVTJL8CT3U", "y": "l8SXO-hNy1v-FkXW0Irjo5cSbT2si4Kr_ZA_wvVMKGc"};
+  const CODIGO_LS = 'vento-admin-codigo';
+  const deB64 = t => Uint8Array.from(atob(t), ch => ch.charCodeAt(0));
+  async function abrirBoveda(codigo){
+    codigo = String(codigo || '').trim().toUpperCase().replace(/\s+/g, '');
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(codigo), 'PBKDF2', false, ['deriveKey']);
+    const k = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: deB64(BOVEDA.salt), iterations: BOVEDA.it, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    const jwk = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: deB64(BOVEDA.iv) }, k, deB64(BOVEDA.ct))));
+    return crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  }
+  async function entrar(codigo, recordar){
+    try{
+      privKey = await abrirBoveda(codigo); usandoBoveda = true;
+      if(recordar){ try{ localStorage.setItem(CODIGO_LS, String(codigo).trim().toUpperCase()); }catch(e){} }
+      $('lock').hidden = true;
+      $('keyState').innerHTML = '<span class="ok-t">✅ Firma lista: desbloqueada con tu código personal.</span>';
+      return true;
+    }catch(e){ return false; }
+  }
+  (async function bloqueo(){
+    $('lock').hidden = false;
+    let g = ''; try{ g = localStorage.getItem(CODIGO_LS) || ''; }catch(e){}
+    if(g && await entrar(g, false)) return;
+    setTimeout(() => $('lockPin').focus(), 100);
+    const ir = async () => {
+      $('lockGo').disabled = true; $('lockTxt').textContent = 'Revisando…';
+      const ok = await entrar($('lockPin').value, $('lockRec').checked);
+      $('lockGo').disabled = false;
+      if(!ok){ $('lockTxt').innerHTML = '<span class="bad-t">Código incorrecto.</span>'; $('lockPin').value = ''; }
+    };
     $('lockGo').onclick = ir; $('lockPin').onkeydown = e => { if(e.key === 'Enter') ir(); };
   })();
+  $('salir').onclick = () => { try{ localStorage.removeItem(CODIGO_LS); }catch(e){} location.reload(); };
 
   function copiar(t){ if(!t) return; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('📋 Copiado.'), () => prompt('Copia esto:', t)); }
   function pintarTodo(){ pintarResumen(); pintarClientes(); pintarPagos(); pintarPlanes(); pintarLicHist(); pintarRespaldo(); }

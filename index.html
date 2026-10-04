@@ -22426,7 +22426,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-04 · v1.27.2';
+const MESORA_VERSION = '2026-10-04 · v1.27.3';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -23142,6 +23142,9 @@ function iniCast(){
    solo tiene la llave pública: con ella comprueba que el código es auténtico, que es para ESTE
    equipo y que no ha vencido. Nadie puede fabricar un código válido sin la llave privada. */
 const LIC_PUB = {"kty": "EC", "crv": "P-256", "x": "6tWjt1Nt7nzGlVijod0J1_6lSJtXJwEMQ84hG-Jgeko", "y": "zi6sTkXAddYp0frD8QP97PjvoWKASu42ATu3EAe2XrE"};
+// Llave del panel Vento Admin (protegida con el código personal del proveedor). Se aceptan las dos.
+const LIC_PUB_ADMIN = {"kty": "EC", "crv": "P-256", "x": "xWQFWjVmOPxN8n7VwdYkDWkiT9yIC8_hbSVTJL8CT3U", "y": "l8SXO-hNy1v-FkXW0Irjo5cSbT2si4Kr_ZA_wvVMKGc"};
+const LIC_PUBS = [LIC_PUB, LIC_PUB_ADMIN];
 const LIC_KEY = 'mesora-licencia', EQUIPO_KEY = 'mesora-equipo';
 const SEDES_INCLUIDAS = 1;                         // la sede principal
 const SEDE_PRECIO_TEXTO = '';                      // ej. '$30.000 al mes por sede' (vacío = "consulta el precio")
@@ -23161,8 +23164,11 @@ async function licVerificar(texto){
   const m = String(texto || '').replace(/\s+/g, '').match(/([A-Za-z0-9_-]{10,})\.([A-Za-z0-9_-]{40,})/);
   if(!m) return { error: 'formato' };
   try{
-    const key = await crypto.subtle.importKey('jwk', LIC_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
-    const ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, licB64(m[2]), new TextEncoder().encode(m[1]));
+    let ok = false;
+    for(const jwk of LIC_PUBS){
+      const key = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+      if(await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, licB64(m[2]), new TextEncoder().encode(m[1]))){ ok = true; break; }
+    }
     if(!ok) return { error: 'firma' };
     const p = JSON.parse(new TextDecoder().decode(licB64(m[1])));
     if(p.d !== codigoEquipo() && p.d !== codigoNegocio()) return { error: 'equipo', p };
@@ -23206,13 +23212,13 @@ function licPintar(){
   const usadas = sedesList().length, total = SEDES_INCLUIDAS + licExtra;
   box.innerHTML = '<b>Tu plan:</b> ' + total + (total === 1 ? ' sede' : ' sedes') + ' (' + SEDES_INCLUIDAS + ' incluida' + (licExtra ? ' + ' + licExtra + ' pagada' + (licExtra > 1 ? 's' : '') : '') + ') · usas ' + usadas + '.' +
     (licInfo && licInfo.v ? ' Vence el ' + new Date(licInfo.v).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }) + '.' : '') +
-    '<br>Código de este equipo: <b>' + codigoEquipo() + '</b> · <a href="#" id="licOpen" style="color:var(--cream);font-weight:700">Activar más sedes</a>';
+    '<br>Código de tu negocio: <b>' + codigoNegocio() + '</b> · <a href="#" id="licOpen" style="color:var(--cream);font-weight:700">Activar más sedes</a>';
   const a = document.getElementById('licOpen'); if(a) a.onclick = e => { e.preventDefault(); licPaywall(''); };
 }
 async function licActivar(texto, silencioso){
   const r = await licVerificar(texto);
   if(r.error){
-    const why = { formato: 'Ese código no está completo. Cópialo o ábrelo desde el link tal como te llegó.', firma: 'Ese código no es válido.', equipo: 'Ese código es para otro equipo (' + (r.p && r.p.d) + '). Este equipo es ' + codigoEquipo() + '.', vencida: 'Ese código ya venció.' }[r.error];
+    const why = { formato: 'Ese código no está completo. Cópialo o ábrelo desde el link tal como te llegó.', firma: 'Ese código no es válido.', equipo: 'Ese código es para otro negocio (' + (r.p && r.p.d) + '). El código de tu negocio es ' + codigoNegocio() + '.', vencida: 'Ese código ya venció.' }[r.error];
     if(!silencioso) showToast('⚠️ ' + why, 8000);
     return false;
   }
@@ -23230,7 +23236,7 @@ function licPaywall(nombreSede){
     ov = document.createElement('div'); ov.id = 'licOverlay'; ov.className = 'overlay';
     ov.innerHTML = '<div class="modal" style="max-width:420px;text-align:center"><h2>🏢 Agregar otra sede</h2>' +
       '<div class="modal-sub" id="licTxt"></div>' +
-      '<div class="modal-sub" style="margin-top:10px">Código de este equipo:</div><div class="lic-code" id="licEquipo"></div>' +
+      '<div class="modal-sub" style="margin-top:10px">Código de tu negocio:</div><div class="lic-code" id="licEquipo"></div>' +
       '<div class="modal-actions" style="flex-direction:column;gap:8px">' +
         '<button class="btn-primary" id="licWa" type="button" style="width:100%;padding:13px;font-size:15px">💬 Pedir activación por WhatsApp</button>' +
         '<input id="licInput" class="mz-in" placeholder="¿Ya pagaste? Pega aquí tu código de activación" autocomplete="off" autocapitalize="none" spellcheck="false" style="width:100%;box-sizing:border-box">' +
@@ -23242,10 +23248,10 @@ function licPaywall(nombreSede){
   }
   const total = SEDES_INCLUIDAS + licExtra;
   ov.querySelector('#licTxt').innerHTML = 'Tu plan incluye <b>' + total + (total === 1 ? ' sede' : ' sedes') + '</b> y ya las estás usando. Cada sede adicional tiene un costo' + (SEDE_PRECIO_TEXTO ? ': <b>' + SEDE_PRECIO_TEXTO + '</b>' : '') + '. Escríbenos para pagar y te enviamos el código de activación; al abrirlo, la sede queda activa en este equipo.';
-  ov.querySelector('#licEquipo').textContent = codigoEquipo();
+  ov.querySelector('#licEquipo').textContent = codigoNegocio();
   ov.querySelector('#licWa').onclick = () => {
-    const msg = 'Hola, quiero activar ' + (total + 1 - SEDES_INCLUIDAS) + ' sede(s) adicional(es) en Vento.\nNegocio: ' + ((data && data.businessName) || '') + (nombreSede ? '\nNueva sede: ' + nombreSede : '') + '\nCódigo del equipo: ' + codigoEquipo();
-    window.open('https://wa.me/' + SUPPORT_WA_NUMBER + '?text=' + encodeURIComponent(msg), '_blank');
+    const msg = 'Hola, quiero activar ' + (total + 1 - SEDES_INCLUIDAS) + ' sede(s) adicional(es) en Vento.\nNegocio: ' + ((data && data.businessName) || '') + (nombreSede ? '\nNueva sede: ' + nombreSede : '') + '\nCódigo del negocio: ' + codigoNegocio();
+    window.open('https://wa.me/' + ventoWa() + '?text=' + encodeURIComponent(msg), '_blank');
   };
   ov.classList.add('show');
 }
@@ -23386,7 +23392,7 @@ function subPintar(){
     }
   }
   if(g){
-    g.querySelector('#subPlan').innerHTML = subTexto(st) + '<br>Código del negocio: <b>' + codigoNegocio() + '</b> · Código de este equipo: <b>' + codigoEquipo() + '</b>';
+    g.querySelector('#subPlan').innerHTML = subTexto(st) + '<br>Código de tu negocio: <b>' + codigoNegocio() + '</b>' + (st.k === 'proveedor' ? ' · Código de este equipo: <b>' + codigoEquipo() + '</b>' : '');
     g.querySelector('#subLicLink').hidden = st.k !== 'proveedor';
   }
   // Barra arriba solo cuando hace falta (prueba, gracia, vencida o pocos días)
