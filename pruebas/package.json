@@ -1,0 +1,7 @@
+{
+  "name": "vento-pruebas",
+  "private": true,
+  "description": "Pruebas automáticas de Vento (navegador sin ventana)",
+  "scripts": { "test": "bash correr.sh" },
+  "devDependencies": { "playwright": "^1.47.0" }
+}

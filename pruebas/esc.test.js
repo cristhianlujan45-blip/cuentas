@@ -1,0 +1,15 @@
+const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
+(async()=>{ const b=await chromium.launch(); const ctx=await b.newContext({viewport:{width:1440,height:900}});
+ await ctx.route('**/*', r=>{const u=new URL(r.request().url()); return u.hostname==='localhost'?r.continue():r.abort();});
+ const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+ await p.goto('http://localhost:8765/index.html'); await p.waitForTimeout(2500);
+ await p.fill('#authBiz','Bar X'); await p.fill('#authUser','ana'); await p.fill('#authPass','clave123'); await p.click('#authBtn'); await p.waitForTimeout(1500);
+ await p.click('#onbSaltar').catch(()=>{});
+ await p.evaluate(()=>{ document.querySelectorAll('.overlay.show').forEach(o=>o.classList.remove('show')); renderMesas(); });
+ const ok=[];
+ await p.focus('#grid .ticket, .grid .ticket'); await p.keyboard.press('Enter'); await p.waitForTimeout(400);
+ ok.push(['Enter abre mesa', await p.evaluate(()=>overlay.classList.contains('show'))]);
+ await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+ ok.push(['Esc cierra mesa', await p.evaluate(()=>!overlay.classList.contains('show'))]);
+ ok.push(['wrap ancho', await p.evaluate(()=>getComputedStyle(document.querySelector('.wrap')).maxWidth)]);
+ console.log(JSON.stringify(ok), 'errores:', errs.length, errs.slice(0,3)); await b.close(); })();

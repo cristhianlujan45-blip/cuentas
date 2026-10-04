@@ -1,0 +1,51 @@
+const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
+(async()=>{ const b=await chromium.launch(); const ctx=await b.newContext({viewport:{width:390,height:844}});
+ await ctx.route('**/*', r=>{const u=new URL(r.request().url()); return u.hostname==='localhost'?r.continue():r.abort();});
+ await ctx.addInitScript(()=>{
+   window.__inst=[]; window.__starts=0;
+   function F(){ this.onresult=this.onend=this.onerror=this.onstart=null; this._res=[]; window.__inst.push(this); }
+   F.prototype.start=function(){ if(window.__act && window.__act!==this) throw new Error('busy'); window.__act=this; window.__starts++; this._res=[]; setTimeout(()=>this.onstart&&this.onstart({}),10); };
+   F.prototype.stop=F.prototype.abort=function(){ if(window.__act===this){ window.__act=null; setTimeout(()=>this.onend&&this.onend({}),10);} };
+   window.SpeechRecognition=window.webkitSpeechRecognition=F;
+   window.__say=function(t){ const r=window.__act; if(!r) return 'nadie'; const alt=[{transcript:t,confidence:.9}]; alt.isFinal=true; alt.item=i=>alt[i]; r._res.push(alt); const res=r._res.slice(); res.item=i=>res[i]; r.onresult&&r.onresult({results:res,resultIndex:res.length-1}); return 'ok'; };
+ });
+ const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+ await p.goto('http://localhost:8765/index.html'); await p.waitForTimeout(2500);
+ await p.fill('#authBiz','Bar H'); await p.fill('#authUser','ana'); await p.fill('#authPass','clave123'); await p.click('#authBtn'); await p.waitForTimeout(1500);
+ await p.click('#onbSaltar').catch(()=>{});
+ await p.evaluate(()=>{ document.querySelectorAll('.overlay.show').forEach(o=>o.classList.remove('show')); data.products=[{id:'pk',name:'Poker',price:4000,stock:50},{id:'ag',name:'Águila',price:4000,stock:50}]; data.tables={1:{items:[],people:[]},2:{items:[],people:[]}}; saveData(); renderMesas(); });
+ await p.mouse.click(200,300); await p.waitForTimeout(2500);
+ const R=[]; const ok=(n,v)=>R.push([n,!!v]);
+ const qty=(m)=>p.evaluate(m=>(data.tables[m].items||[]).reduce((s,i)=>s+i.qty,0),m);
+ ok('escuchando sola', await p.evaluate(()=>window.ventoHola.estado().corriendo && !!window.__act));
+ ok('punto verde', await p.evaluate(()=>document.getElementById('voiceFabWrap').classList.contains('hola-on')));
+ await p.evaluate(()=>__say('mesa 1 dos poker')); await p.waitForTimeout(1200);
+ ok('sin «Hola Vento» no hace nada', (await qty(1))===0);
+ await p.evaluate(()=>__say('Hola Vento, mesa 1 dos poker')); await p.waitForTimeout(1800);
+ ok('«Hola Vento, mesa 1 dos poker» anota 2', (await qty(1))===2);
+ ok('vuelve a escuchar', await p.evaluate(()=>!!window.__act));
+ await p.evaluate(()=>__say('mesa 2 una águila')); await p.waitForTimeout(1800);
+ ok('seguido sin repetir «Hola Vento» anota', (await qty(2))===1);
+ await p.waitForTimeout(10000);
+ await p.evaluate(()=>__say('mesa 2 una águila')); await p.waitForTimeout(1500);
+ ok('pasados los segundos ya no anota charla', (await qty(2))===1);
+ await p.evaluate(()=>__say('oye vento')); await p.waitForTimeout(600);
+ ok('solo «Oye Vento» queda atenta', await p.evaluate(()=>window.ventoHola.estado().atento));
+ await p.evaluate(()=>__say('mesa 2 dos poker')); await p.waitForTimeout(1800);
+ ok('y la siguiente frase se anota', (await qty(2))===3);
+ await p.evaluate(()=>__say('Bento, mesa 1 una águila')); await p.waitForTimeout(1800);
+ ok('«Bento» también', (await qty(1))===3);
+ // botón del micrófono suelta el manos libres
+ await p.evaluate(()=>startVoiceCommand()); await p.waitForTimeout(300);
+ ok('botón 🎤 toma el micrófono', await p.evaluate(()=>window.__act===voiceRecognizer));
+ await p.evaluate(()=>voiceRecognizer.stop()); await p.waitForTimeout(2500);
+ ok('después vuelve el manos libres', await p.evaluate(()=>window.__act && window.__act!==voiceRecognizer));
+ await p.evaluate(()=>__say('hola vento deja de escuchar')); await p.waitForTimeout(1200);
+ ok('«deja de escuchar» lo apaga', await p.evaluate(()=>!window.ventoHola.activo() && !window.__act && localStorage.getItem('vento-hola')==='0'));
+ await p.evaluate(()=>{ document.getElementById('holaVentoToggle').click(); }); await p.waitForTimeout(1500);
+ ok('interruptor de Ajustes lo prende', await p.evaluate(()=>window.ventoHola.activo() && !!window.__act));
+ // ¿pregunta? (respuesta de Vento)
+ await p.evaluate(()=>__say('hola vento cuánto vendí hoy')); await p.waitForTimeout(1500);
+ ok('pregunta responde sin error', errs.length===0);
+ console.log(R.map(r=>(r[1]?'✅ ':'❌ ')+r[0]).join('\n')); console.log('errores', errs.slice(0,3));
+ console.log('RESULTADO', R.filter(r=>r[1]).length, 'bien', R.filter(r=>!r[1]).length, 'mal'); await b.close(); })();
