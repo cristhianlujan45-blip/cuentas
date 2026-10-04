@@ -60,6 +60,7 @@ public class VentoApp extends Application {
     boolean vozPendiente = false;
     private TextToSpeech tts;
     private boolean ttsListo = false;
+    private boolean vozMuda = false;
 
     @Override
     public void onCreate() {
@@ -94,6 +95,10 @@ public class VentoApp extends Application {
         web.addJavascriptInterface(app.new Puente(), "VentoAndroid");
         web.setWebViewClient(new Clientes.Navegacion());
         web.setWebChromeClient(new Clientes.Cromo());
+        // De fondo, Android baja la prioridad de la página y a veces la cierra: así sigue como «importante».
+        if (Build.VERSION.SDK_INT >= 26) {
+            try { web.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false); } catch (Exception ignorado) { }
+        }
         web.loadUrl(URL_VENTO);
         return web;
     }
@@ -753,6 +758,49 @@ public class VentoApp extends Application {
                 getSharedPreferences("vento", MODE_PRIVATE).edit().putBoolean("fondo", si).apply();
                 if (si) VentoServicio.arrancar(VentoApp.this);
                 else VentoServicio.detener(VentoApp.this);
+            });
+        }
+
+        /** Permisos del celular: estado ({microfono, camara, avisos, bateria, fondo}) y pedirlos otra vez. */
+        @JavascriptInterface
+        public String permisos() {
+            try {
+                JSONObject o = new JSONObject();
+                o.put("microfono", tiene(Manifest.permission.RECORD_AUDIO));
+                o.put("camara", tiene(Manifest.permission.CAMERA));
+                o.put("avisos", Build.VERSION.SDK_INT < 33 || tiene(Manifest.permission.POST_NOTIFICATIONS));
+                boolean bat = true;
+                if (Build.VERSION.SDK_INT >= 23) {
+                    android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
+                    bat = pm != null && pm.isIgnoringBatteryOptimizations(getPackageName());
+                }
+                o.put("bateria", bat);
+                o.put("fondo", VentoServicio.activo);
+                return o.toString();
+            } catch (Exception e) { return "{}"; }
+        }
+
+        @JavascriptInterface
+        public void pedirPermisos() {
+            ui.post(() -> {
+                if (ventana == null) return;
+                if (!ventana.pedirPermisosInicio(true)) ventana.pedirSinAhorroBateria(true);
+            });
+        }
+
+        /** «Hola Vento»: mientras escucha sola, se silencia el pitido que hace Android cada vez que abre el micrófono. */
+        @JavascriptInterface
+        public void vozSilencio(final boolean si) {
+            ui.post(() -> {
+                try {
+                    android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+                    if (am == null || Build.VERSION.SDK_INT < 23) return;
+                    if (si == vozMuda) return;
+                    vozMuda = si;
+                    int d = si ? android.media.AudioManager.ADJUST_MUTE : android.media.AudioManager.ADJUST_UNMUTE;
+                    am.adjustStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, d, 0);
+                    am.adjustStreamVolume(android.media.AudioManager.STREAM_SYSTEM, d, 0);
+                } catch (Exception ignorado) { }
             });
         }
 

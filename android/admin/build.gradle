@@ -1,0 +1,48 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Vento Admin: la app del proveedor (abre admin.html). Misma firma y mismo número de versión que Vento.
+def codigo = (System.getenv('VENTO_VERSION_CODE') ?: '1') as int
+def nombre = System.getenv('VENTO_VERSION_NAME') ?: '1.0'
+
+android {
+    namespace 'co.vento.admin'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'co.vento.admin'
+        minSdk 24
+        targetSdk 34
+        versionCode codigo
+        versionName nombre
+    }
+
+    signingConfigs {
+        release {
+            storeFile file('../vento-apk.jks')
+            storePassword System.getenv('VENTO_KS_PASS') ?: 'vento-apk-2026'
+            keyAlias 'vento'
+            keyPassword System.getenv('VENTO_KS_PASS') ?: 'vento-apk-2026'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            signingConfig signingConfigs.release
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

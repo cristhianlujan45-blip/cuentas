@@ -271,7 +271,8 @@
         <a class="b" href="index.html" target="_blank" rel="noopener">📱 Abrir Vento</a>
         <a class="b" href="https://github.com/cristhianlujan45-blip/cuentas/actions" target="_blank" rel="noopener">⚙️ GitHub Actions</a>
         <a class="b" href="https://github.com/cristhianlujan45-blip/cuentas/settings/secrets/actions" target="_blank" rel="noopener">🔑 Secretos (GEMINI_API_KEY)</a>
-        <a class="b" href="https://github.com/cristhianlujan45-blip/cuentas/releases/latest/download/vento.apk" target="_blank" rel="noopener">⬇️ APK</a>
+        <a class="b" href="https://github.com/cristhianlujan45-blip/cuentas/releases/latest/download/vento.apk" target="_blank" rel="noopener">⬇️ APK de Vento</a>
+        <a class="b" href="https://github.com/cristhianlujan45-blip/cuentas/releases/latest/download/vento-admin.apk" target="_blank" rel="noopener">👑 APK de Vento Admin</a>
         <a class="b" href="https://supabase.com/dashboard" target="_blank" rel="noopener">☁️ Supabase</a>
       </div>
     </div>
@@ -401,7 +402,7 @@
       <div><label for="plPre">Precio mensual</label><input id="plPre" type="number" min="0" step="100"></div>
       <div><label for="plSed">Sedes adicionales incluidas</label><input id="plSed" type="number" min="0" max="50" value="0"></div>
     </div>
-    <label for="plDesc">Qué incluye (lo ven los clientes)</label><textarea id="plDesc" placeholder="Mesas ilimitadas, inventario, Laya IA, música en el TV…"></textarea>
+    <label for="plDesc">Qué incluye (lo ven los clientes)</label><textarea id="plDesc" placeholder="Mesas ilimitadas, inventario, Vento IA, música en el TV…"></textarea>
     <label for="plLink">Link de pago con tarjeta / PSE / Nequi (Wompi, Mercado Pago, PayU…)</label><input id="plLink" type="url" placeholder="https://checkout.wompi.co/l/…">
     <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="plPub" style="width:auto" checked>Mostrar este plan en la app (al pagar o renovar)</label>
     <div class="row"><button class="b p" id="plGuardar" type="button">💾 Guardar</button><button class="b bad" id="plBorrar" type="button">🗑 Borrar</button></div>
@@ -742,7 +743,7 @@
   $('tabs').addEventListener('click', e => { const b = e.target.closest('button[data-t="equipo"]'); if(b && $('aToken').value.trim()) eqCargar(); });
 
   // ---------------- Respaldo ----------------
-  function bajar(nombre, texto, tipo){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([texto], { type: tipo || 'application/json' })); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+  function bajar(nombre, texto, tipo){ if(window.VentoAdmin && typeof texto === 'string'){ try{ window.VentoAdmin.guardar(nombre, tipo || 'application/json', texto); return; }catch(e){} } const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([texto], { type: tipo || 'application/json' })); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
   $('dBajar').onclick = () => { let h = []; try{ h = JSON.parse(localStorage.getItem(HIST_LS) || '[]'); }catch(e){} bajar('vento-admin-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify({ tipo: 'vento-admin', db, licencias: h, config: cfgLeerForm() }, null, 2)); db.respaldo = Date.now(); guardar(); };
   $('dSubir').onclick = () => $('dArchivo').click();
   $('dArchivo').onchange = async function(){

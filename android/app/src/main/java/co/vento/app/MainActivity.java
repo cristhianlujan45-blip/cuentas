@@ -32,6 +32,7 @@ public class MainActivity extends Activity {
     private static final int RC_PERM_WEB = 22;
     private static final int RC_PERM_ARCHIVO = 23;
     private static final int RC_PERM_AVISOS = 24;
+    private static final int RC_PERM_INICIO = 25;
 
     private WebView web;
     private ValueCallback<Uri[]> archivoCb;
@@ -53,11 +54,49 @@ public class MainActivity extends Activity {
         abrirEnlace(getIntent());
 
         // Trabajar de fondo: prendido por defecto (se puede apagar desde Vento).
-        if (getSharedPreferences("vento", MODE_PRIVATE).getBoolean("fondo", true)) {
-            pedirPermisoAvisos();
-            VentoServicio.arrancar(this);
-            pedirSinAhorroBateria(false);
+        if (getSharedPreferences("vento", MODE_PRIVATE).getBoolean("fondo", true)) VentoServicio.arrancar(this);
+        // Primera vez: pide de una vez todo lo que Vento usa (micrófono para «Hola Vento» y los pedidos por voz,
+        // cámara para facturas y códigos, avisos para los pedidos). Después, lo de la batería.
+        if (!pedirPermisosInicio(false)) pedirSinAhorroBateria(false);
+    }
+
+    /** Los permisos que Vento necesita y todavía no tiene. */
+    static ArrayList<String> permisosFaltantes() {
+        ArrayList<String> f = new ArrayList<>();
+        if (!VentoApp.tiene(Manifest.permission.RECORD_AUDIO)) f.add(Manifest.permission.RECORD_AUDIO);
+        if (!VentoApp.tiene(Manifest.permission.CAMERA)) f.add(Manifest.permission.CAMERA);
+        if (Build.VERSION.SDK_INT >= 33 && !VentoApp.tiene(Manifest.permission.POST_NOTIFICATIONS)) f.add(Manifest.permission.POST_NOTIFICATIONS);
+        return f;
+    }
+
+    /** Pide los permisos que falten (la primera vez sola; luego, cuando se toca en Vento). Devuelve true si preguntó. */
+    boolean pedirPermisosInicio(boolean siempre) {
+        if (Build.VERSION.SDK_INT < 23) return false;
+        android.content.SharedPreferences p = getSharedPreferences("vento", MODE_PRIVATE);
+        ArrayList<String> faltan = permisosFaltantes();
+        if (faltan.isEmpty()) return false;
+        if (!siempre && p.getBoolean("permisosPedidos", false)) return false;
+        boolean yaPreguntado = p.getBoolean("permisosPedidos", false);
+        p.edit().putBoolean("permisosPedidos", true).apply();
+        // Si Android ya no deja volver a preguntar («no volver a preguntar»), se abren los ajustes de la app.
+        boolean bloqueado = yaPreguntado;
+        for (String x : faltan) if (shouldShowRequestPermissionRationale(x)) bloqueado = false;
+        if (siempre && bloqueado) {
+            try {
+                startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName())));
+                VentoApp.aviso("Toca «Permisos» y activa Micrófono, Cámara y Notificaciones para Vento.");
+            } catch (Exception ignorado) { }
+            return true;
         }
+        requestPermissions(faltan.toArray(new String[0]), RC_PERM_INICIO);
+        return true;
+    }
+
+    /** Pone una página nueva en la ventana (cuando Android cerró la anterior). */
+    void mostrar(WebView w) {
+        web = w;
+        if (w.getParent() instanceof ViewGroup) ((ViewGroup) w.getParent()).removeView(w);
+        setContentView(w);
     }
 
     @Override
@@ -248,6 +287,10 @@ public class MainActivity extends Activity {
             permisoWeb = null;
         } else if (rc == RC_PERM_ARCHIVO) {
             abrirSelector();
+        } else if (rc == RC_PERM_INICIO) {
+            if (VentoApp.tiene(Manifest.permission.RECORD_AUDIO)) VentoApp.app.prepararVoz();
+            VentoApp.js("try{window.ventoPermisosCambio&&window.ventoPermisosCambio();window.ventoHola&&window.ventoHola.arrancar()}catch(e){}");
+            pedirSinAhorroBateria(false);
         } else if (rc == RC_PERM_VOZ) {
             if (ok && VentoApp.app.vozPendiente) VentoApp.app.iniciarVoz();
             else VentoApp.app.vozNegada();

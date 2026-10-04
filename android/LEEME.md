@@ -7,11 +7,23 @@ mejora de Vento le llega sola, sin reinstalar. Le suma lo que un navegador no de
 |---|---|
 | **Todos los TV del wifi** (LG webOS, Samsung, TV Box, Android TV, Fire TV, Chromecast) | Búsqueda SSDP/DIAL en la red local, la misma que usa la app de YouTube (`BuscadorTV.java`) |
 | **Conectar sin escribir códigos** | Abre YouTube en el TV por DIAL con un código de vinculación (`pairingCode`) y Vento se vincula con ese código (sistema «Vincular con código de TV») |
-| Micrófono (dictado) y voz de Laya | Reconocedor de voz y lectura en voz alta de Android (puente `window.VentoAndroid`) |
+| Micrófono (dictado), «Hola Vento» manos libres y voz de Vento | Reconocedor de voz y lectura en voz alta de Android (puente `window.VentoAndroid`) |
 | Cámara y galería (facturas) | Selector de archivos nativo con cámara |
 | Respaldos y reportes | Se guardan en Descargas/Vento |
 | Botón Atrás | Cierra la ventana abierta de Vento |
 | Pantalla encendida | Mientras Vento está abierta |
+
+## Permisos
+
+La primera vez que se abre, Vento pide de una vez micrófono, cámara y avisos, y luego quitar el ahorro de batería.
+En Música → «🔐 Permisos del celular» se ve qué falta y se puede pedir otra vez (si Android ya no deja preguntar, abre los ajustes de la app).
+Si Android cierra la página de fondo por memoria, Vento la vuelve a abrir sola (antes se cerraba la app).
+
+## Vento Admin (APK del proveedor)
+
+Carpeta `admin/`: abre el panel de administración (admin.html), que sigue pidiendo el código personal.
+Guarda respaldos y CSV en Descargas/Vento. Descarga:
+https://github.com/cristhianlujan45-blip/cuentas/releases/latest/download/vento-admin.apk
 
 ## Descargar
 

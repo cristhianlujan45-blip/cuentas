@@ -10,7 +10,7 @@
 <script>
 /* ---------- Vento para Android (APK) ----------
    Dentro de la app instalada (window.VentoAndroid) se usan los servicios del celular para lo que el
-   navegador de una app no trae: dictado por voz, voz de Laya, guardar archivos y el botón Atrás.
+   navegador de una app no trae: dictado por voz, voz de Vento, guardar archivos y el botón Atrás.
    Fuera de la app no se toca nada. */
 (function(){
   var A = window.VentoAndroid; if(!A) return;
@@ -20,10 +20,14 @@
   function SR(){ this.lang = 'es-CO'; this.continuous = false; this.interimResults = false; this.maxAlternatives = 1; this.onresult = this.onerror = this.onend = this.onstart = null; this._fin = []; }
   SR.prototype.start = function(){ if(activo && activo !== this){ try{ activo._vivo = false; }catch(e){} } activo = this; this._fin = []; this._vivo = true; A.vozIniciar(this.lang || 'es-CO', !!this.interimResults, !!this.continuous); };
   SR.prototype.stop = function(){ try{ A.vozParar(); }catch(e){} };
-  SR.prototype.abort = function(){ try{ A.vozCancelar(); }catch(e){} };
+  // Cancelar: el aviso de «terminé» que manda Android después es de ESTA escucha; si llegara a la siguiente
+  // (p. ej. «Hola Vento» suelta el micrófono y enseguida se toca el botón) la cortaría. Se descarta.
+  var finesIgnorar = 0;
+  SR.prototype.abort = function(){ var me = this; if(activo !== me) return; activo = null; me._vivo = false; finesIgnorar++; try{ A.vozCancelar(); }catch(e){ finesIgnorar--; } setTimeout(function(){ me.onend && me.onend({}); }, 0); };
   SR.prototype.addEventListener = function(t, f){ this['on' + t] = f; };
   function lista(arr){ arr.item = function(i){ return this[i]; }; return arr; }
   window.__ventoVoz = function(tipo, d){
+    if(tipo === 'end' && finesIgnorar > 0){ finesIgnorar--; return; }
     var r = activo; if(!r) return;
     if(tipo === 'start'){ r.onstart && r.onstart({}); return; }
     if(tipo === 'result'){
@@ -40,7 +44,7 @@
   window.SpeechRecognition = window.webkitSpeechRecognition = SR;
   // El reconocedor queda listo desde que abre la app: así la PRIMERA vez que se toca el micrófono ya escucha.
   try{ if(A.vozPreparar){ A.vozPreparar(); document.addEventListener('visibilitychange', function(){ if(!document.hidden) try{ A.vozPreparar(); }catch(e){} }); } }catch(e){}
-  // Voz de Laya (leer en voz alta)
+  // Voz de Vento (leer en voz alta)
   if(!('speechSynthesis' in window) || !window.speechSynthesis || !window.speechSynthesis.speak){
     var hablando = null;
     window.SpeechSynthesisUtterance = window.SpeechSynthesisUtterance || function(t){ this.text = t || ''; this.lang = 'es-CO'; this.rate = 1; this.onend = this.onstart = this.onerror = null; };
@@ -79,7 +83,7 @@
 <meta http-equiv="Expires" content="0">
 <script>
 /* Registro de errores (va primero para no perder los que pasen al abrir la app).
-   Cada error queda con un código corto (ej. E-1K9Z) en localStorage; Laya los lee,
+   Cada error queda con un código corto (ej. E-1K9Z) en localStorage; Vento los lee,
    los explica y aplica las reparaciones automáticas (ver mesoraReparar). */
 (function(){
   var K = 'vito_errlog';
@@ -569,6 +573,10 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
     #overlay .modal{ max-width: 600px; }
     .grid{ grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 18px; }
   }
+  /* «Hola Vento»: puntico verde en el micrófono mientras escucha; brillo cuando está atenta a una orden */
+  #voiceFabWrap.hola-on .voice-fab{ position:relative; }
+  #voiceFabWrap.hola-on .voice-fab::after{ content:''; position:absolute; bottom:2px; right:2px; width:11px; height:11px; border-radius:50%; background:#34d399; box-shadow:0 0 0 2px var(--bg, #0f0f16); pointer-events:none; }
+  #voiceFabWrap.hola-atento .voice-fab{ box-shadow:0 0 0 4px rgba(52,211,153,.55), 0 0 22px rgba(52,211,153,.6); }
   :is(button, a, input, select, textarea, [tabindex]):focus-visible{ outline: 3px solid var(--amber, #a78bfa); outline-offset: 2px; }
 
   /* Header */
@@ -2623,7 +2631,7 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   .asis-go.rec{background:#e5484d;color:#fff;animation:asisPulse 1.2s infinite}
   @keyframes asisPulse{0%{box-shadow:0 0 0 0 rgba(229,72,77,.5)}70%{box-shadow:0 0 0 14px rgba(229,72,77,0)}100%{box-shadow:0 0 0 0 rgba(229,72,77,0)}}
 
-  /* ---------- Laya: el avatar de la IA ----------
+  /* ---------- Vento: el avatar de la IA ----------
      Un personaje sencillo (SVG) que toma los colores del diseño elegido.
      Parpadea en reposo, mira hacia arriba cuando está pensando, se le
      prende la antena en rojo cuando escucha y mueve la boca cuando habla. */
@@ -3108,7 +3116,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
         <div class="live-clock" id="liveClock"><span class="lc-time" id="lcTime">--:--</span><span class="lc-date" id="lcDate">—</span></div>
         <div class="top-actions-row" id="topActionsRow">
           <button type="button" class="top-pill top-salir" id="topSalirBtn" title="Cerrar sesión" onclick="cerrarSesion()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg><span>Salir</span></button>
-          <button type="button" class="top-pill" id="asisFab" title="Laya, tu asistente IA: pregúntale lo que necesites sobre tu negocio"><i class="mesi-wrap" data-mesi="live"></i><span>IA</span></button>
+          <button type="button" class="top-pill" id="asisFab" title="Vento, tu asistente IA: pregúntale lo que necesites sobre tu negocio"><i class="mesi-wrap" data-mesi="live"></i><span>IA</span></button>
         </div>
       </div>
     </div>
@@ -3183,7 +3191,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
         <button type="button" class="btn-camera cam-big" id="scanCodeAddBtn" title="Apunta la cámara al código de barras o QR de un producto"><span class="cam-ic">🔳</span><span class="cam-tx"><strong>Código de barras</strong><small>Apunta al código o QR del producto para buscarlo o crearlo.</small></span></button>
         <button type="button" class="btn-camera cam-big" id="voiceProductBtn" title="Agregar producto diciendo nombre y precio"><span class="cam-ic">🎤</span><span class="cam-tx"><strong>Por voz <em class="cam-ia">IA</em></strong><small>Di el nombre y el precio: «Club Colombia a cinco mil».</small></span></button>
       </div>
-      <button type="button" class="btn-ghost cam-config" id="aiConfigBtn" title="Configurar la IA (Gemini gratis u OpenAI) para reconocer productos y entender mejor la voz">⚙️ Configurar IA</button>
+      <button type="button" class="btn-ghost cam-config" id="aiConfigBtn" title="Configurar la IA de Vento para reconocer productos y entender mejor la voz">⚙️ Configurar IA</button>
       <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
       <input type="text" id="prodName" placeholder="Nombre del producto (ej. Cerveza artesanal 330ml)">
       <input type="text" id="prodSize" placeholder="Tamaño / presentación (ej. 330 ml)" autocomplete="off">
@@ -3374,6 +3382,8 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       </div>
       <a class="btn-ghost" id="tvApk" hidden href="https://github.com/cristhianlujan45-blip/cuentas/releases/latest/download/vento.apk" style="text-align:center;margin:8px 0;padding:11px;border-radius:12px;text-decoration:none">📲 ¿Tu TV no sale? Instala la app Vento para Android: encuentra TODOS los TV del wifi (LG, Samsung, TV Box, Fire TV…)</a>
       <div class="settings-row" id="apkFondoFila" hidden><div class="settings-row-text"><strong>🔋 Trabajar con la app cerrada</strong><span id="apkFondoTxt">Pedidos y música siguen funcionando aunque cierres la app o apagues la pantalla.</span></div><label class="switch"><input type="checkbox" id="apkFondo"><span class="switch-slider"></span></label></div>
+      <button class="btn-ghost" id="apkPermisos" type="button" hidden style="width:100%;margin:4px 0 4px">🔐 Permisos del celular</button>
+      <div id="apkPermisosTxt" class="settings-desc" hidden style="margin:0 0 6px;font-size:12.5px"></div>
       <button class="btn-ghost" id="apkBateria" type="button" hidden style="width:100%;margin:4px 0 8px">⚡ Quitar el ahorro de batería para Vento</button>
       <button class="btn-ghost" id="apkInicio" type="button" hidden style="width:100%;margin:0 0 8px">🚀 Permitir que Vento arranque sola (Xiaomi, Huawei, Oppo, Vivo…)</button>
       <button class="btn-ghost" id="apkProbarAviso" type="button" hidden style="width:100%;margin:0 0 8px">🔔 Probar el aviso con sonido</button>
@@ -3512,7 +3522,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
         <select id="accType" hidden></select><div id="accTypePick"></div>
         <div id="accTipoGuia" class="tp-guia" data-novocab></div>
         <div class="settings-row" data-novocab style="flex-direction:column;align-items:stretch;gap:6px">
-          <div class="settings-row-text"><strong>¿Cómo se llaman tus unidades de atención?</strong><span>Lo que atiendes: mesas, sillas, cabinas, habitaciones, salas, puestos… Se usa en toda la app, en los avisos, el QR, la preparación y Laya. Puedes escribir el que quieras (ej. «Puesto VIP»).</span></div>
+          <div class="settings-row-text"><strong>¿Cómo se llaman tus unidades de atención?</strong><span>Lo que atiendes: mesas, sillas, cabinas, habitaciones, salas, puestos… Se usa en toda la app, en los avisos, el QR, la preparación y Vento. Puedes escribir el que quieras (ej. «Puesto VIP»).</span></div>
           <select id="unidadSel" class="mz-in"></select>
           <div id="unidadOtro" hidden style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><input id="unidadSg" class="mz-in" maxlength="24" placeholder="Singular (ej. Puesto VIP)"><input id="unidadPl" class="mz-in" maxlength="26" placeholder="Plural (ej. Puestos VIP)"></div>
         </div>
@@ -3555,7 +3565,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
 
     <div class="settings-group" hidden data-cat="voz">
       <h2>🗣️ Voz de la app</h2>
-      <div class="settings-desc">La voz con la que habla Laya y anuncia pedidos. Las marcadas con ⭐ son las más naturales de este celular. Si todas suenan robóticas, instala o actualiza «Servicios de voz de Google» y descarga la voz en español de alta calidad (Ajustes del celular → Texto a voz).</div>
+      <div class="settings-desc">La voz con la que habla Vento y anuncia pedidos. Las marcadas con ⭐ son las más naturales de este celular. Si todas suenan robóticas, instala o actualiza «Servicios de voz de Google» y descarga la voz en español de alta calidad (Ajustes del celular → Texto a voz).</div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px">
         <select id="vozSel" class="mz-in"></select>
         <label style="display:flex;align-items:center;gap:8px;font-size:14px">Velocidad <input type="range" id="vozVel" min="0.8" max="1.25" step="0.05" style="flex:1"> <span id="vozVelTxt"></span></label>
@@ -3572,6 +3582,16 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
         </div>
         <label class="switch">
           <input type="checkbox" id="micEnabledToggle" checked>
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-text">
+          <strong>«Hola Vento» (manos libres)</strong>
+          <span>Con la app abierta, di «Hola Vento» y lo que necesites: «Hola Vento, mesa 3 dos Póker», «Oye Vento, ¿cuánto vendí hoy?». Después de cada orden Vento sigue atenta unos segundos, así sigues hablando sin repetir «Hola Vento».</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="holaVentoToggle" checked>
           <span class="switch-slider"></span>
         </label>
       </div>
@@ -3787,7 +3807,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <div class="settings-desc">Donde el personal ve y prepara los pedidos (los del QR y los de los meseros llegan solos). Es opcional: si tu local no la necesita, desactívala y los pedidos igual llegan a la cuenta.</div>
       <div class="settings-row"><div class="settings-row-text"><strong>Pantalla de preparación</strong><span id="prepOnTxt">Activada</span></div><label class="switch"><input type="checkbox" id="prepOn"><span class="switch-slider"></span></label></div>
       <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:6px" id="prepNomRow">
-        <div class="settings-row-text"><strong>¿Cómo se llama en tu local?</strong><span>Se usa en el menú, los títulos, los avisos y en Laya.</span></div>
+        <div class="settings-row-text"><strong>¿Cómo se llama en tu local?</strong><span>Se usa en el menú, los títulos, los avisos y en Vento.</span></div>
         <select id="prepNomSel" class="mz-in"></select>
         <input type="text" id="prepNomOtro" class="mz-in" maxlength="24" placeholder="Escribe el nombre (ej. Zona de Producción)" hidden>
       </div>
@@ -4087,7 +4107,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <button type="button" class="more-tile" data-go="calculadora"><span class="more-ic">🧮</span><strong>Calculadora</strong><small>Con teclado o por voz</small></button>
       <button type="button" class="more-tile" data-go="ajustes"><span class="more-ic">⚙️</span><strong>Ajustes</strong><small>Configura tu negocio</small></button>
       <button type="button" class="more-tile more-tile-salir" data-go="salir"><span class="more-ic">🚪</span><strong>Cerrar sesión</strong><small>Salir o entrar con otro usuario</small></button>
-      <button type="button" class="more-tile more-tile-ia" data-go="ia"><span class="more-ic more-ic-mesi"><i class="mesi-wrap" data-mesi="static" style="width:30px;height:30px"></i></span><strong>Laya (IA)</strong><small>Pregúntale lo que sea</small></button>
+      <button type="button" class="more-tile more-tile-ia" data-go="ia"><span class="more-ic more-ic-mesi"><i class="mesi-wrap" data-mesi="static" style="width:30px;height:30px"></i></span><strong>Vento (IA)</strong><small>Pregúntale lo que sea</small></button>
     </div>
   </div>
 </div>
@@ -4761,7 +4781,7 @@ export default {
   <div class="asis-panel" role="dialog" aria-label="Asistente">
     <div class="asis-head">
       <div class="asis-avatar"><i class="mesi-wrap float" data-mesi="live"></i></div>
-      <div class="asis-titles"><h2>Laya<span class="asis-ia-tag">IA</span></h2><small id="asisStatus">Escríbele o háblale</small></div>
+      <div class="asis-titles"><h2>Vento<span class="asis-ia-tag">IA</span></h2><small id="asisStatus">Escríbele o háblale</small></div>
       <button type="button" class="asis-icon" id="asisSpeakBtn" title="Leer las respuestas en voz alta"></button>
       <button type="button" class="asis-icon" id="asisCloseBtn" title="Cerrar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
@@ -5039,7 +5059,7 @@ async function saveData(){
   }catch(e){
     const cod = window.mesoraLogError ? window.mesoraLogError('guardar', 'No se pudo guardar: ' + (e && (e.name + ' ' + e.message) || e), 'saveData') : '';
     const lleno = e && (e.name === 'QuotaExceededError' || /quota/i.test(e.message || ''));
-    showToast((lleno ? '⚠️ La memoria de la app está llena y no se pudo guardar.' : '⚠️ Error al guardar los datos.') + (cod ? ' (' + cod + ')' : '') + ' Abre Laya y dile "arregla los errores".', 6000);
+    showToast((lleno ? '⚠️ La memoria de la app está llena y no se pudo guardar.' : '⚠️ Error al guardar los datos.') + (cod ? ' (' + cod + ')' : '') + ' Abre Vento y dile "arregla los errores".', 6000);
   }
 }
 
@@ -6544,7 +6564,7 @@ function applyVoiceItems(tableId, items, mode){
 }
 
 let voiceMalePreferred = true;
-/* Voz de la app (Laya, pedidos, avisos): se elige la voz más NATURAL que tenga el celular — las «Google»,
+/* Voz de la app (Vento, pedidos, avisos): se elige la voz más NATURAL que tenga el celular — las «Google»,
    «Natural», «Neural», «Premium/Mejorada» — prefiriendo español de Latinoamérica, y sin bajarle el tono
    (antes se ponía tono 0,82 para que sonara masculina y eso la hacía sonar robótica). Se puede elegir otra
    en Ajustes → Voz. */
@@ -7135,7 +7155,7 @@ function voiceNormalizarHabla(raw){
   if(/^\s*(borra|quita|cancela|elimina)\s+(lo|el)\s+(ultimo|último)\s*$|^\s*(me equivoque|me equivoqué|error|eso no|corrige eso|devuelve|atras|atrás)\s*$/i.test(t)) t = 'deshacer';
   return t;
 }
-// ---------- Más comandos de voz (1.27): inventario, abrir/cobrar mesa, personas, abonos y preguntas a Laya ----------
+// ---------- Más comandos de voz (1.27): inventario, abrir/cobrar mesa, personas, abonos y preguntas a Vento ----------
 function voiceDecir(txt, ms){ const limpio = String(txt || '').replace(/[•🧠📦🧾🛒🧮💰🆕🚫⚠️📈📉🏭🛎️🍳🎵✅🔎🔗⏭▶🗑👤💵📲📝↩️🔁]/gu, ' ').replace(/\s+/g, ' ').trim();
   showToast(String(txt).split('\n').slice(0, 5).join(' · '), ms || 8000); speakVoice(limpio.slice(0, 320)); }
 function voiceEsPregunta(raw){
@@ -7194,7 +7214,7 @@ function voiceExtras(raw){
   }
   return false;
 }
-// Preguntas por el micrófono: las responde Laya con los datos reales (sin internet) y las dice en voz alta.
+// Preguntas por el micrófono: las responde Vento con los datos reales (sin internet) y las dice en voz alta.
 function voicePreguntaLaya(raw){
   let r = null;
   try{ r = window.Laya && window.Laya.responder(raw); }catch(e){}
@@ -7212,12 +7232,12 @@ async function handleVoiceTranscript(rawText){
   if(typeof subPuedeVender === 'function' && !subPuedeVender()){ subPaywall('Para seguir usando la voz y hacer ventas, renueva tu suscripción.'); return; }
   rawText = voiceNormalizarHabla(rawText);
   try{
-    // «Laya, ¿qué hay en la barra?» dicho en el micrófono de pedidos: lo responde Laya (y lo dice en voz alta).
-    if(/^\s*(oye\s+|hola\s+)?laya\b/i.test(rawText) && !window.__pedidoOrigen){
+    // «Vento, ¿qué hay en la barra?» dicho en el micrófono de pedidos: lo responde Vento (y lo dice en voz alta).
+    if(/^\s*((oye|hola|ok|okey|ey|hey)[\s,]+)?(laya|vento|bento)\b/i.test(rawText) && !window.__pedidoOrigen){
       let ly = null; try{ ly = window.Laya && window.Laya.responder(rawText); }catch(e){}
       if(ly){ showToast('🧠 ' + ly.text.split('\n').slice(0, 4).join(' · '), 9000); speakVoice(ly.text.replace(/[•🧠📦🧾🛒🧮💰🆕🚫⚠️📈📉🏭🛎️🍳🎵✅🔎🔗⏭▶🗑]/gu, ' ').slice(0, 400)); if(ly.actions && ly.actions.length || ly.run){ asisOpen(); asisAsk(rawText); } return; }
-      // No es una pregunta para Laya: se quita su nombre y la frase sigue como un pedido o comando de voz normal.
-      rawText = rawText.replace(/^\s*(oye\s+|hola\s+)?laya\b[\s,]*/i, '');
+      // No es una pregunta para Vento: se quita su nombre y la frase sigue como un pedido o comando de voz normal.
+      rawText = rawText.replace(/^\s*((oye|hola|ok|okey|ey|hey)[\s,]+)?(laya|vento|bento)\b[\s,]*/i, '');
       if(!rawText.trim()) return;
     }
     if(isVoiceHelpCommand(rawText)){ voiceAyuda(); return; }
@@ -7573,6 +7593,7 @@ function startVoiceCommand(conIA){
     return;
   }
   if(voiceListening) return;
+  try{ window.ventoHola && window.ventoHola.soltar(); }catch(e){}
   try{
     voiceListening = true;
     voiceFinalBuffer = ''; voiceInterim = '';
@@ -7591,9 +7612,102 @@ function stopVoiceCommand(){
   try{ if(voiceRecognizer && voiceListening) voiceRecognizer.stop(); }catch(e){}
 }
 
+/* ---------- Manos libres: «Hola Vento» ----------
+   Con la app abierta, Vento escucha sola: al oír «Hola Vento» (u «Oye Vento», «Vento, …») hace lo que se le
+   pide, igual que el botón del micrófono. Después de cada orden sigue atenta unos segundos, así se puede seguir
+   hablando sin repetir «Hola Vento». Se pausa mientras Vento habla, mientras se usa el botón del micrófono, con la
+   pantalla de entrada abierta o la app en segundo plano. Se prende y apaga en Ajustes (o diciendo «Vento, deja de escuchar»). */
+(function(){
+  const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const KEY = 'vento-hola', ATENTO_MS = 9000;
+  // Con saludo («hola/oye … vento») se aceptan los errores típicos del reconocedor; sin saludo solo «Vento»/«Bento» al inicio.
+  const WAKE = /^\s*(?:(?:hola|oye|ok|okey|ey|hey|ay)[\s,]+(?:vento|bento|viento|ventó|bentó|evento)|vento|bento)\b[\s,.:;!¡¿?-]*/i;
+  let rec = null, corriendo = false, desde = 0, hechos = 0, atentoHasta = 0, fallos = 0, timer = null, gesto = !!window.VentoAndroid, ocupado = false;
+  const prendido = () => { try{ return localStorage.getItem(KEY) !== '0'; }catch(e){ return true; } };
+  const A = window.VentoAndroid;
+  function silencio(si){ try{ A && A.vozSilencio && A.vozSilencio(!!si); }catch(e){} }
+  function puede(){
+    if(!Ctor || !prendido() || !gesto || ocupado || document.hidden) return false;
+    if(typeof micEnabled !== 'undefined' && !micEnabled) return false;
+    if(typeof voiceListening !== 'undefined' && voiceListening) return false;
+    try{ if(window.speechSynthesis && window.speechSynthesis.speaking) return false; }catch(e){}
+    try{ if(typeof authUser !== 'undefined' && !authUser) return false; }catch(e){}
+    const au = document.getElementById('authOverlay'); if(au && !au.hidden) return false;
+    try{ if(!data || !data.products || !data.products.length) return false; }catch(e){ return false; }
+    return true;
+  }
+  function pintar(){
+    const w = document.getElementById('voiceFabWrap'); if(!w) return;
+    w.classList.toggle('hola-on', prendido() && !!Ctor);
+    w.classList.toggle('hola-atento', Date.now() < atentoHasta);
+    const t = document.getElementById('holaVentoToggle'); if(t) t.checked = prendido();
+  }
+  function tono(){
+    try{ navigator.vibrate && navigator.vibrate([30, 40, 30]); }catch(e){}
+    try{ const C = window.AudioContext || window.webkitAudioContext; if(!C) return; const c = tono.c || (tono.c = new C()); const o = c.createOscillator(), g = c.createGain();
+      o.frequency.setValueAtTime(660, c.currentTime); o.frequency.linearRampToValueAtTime(990, c.currentTime + 0.12); g.gain.setValueAtTime(0.08, c.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.22);
+      o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + 0.24); }catch(e){}
+  }
+  function crear(){
+    const r = new Ctor(); r.lang = 'es-CO'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 5;
+    r.onstart = () => { fallos = 0; };
+    r.onresult = (e) => {
+      for(let i = hechos; i < e.results.length; i++){
+        const res = e.results[i]; if(!res || !res.isFinal) continue;
+        hechos = i + 1; oir(res);
+      }
+    };
+    r.onerror = (e) => {
+      const er = e && e.error;
+      if(er === 'not-allowed' || er === 'service-not-allowed'){ apagar(); showToast('🎙️ Para usar «Hola Vento» permite el micrófono y vuelve a prenderlo en ⚙️ Ajustes.', 6000); return; }
+      if(er !== 'no-speech' && er !== 'aborted') fallos++;
+    };
+    r.onend = () => { corriendo = false; silencio(false); seguir(fallos > 3 ? 5000 : 300); };
+    return r;
+  }
+  function seguir(ms){ clearTimeout(timer); timer = setTimeout(arrancar, ms); }
+  function arrancar(){
+    clearTimeout(timer); pintar();
+    if(!prendido()) return;
+    if(corriendo && Date.now() - desde > 70000){ corriendo = false; try{ rec && rec.abort(); }catch(e){} }  // perro guardián
+    if(corriendo) return;
+    if(!puede()){ seguir(1500); return; }
+    rec = rec || crear(); hechos = 0; corriendo = true; desde = Date.now(); silencio(true);
+    try{ rec.start(); }catch(e){ corriendo = false; silencio(false); seguir(2000); }
+  }
+  function soltar(){ clearTimeout(timer); if(corriendo){ corriendo = false; try{ rec && rec.abort(); }catch(e){} } silencio(false); }
+  function oir(res){
+    const alts = []; for(let k = 0; k < res.length; k++) alts.push(String(res[k].transcript || ''));
+    let cmd = null;
+    for(const a of alts){ const m = a.match(WAKE); if(m){ cmd = a.slice(m[0].length).trim(); break; } }
+    if(cmd === null){
+      if(Date.now() >= atentoHasta) return;                      // conversación de fondo: no es para Vento
+      cmd = (typeof pickBestVoiceAlternative === 'function' ? pickBestVoiceAlternative(res) : alts[0]).trim();
+      if(!cmd) return;
+    }
+    atentoHasta = Date.now() + ATENTO_MS; pintar(); setTimeout(pintar, ATENTO_MS + 50);
+    if(!cmd){ tono(); showToast('🟣 Te escucho…', 2500); return; }
+    if(/\b(deja de escuchar|apaga(te)? (el )?(manos libres|hola vento)|desactiva(te)? (el )?(manos libres|hola vento)|no escuches)\b/i.test(cmd)){ apagar(); showToast('🔕 «Hola Vento» apagado. Préndelo en ⚙️ Ajustes cuando quieras.', 5000); return; }
+    // Se suelta el micrófono mientras se hace la orden (y mientras Vento responde en voz alta), luego vuelve a escuchar.
+    ocupado = true; soltar();
+    Promise.resolve().then(() => handleVoiceTranscript(cmd)).catch(() => {}).then(() => {
+      setTimeout(() => { ocupado = false; atentoHasta = Date.now() + ATENTO_MS; pintar(); setTimeout(pintar, ATENTO_MS + 50); arrancar(); }, 500);
+    });
+  }
+  function prender(){ try{ localStorage.setItem(KEY, '1'); }catch(e){} gesto = true; arrancar(); }
+  function apagar(){ try{ localStorage.setItem(KEY, '0'); }catch(e){} soltar(); atentoHasta = 0; pintar(); }
+  window.ventoHola = { prender, apagar, soltar, arrancar, activo: prendido, estado: () => ({ prendido: prendido(), corriendo, atento: Date.now() < atentoHasta }) };
+  if(!Ctor) return;
+  // En el navegador el micrófono solo se puede abrir después de tocar la pantalla una vez.
+  ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { if(!gesto){ gesto = true; seguir(400); } }, { capture: true, passive: true }));
+  document.addEventListener('visibilitychange', () => { if(document.hidden) soltar(); else seguir(500); });
+  setTimeout(() => { pintar(); arrancar(); }, 2500);
+})();
+
 const voiceFabWrap = document.getElementById('voiceFabWrap');
 const voiceFabTab = document.getElementById('voiceFabTab');
 const micEnabledToggle = document.getElementById('micEnabledToggle');
+(function(){ const t = document.getElementById('holaVentoToggle'); if(!t) return; try{ t.checked = localStorage.getItem('vento-hola') !== '0'; }catch(e){} t.addEventListener('change', () => { if(!window.ventoHola) return; if(t.checked){ window.ventoHola.prender(); showToast('🟣 «Hola Vento» prendido: di «Hola Vento» y tu pedido.', 5000); } else window.ventoHola.apagar(); }); })();
 if('speechSynthesis' in window){ window.speechSynthesis.onvoiceschanged = () => {}; }
 let micEnabled = true;
 let voiceFabWasHidden = false; // hidden state via the ✕ button, remembered while mic is disabled from settings
@@ -9947,9 +10061,9 @@ function geminiErrorFromResponse(status, raw){
   let err;
   if(status === 429 || statusText === 'RESOURCE_EXHAUSTED'){
     if(perDay || /per day|daily|per_day/i.test(msg)){
-      err = new OpenAIError('daily', 'Se acabó la cuota diaria gratis de Gemini para este modelo (se renueva cada día). Prueba otro modelo en ⚙️ Configurar IA o activa la facturación en Google AI Studio. (' + msg + ')', status);
+      err = new OpenAIError('daily', 'Se acabó la cuota diaria de la IA para este modelo (se renueva cada día). Prueba otro modelo en ⚙️ Configurar IA o activa la facturación en Google AI Studio. (' + msg + ')', status);
     } else {
-      err = new OpenAIError('rate', 'Gemini pidió esperar un momento (límite por minuto del plan gratis). (' + msg + ')', status);
+      err = new OpenAIError('rate', 'La IA pidió esperar un momento (límite por minuto del plan gratis). (' + msg + ')', status);
     }
   } else if((status === 400 || status === 401 || status === 403) && /API key not valid|API_KEY_INVALID|API key expired|API key was reported|invalid api key/i.test(msg + ' ' + JSON.stringify(details))){
     err = new OpenAIError('auth', 'La API key de Gemini no es válida o fue desactivada. Créala de nuevo en aistudio.google.com/apikey y pégala en ⚙️ Configurar IA.', status);
@@ -9960,9 +10074,9 @@ function geminiErrorFromResponse(status, raw){
   } else if(status === 413){
     err = new OpenAIError('bad', 'La foto es demasiado grande para enviarla. (' + msg + ')', status);
   } else if(status >= 500){
-    err = new OpenAIError('server', 'Gemini está saturado o tuvo un problema temporal (' + status + '). Intenta de nuevo en un momento.', status);
+    err = new OpenAIError('server', 'La IA está saturada o tuvo un problema temporal (' + status + '). Intenta de nuevo en un momento.', status);
   } else {
-    err = new OpenAIError('bad', 'Error de la API de Gemini (' + status + '): ' + msg, status);
+    err = new OpenAIError('bad', 'Error de la IA (' + status + '): ' + msg, status);
   }
   err.retryMs = retryMs;
   return err;
@@ -10002,7 +10116,7 @@ function geminiExtractText(json){
   const c = (json.candidates || [])[0];
   if(!c){
     const br = json.promptFeedback && json.promptFeedback.blockReason;
-    if(br) throw new OpenAIError('bad', 'Gemini bloqueó la solicitud (' + br + ').');
+    if(br) throw new OpenAIError('bad', 'La IA bloqueó la solicitud (' + br + ').');
     return '';
   }
   const parts = (c.content && c.content.parts) || [];
@@ -10064,7 +10178,7 @@ async function geminiGenerate(o){
           }
         } else {
           let json;
-          try{ json = JSON.parse(raw); }catch(x){ throw new OpenAIError('bad', 'Gemini devolvió una respuesta que no se puede leer.'); }
+          try{ json = JSON.parse(raw); }catch(x){ throw new OpenAIError('bad', 'La IA devolvió una respuesta que no se puede leer.'); }
           geminiExtractText(json); // lanza error claro si Google bloqueó la solicitud
           json._model = model; aiLastModel = model;
           if(model !== main && skippedForModel) setGeminiModel(model); // recuerda el que sí existe
@@ -10078,7 +10192,7 @@ async function geminiGenerate(o){
         } else if(timedOut){
           throw new OpenAIError('timeout', 'La IA tardó demasiado en responder. Revisa tu conexión e intenta de nuevo.');
         } else {
-          throw new OpenAIError('network', 'No hay conexión con Gemini (sin internet, bloqueo de red o la app se abrió en un entorno que no permite conexiones externas). Detalle: ' + (e && e.message ? e.message : e));
+          throw new OpenAIError('network', 'No hay conexión con la IA (sin internet, bloqueo de red o la app se abrió en un entorno que no permite conexiones externas). Detalle: ' + (e && e.message ? e.message : e));
         }
       }finally{
         clearTimeout(timer);
@@ -10093,7 +10207,7 @@ async function geminiGenerate(o){
       try{ (await geminiDiscoverModels(key)).forEach(m => { if(!models.includes(m)) models.push(m); }); }catch(x){}
     }
   }
-  throw lastErr || new OpenAIError('model', 'Ningún modelo de Gemini está disponible para tu clave.');
+  throw lastErr || new OpenAIError('model', 'Ningún modelo de IA está disponible para tu clave.');
 }
 
 const AI_LADDER_KINDS = ['bad', 'server', 'timeout', 'network', 'rate', 'daily'];
@@ -10156,7 +10270,7 @@ async function geminiStreamText(o, onDelta){
     if(full) return full.trim();                         // se cortó a la mitad: se usa lo que alcanzó a llegar
     if(e instanceof OpenAIError) throw e;
     if(e && e.name === 'AbortError') throw new OpenAIError('timeout', 'La IA tardó demasiado en responder.');
-    throw new OpenAIError('network', 'No hay conexión con Gemini. Detalle: ' + (e && e.message ? e.message : e));
+    throw new OpenAIError('network', 'No hay conexión con la IA. Detalle: ' + (e && e.message ? e.message : e));
   }finally{
     clearTimeout(timer);
   }
@@ -10554,7 +10668,7 @@ cameraInput.addEventListener('change', async (e)=>{
   }catch(err){
     if(err.message === 'NO_API_KEY'){
       photoStatus.textContent = 'Configura la IA para reconocimiento por foto. También puedes usar el código de barras si tu navegador lo soporta.';
-      showToast('Pulsa “⚙️ Configurar IA” y agrega tu API key (gratis con Gemini).');
+      showToast('Pulsa “⚙️ Configurar IA” y agrega tu API key (o usa la IA de Vento, que ya viene incluida).');
     } else {
       photoStatus.textContent = '❌ ' + (err && err.message ? err.message : 'No se pudo reconocer el producto.') + ' Puedes escribirlo manualmente.';
       console.error(err);
@@ -11968,13 +12082,13 @@ function fiValidar(draft){
   return av;
 }
 
-/* ================= Laya IA =================
-   Motor de decisiones de Laya (github.com/NandhaKishorM/laya): recibe un texto corto y una
+/* ================= Vento IA =================
+   Motor de decisiones de Vento (github.com/NandhaKishorM/laya): recibe un texto corto y una
    pregunta de tipo «choice» con las opciones, y responde la opción elegida con su
    probabilidad calibrada (answer_confidence). Se usa SOLO para desempatar cuando un renglón
    de la factura se parece a varios productos del inventario: lo seguro (códigos,
    equivalencias aprendidas, nombre exacto) se resuelve aquí mismo sin llamar a nadie.
-   Seguridad: la clave de Laya NUNCA está en la app. La app llama al puente
+   Seguridad: la clave de Vento NUNCA está en la app. La app llama al puente
    (puente/laya-worker.js, un Cloudflare Worker gratis) que guarda la clave como secreto del
    servidor y reenvía a POST /v1/systemone. En Ajustes solo se escribe la dirección del puente.
    La IA propone; la app valida (puntaje) y tú confirmas en la revisión. */
@@ -12019,8 +12133,8 @@ const LayaIA = (() => {
   }
   return { disponible, elegir, probar, reset: () => { caido = 0; } };
 })();
-// Desempate con Laya IA solo en los renglones dudosos (varios candidatos o 70-84 %).
-// Si Laya no está o falla, no pasa nada: queda la revisión manual con el aviso.
+// Desempate con Vento IA solo en los renglones dudosos (varios candidatos o 70-84 %).
+// Si Vento no está o falla, no pasa nada: queda la revisión manual con el aviso.
 async function fiDesempatarConIA(items){
   const dudosos = items.filter(it => it.match && it.match.candidatos.length >= 2 && (it.match.nivel === 'varias' || it.match.nivel === 'revisar' || it.match.nivel === 'nuevo')).slice(0, 8);
   if(!dudosos.length) return { usada: false };
@@ -12033,7 +12147,7 @@ async function fiDesempatarConIA(items){
       it.match.ia = r;
       if(r.id && r.confianza >= 0.7){
         const c = it.match.candidatos.find(x => x.id === r.id);
-        if(c){ c.conf = Math.min(94, Math.max(c.conf, Math.round(70 + 24 * r.confianza))); c.motivo = 'Laya IA lo sugiere (' + Math.round(r.confianza * 100) + '%)'; }
+        if(c){ c.conf = Math.min(94, Math.max(c.conf, Math.round(70 + 24 * r.confianza))); c.motivo = 'Vento IA lo sugiere (' + Math.round(r.confianza * 100) + '%)'; }
         it.match.candidatos.sort((a, b) => b.conf - a.conf);
         it.productId = r.id; it.match.confianza = it.match.candidatos[0].conf; it.match.nivel = it.match.confianza >= 85 ? 'alta' : 'revisar';
       }
@@ -12270,7 +12384,7 @@ function invoiceRowHtml(it, i){
       (inc ? '<span class="iv-flag up">⬆ ' + incPct + '%</span>' : '') +
     '</span><label><input type="checkbox" class="iv-inc" ' + (it.include ? 'checked' : '') + '> incluir</label></div>' +
     (it.originalDescription ? '<div class="iv-orig" title="Así viene escrito en la factura">🧾 ' + invEsc(it.originalDescription) + '</div>' : '') +
-    (it.ajustes && it.ajustes.length ? '<div class="iv-ajuste">🧮 Laya calculó: ' + invEsc(it.ajustes.join(' · ')) + '</div>' : '') +
+    (it.ajustes && it.ajustes.length ? '<div class="iv-ajuste">🧮 Vento calculó: ' + invEsc(it.ajustes.join(' · ')) + '</div>' : '') +
     '<div class="iv-desglose">' + fiDesgloseHtml(it) + '</div>' +
     fiChipConfianza(it) +
     '<div class="iv-full" style="margin-bottom:8px"><label>Coincide con</label><select class="iv-match">' + opts + '</select></div>' +
@@ -12516,12 +12630,12 @@ function invoiceOpen(info){
   if(info.rawText){ rawBox.value = info.rawText; rawWrap.hidden = false; }
   else { rawBox.value = ''; rawWrap.hidden = true; rawWrap.open = false; }
   document.getElementById('invoiceOverlay').classList.add('show');
-  // Laya IA solo para los renglones que quedaron en duda (nunca para lo seguro).
+  // Vento IA solo para los renglones que quedaron en duda (nunca para lo seguro).
   const draft = invoiceDraft;
   fiDesempatarConIA(items).then(r => {
     if(invoiceDraft !== draft) return;
     if(r.sinIA || r.falla) draft.iaMsg = 'IA temporalmente no disponible. Revise los datos.';
-    else if(r.usada) draft.iaMsg = '🧠 Laya IA ayudó a elegir en los productos dudosos (confírmelos).';
+    else if(r.usada) draft.iaMsg = '🧠 Vento IA ayudó a elegir en los productos dudosos (confírmelos).';
     // (lo que el usuario cambie mientras tanto ya quedó en el borrador: cada cambio se lee al instante)
     renderInvoiceReview(); invoiceResumen(info);
   }).catch(() => {});
@@ -12763,7 +12877,7 @@ document.getElementById('invoiceApplyBtn').addEventListener('click', async () =>
   // Nada incorrecto se guarda en silencio: si algo no cuadra (totales, cantidad × precio, IVA, precios
   // muy distintos) se muestra la lista y tú decides si corriges o aplicas igual.
   const probs = fiValidar(invoiceDraft).filter(a => ['dup', 'total', 'cant', 'precio', 'iva'].includes(a.tipo));
-  if(probs.length && !(await showConfirm({ title: 'Laya encontró ' + probs.length + (probs.length === 1 ? ' cosa por revisar' : ' cosas por revisar'),
+  if(probs.length && !(await showConfirm({ title: 'Vento encontró ' + probs.length + (probs.length === 1 ? ' cosa por revisar' : ' cosas por revisar'),
     message: probs.slice(0, 6).map(a => '• ' + a.txt).join('\n') + (probs.length > 6 ? '\n• …y ' + (probs.length - 6) + ' más' : '') + '\n\n¿Aplicar de todas formas?', confirmText: 'Sí, aplicar', cancelText: 'Revisar', icon: '🧮' }))) return;
   const draft = invoiceDraft, compraId = Date.now().toString(), fechaFact = (draft.header && draft.header.issueDate) || draft.date || '';
   const archivoId = draft.archivo ? await fiGuardarOriginal(draft.archivo) : null;
@@ -12849,13 +12963,13 @@ const invoiceCamInput = document.getElementById('invoiceCamInput');
 const invoiceGalInput = document.getElementById('invoiceGalInput');
 // Mientras la persona toma o elige la foto, se deja listo lo que va a leerla (así la espera después es corta).
 function fiPrecalentar(){
-  try{ if(window.VitoOfflineOCR && window.VitoOfflineOCR.precalentar) window.VitoOfflineOCR.precalentar(); }catch(e){}   // también con IA: Laya lee en paralelo
+  try{ if(window.VitoOfflineOCR && window.VitoOfflineOCR.precalentar) window.VitoOfflineOCR.precalentar(); }catch(e){}   // también con IA: Vento lee en paralelo
 }
 document.getElementById('invInvoiceCamBtn').addEventListener('click', () => { fiPrecalentar(); invoiceCamInput.click(); });
 document.getElementById('invInvoiceGalBtn').addEventListener('click', () => { fiPrecalentar(); invoiceGalInput.click(); });
 
-// Carrera Gemini ⚡ Laya: las dos leen la factura a la vez y se muestra la primera que traiga productos.
-// Si gana Laya (lector del celular, sin internet) y Gemini termina después, se ofrece su lectura con un toque.
+// Carrera Gemini ⚡ Vento: las dos leen la factura a la vez y se muestra la primera que traiga productos.
+// Si gana Vento (lector del celular, sin internet) y Gemini termina después, se ofrece su lectura con un toque.
 function fiCarrera(aiProm, files){
   aiProm.catch(() => {});
   const V = window.VitoOfflineOCR;
@@ -12890,8 +13004,8 @@ function fiOfrecerLecturaIA(ia){
   if(!ov || !ov.classList.contains('show') || !invoiceDraft || invoiceDraft.fuente !== 'ocr') return;
   const box = document.getElementById('ivAvisos'); if(!box || document.getElementById('fiUsarIA')) return;
   const b = document.createElement('button'); b.type = 'button'; b.id = 'fiUsarIA'; b.className = 'btn-camera'; b.style.cssText = 'width:100%;margin:6px 0';
-  b.textContent = '🤖 Gemini ya terminó (' + ia.items.length + ' productos): usar su lectura, suele ser más precisa';
-  b.addEventListener('click', () => { invoiceOpen(ia); showToast('🤖 Lectura de Gemini cargada.'); });
+  b.textContent = '🤖 La lectura avanzada de Vento ya terminó (' + ia.items.length + ' productos): úsala, suele ser más precisa';
+  b.addEventListener('click', () => { invoiceOpen(ia); showToast('🤖 Lectura avanzada de Vento cargada.'); });
   box.prepend(b);
 }
 async function handleOnlineInvoiceFiles(files, triggerBtn, inputEl){
@@ -12935,8 +13049,8 @@ async function handleOnlineInvoiceFiles(files, triggerBtn, inputEl){
     }
     invoiceOpen(info);
     if(info && info.__laya){
-      if(!(info.items || []).length){ const rw = document.getElementById('invoiceRawWrap'); if(rw) rw.open = true; showToast('⚠️ Laya leyó el texto pero no separó productos: corrígelo y toca «Releer texto».', 7000); }
-      else showToast('⚡ Laya leyó la factura primero (sin esperar a Gemini). Revisa los datos.', 5000);
+      if(!(info.items || []).length){ const rw = document.getElementById('invoiceRawWrap'); if(rw) rw.open = true; showToast('⚠️ Vento leyó el texto pero no separó productos: corrígelo y toca «Releer texto».', 7000); }
+      else showToast('⚡ Vento leyó la factura al instante, sin internet. Revisa los datos.', 5000);
     }
   }catch(err){
     ok = false;
@@ -13763,7 +13877,7 @@ try{ asisMsgs = JSON.parse(localStorage.getItem(ASIS_STORE) || '[]') || []; }cat
 if(!Array.isArray(asisMsgs)) asisMsgs = [];
 let asisBusy = false, asisRec = null, asisRecOn = false, asisRecText = '';
 
-// ---- Laya: avatar de la IA ----
+// ---- Vento: avatar de la IA ----
 const MESI_SVG = '<svg class="mesi" viewBox="0 0 64 64" aria-hidden="true">' +
   '<line class="mesi-ant-l" x1="32" y1="7" x2="32" y2="14"/><circle class="mesi-ant" cx="32" cy="6" r="4"/>' +
   '<rect class="mesi-head" x="7" y="13" width="50" height="45" rx="20"/>' +
@@ -13860,7 +13974,7 @@ function asisRender(){
     const hero = document.createElement('div');
     hero.className = 'asis-hero';
     hero.append(mesiEl('float'));
-    const hs = document.createElement('strong'); hs.textContent = 'Hola, soy Laya';
+    const hs = document.createElement('strong'); hs.textContent = 'Hola, soy Vento';
     const hm = document.createElement('small'); hm.textContent = 'Tu asistente con inteligencia artificial';
     hero.append(hs, hm);
     box.appendChild(hero);
@@ -14011,7 +14125,7 @@ function asisContext(q){
     clientesFrecuentes: (data.clientesFrecuentes || []).slice().sort((a, b) => b.visitas - a.visitas).slice(0, 10).map(c => ({ cliente: c.nombre || c.telefono, visitas: c.visitas, gastado: c.totalGastado })),
     contabilidadEsteMes: (() => { try{ const m0 = new Date(); m0.setHours(0, 0, 0, 0); m0.setDate(1); const x = ctMovimientos({ ini: m0.getTime(), fin: Date.now() + 1 }); const ent = x.mov.filter(m => m.tipo !== 'gasto').reduce((a, m) => a + m.monto, 0), gas = x.mov.filter(m => m.tipo === 'gasto').reduce((a, m) => a + m.monto, 0); return { entradas: ent, gastos: gas, resultado: ent - gas, gastosPorCategoria: x.mov.filter(m => m.tipo === 'gasto').reduce((o, m) => { const k = ctCatNombre('gasto', m.cat); o[k] = (o[k] || 0) + m.monto; return o; }, {}) }; }catch(e){ return null; } })(),
     reclamosAbiertos: (data.casos || []).filter(c => c.estado !== 'resuelto').slice(0, 10).map(c => ({ tipo: CASO_CATEGORIAS[c.categoria] || c.categoria, urgencia: c.urgencia, detalle: c.descripcion, asignadoA: c.asignadoA || '' })),
-    // Lo que Laya sabe de compras, pedidos, preparación y música (resumido, datos reales).
+    // Lo que Vento sabe de compras, pedidos, preparación y música (resumido, datos reales).
     comprasEsteMes: (() => { try{ const d0 = new Date(); d0.setHours(0, 0, 0, 0); d0.setDate(1); const x = window.Laya.resumenCompras({ desde: d0.getTime(), hasta: Date.now() + 1 }); return { facturas: x.n, total: Math.round(x.total), sinIva: Math.round(x.sub), iva: Math.round(x.iva) }; }catch(e){ return null; } })(),
     proveedores: (() => { try{ return window.Laya.proveedores().slice(0, 8).map(x => ({ proveedor: x.nombre, comprado: Math.round(x.total), facturas: x.n })); }catch(e){ return []; } })(),
     cambiosDePrecioCompra: (() => { try{ return window.Laya.cambiosPrecio().slice(0, 8).map(x => ({ producto: x.p.name, antes: Math.round(x.de), ahora: Math.round(x.a), pct: x.pct })); }catch(e){ return []; } })(),
@@ -14074,7 +14188,7 @@ function asisSinCostoNote(){
   return n ? '(Hay ' + n + ' productos sin costo; ponlo en Productos para ver todo.)' : '';
 }
 
-/* ---------- Comandos directos de Laya ----------
+/* ---------- Comandos directos de Vento ----------
    Se resuelven aquí mismo, al instante y sin internet: moverse por la app,
    abrir una mesa, la hora, la guía de uso y consultas del negocio (deudas,
    mesas abiertas, ventas de ayer o del mes, lo más vendido, precio o stock
@@ -14195,7 +14309,7 @@ function asisCommand(raw){
   if(/\b(que sabes hacer|que puedes hacer|que mas puedes hacer|que haces|comandos|como te uso|que te puedo (pedir|preguntar|decir)|en que me ayudas)\b/.test(t) || t === 'ayuda'){
     return { text: asisAyudaTexto(), extra: { quick: ASIS_AYUDA_CHIPS } };
   }
-  // Problemas de la app: Laya revisa, repara lo que puede y explica el resto.
+  // Problemas de la app: Vento revisa, repara lo que puede y explica el resto.
   if(asisPideReparar(t)) return { text: '🛠️ Dame un segundo, reviso la app…', run: () => { if(typeof mesoraDiagnosticoChat === 'function') mesoraDiagnosticoChat(raw); } };
   if(/^(recarga|recargar|reinicia|reiniciar) (la )?(app|aplicacion|pagina)\b/.test(t)) return { text: 'Listo, recargo la app. Tus datos quedan guardados.', run: () => location.reload() };
   if(/\b(vincul\w*|enlaz\w*|codigo)\b/.test(t) && /\b(tv|tele|televisor|television)\b/.test(t)){
@@ -14206,7 +14320,7 @@ function asisCommand(raw){
   }
   if(nWords <= 4 && /^(hola|holi|buenas|buenos dias|buenas tardes|buenas noches|hey|que mas|quiubo|q hubo)\b/.test(t)){
     const h = new Date().getHours();
-    return { text: (h < 12 ? '¡Buenos días!' : h < 19 ? '¡Buenas tardes!' : '¡Buenas noches!') + ' Soy Laya. ¿Qué necesitas?', extra: { quick: ['¿Cuánto vendí hoy?', '¿Qué sabes hacer?'] } };
+    return { text: (h < 12 ? '¡Buenos días!' : h < 19 ? '¡Buenas tardes!' : '¡Buenas noches!') + ' Soy Vento. ¿Qué necesitas?', extra: { quick: ['¿Cuánto vendí hoy?', '¿Qué sabes hacer?'] } };
   }
   if(nWords <= 5 && /^(gracias|muchas gracias|mil gracias|listo gracias|ok gracias)\b/.test(t)) return { text: '¡Con mucho gusto! Aquí estoy cuando me necesites.' };
   if(/\b(que hora es|la hora|que dia es|que fecha es|fecha de hoy)\b/.test(t)){
@@ -14355,7 +14469,7 @@ function asisLocalMas(raw){
 function asisLocalAccion(raw){
   const t = normVoiceText(raw);
   const nums = asisRawNumbers(raw);
-  /* Comandos que Laya hace AL INSTANTE, sin esperar a la IA (siempre pide confirmar antes).
+  /* Comandos que Vento hace AL INSTANTE, sin esperar a la IA (siempre pide confirmar antes).
      Van primero los más específicos: «cambia el costo…» también dice «cambia». */
   // Costo: "el costo de la águila es 2500", "costo póker 2800", "la club me cuesta 3000"
   if(/\b(costo|cuesta|me cuesta|me sale|la compro|lo compro|compro a)\b/.test(t) && !/\b(cuanto|que|cual)\b/.test(t) && nums.length){
@@ -14458,9 +14572,9 @@ async function asisAsk(text){
     if(/^(no|nada|cancela|cancelar|deja|dejalo|mejor no)\b/.test(t)){ asisConfirm(pi, false); return; }
     asisMsgs[pi].state = 'no';
   }
-  // «Laya, …»: se le habla por su nombre; el resto de la frase es la pregunta.
-  text = text.replace(/^\s*(oye\s+|hola\s+|ey\s+)?laya\b[\s,:;.!¡¿?-]*/i, '').trim() || text;
-  // Laya: facturas, IVA, costos, proveedores, inventario, duplicados, pedidos, preparación, música e informes,
+  // «Vento, …»: se le habla por su nombre; el resto de la frase es la pregunta.
+  text = text.replace(/^\s*((oye|hola|ok|okey|ey|hey)[\s,]+)?(laya|vento|bento)\b[\s,:;.!¡¿?-]*/i, '').trim() || text;
+  // Vento: facturas, IVA, costos, proveedores, inventario, duplicados, pedidos, preparación, música e informes,
   // con los datos reales y al instante (también sin internet).
   if(!ASIS_NEEDS_AI.test(normVoiceText(text))){
     let ly = null; try{ ly = window.Laya && window.Laya.responder(text); }catch(e){ console.error(e); }
@@ -14490,13 +14604,13 @@ async function asisAsk(text){
     if(acc){ asisBot(acc.text, { actions: acc.actions }); return; }
     const r = asisLocalMas(text) || asisLocal(text);
     if(r) asisBot(r);
-    else asisBot('Eso todavía no lo sé responder sin la IA. Toca "¿Qué sabes hacer?" para ver todo lo que te respondo sin ella.\n\nSi conectas la IA gratis de Google (Gemini), te entiendo cualquier pregunta con tus palabras y puedo crear o cambiar productos.', { cfg: true, quick: ['¿Qué sabes hacer?'] });
+    else asisBot('Eso todavía no lo sé responder sin la IA. Toca "¿Qué sabes hacer?" para ver todo lo que te respondo sin ella.\n\nCon la IA de Vento conectada a internet te entiendo cualquier pregunta con tus palabras y puedo crear o cambiar productos.', { cfg: true, quick: ['¿Qué sabes hacer?'] });
     return;
   }
   asisBusy = true;
   asisRender();
   const hist = asisMsgs.filter(m => !m.greet).slice(-6).map(m => (m.role === 'me' ? 'Persona: ' : 'Asistente: ') + m.text).join('\n');
-  const prompt = 'Te llamas Laya y eres la inteligencia artificial de "' + (data.businessName || 'la tienda') + '", un negocio (tienda, cafetería, bar) en Colombia, dentro de la app Vento. Hablas con el dueño o sus empleados; muchos son personas mayores o no saben de tecnología. ' +
+  const prompt = 'Te llamas Vento y eres la inteligencia artificial de "' + (data.businessName || 'la tienda') + '", un negocio (tienda, cafetería, bar) en Colombia, dentro de la app Vento. Hablas con el dueño o sus empleados; muchos son personas mayores o no saben de tecnología. ' +
     'Responde en español sencillo, cálido y CORTO (máximo 4 frases o una lista de hasta 6 líneas con "• "), sin palabras técnicas ni markdown (nada de **, #, tablas). Plata en pesos colombianos con formato $3.300. ' +
     'Usa SOLO los DATOS de abajo; nunca inventes cifras. Si falta un dato (por ejemplo el costo de un producto) dilo claro y explica dónde se pone: Productos → tocar el producto → Costo. Si la pregunta no es clara, pregunta con cariño qué necesita. ' +
     'Margen = (precio − costo) ÷ precio. Si el costo es mayor que el precio, está perdiendo plata. Un precio sugerido se redondea a los 100 pesos. ' +
@@ -14606,7 +14720,7 @@ function asisSaludo(){
   const h = new Date().getHours();
   const hola = h < 12 ? '¡Buenos días' : h < 19 ? '¡Buenas tardes' : '¡Buenas noches';
   const quien = (typeof authUser === 'string' && authUser) ? ', ' + authUser.charAt(0).toUpperCase() + authUser.slice(1) : '';
-  const lineas = [hola + quien + '! Soy Laya.'];
+  const lineas = [hola + quien + '! Soy Vento.'];
   try{
     const abiertas = Object.keys(data.tables || {}).filter(id => (data.tables[id].items || []).length).length;
     const s = asisSales();
@@ -15576,7 +15690,7 @@ function closeEditProductModal(){
 // mesas abiertas (cada mesa guarda una copia del producto al agregarlo). Las cuentas ya cerradas
 // (historial y facturas) NO cambian. Los productos viejos sin enlace se reconocen por su nombre anterior.
 // Cambios de nombre: data.renombres guarda { nombre viejo (normalizado) → nombre actual }. Las
-// estadísticas, "lo más vendido", Laya y el orden de la carta agrupan con el nombre vigente, así
+// estadísticas, "lo más vendido", Vento y el orden de la carta agrupan con el nombre vigente, así
 // las ventas de antes y de después del cambio se suman juntas. Las facturas ya hechas no cambian.
 function nombreVigente(n){
   const r = data && data.renombres; if(!r || !n) return n;
@@ -16385,7 +16499,7 @@ const GUIDE_ENTRIES = [
   { title: '🌙 Cierre de caja', keywords: 'cierre caja dia cerrar jornada automatico manual resumen', body: 'Al final del día puedes hacer un cierre de caja, manual o automático, que te resume las ventas del día y deja todo listo para el día siguiente.' },
   { title: '💵 Propina al cobrar', keywords: 'propina redondeo cobrar cliente porcentaje', body: 'Actívala en Ajustes → Propina al cobrar. Cada vez que cobres una mesa, te pregunta si el cliente deja propina (10% o redondear el total) antes de cerrar la cuenta.' },
   { title: '👤 Ventas por empleado (turno)', keywords: 'empleado turno caja quien vendio cuanto', body: 'Si más de una persona maneja la caja con su propio usuario, en Estadísticas aparece cuánto vendió cada empleado en el período que estés viendo, sin que tengas que hacer nada extra.' },
-  { title: '🤖 Laya, tu asistente de IA', keywords: 'laya mesi asistente ia inteligencia artificial preguntar chat comandos hablar ayuda', body: 'Toca la carita con "IA" arriba a la derecha (o "Más" → Laya). Puedes escribirle o hablarle. Te responde cuánto vendiste hoy, ayer o en el mes, quién te debe, qué mesas están abiertas, qué se está acabando, el precio o stock de un producto y tus mejores clientes; te lleva a cualquier sección ("abre inventario", "abre la mesa 3") y te explica cómo usar la app. También puede cambiar precios o sumar stock, siempre preguntándote antes. Escríbele "¿Qué sabes hacer?" para ver todo.' },
+  { title: '🤖 Vento, tu asistente de IA', keywords: 'laya mesi asistente ia inteligencia artificial preguntar chat comandos hablar ayuda', body: 'Toca la carita con "IA" arriba a la derecha (o "Más" → Vento). Puedes escribirle o hablarle. Te responde cuánto vendiste hoy, ayer o en el mes, quién te debe, qué mesas están abiertas, qué se está acabando, el precio o stock de un producto y tus mejores clientes; te lleva a cualquier sección ("abre inventario", "abre la mesa 3") y te explica cómo usar la app. También puede cambiar precios o sumar stock, siempre preguntándote antes. Escríbele "¿Qué sabes hacer?" para ver todo.' },
   { title: '💬 Soporte por WhatsApp', keywords: 'soporte ayuda whatsapp contacto problema falla ticket urgencia', body: 'Si algo no funciona o tienes una duda, en Ajustes → Guía y soporte elige qué tipo de solicitud es y qué tan urgente es, y te escribimos por WhatsApp con el mensaje ya armado y clasificado, para responderte más rápido si es algo urgente.' },
   { title: '🛵 Facturar un domicilio', keywords: 'domicilio domicilios entrega envio direccion cliente restaurante bar', body: 'Actívalo en Ajustes → Domicilios. Aparece un botón "🛵 Domicilio" junto a "Venta rápida" en Mesas: agrega los productos, y si quieres el nombre, teléfono, dirección del cliente y el valor del envío, sin necesidad de abrir una mesa.' },
   { title: '📥 Descargar las ventas en Excel', keywords: 'excel exportar ventas dia mes rango cierre descargar csv contabilidad personalizar', body: 'En Estadísticas, el botón "📥 Exportar ventas (Excel)" te deja elegir el período: hoy, ayer, este mes, un rango de fechas personalizado, o un cierre de caja específico. Descarga un archivo con el detalle de cada producto vendido (mesas, mostrador y domicilios), listo para abrir con Excel.' }
@@ -16928,7 +17042,7 @@ const tipoNombre = k => (k === 'otro' && typeof data !== 'undefined' && data && 
 const ATENCION_TIENDAS = ['tienda', 'estanco', 'minimercado', 'queseria'];
 const puedeElegirMesas = () => { const t = tipoNegocio(); return !!t && (['comida', 'bar'].includes(t.fam) || ATENCION_TIENDAS.includes(t.k)); };
 /* ---------- Terminología central de la unidad de atención ----------
-   Toda la app (textos, menú, avisos, QR, preparación, Laya y voz) toma el nombre de aquí:
+   Toda la app (textos, menú, avisos, QR, preparación, Vento y voz) toma el nombre de aquí:
      1) el nombre que el administrador escribió (Ajustes → Cuenta y negocio → «¿Cómo se llaman…?»),
      2) Mesas/Cuentas en negocios de comida y bebida,
      3) el del tipo de negocio (Restaurante → Mesas, Barbería → Sillas, Spa → Cabinas, Hotel → Habitaciones…).
@@ -16965,7 +17079,7 @@ function modsNegocio(){
 }
 /* ---------- Pantalla de preparación: nombre configurable por local ----------
    No todos los negocios tienen «cocina»: un bar prepara en la Barra, una cafetería en Preparación,
-   una tienda en Despacho. El nombre elegido se usa en el menú, títulos, avisos y en Laya. */
+   una tienda en Despacho. El nombre elegido se usa en el menú, títulos, avisos y en Vento. */
 const PREP_NOMBRES = ['Pantalla', 'Cocina', 'Barra', 'Bar', 'Preparación', 'Despacho', 'Producción', 'Cafetería', 'Comandas', 'Pedidos', 'Servicio', 'Área de preparación'];
 function prepNombreDefecto(){
   const t = tipoNegocio(); if(!t) return 'Pantalla';
@@ -17585,7 +17699,7 @@ function maybeShowLowStockAlert(){
 const TUTORIAL_SEEN_KEY = 'cm-tutorial-seen';
 const TUTORIAL_SLIDES = [
   { icon: '👋', title: 'Bienvenido a Vento', get text(){ return 'Controla ' + (usaMod('v') ? 'las ventas' : 'las ' + espacio()[1].toLowerCase()) + ', los productos y el inventario de tu negocio, todo en un solo lugar.'; } },
-  { icon: '🕒', title: 'Los íconos de arriba', text: 'Arriba a la derecha ves la hora. Debajo: la 🔔 campana avisa pedidos y canciones nuevas, y la carita con "IA" es Laya, tu asistente de inteligencia artificial: pregúntale lo que necesites de tu negocio.' },
+  { icon: '🕒', title: 'Los íconos de arriba', text: 'Arriba a la derecha ves la hora. Debajo: la 🔔 campana avisa pedidos y canciones nuevas, y la carita con "IA" es Vento, tu asistente de inteligencia artificial: pregúntale lo que necesites de tu negocio.' },
   { icon: '🧭', title: 'El menú de abajo', get text(){ return 'Abajo tienes ' + espacio()[1] + (usaMod('k') ? ', ' + prepNombre() : '') + ', Productos e Inventario. Toca "Más" para ver Estadísticas, ' + cartaTerm() + ', Historial' + (musicaOn() ? ', Música' : '') + ' y Ajustes.'; } },
   { get icon(){ return espacio()[2]; }, get title(){ return espacio()[1]; },
     get text(){ const sg = espacio()[0].toLowerCase(), t = tipoNegocio();
@@ -19649,7 +19763,7 @@ function agregarCancion(mesa,song,reqId){
   return{msg:'🎵 '+tableLabel(mesa)+': '+song,nuevo:true};
 }
 window.vitoAddSong=(mesa,song)=>{const r=agregarCancion(mesa,song);try{renderMusica();}catch(e){}return r.msg;};
-// Para Laya (y la campana): leer y manejar la cola sin duplicar su lógica.
+// Para Vento (y la campana): leer y manejar la cola sin duplicar su lógica.
 window.vitoMusica={cola:()=>cola(),hist:()=>mzHist(),actual:()=>mzActual(),saltar:()=>mzSaltar(),cancelar:id=>{mzTermino(id,'cancelled');try{tvPublicar(true);renderMusica();}catch(e){}},auto:()=>AUTO(),tv:()=>tvOn()};
 // Rotación justa: cada mesa tiene «turnos». Su 1.ª canción va en la ronda 1, la 2.ª en la ronda 2…
 // y lo que ya le sonó en la última hora cuenta: una mesa que ya escuchó 3 no se adelanta a una
@@ -22099,7 +22213,7 @@ document.addEventListener('click', function(ev){
 <script>
 /* ================================================================
    Fotos de productos (con fondo blanco automático), transmisión al TV
-   con la app de YouTube y autorreparación de errores con Laya.
+   con la app de YouTube y autorreparación de errores con Vento.
    ================================================================ */
 // Funciones del módulo de QR/música (vive dentro de su propia función; ver window.vitoMod).
 const vm = () => window.vitoMod || {};
@@ -22470,7 +22584,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-04 · v1.27.5';
+const MESORA_VERSION = '2026-10-04 · v1.28.0';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -23124,6 +23238,16 @@ function iniCast(){
       sw.checked = !!A.fondo();
       sw.onchange = () => { A.fondoActivar(sw.checked); showToast(sw.checked ? '🔋 Vento seguirá trabajando con la app cerrada (verás un aviso fijo en la barra).' : 'Vento solo trabajará con la app abierta.', 6000); setTimeout(() => { try{ sw.checked = !!A.fondo(); }catch(e){} }, 1500); };
       bat.onclick = () => { try{ A.ajustesBateria(); }catch(e){} };
+      const pb = document.getElementById('apkPermisos'), pt = document.getElementById('apkPermisosTxt');
+      if(pb && typeof A.permisos === 'function'){
+        const pintarP = () => { try{ const e = JSON.parse(A.permisos() || '{}'); const f = (ok, n) => (ok ? '✅ ' : '⚠️ ') + n;
+          pt.textContent = [f(e.microfono, 'Micrófono'), f(e.camara, 'Cámara'), f(e.avisos, 'Avisos'), f(e.bateria, 'Sin ahorro de batería'), f(e.fondo, 'Trabajando de fondo')].join(' · ');
+          const todo = e.microfono && e.camara && e.avisos && e.bateria; pb.textContent = todo ? '🔐 Permisos del celular: todo listo' : '🔐 Dar los permisos que faltan'; pt.hidden = false; }catch(x){} };
+        pb.hidden = false; pintarP();
+        pb.onclick = () => { try{ A.pedirPermisos(); }catch(x){} setTimeout(pintarP, 4000); };
+        window.ventoPermisosCambio = pintarP;
+        document.addEventListener('visibilitychange', () => { if(!document.hidden) pintarP(); });
+      }
       const ini = document.getElementById('apkInicio'), pr = document.getElementById('apkProbarAviso');
       if(ini && typeof A.ajustesInicio === 'function'){ ini.hidden = false; ini.onclick = () => { showToast('En la lista que se abre, activa «Vento» (inicio automático / sin restricciones).', 7000); try{ A.ajustesInicio(); }catch(e){} }; }
       if(pr && typeof A.notificar === 'function'){ pr.hidden = false; pr.onclick = () => { const ok = A.notificar('🆕 Pedido de prueba · Mesa 1', '2 Poker, 1 Águila — así te avisa Vento aunque esté cerrada.', 'pedidos', true); showToast(ok ? '🔔 Mira la barra de notificaciones: así suena un pedido.' : '⚠️ Android no deja mostrar avisos: activa las notificaciones de Vento en Ajustes del celular.', 7000); }; }
@@ -24802,9 +24926,9 @@ function iniMeseros(){
   setInterval(pintar, 30000);
 }
 
-/* ---------- Autorreparación: Laya detecta y corrige errores ----------
+/* ---------- Autorreparación: Vento detecta y corrige errores ----------
    Todos los errores de la app quedan registrados con un código (ver el
-   <script> del <head>). Laya aplica reparaciones seguras y probadas (nunca
+   <script> del <head>). Vento aplica reparaciones seguras y probadas (nunca
    borra ventas, cuentas ni productos) y explica en palabras sencillas lo
    que no se puede arreglar desde el teléfono. */
 function mesoraErrores(){
@@ -24896,7 +25020,7 @@ function mesoraReparar(opts){
   // 2) Datos dañados
   try{ hecho.push(...mesoraRepararDatos()); }catch(e){ mesoraLogError('reparar', 'Reparación de datos: ' + e.message, ''); }
   // 3) Estados trabados
-  try{ if(asisBusy && !opts.enChat){ asisBusy = false; hecho.push('Destrabé el chat de Laya.'); } }catch(e){}
+  try{ if(asisBusy && !opts.enChat){ asisBusy = false; hecho.push('Destrabé el chat de Vento.'); } }catch(e){}
   try{ if(document.body.style.overflow === 'hidden' && !document.querySelector('.overlay.show, #carta:not([hidden])')){ document.body.style.overflow = ''; hecho.push('Destrabé la pantalla (no dejaba bajar).'); } }catch(e){}
   // 4) IA: modelo que ya no existe → se vuelve al de fábrica
   if(errs.some(x => /modelo no está disponible|model/i.test(x.msg) && /not found|no está disponible|does not exist/i.test(x.msg))){
@@ -24919,7 +25043,7 @@ async function mesoraDiagnosticoChat(userText){
   txt += '\n\nLo que hice:\n' + (hechos.length ? hechos.map(h => (h.charAt(0) === '⚠' ? '' : '✅ ') + h).join('\n') : '✅ Revisé tus datos, la memoria y las pantallas: todo está en orden.');
   if(hasAIKey()){
     try{
-      const prompt = 'Eres Laya, el asistente de la app Vento (cuentas de mesas de un negocio en Colombia). Hablas con el dueño, que no sabe de tecnología. ' +
+      const prompt = 'Eres Vento, el asistente de la app Vento (cuentas de mesas de un negocio en Colombia). Hablas con el dueño, que no sabe de tecnología. ' +
         'La persona dijo: "' + String(userText || '').slice(0, 300) + '". ' +
         'Errores técnicos registrados en la app: ' + JSON.stringify(pend.map(e => ({ codigo: e.codigo || e.cod, tipo: e.tipo, mensaje: e.msg, donde: e.donde, veces: e.n }))) + '. ' +
         'Reparaciones que la app YA hizo sola: ' + JSON.stringify(hechos) + '. ' +
@@ -24952,7 +25076,7 @@ window.addEventListener('mesora-error', ev => {
   const now = Date.now();
   if(now - mesoraAutoT > 30000){
     mesoraAutoT = now;
-    setTimeout(() => { try{ const h = mesoraRepararDatos(); if(h.length) showToast('🛠️ Laya corrigió datos dañados automáticamente.', 4000); }catch(e){} }, 500);
+    setTimeout(() => { try{ const h = mesoraRepararDatos(); if(h.length) showToast('🛠️ Vento corrigió datos dañados automáticamente.', 4000); }catch(e){} }, 500);
   }
   if(!document.getElementById('asisOverlay').classList.contains('show')) mesoraPill(true, ev.detail && ev.detail.cod);
 });
@@ -25084,7 +25208,7 @@ let fotosListas = false;
      → 3.500 + 4.000 = 7.500 · 5.000 × 2 = 10.000 · 6.000 × 2 = 12.000. Cada cuenta se separa por «y», «o»,
      «luego», «después»…; el verbo da la operación («multiplícame 5000 y 2» también es ×) y las palabras o signos
      entre números la cambian (más, menos, por, x, entre, dividido, +, −, ×, ÷, /). Se resuelve de izquierda a
-     derecha, como se hace a mano. La usan el micrófono principal, la libreta y Laya. */
+     derecha, como se hace a mano. La usan el micrófono principal, la libreta y Vento. */
   const CALC_VERBO = /\b(sumame|sumale|sumeme|suma|sumar|sume|restame|restale|resta|restar|reste|multiplicame|multiplicale|multiplica|multiplicar|multiplique|divideme|dividele|divide|dividir|divida|cuanto es|cuanto son|cuanto da|cuanto dan|calcula|calculame|calcule)\b/;
   function calcPrepara(raw){
     let s = String(raw || '');
@@ -26275,15 +26399,15 @@ window.mesoraCelebrar = function(emojis){
 </script>
 <script>
 /* ================= LAYA IA — el asistente y el cerebro de Vento =================
-   Laya responde y actúa con los DATOS REALES del negocio: facturas, inventario, proveedores, costos,
+   Vento responde y actúa con los DATOS REALES del negocio: facturas, inventario, proveedores, costos,
    IVA, pedidos, pantalla de preparación y música. Nunca inventa: si un dato no está, lo dice.
-   • Motor local (este bloque): entiende frases en español natural («Laya, ¿cuánto IVA pagué este
+   • Motor local (este bloque): entiende frases en español natural («Vento, ¿cuánto IVA pagué este
      mes?», «¿qué hay en la barra?», «busca productos duplicados»), calcula y responde al instante,
      también sin internet. Propone acciones (unir duplicados, marcar pedidos, saltar canciones,
      aplicar la factura) y para lo importante pide confirmación antes de hacerlo.
    • Facturas e imágenes: la cámara + el lector de Vento (sin internet) o la IA de visión que el
-     negocio conecte en ⚙️ Configurar IA. Laya cuadra cantidades, cajas, IVA y costos (fiCuadrar).
-   • Motor de decisiones Laya (opcional, puente/laya-worker.js): desempata productos parecidos.
+     negocio conecte en ⚙️ Configurar IA. Vento cuadra cantidades, cajas, IVA y costos (fiCuadrar).
+   • Motor de decisiones Vento (opcional, puente/laya-worker.js): desempata productos parecidos.
    • Avisos: stock bajo o agotado, duplicados, cambios de precio, facturas con errores, pedidos
      esperando, canciones que no sonaron y problemas de conexión — pocos y sin repetirse. */
 (function(){
@@ -26435,7 +26559,7 @@ window.mesoraCelebrar = function(emojis){
   const U = () => getServiceUnitName(), UP = () => getServiceUnitNamePlural();
   const art = () => espacio()[3] === 'm' ? 'el' : 'la', arts = () => espacio()[3] === 'm' ? 'los' : 'las';
   // ---------- Terminología: «silla 4», «cabina 2», «habitación 3», «puesto VIP 1» → mesa N ----------
-  // (Por dentro las unidades se llaman igual; así Laya y la voz entienden el nombre que use el negocio.)
+  // (Por dentro las unidades se llaman igual; así Vento y la voz entienden el nombre que use el negocio.)
   function normUnidad(t){
     const sg = N(getServiceUnitName()), pl = N(getServiceUnitNamePlural());
     const seguros = ['silla', 'cabina', 'habitacion', 'sala', 'pista', 'puesto', 'consultorio', 'estacion', 'cancha', 'espacio'];
@@ -26456,7 +26580,7 @@ window.mesoraCelebrar = function(emojis){
     return out;
   }
   const G = () => window.vitoGrupos;
-  // ---------- Registro de actividad de Laya (trazabilidad) ----------
+  // ---------- Registro de actividad de Vento (trazabilidad) ----------
   function registrar(clase, txt){
     if(!listo()) return;
     data.layaLog = Array.isArray(data.layaLog) ? data.layaLog : [];
@@ -26514,7 +26638,7 @@ window.mesoraCelebrar = function(emojis){
     return '🧠 ' + [a.length + ' pedido' + (a.length === 1 ? '' : 's') + ' pendiente' + (a.length === 1 ? '' : 's') + (prepOn() ? ' en ' + prepNombre() : ''),
       ocup + ' ' + (ocup === 1 ? U() : UP()).toLowerCase() + ' con cuenta abierta', g.length + ' grupo' + (g.length === 1 ? '' : 's') + ' de ' + UP().toLowerCase() + ' combinad' + (espacio()[3] === 'm' ? 'os' : 'as'),
       ag + ' agotado' + (ag === 1 ? '' : 's') + ' y ' + b + ' con stock bajo', c.n + ' factura' + (c.n === 1 ? '' : 's') + ' este mes (' + plata(c.total) + ', IVA ' + plata(c.iva) + ')',
-      (t ? t + ' pedido' + (t === 1 ? '' : 's') + ' demorado' + (t === 1 ? '' : 's') : 'ningún pedido demorado'), (aud ? aud + ' cosa' + (aud === 1 ? '' : 's') + ' por revisar (di «Laya, audita»)' : 'sin problemas detectados')].join(' · ') + '.';
+      (t ? t + ' pedido' + (t === 1 ? '' : 's') + ' demorado' + (t === 1 ? '' : 's') : 'ningún pedido demorado'), (aud ? aud + ' cosa' + (aud === 1 ? '' : 's') + ' por revisar (di «Vento, audita»)' : 'sin problemas detectados')].join(' · ') + '.';
   }
   // ---------- Búsqueda externa (Open Food Facts: base pública de productos, sin clave) ----------
   async function buscarFuera(q){
@@ -26576,7 +26700,7 @@ window.mesoraCelebrar = function(emojis){
   // ---------- Entender la frase ----------
   function responder(raw){
     if(!listo()) return null;
-    let t = normUnidad(N(raw).replace(/^(oye |hola |ey |hey )?laya\b[ ,]*/, '').trim());
+    let t = normUnidad(N(raw).replace(/^((oye|hola|ok|okey|ey|hey),? )?(laya|vento|bento)\b[ ,]*/, '').trim());
     if(!t) return { text: '¡Aquí estoy! Pregúntame por facturas, IVA, costos, proveedores, inventario, pedidos, ' + UP().toLowerCase() + ', ' + prepNombre().toLowerCase() + ' o música.' };
     const r = rango(t), pn = N(prepNombre());
     const ru = responderUnidades(t, raw); if(ru) return ru;
@@ -26606,7 +26730,7 @@ window.mesoraCelebrar = function(emojis){
       if(pv.items && pv.items.length && id && data.tables[id]){ const r3 = applyVoiceItems(id, pv.items, pv.mode || 'add'); registrar('ejecución', 'Agregó a ' + tableLabel(id) + ': ' + r3.added.map(a => a.qty + ' ' + a.name).join(', '));
         return { text: r3.added.length ? '✅ ' + tableLabel(id) + ': ' + r3.added.map(a => a.qty + ' ' + a.name).join(', ') + '.' + (r3.notFound.length ? ' No encontré: ' + r3.notFound.join(', ') + '.' : '') : 'No encontré esos productos: ' + r3.notFound.join(', ') + '.' }; }
     }
-    if(/\b(repite|repetir|repita)\b.*\b(pedido|orden|ronda)\b/.test(t) && typeof handleVoiceTranscriptLocal === 'function'){ setTimeout(() => handleVoiceTranscriptLocal(raw.replace(/^\s*laya[ ,]*/i, '')), 0); return { text: '🔁 Repito el pedido anterior.' }; }
+    if(/\b(repite|repetir|repita)\b.*\b(pedido|orden|ronda)\b/.test(t) && typeof handleVoiceTranscriptLocal === 'function'){ setTimeout(() => handleVoiceTranscriptLocal(raw.replace(/^\s*(laya|vento|bento)[ ,]*/i, '')), 0); return { text: '🔁 Repito el pedido anterior.' }; }
     // Facturas: leer una nueva o aplicar la que está en revisión
     if(/\b(revisa|lee|leer|escanea|escanear|procesa|procesar|toma|tomale|analiza)\b.*\bfactura\b/.test(t) || /^factura nueva$/.test(t))
       return { text: '📷 Abro la cámara: tómale la foto a la factura. Yo leo los productos, cantidades, IVA y costo por unidad, y te muestro todo para confirmar.', run: () => { try{ asisClose(); }catch(e){} asisGoView('inventario'); setTimeout(() => { const b = document.getElementById('invInvoiceCamBtn'); if(b) b.click(); }, 400); } };
@@ -26616,7 +26740,7 @@ window.mesoraCelebrar = function(emojis){
         actions: [{ tipo: 'laya', op: 'aplicarFactura', label: '📥 Aplicar la factura al inventario' }] };
     }
     if(/\b(agrega|agregame|anade)\b.*\b(estos|los) productos\b.*\binventario\b/.test(t))
-      return { text: 'Primero tómale la foto a la factura (dime «Laya, revisa esta factura»). Cuando la revises, te la aplico al inventario.' };
+      return { text: 'Primero tómale la foto a la factura (dime «Vento, revisa esta factura»). Cuando la revises, te la aplico al inventario.' };
     // Costo por unidad / último precio
     const pr = prodDe(t);
     if(/\b(cada unidad|por unidad|costo unitario|costo real|cuanto me costo|cuanto me cuesta|ultimo precio|precio de compra|a como lo compre|a como la compre|cuanto pague por)\b/.test(t)){
@@ -26624,7 +26748,7 @@ window.mesoraCelebrar = function(emojis){
         if(!u) return { text: pr.cost > 0 ? pr.name + ': te cuesta ' + plata(pr.cost) + ' por unidad (dato guardado; no hay facturas de este producto).' : 'No tengo el costo de ' + pr.name + ': aplica una factura o ponlo en el producto.' };
         return { text: pr.name + ': la última compra' + (u.prov ? ' a ' + u.prov : '') + ' (' + fechaTxt(u.t) + ') salió a ' + plata(u.cost) + ' por unidad con IVA = ' + plata(u.sin) + ' sin IVA + ' + plata(u.iva) + ' de IVA (' + u.tasa + '%).' + (h.length > 1 ? ' La vez anterior: ' + plata(h[h.length - 2].cost) + '.' : '') }; }
       const c = compras({ ultima: true })[0];
-      if(!c) return { text: 'Todavía no hay facturas aplicadas. Dime «Laya, revisa esta factura» y la leo.' };
+      if(!c) return { text: 'Todavía no hay facturas aplicadas. Dime «Vento, revisa esta factura» y la leo.' };
       return { text: 'Costo por unidad en la última factura (' + (c.supplier || 'proveedor') + (c.invoiceNumber ? ' #' + c.invoiceNumber : '') + '):\n' + bul((c.items || []).map(i => i.name + ': ' + i.qty + ' unid. × ' + plata(i.cost) + ' (' + plata(sinIvaU(i)) + ' + IVA ' + plata((i.cost || 0) - sinIvaU(i)) + ')')) };
     }
     if(/\biva\b/.test(t) && /\b(pague|pagado|pagamos|cuanto|total|llevo|he pagado)\b/.test(t)) return { text: INFORMES.iva(r) };
@@ -26723,15 +26847,15 @@ window.mesoraCelebrar = function(emojis){
     if(vistos[k] && Date.now() - vistos[k] < (cada || 6 * 36e5)) return;
     vistos[k] = Date.now(); recientes.unshift({ t: Date.now(), txt }); recientes.length = Math.min(recientes.length, 30);
     if(Date.now() - ultimoToast < 45000) return;                 // máximo un aviso cada 45 s
-    if(typeof data !== 'undefined' && data && data.layaAuto && data.layaAuto.avisos === false) return;   // avisos de Laya apagados (quedan en «Avisos recientes»)
-    ultimoToast = Date.now(); try{ showToast('🧠 Laya: ' + txt, 7000); }catch(e){}
-    try{ window.ventoAvisoCel && window.ventoAvisoCel('🧠 Laya', txt, 'avisos'); }catch(e){}
+    if(typeof data !== 'undefined' && data && data.layaAuto && data.layaAuto.avisos === false) return;   // avisos de Vento apagados (quedan en «Avisos recientes»)
+    ultimoToast = Date.now(); try{ showToast('🧠 Vento: ' + txt, 7000); }catch(e){}
+    try{ window.ventoAvisoCel && window.ventoAvisoCel('🧠 Vento', txt, 'avisos'); }catch(e){}
   }
   function revisar(){
     if(!listo()) return;
     agotados().slice(0, 3).forEach(p => avisar('ago-' + p.id + '-' + (p.stock || 0), 'se agotó ' + p.name + '.'));
     const b = bajos(); if(b.length) avisar('bajo-' + b.map(p => p.id).join(','), b.length === 1 ? 'se está acabando ' + b[0].name + ' (quedan ' + b[0].stock + ').' : b.length + ' productos se están acabando: ' + b.slice(0, 3).map(p => p.name).join(', ') + '.');
-    const d = duplicados().filter(x => x.conf >= 90); if(d.length) avisar('dup-' + d.length, 'hay ' + d.length + ' producto(s) que parecen repetidos. Dime «Laya, busca productos duplicados».', DIA);
+    const d = duplicados().filter(x => x.conf >= 90); if(d.length) avisar('dup-' + d.length, 'hay ' + d.length + ' producto(s) que parecen repetidos. Dime «Vento, busca productos duplicados».', DIA);
     const c = cambiosPrecio().filter(x => x.pct >= 10 && Date.now() - x.t < 3 * DIA); c.slice(0, 2).forEach(x => avisar('pre-' + x.p.id + '-' + x.a, x.p.name + ' subió ' + x.pct + '% en la última factura (' + plata(x.de) + ' → ' + plata(x.a) + ').', 7 * DIA));
     const f = (data.purchases || [])[0]; if(f && f.avisos && f.avisos.length && Date.now() - Date.parse(f.procesadaEn || f.at) < 36e5) avisar('fac-' + f.id, 'la factura ' + (f.invoiceNumber || '') + ' de ' + (f.supplier || 'proveedor') + ' se guardó con ' + f.avisos.length + ' aviso(s). Revísala en Facturas anteriores.', DIA);
     activos().filter(p => p.estado === 'nuevo' && Date.now() - p.recibidoEn > 3 * 6e4).slice(0, 2).forEach(p => avisar('pna-' + p.id, tableLabel(p.mesa) + ' tiene un pedido esperando que lo acepten.', 10 * 6e4));
@@ -26755,20 +26879,20 @@ window.mesoraCelebrar = function(emojis){
     try{ saveData(); }catch(e){}
   };
 
-  // ---------- Panel de Laya en Ajustes ----------
+  // ---------- Panel de Vento en Ajustes ----------
   const e2 = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   function crearPanel(){
     const cats = document.getElementById('ajustesCats'); if(!cats || document.getElementById('layaGrupo')) return;
     const b = document.createElement('button'); b.type = 'button'; b.className = 'ajustes-cat'; b.dataset.cat = 'laya';
-    b.innerHTML = '<span class="ac-icon">🧠</span><span class="ac-label">Laya IA · informes y avisos</span><span class="ac-arrow">›</span>';
+    b.innerHTML = '<span class="ac-icon">🧠</span><span class="ac-label">Vento IA · informes y avisos</span><span class="ac-arrow">›</span>';
     cats.insertBefore(b, cats.firstChild);
     const g = document.createElement('div'); g.className = 'settings-group'; g.id = 'layaGrupo'; g.hidden = true; g.dataset.cat = 'laya';
     const BOT = [['general', '📊 Resumen general'], ['inventario', '📦 Inventario'], ['facturas', '🧾 Facturas'], ['compras', '🛒 Compras'], ['iva', '🧮 IVA pagado'], ['costos', '💰 Costos'], ['precios', '📈 Cambios de precio'], ['proveedores', '🏭 Proveedores'], ['nuevos', '🆕 Productos nuevos'], ['agotados', '🚫 Agotados'], ['bajos', '⚠️ Bajo stock'], ['pedidos', '🛎️ Pedidos'], ['preparacion', '🍳 Preparación'], ['musica', '🎵 Música']];
-    g.innerHTML = '<h2>🧠 Laya IA</h2><div class="settings-desc">Laya lee tus facturas, cuadra cantidades e IVA, vigila el inventario, los pedidos, la pantalla de preparación y la música, y te avisa lo importante. Pregúntale con tus palabras tocando la carita de «IA» arriba (o di «Laya…» en el micrófono). Todo sale de tus datos reales: si algo no está, te lo dice.</div>' +
+    g.innerHTML = '<h2>🧠 Vento IA</h2><div class="settings-desc">Vento lee tus facturas, cuadra cantidades e IVA, vigila el inventario, los pedidos, la pantalla de preparación y la música, y te avisa lo importante. Pregúntale con tus palabras tocando la carita de «IA» arriba (o di «Vento…» en el micrófono). Todo sale de tus datos reales: si algo no está, te lo dice.</div>' +
       '<div class="mz-actions" id="layaInfBtns" style="flex-wrap:wrap">' + BOT.map(([k, l]) => '<button type="button" class="btn-ghost" data-inf="' + k + '">' + l + '</button>').join('') + '</div>' +
       '<pre class="laya-inf" id="layaInf" hidden></pre><div class="jm-card"><b>🧠 Centro de control</b><div id="layaCentro" class="settings-desc"></div></div>' +
-      '<div class="jm-card"><b>🔔 Avisos recientes de Laya</b><div id="layaAvisos" class="settings-desc"></div></div>' +
-      '<div class="jm-card"><b>📜 Actividad de Laya y auditoría</b><div class="settings-desc">Qué consultó, sugirió y ejecutó Laya, y las acciones importantes (combinar, separar, reiniciar, cobrar grupos) con usuario, fecha y hora.</div><div id="layaActividad" class="jm-tabla jm-act"></div></div><div class="jm-card" id="layaUnif"></div>';
+      '<div class="jm-card"><b>🔔 Avisos recientes de Vento</b><div id="layaAvisos" class="settings-desc"></div></div>' +
+      '<div class="jm-card"><b>📜 Actividad de Vento y auditoría</b><div class="settings-desc">Qué consultó, sugirió y ejecutó Vento, y las acciones importantes (combinar, separar, reiniciar, cobrar grupos) con usuario, fecha y hora.</div><div id="layaActividad" class="jm-tabla jm-act"></div></div><div class="jm-card" id="layaUnif"></div>';
     const ref = document.querySelector('#view-ajustes .settings-group[data-cat]'); ref.parentNode.insertBefore(g, ref);
     b.addEventListener('click', () => { if(typeof mostrarCategoriaAjustes === 'function') mostrarCategoriaAjustes('laya'); pintar(); });
     g.querySelector('#layaInfBtns').addEventListener('click', ev => { const x = ev.target.closest('[data-inf]'); if(!x) return; const box = g.querySelector('#layaInf'); box.hidden = false; box.textContent = INFORMES[x.dataset.inf](x.dataset.inf === 'compras' || x.dataset.inf === 'iva' || x.dataset.inf === 'facturas' ? rango('este mes') : null); });
@@ -26776,7 +26900,7 @@ window.mesoraCelebrar = function(emojis){
   function pintar(){
     const g = document.getElementById('layaGrupo'); if(!g || !listo()) return;
     try{ g.querySelector('#layaCentro').textContent = centro(); }catch(e){}
-    const act = (data.layaLog || []).map(x => ({ t: x.t, a: 'Laya · ' + x.clase, d: x.txt, u: x.usuario })).concat((data.auditoria || []).map(x => ({ t: x.t, a: x.accion, d: x.detalle, u: x.usuario }))).sort((a, b) => b.t - a.t).slice(0, 80);
+    const act = (data.layaLog || []).map(x => ({ t: x.t, a: 'Vento · ' + x.clase, d: x.txt, u: x.usuario })).concat((data.auditoria || []).map(x => ({ t: x.t, a: x.accion, d: x.detalle, u: x.usuario }))).sort((a, b) => b.t - a.t).slice(0, 80);
     g.querySelector('#layaActividad').innerHTML = act.length ? act.map(x => '<div><span>' + new Date(x.t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) + '</span><span><b>' + e2(x.a) + '</b> ' + e2(x.d) + '</span><span>' + e2(x.u) + '</span></div>').join('') : '<div class="settings-desc">Todavía no hay actividad.</div>';
     g.querySelector('#layaAvisos').innerHTML = recientes.length ? recientes.slice(0, 12).map(a => '<div>' + new Date(a.t).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' }) + ' · ' + e2(a.txt) + '</div>').join('') : 'Sin avisos por ahora.';
     const u = data.unificaciones || [];
@@ -26790,7 +26914,7 @@ window.mesoraCelebrar = function(emojis){
 })();
 </script>
 <script>
-/* ================= Historial de facturas, movimientos de inventario y Laya IA (Ajustes) =================
+/* ================= Historial de facturas, movimientos de inventario y Vento IA (Ajustes) =================
    Usa lo que ya existe: cada factura aplicada queda en data.purchases (con su encabezado, sus renglones,
    quién la confirmó, qué se cambió y la foto original guardada en el celular con ctReciboGuardar), y cada
    entrada al inventario en data.inventarioMov. Aquí solo se consultan. */
@@ -26844,13 +26968,13 @@ window.mesoraCelebrar = function(emojis){
   if(hb) hb.onclick = abrirHist; if(mb) mb.onclick = abrirMov;
   window.fiAbrirHistorialFacturas = abrirHist;
 
-  // ---------- Motor de decisiones Laya (puente) en Ajustes → Laya IA ----------
+  // ---------- Motor de decisiones Vento (puente) en Ajustes → Vento IA ----------
   function panelLaya(){
     const g = $h('layaGrupo'); if(!g || $h('layaCard')) return;
     const c = document.createElement('div'); c.className = 'jm-card'; c.id = 'layaCard';
-    c.innerHTML = '<b>🧩 Motor de decisiones Laya (opcional)</b><div class="settings-desc">Cuando un renglón de una factura se parece a varios productos de tu inventario, Laya IA ayuda a elegir el correcto. ' +
+    c.innerHTML = '<b>🧩 Motor de decisiones Vento (opcional)</b><div class="settings-desc">Cuando un renglón de una factura se parece a varios productos de tu inventario, Vento IA ayuda a elegir el correcto. ' +
       'Solo se consulta en esos casos (lo seguro lo resuelve Vento sola) y nunca cambia el inventario: propone y tú confirmas. ' +
-      'Por seguridad, la clave de Laya no se guarda aquí: va en tu puente (archivo <code>puente/laya-worker.js</code>, se publica gratis en Cloudflare). Aquí solo va la dirección del puente.</div>' +
+      'Por seguridad, la clave de Vento no se guarda aquí: va en tu puente (archivo <code>puente/laya-worker.js</code>, se publica gratis en Cloudflare). Aquí solo va la dirección del puente.</div>' +
       '<input type="url" id="layaUrl" class="mz-in" placeholder="https://laya-puente.tu-usuario.workers.dev" autocomplete="off" autocapitalize="none" spellcheck="false">' +
       '<div class="mz-actions" style="margin-top:8px"><button type="button" class="btn-ghost" id="layaProbar">Probar conexión</button><button type="button" class="btn-ghost" id="layaQuitar">Quitar</button></div>' +
       '<div class="settings-desc" id="layaEstado"></div>';
@@ -26861,7 +26985,7 @@ window.mesoraCelebrar = function(emojis){
       data.laya = Object.assign({}, data.laya, { url: v }); if(!v) delete data.laya.url; LayaIA.reset(); saveData(); pintar(); };
     $h('layaQuitar').onclick = () => { data.laya = {}; saveData(); pintar(); };
     $h('layaProbar').onclick = async () => { inp.onchange(); if(!(data.laya || {}).url) return; est.textContent = 'Probando…'; LayaIA.reset();
-      try{ est.textContent = (await LayaIA.probar()) ? '✅ Laya IA responde.' : '⚠️ El puente respondió, pero no como Laya.'; }catch(err){ est.textContent = '⚠️ IA temporalmente no disponible: ' + (err && err.message ? err.message : 'sin respuesta') + '.'; } };
+      try{ est.textContent = (await LayaIA.probar()) ? '✅ Vento IA responde.' : '⚠️ El puente respondió, pero no como Vento.'; }catch(err){ est.textContent = '⚠️ IA temporalmente no disponible: ' + (err && err.message ? err.message : 'sin respuesta') + '.'; } };
     pintar();
   }
   document.addEventListener('click', ev => { if(ev.target.closest('.ajustes-cat[data-cat="laya"]')) setTimeout(panelLaya, 60); });
@@ -27214,16 +27338,16 @@ window.mesoraCelebrar = function(emojis){
 </script>
 <script>
 /* =====================================================================
-   Laya · cerebro de la app (ventas, ganancias, acciones y piloto automático)
+   Vento · cerebro de la app (ventas, ganancias, acciones y piloto automático)
    ---------------------------------------------------------------------
-   Se suma al motor de Laya que ya existe (no lo reemplaza):
+   Se suma al motor de Vento que ya existe (no lo reemplaza):
    • Entiende VENTAS y GANANCIAS por período, compara con la semana pasada, dice lo más vendido y la hora pico.
    • ACTÚA con confirmación: cambiar un precio, sumar stock que llegó, armar la lista de compras.
    • PILOTO AUTOMÁTICO: revisa sola el negocio y propone lo que conviene hacer (comprar lo que se acaba,
      subir un precio cuando subió el costo, cobrar una mesa olvidada, fiados viejos, productos quietos) y
-     da un resumen del día. Todo se muestra en la tarjeta «🧠 Laya» del inicio, con botones de un toque.
-   Regla de siempre: Laya propone, la app valida y la persona confirma. Nada se cambia sin confirmación,
-   los cambios de precio y stock son solo para administradores y todo queda en la actividad de Laya.
+     da un resumen del día. Todo se muestra en la tarjeta «🧠 Vento» del inicio, con botones de un toque.
+   Regla de siempre: Vento propone, la app valida y la persona confirma. Nada se cambia sin confirmación,
+   los cambios de precio y stock son solo para administradores y todo queda en la actividad de Vento.
    ===================================================================== */
 (function(){
   if(!window.Laya) return;
@@ -27287,7 +27411,7 @@ window.mesoraCelebrar = function(emojis){
     if(!ov){ ov = document.createElement('div'); ov.id = 'layaListaOv'; ov.className = 'overlay'; document.body.appendChild(ov);
       ov.addEventListener('click', e => { if(e.target === ov || e.target.closest('[data-ll="cerrar"]')) ov.classList.remove('show'); }); }
     const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    ov.innerHTML = '<div class="modal" style="max-width:520px"><h2>🛒 Lista de compras de Laya</h2><div class="modal-sub">' + (l.length ? 'Para cubrir una semana de ventas (según lo que se vendió en los últimos 14 días). Cambia las cantidades si quieres.' : 'No hay productos por comprar: todo tiene stock suficiente. ✅') + '</div>' +
+    ov.innerHTML = '<div class="modal" style="max-width:520px"><h2>🛒 Lista de compras de Vento</h2><div class="modal-sub">' + (l.length ? 'Para cubrir una semana de ventas (según lo que se vendió en los últimos 14 días). Cambia las cantidades si quieres.' : 'No hay productos por comprar: todo tiene stock suficiente. ✅') + '</div>' +
       (l.length ? '<div class="ll-tabla">' + l.map((x, i) => '<div class="ll-fila"><span><b>' + esc(x.p.name) + '</b><small>' + esc(x.prov) + ' · quedan ' + x.quedan + (x.porDia ? ' · se venden ~' + (Math.round(x.porDia * 10) / 10) + '/día' : '') + '</small></span><input type="number" min="0" inputmode="numeric" data-i="' + i + '" value="' + x.pedir + '"></div>').join('') + '</div>' +
         '<div class="modal-actions" style="flex-wrap:wrap;gap:8px"><button type="button" class="btn-primary" data-ll="wa">📲 Enviar por WhatsApp</button><button type="button" class="btn-ghost" data-ll="copiar">📋 Copiar</button><button type="button" class="btn-close" data-ll="cerrar">Cerrar</button></div>' :
         '<div class="modal-actions"><button type="button" class="btn-close" data-ll="cerrar">Cerrar</button></div>') + '</div>';
@@ -27304,7 +27428,7 @@ window.mesoraCelebrar = function(emojis){
     const a = auto(), out = [], ahora = Date.now();
     if(a.resumen){
       const ay = periodo('ayer'), v = ventas(ay.ini, ay.fin);
-      if(v.n) out.push({ id: 'res-' + new Date(ay.ini).toDateString(), icono: '📊', prio: 1, texto: 'Ayer vendiste ' + plata(v.total) + ' en ' + v.n + ' cuenta' + (v.n === 1 ? '' : 's') + (v.costo ? ', ganancia ~' + plata(v.ganancia) : '') + (top(v.prod, 1)[0] ? '. Lo más vendido: ' + top(v.prod, 1)[0][0] + '.' : '.'), acciones: [{ label: 'Ver resumen', pregunta: 'Laya, resumen del día de ayer' }] });
+      if(v.n) out.push({ id: 'res-' + new Date(ay.ini).toDateString(), icono: '📊', prio: 1, texto: 'Ayer vendiste ' + plata(v.total) + ' en ' + v.n + ' cuenta' + (v.n === 1 ? '' : 's') + (v.costo ? ', ganancia ~' + plata(v.ganancia) : '') + (top(v.prod, 1)[0] ? '. Lo más vendido: ' + top(v.prod, 1)[0][0] + '.' : '.'), acciones: [{ label: 'Ver resumen', pregunta: 'Vento, resumen del día de ayer' }] });
     }
     if(a.compras){
       const l = listaCompras();
@@ -27352,16 +27476,16 @@ window.mesoraCelebrar = function(emojis){
   // ---------- Preguntas nuevas ----------
   function cerebro(raw){
     if(!listo()) return null;
-    const t = N(raw).replace(/^(oye |hola |ey |hey )?laya\b ?/, '');
+    const t = N(raw).replace(/^((oye|hola|ok|okey|ey|hey),? )?(laya|vento|bento)\b ?/, '');
     if(!t) return null;
     if(/\b(abre|abrir|abreme|muestrame|pon)\b.*\bcalculadora\b|^calculadora$/.test(t)) return { text: '🧮 Abro la calculadora.', run: () => { try{ asisClose(); }catch(e){} window.calculadoraAbrir && window.calculadoraAbrir(); } };
-    // Avisos de Laya: «Laya, desactiva tus notificaciones» / «Laya, vuelve a mostrar los avisos»
+    // Avisos de Vento: «Vento, desactiva tus notificaciones» / «Vento, vuelve a mostrar los avisos»
     if(/\b(avisos|notificaciones|alertas|mensajes)\b/.test(t) && /\b(desactiva|desactivar|apaga|apagar|quita|quitar|silencia|calla|no me (mandes|muestres|salgan))\b/.test(t)){
-      data.layaAuto = Object.assign({}, auto(), { avisos: false }); saveData(); reg('ejecución', 'Avisos de Laya apagados');
-      return { text: '🔕 Listo: ya no te salen mis avisos en pantalla. Los sigo guardando en Ajustes → Laya IA → «Avisos recientes». Para volver: «Laya, activa tus avisos».' };
+      data.layaAuto = Object.assign({}, auto(), { avisos: false }); saveData(); reg('ejecución', 'Avisos de Vento apagados');
+      return { text: '🔕 Listo: ya no te salen mis avisos en pantalla. Los sigo guardando en Ajustes → Vento IA → «Avisos recientes». Para volver: «Vento, activa tus avisos».' };
     }
     if(/\b(avisos|notificaciones|alertas)\b/.test(t) && /\b(activa|activar|prende|enciende|vuelve a|muestrame de nuevo)\b/.test(t)){
-      data.layaAuto = Object.assign({}, auto(), { avisos: true }); saveData(); reg('ejecución', 'Avisos de Laya prendidos');
+      data.layaAuto = Object.assign({}, auto(), { avisos: true }); saveData(); reg('ejecución', 'Avisos de Vento prendidos');
       return { text: '🔔 Listo: te vuelvo a avisar lo importante.' };
     }
     // Música y TV
@@ -27391,8 +27515,8 @@ window.mesoraCelebrar = function(emojis){
     if(/\b(nequi|daviplata|bre b|transferencias?|pagos? (digitales|de hoy|recibidos|que llegaron)|me (ha |han )?llegado|cuanto (me )?llego|llego (el )?pago|llegaron pagos)\b/.test(t) && window.pagosResumen){
       const mesaP = (t.match(/\bmesa (\d+)\b/) || [])[1]; return { text: window.pagosResumen(periodo(t), mesaP ? +mesaP : null), actions: [{ tipo: 'laya', op: 'pagosPanel', label: '💜 Ver los pagos' }] };
     }
-    // Cuentas: «Laya, súmame 3500 más 4000 y multiplícame 5000 por 2»
-    if(window.ventoCalcular && !/\b(mesa|cuenta de|pedido)\b/.test(t)){ const c = window.ventoCalcular(raw.replace(/^\s*(oye\s+|hola\s+)?laya[\s,]*/i, ''), true); if(c) return { text: c.texto }; }
+    // Cuentas: «Vento, súmame 3500 más 4000 y multiplícame 5000 por 2»
+    if(window.ventoCalcular && !/\b(mesa|cuenta de|pedido)\b/.test(t)){ const c = window.ventoCalcular(raw.replace(/^\s*((oye|hola|ok|okey|ey|hey)[\s,]+)?(laya|vento|bento)\b[\s,]*/i, ''), true); if(c) return { text: c.texto }; }
     const pe = periodo(t);
     if(/\b(ganancia|ganancias|utilidad|cuanto gane|cuanto he ganado|cuanto ganamos|me gane|rentabilidad|margen de hoy)\b/.test(t)){
       const v = ventas(pe.ini, pe.fin); reg('consulta', 'Ganancia ' + pe.txt);
@@ -27479,10 +27603,10 @@ window.mesoraCelebrar = function(emojis){
     if(a.op === 'precio' || a.op === 'stock'){
       if(!esAdmin()){ reg('crítica', 'Denegado (sin permiso): ' + a.op); return '🔒 Eso es solo para un administrador.'; }
       const p = data.products.find(x => x.id === a.id); if(!p) return 'Ya no encontré ese producto.';
-      if(a.op === 'precio'){ const antes = p.price; p.price = Math.round(a.precio); data.preciosLog = data.preciosLog || []; data.preciosLog.unshift({ t: Date.now(), id: p.id, name: p.name, de: antes, a: p.price, por: 'Laya', usuario: (typeof authUser !== 'undefined' && authUser) || '' });
+      if(a.op === 'precio'){ const antes = p.price; p.price = Math.round(a.precio); data.preciosLog = data.preciosLog || []; data.preciosLog.unshift({ t: Date.now(), id: p.id, name: p.name, de: antes, a: p.price, por: 'Vento', usuario: (typeof authUser !== 'undefined' && authUser) || '' });
         saveData(); try{ renderProductos(); renderInventario(); }catch(e){} reg('ejecución', 'Precio de ' + p.name + ': ' + plata(antes) + ' → ' + plata(p.price)); return '✅ ' + p.name + ' ahora vale ' + plata(p.price) + ' (antes ' + plata(antes) + ').'; }
       const antes = p.stock || 0; p.stock = antes + a.qty; data.inventarioMov = data.inventarioMov || [];
-      data.inventarioMov.push({ id: Date.now() + '-' + p.id, tipo: 'entrada manual', productId: p.id, name: p.name, qty: a.qty, usuario: (typeof authUser !== 'undefined' && authUser) || '', at: Date.now(), origen: 'Laya' });
+      data.inventarioMov.push({ id: Date.now() + '-' + p.id, tipo: 'entrada manual', productId: p.id, name: p.name, qty: a.qty, usuario: (typeof authUser !== 'undefined' && authUser) || '', at: Date.now(), origen: 'Vento' });
       saveData(); try{ renderInventario(); renderProductos(); }catch(e){} reg('ejecución', 'Stock de ' + p.name + ': ' + antes + ' → ' + p.stock); return '✅ ' + p.name + ': ahora hay ' + p.stock + ' (sumé ' + a.qty + ').';
     }
     return null;
@@ -27492,7 +27616,7 @@ window.mesoraCelebrar = function(emojis){
   window.Laya.ejecutar = a => { const r = ejecutarNuevo(a); return r != null ? r : ejecutarBase(a); };
   Object.assign(window.Laya, { ventas, sugerencias, listaCompras, abrirLista });
 
-  // ---------- Tarjeta «🧠 Laya» en el inicio ----------
+  // ---------- Tarjeta «🧠 Vento» en el inicio ----------
   function pintarTarjeta(){
     const vista = document.getElementById('view-mesas'); if(!vista || !listo()) return;
     let box = document.getElementById('layaHome');
@@ -27515,7 +27639,7 @@ window.mesoraCelebrar = function(emojis){
     }
     const esc = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     box.hidden = false;
-    box.innerHTML = '<div class="lh-h"><b>🧠 Laya</b><button type="button" class="lh-mas" onclick="try{asisOpen();setTimeout(()=>asisAsk(\'Laya, ¿qué me recomiendas?\'),250)}catch(e){}">Ver todo ›</button></div>' +
+    box.innerHTML = '<div class="lh-h"><b>🧠 Vento</b><button type="button" class="lh-mas" onclick="try{asisOpen();setTimeout(()=>asisAsk(\'Vento, ¿qué me recomiendas?\'),250)}catch(e){}">Ver todo ›</button></div>' +
       s.map(x => '<div class="lh-it"><span class="lh-ic">' + x.icono + '</span><div class="lh-tx">' + esc(x.texto) + '<div class="lh-bt">' + x.acciones.map((a, i) => '<button type="button" class="btn-ghost" data-s="' + esc(x.id) + '" data-a="' + i + '">' + esc(a.label) + '</button>').join('') + '</div></div><button type="button" class="lh-x" data-s="' + esc(x.id) + '" data-a="x" aria-label="Ocultar por hoy">✕</button></div>').join('');
   }
   setInterval(() => { try{ pintarTarjeta(); }catch(e){} }, 60000);
@@ -27524,14 +27648,14 @@ window.mesoraCelebrar = function(emojis){
   setTimeout(() => { try{ pintarTarjeta(); }catch(e){} }, 4000);
   window.layaPintarTarjeta = pintarTarjeta;
 
-  // ---------- Ajustes → Laya IA: interruptores del piloto automático ----------
+  // ---------- Ajustes → Vento IA: interruptores del piloto automático ----------
   function panelAuto(){
     const g = document.getElementById('layaGrupo'); if(!g || !listo()) return;
     const ya = document.getElementById('layaAutoCard');
     if(ya){ ya.querySelectorAll('[data-auto]').forEach(x => { x.checked = !!auto()[x.dataset.auto]; }); return; }
-    const OPS = [['avisos', '🔔 Avisos de Laya en pantalla (apágalo para que no te salgan mensajes)'], ['tarjeta', 'Tarjeta de Laya en el inicio'], ['resumen', 'Resumen del día anterior'], ['compras', 'Lista de compras cuando algo se acaba'], ['precios', 'Sugerir precio cuando sube el costo'], ['mesas', 'Avisar mesas sin movimiento (más de 3 h)'], ['fiados', 'Recordar fiados de más de 15 días'], ['quietos', 'Productos que no se venden en 30 días']];
+    const OPS = [['avisos', '🔔 Avisos de Vento en pantalla (apágalo para que no te salgan mensajes)'], ['tarjeta', 'Tarjeta de Vento en el inicio'], ['resumen', 'Resumen del día anterior'], ['compras', 'Lista de compras cuando algo se acaba'], ['precios', 'Sugerir precio cuando sube el costo'], ['mesas', 'Avisar mesas sin movimiento (más de 3 h)'], ['fiados', 'Recordar fiados de más de 15 días'], ['quietos', 'Productos que no se venden en 30 días']];
     const c = document.createElement('div'); c.className = 'jm-card'; c.id = 'layaAutoCard';
-    c.innerHTML = '<b>🤖 Piloto automático</b><div class="settings-desc">Laya revisa el negocio sola y te propone qué hacer. Nada se cambia sin que lo confirmes.</div>' +
+    c.innerHTML = '<b>🤖 Piloto automático</b><div class="settings-desc">Vento revisa el negocio sola y te propone qué hacer. Nada se cambia sin que lo confirmes.</div>' +
       OPS.map(([k, l]) => '<label class="lh-sw"><input type="checkbox" data-auto="' + k + '"' + (auto()[k] ? ' checked' : '') + '> ' + l + '</label>').join('');
     c.addEventListener('change', e => { const x = e.target.closest('[data-auto]'); if(!x) return; data.layaAuto = Object.assign({}, auto(), { [x.dataset.auto]: x.checked }); saveData(); pintarTarjeta(); });
     const ref = g.querySelector('.jm-card'); ref ? g.insertBefore(c, ref) : g.appendChild(c);
@@ -27561,9 +27685,9 @@ window.mesoraCelebrar = function(emojis){
     sel.innerHTML = l.length ? l.map(v => '<option value="' + String(v.voiceURI).replace(/"/g, '&quot;') + '"' + (elegida && v.voiceURI === elegida.voiceURI ? ' selected' : '') + '>' + (vozPuntaje(v) >= 30 ? '⭐ ' : '') + v.name.replace(/[<>]/g, '') + ' (' + v.lang + ')</option>').join('') : '<option>No hay voces en español en este navegador</option>';
     vel.value = c.vel || 1; velT.textContent = Math.round((c.vel || 1) * 100) + '%';
   }
-  sel.onchange = () => { guardar({ uri: sel.value }); window.ventoHablar('Hola, soy Laya. Así sueno ahora.'); };
+  sel.onchange = () => { guardar({ uri: sel.value }); window.ventoHablar('Hola, soy Vento. Así sueno ahora.'); };
   vel.oninput = () => { guardar({ vel: +vel.value }); velT.textContent = Math.round(vel.value * 100) + '%'; };
-  document.getElementById('vozProbar').onclick = () => window.ventoHablar('Hola, soy Laya. Mesa tres: dos Águilas y una Poker. Total, doce mil pesos.');
+  document.getElementById('vozProbar').onclick = () => window.ventoHablar('Hola, soy Vento. Mesa tres: dos Águilas y una Poker. Total, doce mil pesos.');
   speechSynthesis.addEventListener ? speechSynthesis.addEventListener('voiceschanged', pintar) : (speechSynthesis.onvoiceschanged = pintar);
   document.addEventListener('click', e => { if(e.target.closest && e.target.closest('.ajustes-cat[data-cat="voz"]')) setTimeout(pintar, 50); });
   pintar();
@@ -27577,7 +27701,7 @@ window.mesoraCelebrar = function(emojis){
      Se anota como transferencia con la app, quién pagó y la marca de verificado; nunca se registra dos veces.
    • Panel «💜 Pagos de hoy» (Más → Pagos Nequi / Daviplata): total del día por app, la lista con su estado
      (✅ confirmado, ⚠️ revisar, 🚨 falso) y acciones. Desde ahí se configura si aún no está activo.
-   • Laya responde «¿cuánto me ha llegado por Nequi hoy?» y avisa en su tarjeta los pagos sin registrar. */
+   • Vento responde «¿cuánto me ha llegado por Nequi hoy?» y avisa en su tarjeta los pagos sin registrar. */
 (function(){
   const plata = n => '$' + Math.round(n || 0).toLocaleString('es-CO');
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -27635,7 +27759,7 @@ window.mesoraCelebrar = function(emojis){
 
   window.pagoRegistrar = registrar;   // lo usa nube/vento-pagos.js cuando el servidor confirma un cobro de la cuenta
 
-  // ---------- Resumen (lo usa Laya) ----------
+  // ---------- Resumen (lo usa Vento) ----------
   window.pagosResumen = function(pe, mesa){
     const ini = pe && pe.ini || new Date().setHours(0, 0, 0, 0), fin = pe && pe.fin || Date.now() + 1, txt = pe && pe.txt || 'hoy';
     if(!(data.pagos && data.pagos.on)) return '💜 Los avisos de Nequi y Daviplata no están activados. Actívalos en Ajustes → Negocio → «Verificar pagos de Nequi y Daviplata» (te explico los pasos ahí).';

@@ -1,5 +1,7 @@
 # Compila la app de Vento para Android (APK) y la publica en la página de descargas del repositorio:
 #   https://github.com/cristhianlujan45-blip/cuentas/releases/latest/download/vento.apk
+# y la del proveedor (panel de administración):
+#   https://github.com/cristhianlujan45-blip/cuentas/releases/latest/download/vento-admin.apk
 # Corre sola cada vez que cambia la carpeta android/ en la rama principal, y también a mano
 # (Actions → App Android → Run workflow).
 name: App Android
@@ -37,20 +39,24 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
           gradle -p android assembleRelease --no-daemon --stacktrace
           cp android/app/build/outputs/apk/release/app-release.apk vento.apk
-          ls -la vento.apk
+          cp android/admin/build/outputs/apk/release/admin-release.apk vento-admin.apk
+          ls -la vento.apk vento-admin.apk
       - uses: actions/upload-artifact@v4
         with:
           name: vento-apk
-          path: vento.apk
+          path: |
+            vento.apk
+            vento-admin.apk
       - name: Publicar en Descargas (release «android»)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          NOTAS="Vento para Android ${VENTO_VERSION_NAME}. Descarga vento.apk, ábrelo en el celular y toca Instalar (si pregunta, permite instalar apps de esta fuente). Las versiones nuevas se instalan encima sin borrar nada."
+          NOTAS="Vento para Android ${VENTO_VERSION_NAME}. Descarga vento.apk (y vento-admin.apk, solo para el proveedor), ábrelo en el celular y toca Instalar (si pregunta, permite instalar apps de esta fuente). Las versiones nuevas se instalan encima sin borrar nada."
           if gh release view android >/dev/null 2>&1; then
             gh release edit android --title "Vento para Android ${VENTO_VERSION_NAME}" --notes "$NOTAS" --latest
           else
             gh release create android --title "Vento para Android ${VENTO_VERSION_NAME}" --notes "$NOTAS" --target "${GITHUB_SHA}" --latest
           fi
-          gh release upload android vento.apk --clobber
+          gh release upload android vento.apk vento-admin.apk --clobber
           echo "### ✅ APK publicado: https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/vento.apk" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 👑 Vento Admin: https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/vento-admin.apk" >> "$GITHUB_STEP_SUMMARY"

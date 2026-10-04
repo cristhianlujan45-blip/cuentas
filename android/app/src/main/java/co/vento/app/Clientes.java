@@ -62,6 +62,21 @@ final class Clientes {
         public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
             return abrirFuera(r.getUrl());
         }
+
+        /** Android cerró la página por falta de memoria (pasa de fondo): sin esto la app entera se cerraba.
+         *  Se descarta la página muerta y se crea otra; los datos están guardados, no se pierde nada. */
+        @Override
+        public boolean onRenderProcessGone(WebView v, android.webkit.RenderProcessGoneDetail d) {
+            VentoApp.ui.post(() -> {
+                try { if (v.getParent() instanceof android.view.ViewGroup) ((android.view.ViewGroup) v.getParent()).removeView(v); } catch (Exception ignorado) { }
+                try { v.destroy(); } catch (Exception ignorado) { }
+                if (VentoApp.web == v) VentoApp.web = null;
+                MainActivity a = VentoApp.ventana;
+                WebView nueva = VentoApp.motor(a);
+                if (a != null) a.mostrar(nueva);
+            });
+            return true;
+        }
     }
 
     static final class Cromo extends WebChromeClient {
