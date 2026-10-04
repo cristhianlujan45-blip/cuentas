@@ -557,6 +557,20 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
     padding: 28px 20px 80px;
   }
 
+  /* Pantallas grandes: computador, tableta horizontal y TV. Más ancho útil y
+     marco visible al moverse con teclado o con el control remoto del TV. */
+  @media (min-width: 1200px){
+    .wrap{ max-width: 1180px; }
+    #overlay .modal{ max-width: 540px; }
+    .grid{ grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+  }
+  @media (min-width: 1700px){
+    .wrap{ max-width: 1480px; }
+    #overlay .modal{ max-width: 600px; }
+    .grid{ grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 18px; }
+  }
+  :is(button, a, input, select, textarea, [tabindex]):focus-visible{ outline: 3px solid var(--amber, #a78bfa); outline-offset: 2px; }
+
   /* Header */
   header{
     display:flex;
@@ -8692,6 +8706,12 @@ document.getElementById('closeModalBtn').addEventListener('click', ()=>{
   renderMesas();
 });
 overlay.addEventListener('click', (e)=>{ if(e.target === overlay){ overlay.classList.remove('show'); currentTable=null; renderMesas(); } });
+// Computador / control remoto: Esc cierra la mesa si no hay otra ventana encima.
+document.addEventListener('keydown', e => {
+  if(e.key !== 'Escape' || !overlay.classList.contains('show')) return;
+  const encima = [...document.querySelectorAll('.overlay.show')].some(o => o !== overlay && !overlay.contains(o));
+  if(!encima) document.getElementById('closeModalBtn').click();
+});
 
 function refreshProductSelect(){
   const searchInput = document.getElementById('addProductSearch');
@@ -22450,7 +22470,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-04 · v1.27.4';
+const MESORA_VERSION = '2026-10-04 · v1.27.5';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
