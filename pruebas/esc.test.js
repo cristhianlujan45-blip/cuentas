@@ -2,7 +2,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
 (async()=>{ const b=await chromium.launch(); const ctx=await b.newContext({viewport:{width:1440,height:900}});
  await ctx.route('**/*', r=>{const u=new URL(r.request().url()); return u.hostname==='localhost'?r.continue():r.abort();});
  const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
- await p.goto('http://localhost:8765/index.html'); await p.waitForTimeout(2500);
+ await p.goto((process.env.VENTO_BASE||'http://localhost:8765')+'/index.html'); await p.waitForTimeout(2500);
  await p.fill('#authBiz','Bar X'); await p.fill('#authUser','ana'); await p.fill('#authPass','clave123'); await p.click('#authBtn'); await p.waitForTimeout(1500);
  await p.click('#onbSaltar').catch(()=>{});
  await p.evaluate(()=>{ document.querySelectorAll('.overlay.show').forEach(o=>o.classList.remove('show')); renderMesas(); });

@@ -3,7 +3,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
  const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2});
  await ctx.route('**/*', r=>{const u=new URL(r.request().url()); return u.hostname==='localhost'?r.continue():r.abort();});
  const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
- await p.goto('http://localhost:8765/index.html',{waitUntil:'load'}); await p.waitForTimeout(3500);
+ await p.goto((process.env.VENTO_BASE||'http://localhost:8765')+'/index.html',{waitUntil:'load'}); await p.waitForTimeout(3500);
  await p.evaluate(async()=>{ try{await enterApp('test',null);}catch(x){} localStorage.setItem('cm-tutorial-seen','1'); document.querySelectorAll('.overlay.show').forEach(o=>o.classList.remove('show'));
    data.products=[{id:'pk',name:'Poker',price:3000,stock:50}]; data.tables[3]={items:[{productId:'pk',name:'Poker',price:3000,qty:10,personId:null,history:[]}],people:[],payments:[]}; saveData(); renderMesas(); openTableModal(3); });
  await p.waitForTimeout(600);

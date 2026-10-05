@@ -10,7 +10,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
    window.__say=function(t){ const r=window.__act; if(!r) return 'nadie'; const alt=[{transcript:t,confidence:.9}]; alt.isFinal=true; alt.item=i=>alt[i]; r._res.push(alt); const res=r._res.slice(); res.item=i=>res[i]; r.onresult&&r.onresult({results:res,resultIndex:res.length-1}); return 'ok'; };
  });
  const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
- await p.goto('http://localhost:8765/index.html'); await p.waitForTimeout(2500);
+ await p.goto((process.env.VENTO_BASE||'http://localhost:8765')+'/index.html'); await p.waitForTimeout(2500);
  await p.fill('#authBiz','Bar H'); await p.fill('#authUser','ana'); await p.fill('#authPass','clave123'); await p.click('#authBtn'); await p.waitForTimeout(1500);
  await p.click('#onbSaltar').catch(()=>{});
  await p.evaluate(()=>{ document.querySelectorAll('.overlay.show').forEach(o=>o.classList.remove('show')); data.products=[{id:'pk',name:'Poker',price:4000,stock:50},{id:'ag',name:'Águila',price:4000,stock:50}]; data.tables={1:{items:[],people:[]},2:{items:[],people:[]}}; saveData(); renderMesas(); });

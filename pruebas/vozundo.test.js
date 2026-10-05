@@ -2,7 +2,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
 (async()=>{ const b=await chromium.launch(); const ctx=await b.newContext();
  await ctx.route('**/*', r=>{const u=new URL(r.request().url()); return u.hostname==='localhost'?r.continue():r.abort();});
  const p=await ctx.newPage(); const e=[]; p.on('pageerror',x=>e.push(x.message));
- await p.goto('http://localhost:8765/index.html',{waitUntil:'load'}); await p.waitForTimeout(4000);
+ await p.goto((process.env.VENTO_BASE||'http://localhost:8765')+'/index.html',{waitUntil:'load'}); await p.waitForTimeout(4000);
  const r=await p.evaluate(async()=>{ try{await enterApp('test',null);}catch(x){} window.speakVoice=()=>{};
    const toasts=[]; window.showToast=(m)=>{toasts.push(String(m));};
    data.products=[{id:'ag',name:'Cerveza Águila',price:4000,stock:50},{id:'pk',name:'Poker',price:3800,stock:50}];

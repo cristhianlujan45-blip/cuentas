@@ -5,7 +5,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
   await ctx.addInitScript(()=>{ try{ localStorage.setItem('vento-hola','0'); }catch(e){} });
   const p=await ctx.newPage(); p.errs=[]; p.on('pageerror',e=>p.errs.push(e.message)); return p; };
  // 1. Negocio nuevo
- let p=await nuevo(); await p.goto('http://localhost:8765/index.html'); await p.waitForTimeout(2500);
+ let p=await nuevo(); await p.goto((process.env.VENTO_BASE||'http://localhost:8765')+'/index.html'); await p.waitForTimeout(2500);
  await p.fill('#authBiz','Bar Nuevo'); await p.fill('#authUser','ana'); await p.fill('#authPass','clave123'); await p.click('#authBtn'); await p.waitForTimeout(1800);
  chk('Negocio nuevo: sale el asistente', await p.evaluate(()=>document.getElementById('onbOv')?.classList.contains('show')));
  for(let i=0;i<4;i++){ await p.click('#onbSig'); await p.waitForTimeout(400); }
@@ -30,7 +30,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
  await p.evaluate(()=>{ document.getElementById('primerosPasos').hidden=false; window.ventoPasos.pintar(); }); const pc=await p.$('.pp-como'); if(pc){ await pc.click(); await p.waitForTimeout(300); } chk('«¿Cómo funciona?» abre el recorrido', await p.evaluate(()=>document.getElementById('tutorialOverlay').classList.contains('show') || !document.querySelector('.pp-como')));
  chk('Sin errores (nuevo)', !p.errs.length, p.errs.join('|'));
  // 2. Negocio que ya existía con ventas: no debe verla
- p=await nuevo(); await p.goto('http://localhost:8765/index.html'); await p.waitForTimeout(2500);
+ p=await nuevo(); await p.goto((process.env.VENTO_BASE||'http://localhost:8765')+'/index.html'); await p.waitForTimeout(2500);
  await p.fill('#authBiz','Bar Viejo'); await p.fill('#authUser','ana'); await p.fill('#authPass','clave123'); await p.click('#authBtn'); await p.waitForTimeout(1800);
  await p.click('#onbSaltar').catch(()=>{});
  await p.evaluate(()=>{ localStorage.removeItem('vento-pp-eval'); localStorage.removeItem('vento-pp-oculta'); data.history=[{t:Date.now(),total:5000,items:[]}]; saveData(); });

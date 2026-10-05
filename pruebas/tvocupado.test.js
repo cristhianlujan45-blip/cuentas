@@ -31,7 +31,7 @@ const mock = require('./ntfymock.js')();
     if(!sessionStorage.getItem('ini')){ sessionStorage.setItem('ini', 1); localStorage.setItem('cm-tutorial-seen', '1'); localStorage.setItem('vito_tvfix1', '1'); }
   });
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
-  await p.goto('http://localhost:8765/index.html'); await p.waitForTimeout(2500);
+  await p.goto((process.env.VENTO_BASE||'http://localhost:8765')+'/index.html'); await p.waitForTimeout(2500);
   await p.fill('#authBiz', 'Bar'); await p.fill('#authUser', 'ana'); await p.fill('#authPass', 'clave123'); await p.click('#authBtn'); await p.waitForTimeout(1500);
   await p.click('#onbSaltar').catch(() => {});
   const topic = await p.evaluate(() => { document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show')); document.getElementById('avBarra')?.remove(); for(let i = 1; i <= 4; i++) data.tables[i] = data.tables[i] || { items: [], people: [] }; saveData(); document.querySelector('nav button[data-view="musica"]')?.click(); return vitoMod.qCfg().topic; });

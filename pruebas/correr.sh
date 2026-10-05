@@ -4,8 +4,11 @@
 #       bash pruebas/correr.sh hola voz1ra → solo esas
 # La primera vez:  cd pruebas && npm install && npx playwright install chromium
 cd "$(dirname "$0")/.." || exit 1
-if ! curl -s -o /dev/null http://localhost:8765/index.html; then
-  python3 -m http.server 8765 >/dev/null 2>&1 & SRV=$!
+# Puerto propio con VENTO_PUERTO (sirve para correr varias copias del repo a la vez). Por defecto 8765.
+PUERTO="${VENTO_PUERTO:-8765}"
+export VENTO_BASE="http://localhost:$PUERTO"
+if ! curl -s -o /dev/null "$VENTO_BASE/index.html"; then
+  python3 -m http.server "$PUERTO" >/dev/null 2>&1 & SRV=$!
   trap 'kill $SRV 2>/dev/null' EXIT
   sleep 1
 fi

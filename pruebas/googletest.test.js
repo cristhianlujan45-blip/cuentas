@@ -14,13 +14,13 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
      from: ()=>q(), rpc: async()=>({data:[]}) }) };
  });
  const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
- await p.goto('http://localhost:8765/index.html'); await p.waitForTimeout(3500);
+ await p.goto((process.env.VENTO_BASE||'http://localhost:8765')+'/index.html'); await p.waitForTimeout(3500);
  chk('En la entrada aparece «Continuar con Google» (el servidor lo tiene activado)', await p.isVisible('#authGoogle'));
  await p.click('#authGoogle'); await p.waitForTimeout(800);
  const o=await p.evaluate(()=>window.__oauth);
  chk('Lleva a Google y vuelve a Vento', o && o.provider==='google' && /\?nubegoogle=1$/.test(o.options.redirectTo), JSON.stringify(o));
  // Simula la vuelta de Google
- await p.goto('http://localhost:8765/index.html?nubegoogle=1#access_token=TOK123&refresh_token=REF456&token_type=bearer&expires_in=3600'); await p.waitForTimeout(4000);
+ await p.goto((process.env.VENTO_BASE||'http://localhost:8765')+'/index.html?nubegoogle=1#access_token=TOK123&refresh_token=REF456&token_type=bearer&expires_in=3600'); await p.waitForTimeout(4000);
  chk('Al volver, la dirección queda limpia (el permiso no queda a la vista)', !/access_token/.test(p.url()) && !/nubegoogle/.test(p.url()), p.url());
  chk('Abre la sesión con ese permiso', await p.evaluate(()=>window.__sesion && window.__sesion.access_token==='TOK123' && window.__sesion.refresh_token==='REF456'));
  chk('Queda conectado con su Gmail y sigue con sus negocios', /dueno@gmail\.com/i.test(await p.evaluate(()=>{ const c=document.getElementById('nubeCuerpo'); return c?c.textContent:''; })), await p.evaluate(()=>{ const c=document.getElementById('nubeCuerpo'); return c?c.textContent.slice(0,120):'(sin panel)'; }));

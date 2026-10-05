@@ -8,7 +8,7 @@ const crypto=require('crypto'); const fs=require('fs');
  const ctx=await b.newContext({viewport:{width:390,height:844}});
  await ctx.route('**/*', r=>{ const u=new URL(r.request().url()); if(u.hostname!=='localhost') return r.abort(); if(/\/index\.html$/.test(u.pathname)) return r.fulfill({body:html,contentType:'text/html'}); return r.continue(); });
  const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
- await p.goto('http://localhost:8765/index.html'); await p.waitForTimeout(2500);
+ await p.goto((process.env.VENTO_BASE||'http://localhost:8765')+'/index.html'); await p.waitForTimeout(2500);
  await p.fill('#authBiz','Bar'); await p.fill('#authUser','ana'); await p.fill('#authPass','clave123'); await p.click('#authBtn'); await p.waitForTimeout(1500);
  await p.click('#onbSaltar').catch(()=>{}); await p.evaluate(()=>{ localStorage.setItem('cm-tutorial-seen','1'); document.querySelectorAll('.overlay.show').forEach(o=>o.classList.remove('show')); });
  await p.waitForTimeout(1500);
@@ -35,7 +35,7 @@ const crypto=require('crypto'); const fs=require('fs');
  const cod = await p.evaluate(()=>codigoNegocio());
  // Licencia de suscripción creada con licencias.html
  const b64u=x=>Buffer.from(x).toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
- const firmar=p=>{ const pl=b64u(JSON.stringify(p)); const sig=crypto.sign('sha256', Buffer.from(pl), { key: privateKey, dsaEncoding: 'ieee-p1363' }); return 'http://localhost:8765/index.html#licencia='+pl+'.'+b64u(sig); };
+ const firmar=p=>{ const pl=b64u(JSON.stringify(p)); const sig=crypto.sign('sha256', Buffer.from(pl), { key: privateKey, dsaEncoding: 'ieee-p1363' }); return (process.env.VENTO_BASE||'http://localhost:8765')+'/index.html#licencia='+pl+'.'+b64u(sig); };
  const linkSub = firmar({ d: cod, t: Date.now(), m: 1, pl: 'Pro', v: Date.now() + 31*864e5 });
  chk('Se crea el link de suscripción', /#licencia=/.test(linkSub), linkSub.slice(0,80));
  await p.evaluate(l=>{ location.hash = l.split('#')[1]; }, linkSub); await p.waitForTimeout(1500);
@@ -65,7 +65,7 @@ const crypto=require('crypto'); const fs=require('fs');
  const falso = await p.evaluate(async()=>{ const pl=btoa(JSON.stringify({d:codigoNegocio(),m:1,v:Date.now()+9e10})).replace(/=+$/,''); return await licActivar(pl+'.'+'A'.repeat(86), true); });
  chk('Un código inventado (sin la llave privada) no sirve', falso===false);
  // Celular del mesero
- const p2=await ctx.newPage(); await p2.goto('http://localhost:8765/index.html'); await p2.waitForTimeout(2000);
+ const p2=await ctx.newPage(); await p2.goto((process.env.VENTO_BASE||'http://localhost:8765')+'/index.html'); await p2.waitForTimeout(2000);
  st = await p2.evaluate(async d=>{ localStorage.clear(); data=JSON.parse(d); data.pruebaDesde=Date.now()-40*864e5; await licCargar(); return ventoPlan(); }, datos);
  chk('Otro celular con los datos del negocio: suscripción activa (no proveedor)', st.k==='activa', JSON.stringify(st));
  chk('Sin errores', !errs.length, errs.join(' | '));

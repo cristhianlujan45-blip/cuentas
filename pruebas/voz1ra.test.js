@@ -13,7 +13,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
   localStorage.setItem('cm-tutorial-seen','1');
  });
  const p=await ctx.newPage(); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
- await p.goto('http://localhost:8765/index.html'); await p.waitForTimeout(2500);
+ await p.goto((process.env.VENTO_BASE||'http://localhost:8765')+'/index.html'); await p.waitForTimeout(2500);
  await p.fill('#authBiz','Bar'); await p.fill('#authUser','ana'); await p.fill('#authPass','clave123'); await p.click('#authBtn'); await p.waitForTimeout(1500);
  await p.click('#onbSaltar').catch(()=>{});
  await p.evaluate(()=>{ document.querySelectorAll('.overlay.show').forEach(o=>o.classList.remove('show')); window.speakVoice=()=>{}; window.__toasts=[]; const s=window.showToast; window.showToast=(m,ms)=>{window.__toasts.push(String(m)); s(m,ms);};
