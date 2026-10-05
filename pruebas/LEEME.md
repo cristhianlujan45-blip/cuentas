@@ -12,6 +12,7 @@ el micrófono, la APK y los servicios externos se simulan.
 | `vozundo` | Deshacer / repetir pedidos por voz y preguntas de cuenta |
 | `divtest` | Dividir la cuenta entre N personas |
 | `suscrip` | Prueba gratis, licencias firmadas, bloqueo al vencer (con una llave de prueba temporal) |
+| `suscripnube` | Suscripción con Vento Nube (servidor simulado que firma con una llave temporal): planes → Nequi/DaviPlata → comprobante (foto JPEG, idem, doble toque), pago en revisión sin premium, PRO activo, vencido (deja vender), rechazado con motivo, RENOVAR, token alterado, sin internet hasta «h», flag a mano, cambio de celular y mesero sin pagos |
 | `googletest` | Entrar con Google (Vento Nube simulada) |
 | `tvocupado` | Conectarse al TV aunque otro celular ya esté conectado |
 | `esc` | Computador: Enter abre la mesa, Esc la cierra, ancho de pantalla grande |
