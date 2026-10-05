@@ -23,10 +23,21 @@ android {
         release {
             // Firma de la app para instalar fuera de la Play Store. Siempre la misma, así cada
             // versión nueva se instala encima de la anterior. Para la Play Store se usa la firma de Google.
-            storeFile file('../vento-apk.jks')
-            storePassword System.getenv('VENTO_KS_PASS') ?: 'vento-apk-2026'
-            keyAlias 'vento'
-            keyPassword System.getenv('VENTO_KS_PASS') ?: 'vento-apk-2026'
+            // La llave NO va en el repositorio (es público). En GitHub Actions se arma desde los secretos
+            // VENTO_KEYSTORE_B64 y VENTO_KS_PASS (ver android/LEEME.md → Firma). Sin ellos se firma con la
+            // llave de depuración y el flujo NO publica el APK.
+            def ks = System.getenv('VENTO_KS_FILE') ?: '../vento-apk.jks'
+            if (file(ks).exists() && System.getenv('VENTO_KS_PASS')) {
+                storeFile file(ks)
+                storePassword System.getenv('VENTO_KS_PASS')
+                keyAlias System.getenv('VENTO_KS_ALIAS') ?: 'vento'
+                keyPassword System.getenv('VENTO_KS_KEY_PASS') ?: System.getenv('VENTO_KS_PASS')
+            } else {
+                storeFile new File(System.getProperty('user.home'), '.android/debug.keystore')
+                storePassword 'android'
+                keyAlias 'androiddebugkey'
+                keyPassword 'android'
+            }
         }
     }
 

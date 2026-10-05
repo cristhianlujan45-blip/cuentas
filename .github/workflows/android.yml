@@ -34,6 +34,24 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Llave de firma (desde los secretos, nunca desde el repositorio)
+        id: firma
+        env:
+          KS_B64: ${{ secrets.VENTO_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.VENTO_KS_PASS }}
+        run: |
+          if [ -n "$KS_B64" ] && [ -n "$KS_PASS" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/vento.jks"
+            echo "VENTO_KS_FILE=$RUNNER_TEMP/vento.jks" >> "$GITHUB_ENV"
+            echo "VENTO_KS_PASS=$KS_PASS" >> "$GITHUB_ENV"
+            echo "publicar=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning title=Firma del APK::Faltan los secretos VENTO_KEYSTORE_B64 y VENTO_KS_PASS (ver android/LEEME.md → Firma). Se compila con una llave de prueba y NO se publica en Descargas."
+            mkdir -p ~/.android
+            [ -f ~/.android/debug.keystore ] || keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -keypass android \
+              -alias androiddebugkey -dname "CN=Android Debug,O=Android,C=US" -keyalg RSA -keysize 2048 -validity 10000 >/dev/null
+            echo "publicar=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Compilar el APK
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
@@ -48,6 +66,7 @@ jobs:
             vento.apk
             vento-admin.apk
       - name: Publicar en Descargas (release «android»)
+        if: steps.firma.outputs.publicar == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
