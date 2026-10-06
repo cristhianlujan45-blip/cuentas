@@ -10,6 +10,9 @@ name: Servidor Vento
 on:
   workflow_dispatch:
   push:
+    # Solo la rama principal (la que publica GitHub Pages) toca la base de datos de PRODUCCIÓN.
+    # Las ramas de trabajo no despliegan nada (antes cualquier rama aplicaba sus migraciones).
+    branches: [claude/precio-margen-productos-tabla-mioclt]
     paths:
       - "supabase/**"
       - ".github/workflows/servidor-vento.yml"

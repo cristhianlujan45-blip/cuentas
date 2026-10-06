@@ -100,6 +100,22 @@ async function pruebas(sb) {
   await api('/estado', { negocio: neg }, dueno.token);
   chk('Consultar otra vez no crea otra suscripción ni otra prueba', await contar('select count(*) n from subscriptions where business_id = $1', [neg]) === 1 && await eventos(neg, 'trial_started') === 1);
 
+  // Lanzamiento: un negocio que ya usaba Vento (creado hace 40 días) NO queda en Gratis al actualizar:
+  // su prueba se cuenta desde el inicio de la beta (billing_config.trial_desde).
+  const viejo = await sb.usuario('viejo@bar.co');
+  const negViejo = (await rpc('crear_negocio', { p_nombre: 'Bar Antiguo', p_datos: {} }, viejo.token)).j;
+  await sb.sql("update negocios set creado_en = now() - interval '40 days' where id = $1", [negViejo]);
+  r = await api('/estado', { negocio: negViejo }, viejo.token);
+  chk('Lanzamiento: negocio antiguo conserva la prueba de 15 días desde el inicio de la beta', r.st === 200 && r.j.plan_efectivo === 'pro' &&
+    r.j.subscription.status === 'active' && r.j.subscription.dias_restantes === 15, r.j.subscription);
+  const negViejo2 = (await rpc('crear_negocio', { p_nombre: 'Bar Antiguo 2', p_datos: {} }, viejo.token)).j;
+  await sb.sql("update negocios set creado_en = now() - interval '40 days' where id = $1", [negViejo2]);
+  const tdAntes = (await uno('select trial_desde from billing_config where id = 1')).trial_desde;
+  await sb.sql("update billing_config set trial_desde = now() - interval '20 days' where id = 1");
+  r = await api('/estado', { negocio: negViejo2 }, viejo.token);
+  chk('…y si la beta empezó hace 20 días, esa prueba ya venció (plan Gratis)', r.st === 200 && r.j.plan_efectivo === 'free' && r.j.subscription.status === 'expired', r.j.subscription);
+  await sb.sql('update billing_config set trial_desde = $1 where id = 1', [tdAntes]);
+
   // =========================== Token firmado ===========================
   const clave = (await api('/clave')).j;
   chk('GET /clave: llave pública ES256 (JWK P-256)', clave.ok && clave.alg === 'ES256' && clave.jwk && clave.jwk.crv === 'P-256' && clave.jwk.x && !clave.jwk.d, clave);
