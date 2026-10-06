@@ -23,6 +23,9 @@ CUENTA (Vento Nube) → NEGOCIO → PLAN → NEQUI / DAVIPLATA → COMPROBANTE �
 - **Negocios sin Vento Nube** (solo en el celular) siguen con el sistema anterior: prueba gratis local, código de
   activación firmado y WhatsApp. Para suscribirse con el sistema nuevo deben crear su cuenta en
   Ajustes → Nube y usuarios.
+- **Licencias del sistema anterior:** un código de activación firmado y vigente sigue valiendo aunque el negocio se
+  conecte a Vento Nube (lo firma el proveedor con su llave privada, no se puede falsificar). Al vencerse, el negocio
+  pasa al sistema nuevo. Si prefieres moverlo ya, dale los meses que le quedan con **Dar meses** en el panel.
 
 ## Puesta en marcha (una sola vez)
 
@@ -30,8 +33,12 @@ CUENTA (Vento Nube) → NEGOCIO → PLAN → NEQUI / DAVIPLATA → COMPROBANTE �
    despliega la función `vento-suscripciones` (las ramas de trabajo ya **no** despliegan a producción).
 2. **Quién aprueba los pagos.** En GitHub → Settings → Secrets and variables → Actions, crear el secreto
    `VENTO_ADMIN_EMAILS` con tu correo de Vento Nube (varios separados por comas) y volver a correr
-   «Servidor Vento». El correo debe estar **confirmado** en Vento Nube. (Alternativa por SQL en Supabase:
-   `insert into platform_admins(user_id, email) select id, email from auth.users where email = 'tu@correo.com';`)
+   «Servidor Vento». El correo debe estar **confirmado** en Vento Nube y la cuenta debe **existir antes** de ponerlo en
+   el secreto (si «Confirm email» está apagado en Supabase, cualquiera que se registre con un correo de la lista que
+   todavía no tenga cuenta quedaría como administrador). Alternativa más segura, por SQL en Supabase:
+   `insert into platform_admins(user_id, email) select id, email from auth.users where email = 'tu@correo.com';`
+   **Quitar a un administrador:** sacarlo del secreto NO basta (queda en la tabla). Hay que borrarlo:
+   `delete from platform_admins where email = 'correo@que.sale';`
 3. **Tus números de cobro.** Vento Admin → 💳 Suscripciones → Configuración: número y titular de **Nequi** y de
    **DaviPlata**, y el WhatsApp de soporte. Mientras estén vacíos, la app no puede mostrar dónde pagar.
 
@@ -60,6 +67,9 @@ del plan se rechaza (`monto_insuficiente`).
   suscripción de prueba: plan PRO, `source = 'trial'`.
 - Se cuenta desde la fecha más reciente entre **la creación del negocio** y **el inicio de la beta**
   (`billing_config.trial_desde`). Así ningún negocio que ya usaba Vento queda en Gratis al actualizar.
+- **Una sola prueba por dueño:** si quien crea el negocio ya tiene otro negocio con suscripción (de prueba o pagada),
+  el nuevo arranca en Gratis. Así no se puede «subir otra vez el negocio a la nube» para tener otros 15 días gratis.
+  Los negocios que ya existían antes de la beta conservan cada uno su prueba.
 - Al terminar la prueba el negocio queda en **Gratis**: puede seguir vendiendo, con mesas, inventario y gastos.
 
 ## Cómo se recibe un pago (lo que hace el cliente)
@@ -158,7 +168,7 @@ Para otros servicios del servidor existe `negocio_tiene(negocio, 'voice')` en la
 
 ## Referencia técnica
 
-**Tablas nuevas** (migraciones `20261005000000_suscripciones.sql` y `20261006000000_suscripciones_lanzamiento.sql`):
+**Tablas nuevas** (migraciones `20261005000000_suscripciones.sql`, `20261006000000_suscripciones_lanzamiento.sql` y `20261007000000_suscripciones_ajustes.sql`):
 `plans`, `entitlements`, `plan_entitlements`, `billing_config`, `platform_admins`, `subscriptions`,
 `payment_records`, `payment_proofs`, `payment_events` y el bucket privado `comprobantes`. RLS en todas;
 las escrituras solo por funciones `srv_*` que ejecuta el servidor.

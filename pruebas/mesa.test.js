@@ -58,6 +58,10 @@ const BASE = process.env.VENTO_BASE || 'http://localhost:8765';
   chk('Al elegir el producto la cantidad queda en 1', await p.evaluate(()=>document.getElementById('addQty').value==='1'));
   await p.click('#addItemBtn'); await p.waitForTimeout(200);
   chk('Agregar por el buscador funciona', await p.evaluate(()=>data.tables[1].items.find(i=>i.productId==='pk').qty===3));
+  // Enter («Ir» del teclado) con el buscador VACÍO solo cierra el teclado: no agrega nada
+  const antesVacio = await p.evaluate(()=>(data.tables[1].items||[]).reduce((s,i)=>s+i.qty,0));
+  await p.click('#addProductSearch'); await p.fill('#addProductSearch',''); await p.keyboard.press('Enter'); await p.waitForTimeout(200);
+  chk('Enter con el buscador vacío no agrega ningún producto', await p.evaluate(n=>(data.tables[1].items||[]).reduce((s,i)=>s+i.qty,0)===n, antesVacio));
   // Enter: toma el primero de la lista y lo agrega
   await p.click('#addProductSearch'); await p.keyboard.type('agu'); await p.waitForTimeout(150); await p.keyboard.press('Enter'); await p.waitForTimeout(200);
   chk('Enter agrega el primer producto y limpia el buscador', await p.evaluate(()=>{ const a=data.tables[1].items.find(i=>i.productId==='ag'); return a && a.qty===1 && document.getElementById('addProductSearch').value===''; }));

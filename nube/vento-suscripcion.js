@@ -340,7 +340,8 @@
       (s.rechazo ? '<small class="vs-rechazo">❌ Tu último pago no fue aprobado. Motivo: ' + esc(s.rechazo) + '</small>' : '') + '</div>';
     if(s.status === 'payment_review') return '<div class="vs-estado esp"><b>⏳ Pago en revisión</b><small>Recibimos tu comprobante' + (s.pago ? ' de ' + plata(s.pago.amount) + ' por ' + esc((METODOS[s.pago.method] || {}).nombre || s.pago.method || '') : '') + '. Apenas lo aprobemos se activa tu plan. Mientras tanto sigues vendiendo con el plan gratis.</small></div>';
     if(s.status === 'rejected') return '<div class="vs-estado mal"><b>❌ Tu pago no fue aprobado</b><small>Motivo: ' + esc(s.rechazo || 'no se pudo comprobar el pago') + '</small></div>';
-    if(s.status === 'expired') return '<div class="vs-estado mal"><b>⌛ Tu plan ' + P + ' venció' + (f ? ' el ' + f : '') + '</b><small>Sigues vendiendo con el plan gratis. Renueva para volver a usar la voz, la cámara con IA y lo demás.</small></div>';
+    if(s.status === 'expired') return '<div class="vs-estado mal"><b>⌛ Tu plan ' + P + ' venció' + (f ? ' el ' + f : '') + '</b><small>' +
+      (s.pago ? '⏳ Tu pago está en revisión: apenas lo aprobemos vuelve tu plan. Mientras tanto sigues vendiendo con el plan gratis.' : 'Sigues vendiendo con el plan gratis. Renueva para volver a usar la voz, la cámara con IA y lo demás.') + '</small></div>';
     if(s.status === 'canceled') return '<div class="vs-estado mal"><b>🚫 Suscripción cancelada</b><small>Estás en el plan gratis. Puedes volver a activar tu plan cuando quieras.</small></div>';
     return '<div class="vs-estado"><b>Elige tu plan</b><small>Estás en el plan gratis.</small></div>';
   }
@@ -392,6 +393,8 @@
       var plan = E.cat && E.cat.planes.filter(function(p){ return p.id === id; })[0];
       if(!plan || !plan.precio) return msg(ERRORES.plan_invalido, true);
       if(!manda()) return msg(ERRORES.sin_permiso, true);
+      // Ya hay un pago en revisión (por ejemplo, el plan venció antes de que lo aprobaran): no se paga dos veces.
+      var st = estado(); if(st.revision) return ir(vRevision({ payment: st.pago }));
       var prov = proveedorPara(E.cat); if(!prov) return msg('No hay medios de pago disponibles ahora. Escríbenos por WhatsApp.', true);
       prov.iniciar(ui, plan, metodo);
     };
@@ -494,12 +497,18 @@
     if(monto < plan.precio) return msg('El valor pagado es menor que el precio del plan (' + plata(plan.precio) + ').', true);
     if(!/^\d{4}-\d{2}-\d{2}$/.test(dia) || dia > hoyISO()) return msg('Revisa la fecha del pago.', true);
     // La misma llave (idem) mientras se reintenta: si el servidor ya lo recibió, no se crea otro pago.
-    var guard = lsGet(K_IDEM + n.id, null), idem = guard && guard.idem && guard.plan === plan.id ? guard.idem : idAzar();
+    var guard = lsGet(K_IDEM + n.id, null),
+      idem = guard && guard.idem && guard.plan === plan.id && Date.now() - (+guard.desde || 0) < 3600e3 ? guard.idem : idAzar();
     lsSet(K_IDEM + n.id, { idem: idem, plan: plan.id, desde: Date.now() });
     var cuerpo = { negocio: n.id, plan: plan.id, metodo: metodo, monto: monto, referencia: v('vsRef'), fecha: dia, nombre: nombre, telefono: tel, idem: idem, comprobante: { base64: foto.base64, tipo: foto.tipo } };
     btn.disabled = true; btn.textContent = '⏳ Enviando…'; msg('');
     enviando = ManualPaymentProvider.registrarPago(cuerpo).then(function(j){
-      lsDel(K_IDEM + n.id); lsDel(K_BORRADOR + n.id); lsSet(K_PAGADOR, { nombre: nombre, tel: tel });
+      lsDel(K_IDEM + n.id);
+      // El servidor dice que ese envío ya estaba (y ya no está en revisión): este comprobante NO se registró.
+      if(j && j.repetido && j.payment && j.payment.status && j.payment.status !== 'review'){
+        msg('Ese envío ya se había procesado antes. Toca ENVIAR COMPROBANTE otra vez para mandar este.', true); refrescar(); return;
+      }
+      lsDel(K_BORRADOR + n.id); lsSet(K_PAGADOR, { nombre: nombre, tel: tel });
       ui.terminar(Object.assign({ monto: monto, metodo: metodo }, j));
     }, function(e){
       msg((e && (ERRORES[e.codigo] || e.message)) || ERRORES.red, true);
@@ -567,6 +576,7 @@
     if(s.renovar && !s.pago) return { mostrar: true, k: 'renovar', accion: 'renovar', html: '<span>⏰ Tu suscripción vence el ' + fecha(s.vence) + '.</span><b data-sub="renovar">RENOVAR</b><i data-x title="Ocultar">✕</i>' };
     if(s.status === 'payment_review') return { mostrar: true, k: 'revision', html: '<span>⏳ <b>Pago en revisión</b>: te avisamos cuando se active tu plan.</span><b>Ver ›</b><i data-x title="Ocultar">✕</i>' };
     if(s.status === 'rejected') return { mostrar: true, k: 'rechazada', fija: true, html: '<span>❌ Tu pago no fue aprobado' + (s.rechazo ? ': ' + esc(s.rechazo) : '') + '</span><b>Ver ›</b>' };
+    if(s.revision) return { mostrar: true, k: 'revision', html: '<span>⏳ <b>Pago en revisión</b>: te avisamos cuando se active tu plan.</span><b>Ver ›</b><i data-x title="Ocultar">✕</i>' };
     if(s.status === 'expired') return { mostrar: true, k: 'vencida', fija: true, accion: 'renovar', html: '<span>⌛ Tu plan ' + P + ' venció: sigues vendiendo con el plan gratis.</span><b data-sub="renovar">RENOVAR</b>' };
     if(s.status === 'active' && s.prueba && s.dias != null && s.dias <= 5) return { mostrar: true, k: 'prueba', html: '<span>🎁 Prueba ' + P + ': te quedan ' + s.dias + ' día' + (s.dias === 1 ? '' : 's') + '.</span><b>Ver planes ›</b><i data-x title="Ocultar">✕</i>' };
     return { mostrar: false };

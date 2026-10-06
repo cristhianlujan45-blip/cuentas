@@ -83,14 +83,19 @@ export class ManualPaymentProvider implements PaymentProvider {
         p_id: id, p_path: ruta, p_mime: img.mime, p_size: img.bytes.length,
       });
     } catch (err) {
-      await borrar(ctx.env, ruta);
+      // Solo se borra la foto si la base RECHAZÓ el pago (validación). Con un error de red o del servidor el pago pudo
+      // quedar guardado (la respuesta se perdió): mejor una foto suelta que un pago sin su comprobante.
+      const e2 = err as { status?: number; codigo?: string };
+      if (e2 && typeof e2.status === "number" && e2.status < 500 && e2.codigo !== "red" && e2.codigo !== "db") await borrar(ctx.env, ruta);
       throw err;
     }
     if (r.error || !r.payment) {
       await borrar(ctx.env, ruta);
       throw errorSub(r.error || "interno", r.error ? undefined : "No se pudo registrar el pago");
     }
-    if (r.repetido) await borrar(ctx.env, ruta);   // reenvío: el pago (y su foto) ya existían
+    // Reenvío: el pago (y su foto) ya existían. Si es ESTE mismo id (el reintento automático de la consulta después de
+    // que la primera sí se guardó), la foto recién subida ES la del pago: no se borra.
+    if (r.repetido && r.payment.id !== id) await borrar(ctx.env, ruta);
     return { payment: r.payment, repetido: !!r.repetido };
   }
 }

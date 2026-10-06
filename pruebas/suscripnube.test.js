@@ -131,6 +131,35 @@ function jpegTam(b){ let i = 2; while(i < b.length - 9){ if(b[i] !== 0xFF){ i++;
     chk('Plan gratis: se sigue vendiendo (pos_basic)', await vende(p) === 2);
     chk('Plan gratis: el micrófono NO se abre', await tocarMicro(p) === false);
     chk('…y aparece «Función PRO» con [Ver planes]', await pantalla(p) === 'pro' && /Función PRO/.test(await textoOv(p)) && await p.evaluate(() => !!document.querySelector('#vsOv [data-vs="planes"]')), await textoOv(p));
+    // Revisión final: lo que NO es PRO tiene que seguir funcionando en el plan gratis.
+    await cerrarOv(p);
+    let g = await p.evaluate(async () => {
+      document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+      const antes = (data.tables[1].items || []).reduce((s, i) => s + i.qty, 0), t = [], o = window.showToast;
+      window.showToast = (m, ms) => { t.push(m); return o(m, ms); }; window.speakVoice = () => {};
+      window.__pedidoOrigen = 'mesero:Luis';   // así llega un pedido hecho con toques en la app de meseros
+      try{ await handleVoiceTranscript('mesa 1, 2 Poker'); } finally { window.__pedidoOrigen = null; window.showToast = o; }
+      const ov = document.getElementById('vsOv');
+      return { suma: (data.tables[1].items || []).reduce((s, i) => s + i.qty, 0) - antes, pro: !!(ov && ov.classList.contains('show') && ov.dataset.pantalla === 'pro'), t };
+    });
+    chk('Plan gratis: el pedido que manda el mesero (app de meseros) SÍ entra a la mesa', g.suma === 2 && !g.pro, JSON.stringify(g));
+    g = await p.evaluate(async () => {
+      document.querySelectorAll('.overlay.show').forEach(o => o.classList.remove('show'));
+      openTableModal(1); await new Promise(r => setTimeout(r, 150));
+      document.getElementById('scanSellBtn').click(); await new Promise(r => setTimeout(r, 250));
+      const ov = document.getElementById('vsOv'), pro = !!(ov && ov.classList.contains('show') && ov.dataset.pantalla === 'pro');
+      try{ closeScanOverlay(); }catch(e){}
+      return { pro };
+    });
+    chk('Plan gratis: vender escaneando el código de barras NO es «Función PRO»', !g.pro, JSON.stringify(g));
+    await cerrarOv(p);
+    g = await p.evaluate(() => {   // licencia firmada del sistema anterior vigente (la verificación de firma la cubre la prueba «suscrip»)
+      subInfo = { m: 1, pl: 'Pro', v: Date.now() + 40 * 864e5, vencida: false }; subAplicar();
+      const r = { k: ventoPlan().k, voz: subAcceso('voice'), vende: subPuedeVender() };
+      subInfo = null; subAplicar(); return r;
+    });
+    chk('Licencia pagada con el sistema anterior: sigue valiendo con la nube (activa, con voz)', g.k === 'activa' && g.voz && g.vende, JSON.stringify(g));
+    await tocarMicro(p);   // vuelve a abrir «Función PRO» para seguir con el flujo de pago
     // ---------- Flujo de pago ----------
     await p.click('#vsOv [data-vs="planes"]');
     chk('PLANES: tarjetas FREE y PRO con el precio del servidor', await listo(p, () => /\$59\.900/.test(document.getElementById('vsOv').innerText) && document.querySelectorAll('#vsOv .vs-plan').length === 2) && /FREE/.test(await textoOv(p)) && /PRO/.test(await textoOv(p)), await textoOv(p));

@@ -116,6 +116,15 @@ async function pruebas(sb) {
   chk('…y si la beta empezó hace 20 días, esa prueba ya venció (plan Gratis)', r.st === 200 && r.j.plan_efectivo === 'free' && r.j.subscription.status === 'expired', r.j.subscription);
   await sb.sql('update billing_config set trial_desde = $1 where id = 1', [tdAntes]);
 
+  // Una sola prueba gratis por DUEÑO: «subir otra vez el negocio a la nube» ya no regala otros 15 días de PRO.
+  const negDos = (await rpc('crear_negocio', { p_nombre: 'Bar Las Palmas 2', p_datos: datos }, dueno.token)).j;
+  r = await api('/estado', { negocio: negDos }, dueno.token);
+  chk('Una sola prueba por dueño: su segundo negocio arranca en Gratis (sin otros 15 días de PRO)', r.st === 200 && r.j.plan_efectivo === 'free' &&
+    r.j.subscription && r.j.subscription.status === 'expired' && r.j.entitlements.voice === false && r.j.entitlements.pos_basic === true, r.j.subscription);
+  chk('…y queda anotado que ya había tenido prueba', await contar("select count(*) n from payment_events where business_id = $1 and type = 'trial_started' and (data->>'ya_tuvo_prueba')::boolean", [negDos]) === 1);
+  r = await api('/estado', { negocio: neg }, dueno.token);
+  chk('…su primer negocio sigue con su prueba PRO', r.j.plan_efectivo === 'pro' && r.j.subscription.source === 'trial', r.j.subscription);
+
   // =========================== Token firmado ===========================
   const clave = (await api('/clave')).j;
   chk('GET /clave: llave pública ES256 (JWK P-256)', clave.ok && clave.alg === 'ES256' && clave.jwk && clave.jwk.crv === 'P-256' && clave.jwk.x && !clave.jwk.d, clave);

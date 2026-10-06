@@ -137,7 +137,9 @@
   window.ventoAtras = function(){
     var ab = Array.prototype.slice.call(document.querySelectorAll('.overlay.show'));
     if(!ab.length) return false;
-    ab[ab.length - 1].classList.remove('show'); return true;
+    var arriba = ab[ab.length - 1];
+    if(typeof arriba._fin === 'function'){ arriba._fin(null); return true; }   // ventanas con su propio «Cancelar» (cobro de la caja / modo fácil)
+    arriba.classList.remove('show'); return true;
   };
 })();
 </script>
@@ -7645,7 +7647,10 @@ function handleVoiceTranscriptLocal(rawText){
     speakVoice('No encontré la mesa ' + parsedTableId + '. ¿Cuál mesa es?');
     return;
   }
+  // Modo tienda / mixto (lib/vento-pos.js): sin mesa, el pedido va a la venta de la caja.
+  if(!parsedTableId && window.ventoPOS && ventoPOS.vozCaja && ventoPOS.vozCaja(items, mode, 'antes')) return;
   const tableId = resolveVoiceTableId(parsedTableId);
+  if(!tableId && !parsedTableId && window.ventoPOS && ventoPOS.vozCaja && ventoPOS.vozCaja(items, mode, 'sin_mesa')) return;
   if(!tableId){
     showToast('¿Para cuál mesa? Di por ejemplo "mesa 2" al inicio o al final.');
     speakVoice('¿Para cuál mesa es el pedido?');
@@ -9248,6 +9253,8 @@ document.getElementById('addProductSearch').addEventListener('focus', (e)=>{
 document.getElementById('addProductSearch').addEventListener('keydown', (e)=>{
   if(e.key !== 'Enter' || e.isComposing) return;
   e.preventDefault();
+  // Buscador vacío: «Ir» solo cierra el teclado (antes agregaba el primer producto de la lista sin querer).
+  if(!document.getElementById('addProductId').value && !e.target.value.trim()){ e.target.blur(); hideProductSuggestions(); return; }
   if(!document.getElementById('addProductId').value){
     const first = document.querySelector('#addProductSuggestions .product-suggestion-item');
     if(!first) return;
@@ -22983,7 +22990,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-04 · v1.29.0';
+const MESORA_VERSION = '2026-10-07 · v1.30.0';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Vento · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -23895,12 +23902,15 @@ function subPruebaDesde(){
 }
 // Suscripción de Vento Nube con estado verificado por el servidor (si no, null → sistema de siempre).
 const subNube = () => { try{ const s = window.ventoSuscripcion; return s && s.enCuenta() && s.verificado() ? s : null; }catch(e){ return null; } };
+// Licencia firmada del sistema anterior (licencias.html / Vento Admin) todavía vigente. La firma el proveedor con su llave
+// privada, así que darle prioridad es seguro: un negocio que ya pagó así no pierde nada al conectarse a Vento Nube.
+const subLicVigente = () => !!(subInfo && !subInfo.vencida && (!subInfo.v || subInfo.v > Date.now()));
 function subEstado(){
   if(subEsProveedor) return { k: 'proveedor' };
   const now = Date.now();
   try{ if(ventoCfg && Array.isArray(ventoCfg.suspendidos) && ventoCfg.suspendidos.includes(codigoNegocio())) return { k: 'vencida', suspendido: true }; }catch(e){}
   const sn = subNube();
-  if(sn){ const x = sn.estadoApp(); if(x) return x; }   // {k:'activa'|'prueba'|'revision'|'rechazada'|'vencida'|'cancelada'|'gratis', nube:true, …}
+  if(sn){ const x = sn.estadoApp(); if(x && (x.k === 'activa' || x.k === 'prueba' || !subLicVigente())) return x; }   // {k:'activa'|'prueba'|'revision'|'rechazada'|'vencida'|'cancelada'|'gratis', nube:true, …}
   if(subInfo && !subInfo.vencida && (!subInfo.v || subInfo.v > now)) return { k: 'activa', v: subInfo.v || 0, dias: subInfo.v ? Math.ceil((subInfo.v - now) / DIA_MS) : null, plan: subInfo.pl || '' };
   const finPrueba = subPruebaDesde() + PRUEBA_DIAS * DIA_MS;
   if(!subInfo && now < finPrueba) return { k: 'prueba', dias: Math.ceil((finPrueba - now) / DIA_MS) };
@@ -23911,9 +23921,11 @@ function subEstado(){
 window.ventoPlan = () => subEstado();
 const subEsProv = () => subEstado().k === 'proveedor';
 // ¿El plan incluye esta función? Solo se restringe con la nube y un estado verificado; el proveedor puede todo.
-const subAcceso = ent => { if(subEsProv()) return true; const sn = subNube(); return !sn || sn.tiene(ent); };
+const subAcceso = ent => { if(subEsProv() || subLicVigente()) return true; const sn = subNube(); return !sn || sn.tiene(ent); };
 // En la nube se vende con «pos_basic» (el plan gratis lo trae: con el plan PRO vencido se sigue vendiendo).
-const subPuedeVender = () => { const st = subEstado(); if(st.k === 'proveedor') return true; if(st.nube) return subAcceso('pos_basic'); return st.k !== 'vencida'; };
+const subPuedeVender = () => { const st = subEstado(); if(st.k === 'proveedor') return true; if(st.nube) return subAcceso('pos_basic');
+  try{ const s = window.ventoSuscripcion; if(s && s.enCuenta() && !s.verificado()) return true; }catch(e){}
+  return st.k !== 'vencida'; };
 function subRenovarWa(){
   const st = subEstado();
   const pl = ((ventoCfg && ventoCfg.planes) || []).find(p => p.id === subPlanElegido);
@@ -24054,15 +24066,15 @@ const SUB_FUNCIONES = [
   ['voice', '#voiceFab, #voiceFabAI, #voiceProductBtn', 'Pedidos por voz'],
   ['voice', '#holaVentoToggle', '«Hola Vento» (manos libres)'],
   ['ocr', '#invInvoiceCamBtn, #invInvoiceGalBtn', 'Leer facturas con la cámara'],
-  ['ai_camera', '#scanSellBtn, #cameraBtn, #invPriceBtn, #qpCameraBtn, #domIaFotoBtn', 'La cámara con IA'],
+  ['ai_camera', '#cameraBtn, #invPriceBtn, #qpCameraBtn, #domIaFotoBtn', 'La cámara con IA'],
   ['advanced_reports', 'nav button[data-view="estadisticas"], .more-tile[data-go="estadisticas"]', 'Estadísticas avanzadas'],
   ['multi_branch', '#sedeAddBtn', 'Agregar otra sede'],
   ['employee_management', '#accAddBtn, #nubeInvitar', 'Invitar personas a tu equipo'],
-  ['invoices', '#invFacturaPanel > summary, #fiHistBtn', 'Facturas de proveedor'],
+  ['invoices', '#fiHistBtn', 'Facturas de proveedor'],
   ['expenses', '#ctGuardar', 'Registrar gastos']
 ];
 document.addEventListener('click', ev => {
-  const sn = subNube(); if(!sn || subEsProv()) return;
+  const sn = subNube(); if(!sn || subEsProv() || subLicVigente()) return;
   const el = ev.target && ev.target.closest ? ev.target : null; if(!el) return;
   for(const [ent, sel, nombre] of SUB_FUNCIONES){
     const t = el.closest(sel); if(!t) continue;
@@ -24077,7 +24089,8 @@ document.addEventListener('click', ev => {
 if(typeof handleVoiceTranscript === 'function'){
   const subVozOrig = handleVoiceTranscript;
   handleVoiceTranscript = async function(){
-    if(!subAcceso('voice')){ try{ window.ventoSuscripcion.funcionPro('voice', 'Pedidos por voz'); }catch(e){} return; }
+    // window.__pedidoOrigen = pedido escrito que llega de la app de meseros o del QR: no es el micrófono, siempre pasa.
+    if(!window.__pedidoOrigen && !subAcceso('voice')){ try{ window.ventoSuscripcion.funcionPro('voice', 'Pedidos por voz'); }catch(e){} return; }
     return subVozOrig.apply(this, arguments);
   };
 }

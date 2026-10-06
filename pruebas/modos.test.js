@@ -96,6 +96,14 @@ const BASE = (process.env.VENTO_BASE || 'http://localhost:8765') + '/index.html'
  chk('La venta se ve en Estadísticas/Historial como cualquier venta (no se duplica al repintar)', (await p.evaluate(()=>{ renderMesas(); renderProductos(); return data.history.length; }))===2 && (await stock(p,'ag'))===16);
  // Doble toque: en COBRAR abre UNA sola ventana; en «Efectivo» registra UNA venta y no se cuela un producto en la siguiente
  await p.click('#posPanel .pz-tile[data-add="ga"]'); await pausa();
+ // Botón Atrás de Android (window.ventoAtras) con «¿Cómo pagó?» abierto: se cancela y COBRAR sigue funcionando
+ await p.click('#posPanel .pz-cobrar'); await p.waitForTimeout(450);
+ // Lo que hacía el Atrás de la APK (ventoAtras): solo le quita «show» a la ventana de arriba y la deja escondida.
+ r=await p.evaluate(()=>{ const ab=[...document.querySelectorAll('.overlay.show')]; ab[ab.length-1].classList.remove('show'); return { escondidas:document.querySelectorAll('.pz-pago-ov:not(.show)').length }; });
+ await p.click('#posPanel .pz-cobrar'); await p.waitForTimeout(450);
+ r.otraVez=await visible(p,'.pz-pago .pz-met'); r.total=(await p.$$('.pz-pago-ov')).length;
+ chk('Atrás (APK) deja «¿Cómo pagó?» escondido y COBRAR vuelve a abrirlo (no queda muerto)', r.escondidas===1 && r.otraVez && r.total===1, JSON.stringify(r));
+ await p.click('.pz-pago .pz-cancel'); await p.waitForTimeout(300);
  let hN=await p.evaluate(()=>data.history.length);
  await p.dblclick('#posPanel .pz-cobrar'); await p.waitForTimeout(300);
  chk('Doble toque en COBRAR: una sola ventana «¿Cómo pagó?» y sigue abierta', (await p.$$('.pz-pago-ov')).length===1 && await visible(p,'.pz-pago .pz-met'));
@@ -112,6 +120,14 @@ const BASE = (process.env.VENTO_BASE || 'http://localhost:8765') + '/index.html'
  await p.evaluate(()=>{ data.products.find(x=>x.id==='ga').barcodes=['7702000111222']; });
  await p.fill('#posPanel .pz-q','7702000111222'); await p.press('#posPanel .pz-q','Enter'); await pausa();
  chk('Lector de código: código + Enter agrega el producto y limpia el buscador', (await linea(p,'ga'))===1 && (await p.inputValue('#posPanel .pz-q'))==='');
+ // Voz en tienda: «dos águilas» (sin decir mesa) va a la venta de la caja, con UN solo sonido; nunca pregunta «¿Para cuál mesa?»
+ r=await p.evaluate(async()=>{ const antes=data.products.find(x=>x.name==='Águila'); const id=antes&&antes.id; const q0=(ventoPOS.carrito().find(l=>l.id===id)||{qty:0}).qty;
+   const t=[]; const o=window.showToast; window.showToast=(m,ms)=>{ t.push(m); return o(m,ms); }; const h0=ventoSonidos._historial.length;
+   window.speakVoice=()=>{}; await handleVoiceTranscript('dos águilas'); window.showToast=o;
+   return { d:(ventoPOS.carrito().find(l=>l.id===id)||{qty:0}).qty-q0, t, son:ventoSonidos._historial.slice(h0).map(x=>x.tipo), mesas:Object.values(data.tables).filter(x=>(x.items||[]).length).length }; });
+ chk('Tienda: la voz «dos águilas» agrega 2 a la venta de la caja (sin preguntar mesa) con un solo sonido', r.d===2 && r.t.some(x=>/agregado a la venta/.test(x)) && !r.t.some(x=>/cuál mesa/.test(x)) && r.son.join()==='add' && r.mesas===0, JSON.stringify(r));
+ r=await p.evaluate(()=>{ window.speakVoice=()=>{}; ventoPOS.vozCaja([{productText:'águila',qty:2}],'subtract','antes'); return (ventoPOS.carrito().find(l=>/Águila/.test(l.name))||{qty:0}).qty; });   // «quita dos águilas» deja el carrito como estaba
+ chk('Tienda: «quita dos águilas» por voz las saca de la venta', r===0, r);
  await p.fill('#posPanel .pz-q','empa'); await p.waitForTimeout(150);
  r=await p.evaluate(()=>[...document.querySelectorAll('#posPanel .pz-tile')].map(t=>t.dataset.add).join(','));
  chk('Buscar filtra los productos', r==='em', r);
