@@ -96,6 +96,31 @@ const BASE = process.env.VENTO_BASE || 'http://localhost:8765';
    return { misma: Math.abs((h.top+h.height/2)-(i.top+i.height/2))<14, sVis: s.top>0 && s.bottom<innerHeight, ancho: Math.round(m.width), dentro: i.right<=m.right && s.right<=m.right, sub: document.getElementById('modalSub').textContent }; });
   chk('Computador: iconos en la línea del nombre, buscador visible y nada se sale', D.misma && D.sVis && D.dentro && D.ancho>=440, JSON.stringify(D));
   chk('Mesa libre: el estado lo dice', /Libre/.test(D.sub), D.sub);
+  chk('Computador: al abrir la mesa no se enfoca nada solo', await p.evaluate(()=>!/INPUT|TEXTAREA/.test((document.activeElement||{}).tagName||'')));
+  // Escribir con la mesa abierta va directo al buscador (sin hacer clic) y Enter lo agrega
+  await p.keyboard.type('pok'); await p.waitForTimeout(200);
+  chk('Computador: escribir va directo al buscador', await p.evaluate(()=>document.activeElement.id==='addProductSearch' && document.getElementById('addProductSearch').value==='pok' && document.querySelectorAll('#addProductSuggestions .product-suggestion-item').length===1), await p.evaluate(()=>document.activeElement.id+' '+document.getElementById('addProductSearch').value));
+  await p.keyboard.press('Enter'); await p.waitForTimeout(200);
+  chk('Computador: Enter lo agrega a la mesa', await p.evaluate(()=>(data.tables[1].items[0]||{}).qty===1));
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  chk('Computador: Esc sigue cerrando la mesa', await p.evaluate(()=>!document.getElementById('overlay').classList.contains('show')));
+  await ctx.close(); }
+
+ // ---------------- 2b) Celular angosto (360×640): todo cabe sin partirse ----------------
+ { const ctx=await b.newContext({viewport:{width:360,height:640}, hasTouch:true, isMobile:true});
+  await ctx.addInitScript(()=>{ localStorage.setItem('cm-tutorial-seen','1'); localStorage.setItem('vento-hola','0'); });
+  const p=await entrar(ctx);
+  await p.evaluate(()=>{ document.querySelectorAll('.overlay.show').forEach(o=>o.classList.remove('show'));
+   data.modoCompleto=true; try{ aplicarModulos(); }catch(e){}
+   data.products=[{id:'pk',name:'Poker',price:3800,stock:50,favorite:true},{id:'ag',name:'Águila',price:4000,stock:50,favorite:true},{id:'cc',name:'Club Colombia',price:4500,stock:50,favorite:true},{id:'cr',name:'Corona',price:6000,stock:50,favorite:true}];
+   data.tables={1:{name:'Jaime Andrés',items:[],people:[{id:'p1',name:'Ana'},{id:'p2',name:'Beto'}],payments:[]}}; saveData(); renderMesas(); openTableModal(1); });
+  await p.waitForTimeout(400);
+  const N=await p.evaluate(()=>{ const r=id=>document.getElementById(id).getBoundingClientRect(), s=r('addProductSearch'), a=r('addItemBtn'), pt=r('personasToggle'), ct=r('clienteToggle'), m=document.querySelector('#overlay .modal').getBoundingClientRect(), f=document.getElementById('favChips');
+   return { sVis: s.top>=0 && s.bottom<=innerHeight, agregarAlto: Math.round(a.height), unaLinea: Math.abs(pt.top-ct.top)<2, dentro: pt.left>=m.left && ct.right<=m.right, cabe: [...document.querySelectorAll('#overlay .mesa-pleg-btn')].every(b=>b.scrollWidth<=b.clientWidth+1),
+    personas: document.getElementById('personasN').textContent, cliente: document.getElementById('clienteN').textContent, desliza: f.classList.contains('desliza') }; });
+  chk('360 px: el buscador se ve sin desplazar y «Agregar» va en una sola línea', N.sVis && N.agregarAlto<=50, JSON.stringify(N));
+  chk('360 px: «Personas» y «Cliente» en una línea, sin salirse ni cortarse', N.unaLinea && N.dentro && N.cabe && N.personas==='2' && N.cliente==='Jaime Andrés', JSON.stringify(N));
+  chk('360 px: si los favoritos no caben, el borde se desvanece para deslizar', N.desliza, JSON.stringify(N));
   await ctx.close(); }
 
  // ---------------- 3) Micrófono en la APK simulada con «Hola Vento» escuchando ----------------
@@ -146,6 +171,16 @@ const BASE = process.env.VENTO_BASE || 'http://localhost:8765';
   chk('APK: si Android cierra la escucha antes de hablar, se reabre sola (1 vez) sin «No escuché nada»', C1.ini===1 && C1.escuchando && !C1.noEscuche, JSON.stringify(C1));
   await p.evaluate(()=>{ __dice('mesa 2 una poker'); __fin(); }); await p.waitForTimeout(1200);
   chk('APK: y lo que se dice se anota', (await q(2))===2);
+  // «Producto por voz» (Productos): también toma el micrófono de «Hola Vento» en vez de pelearlo
+  chk('APK: «Hola Vento» listo antes de «Producto por voz»', await listoHola());
+  await p.evaluate(()=>{ window.__a={ini:window.__ini,cancel:window.__cancel}; startVoiceProductCreation(); }); await p.waitForTimeout(150);
+  const P1=await p.evaluate(()=>({ ini: window.__ini-window.__a.ini, cancel: window.__cancel-window.__a.cancel, hola: window.ventoHola.estado().corriendo, escuchando: voiceProductListening }));
+  chk('APK: «Producto por voz» toma el micrófono abierto (sin reabrirlo) y «Hola Vento» se aparta', P1.ini===0 && P1.cancel===0 && !P1.hola && P1.escuchando, JSON.stringify(P1));
+  await p.waitForTimeout(250);
+  await p.evaluate(()=>{ __dice('agregar producto Club Colombia precio cinco mil'); __fin(); }); await p.waitForTimeout(800);
+  chk('APK: «Producto por voz» crea el producto (con el nombre completo)', await p.evaluate(()=>data.products.some(x=>/^club colombia$/i.test(x.name) && x.price===5000)), await p.evaluate(()=>JSON.stringify(data.products.map(x=>x.name+':'+x.price))));
+  const PV=await p.evaluate(()=>[['Águila precio cuatro mil','aguila',4000],['corona a 6000','corona',6000],['poker por 3800','poker',3800],['pizza a la carta a 12000','pizza a la carta',12000]].map(([t,n,v])=>{ const r=parseVoiceProductCreation(t); return r.name===n && r.price===v ? '' : t+' → '+JSON.stringify(r); }).filter(Boolean));
+  chk('Nombres que terminan en «a» no pierden la letra al dictar el precio', !PV.length, PV.join(' | '));
   // d) Vento está hablando (sin «Hola Vento»): al tocar se calla y escucha YA, sin esperar ni reintentar
   await p.evaluate(()=>window.ventoHola.apagar()); await p.waitForTimeout(300);
   await p.evaluate(()=>{ window.__ttsLargo=true; window.ventoHablar('Listo, te anoté dos poker en la mesa tres y ya va saliendo'); });

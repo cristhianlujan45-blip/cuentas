@@ -3164,12 +3164,23 @@ body.easy-mode #overlay .mesa-ico{ min-height:0; width:38px; height:38px; }
 #overlay .mesa-buscar .add-row:has(.product-search-wrap){ margin:0; padding:0; border:0; border-radius:0; background:none; gap:10px; }
 #overlay .mesa-buscar .product-search-wrap input[type=text]{ height:54px; padding:0 54px 0 44px; border-width:2px; font-size:16px; font-weight:600; background-position:16px center; }
 #overlay .mesa-buscar .product-search-wrap input[type=text]::placeholder{ font-weight:500; }
-#overlay .add-row .mesa-scan{ position:absolute; right:7px; top:7px; width:40px; height:40px; min-height:0; padding:0; display:grid; place-items:center; border-radius:50%; border:1px solid var(--line); background:var(--surface); color:var(--ink-soft); cursor:pointer; box-shadow:none; }
-#overlay .add-row .mesa-scan svg{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; }
-#overlay .add-row .mesa-scan:hover{ color:var(--ink); border-color:var(--cream-soft); background:var(--surface-2); }
+/* Con el id: le gana a la regla vieja del botón grande «Vender escaneando código» (min-height 44 y margen) */
+#overlay #scanSellBtn.mesa-scan{ position:absolute; right:7px; top:7px; width:40px; height:40px; min-height:0; margin:0; padding:0; display:grid; place-items:center; border-radius:50%; border:1px solid var(--line); background:var(--surface); color:var(--ink-soft); cursor:pointer; box-shadow:none; }
+#overlay #scanSellBtn.mesa-scan svg{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; }
+#overlay #scanSellBtn.mesa-scan:hover{ color:var(--ink); border-color:var(--cream-soft); background:var(--surface-2); }
+#overlay .mesa-buscar #addItemBtn{ white-space:nowrap; }
+/* Celulares angostos: el contador se achica para que «Agregar» quede en una sola línea */
+@media (max-width:400px){
+  #overlay .mesa-buscar .add-row:has(.product-search-wrap){ gap:8px; }
+  #overlay .mesa-buscar .add-row .qty-stepper button{ width:36px; height:36px; }
+  #overlay .mesa-buscar .add-row .qty-stepper input[type=number]{ width:36px; }
+  #overlay .mesa-buscar #addItemBtn{ padding:0 10px; }
+}
 #overlay .mesa-buscar .fav-chips{ margin:10px 0 0; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
 #overlay .mesa-buscar .fav-chips::-webkit-scrollbar{ display:none; }
 #overlay .mesa-buscar .fav-chips:empty{ display:none; }
+/* Si hay más favoritos de los que caben, el borde derecho se desvanece (invita a deslizar) */
+#overlay .mesa-buscar .fav-chips.desliza{ -webkit-mask-image:linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image:linear-gradient(to right, #000 calc(100% - 28px), transparent); }
 #overlay .fav-chips{ align-items:center; gap:6px; }
 #overlay .fav-lbl{ flex:none; font-size:14px; opacity:.85; }
 #overlay .fav-chip{ flex:none; min-height:34px; padding:5px 11px; gap:5px; font:inherit; font-size:13px; font-weight:600; white-space:nowrap; }
@@ -3179,20 +3190,41 @@ body.easy-mode #overlay .mesa-ico{ min-height:0; width:38px; height:38px; }
 .mesa-total{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin:6px 0 12px; padding:10px 2px 0; border-top:1px solid var(--line); font-size:14px; color:var(--ink-soft); }
 .mesa-total b{ font-size:18px; color:var(--ink); }
 .mesa-total[hidden]{ display:none; }
-.mesa-pleg{ margin:0 0 8px; border:1px solid var(--line); border-radius:14px; background:var(--surface); overflow:hidden; }
-.mesa-pleg-btn{ display:flex; align-items:center; gap:8px; width:100%; min-height:44px; padding:0 14px; border:0; background:transparent; color:var(--ink-soft); font:inherit; font-size:14px; font-weight:700; text-align:left; cursor:pointer; }
-.mesa-pleg-btn:hover{ color:var(--ink); }
-.mesa-pleg-btn .mp-t{ color:var(--ink); }
+/* Personas y cliente: dos botones discretos en una sola línea; lo que despliegan va debajo, a todo lo ancho.
+   (Sin separación entre filas de la cuadrícula: las filas vacías no dejan huecos; cada pieza trae su margen.) */
+#overlay .mesa-sec{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); column-gap:8px; row-gap:0; margin:2px 0 12px; }
+#overlay .mesa-sec > .mesa-pleg{ display:contents; }
+.mesa-pleg-btn{ grid-row:1; display:flex; align-items:center; gap:6px; width:100%; min-width:0; min-height:40px; overflow:hidden; padding:0 10px 0 12px; border:1px solid var(--line); border-radius:12px; background:var(--surface); color:var(--ink-soft); font:inherit; font-size:13px; font-weight:700; text-align:left; cursor:pointer; transition:border-color .15s ease, background .15s ease; }
+.mesa-pleg-btn:hover{ color:var(--ink); border-color:var(--cream-soft); }
+.mesa-pleg-btn[aria-expanded="true"]{ color:var(--ink); border-color:color-mix(in srgb, var(--amber) 55%, var(--line)); background:color-mix(in srgb, var(--amber) 8%, var(--surface)); }
+.mesa-pleg-btn .mp-ic{ flex:none; font-size:14px; opacity:.85; }
+.mesa-pleg-btn .mp-t{ flex:none; color:var(--ink); }
 .mesa-pleg-btn .mp-n{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
-.mesa-pleg-btn .mp-ch{ font-size:20px; line-height:1; transition:transform .15s ease; }
+/* Cuántas personas: globito con el número (no se corta aunque el botón sea angosto) */
+#personasN{ flex:0 1 auto; }
+#personasN:not(:empty){ display:inline-grid; place-items:center; min-width:20px; height:20px; padding:0 6px; border-radius:999px; background:color-mix(in srgb, var(--amber) 22%, var(--surface)); color:var(--cream); font-size:12px; font-weight:800; }
+#personasToggle .mp-n + .mp-ch{ margin-left:auto; }
+/* Cliente con nombre: se ve el nombre en vez de la etiqueta */
+#clienteToggle.con-nombre .mp-t{ display:none; }
+#clienteToggle.con-nombre .mp-n{ color:var(--ink); }
+.mesa-pleg-btn .mp-ch{ flex:none; font-size:18px; line-height:1; opacity:.7; transition:transform .15s ease; }
 .mesa-pleg-btn[aria-expanded="true"] .mp-ch{ transform:rotate(90deg); }
-#overlay .mesa-pleg #peopleChips{ margin:0; padding:0 12px 10px; }
-#overlay .mesa-pleg #peopleChips:empty{ display:none; }
-.mesa-pleg-cuerpo{ padding:0 10px 10px; }
+/* Celulares angostos: sin la flechita y un poco más juntos, para que quepan los dos en la línea */
+@media (max-width:400px){
+  #overlay .mesa-sec .mesa-pleg-btn{ gap:5px; padding:0 8px 0 10px; }
+  #overlay .mesa-sec .mesa-pleg-btn .mp-ch{ display:none; }
+}
+#personasToggle{ grid-column:1; }
+#clienteToggle{ grid-column:2; }
+/* Si el negocio usa solo uno de los dos, ese ocupa toda la línea */
+body:not(.mod-n) #personasToggle, body:not(.mod-d) #clienteToggle{ grid-column:1 / -1; }
+#overlay .mesa-sec #peopleChips{ grid-column:1 / -1; grid-row:2; margin:8px 0 0; padding:0; }
+#overlay .mesa-sec #peopleChips:empty{ display:none; }
+#overlay .mesa-sec #personasCuerpo{ grid-column:1 / -1; grid-row:3; margin:8px 0 0; padding:0; }
+#overlay .mesa-sec #clienteRow{ grid-column:1 / -1; grid-row:4; margin:8px 0 0; }
 .mesa-pleg-cuerpo[hidden], #clienteRow[hidden]{ display:none !important; }
-#overlay .mesa-pleg .persona-add{ margin:0 0 6px; }
-#overlay .mesa-pleg #clienteRow{ margin:0 10px 10px; }
-#overlay .mesa-pleg + .section-divider{ margin-top:14px; }
+#overlay .mesa-sec .persona-add{ margin:0 0 6px; }
+#overlay .mesa-sec + .section-divider{ margin-top:14px; }
 </style>
 </head>
 <body>
@@ -4446,24 +4478,26 @@ body.easy-mode #overlay .mesa-ico{ min-height:0; width:38px; height:38px; }
     <div id="itemsContainer"></div>
     <div class="mesa-total" id="mesaTotal" hidden><span id="mesaTotalN">Total</span><b id="mesaTotalV">$0</b></div>
 
-    <!-- Secundario y plegable: personas de la mesa y nombre del cliente -->
-    <div class="mesa-pleg" data-mod="d">
-      <button type="button" class="mesa-pleg-btn" id="personasToggle" aria-expanded="false" aria-controls="personasCuerpo"><span class="mp-ic" aria-hidden="true">👥</span><span class="mp-t">Personas</span><span class="mp-n" id="personasN"></span><span class="mp-ch" aria-hidden="true">›</span></button>
-      <div id="peopleChips" data-mod="d"></div>
-      <div class="mesa-pleg-cuerpo" id="personasCuerpo" hidden>
-        <div class="persona-add">
-          <span class="persona-ico">👤</span>
-          <input type="text" id="personNameInput" placeholder="Nombre (ej. Ana)" autocomplete="off" maxlength="30" enterkeyhint="done">
-          <button id="addPersonBtn" type="button">＋ Agregar</button>
+    <!-- Secundario y plegable: personas de la mesa y nombre del cliente (dos botones discretos en una línea) -->
+    <div class="mesa-sec">
+      <div class="mesa-pleg" data-mod="d">
+        <button type="button" class="mesa-pleg-btn" id="personasToggle" aria-expanded="false" aria-controls="personasCuerpo" title="Personas en la mesa: cada una con su cuenta aparte"><span class="mp-ic" aria-hidden="true">👥</span><span class="mp-t">Personas</span><span class="mp-n" id="personasN"></span><span class="mp-ch" aria-hidden="true">›</span></button>
+        <div id="peopleChips" data-mod="d"></div>
+        <div class="mesa-pleg-cuerpo" id="personasCuerpo" hidden>
+          <div class="persona-add">
+            <span class="persona-ico">👤</span>
+            <input type="text" id="personNameInput" placeholder="Nombre (ej. Ana)" autocomplete="off" maxlength="30" enterkeyhint="done">
+            <button id="addPersonBtn" type="button">＋ Agregar</button>
+          </div>
+          <div class="persona-hint">Cada persona lleva su cuenta aparte dentro de la mesa. Tócala para pedir o pagar lo suyo.</div>
         </div>
-        <div class="persona-hint">Cada persona lleva su cuenta aparte dentro de la mesa. Tócala para pedir o pagar lo suyo.</div>
       </div>
-    </div>
-    <div class="mesa-pleg" data-mod="n" data-novocab>
-      <button type="button" class="mesa-pleg-btn" id="clienteToggle" aria-expanded="false" aria-controls="clienteRow"><span class="mp-ic" aria-hidden="true">🧾</span><span class="mp-t">A nombre de</span><span class="mp-n" id="clienteN"></span><span class="mp-ch" aria-hidden="true">›</span></button>
-      <div class="add-row" id="clienteRow" data-mod="n" data-novocab hidden>
-        <input type="text" id="clienteNombre" placeholder="¿A nombre de quién? (ej. Ana Pérez)" autocomplete="off" maxlength="40">
-        <button type="button" id="clienteGuardar">Guardar</button>
+      <div class="mesa-pleg" data-mod="n" data-novocab>
+        <button type="button" class="mesa-pleg-btn" id="clienteToggle" aria-expanded="false" aria-controls="clienteRow" title="¿A nombre de quién va la cuenta?"><span class="mp-ic" aria-hidden="true">🧾</span><span class="mp-t">Cliente</span><span class="mp-n" id="clienteN"></span><span class="mp-ch" aria-hidden="true">›</span></button>
+        <div class="add-row" id="clienteRow" data-mod="n" data-novocab hidden>
+          <input type="text" id="clienteNombre" placeholder="¿A nombre de quién? (ej. Ana Pérez)" autocomplete="off" maxlength="40" enterkeyhint="done">
+          <button type="button" id="clienteGuardar">Guardar</button>
+        </div>
       </div>
     </div>
 
@@ -7827,6 +7861,10 @@ function stopVoiceCommand(){
     if(!Ctor || !prendido() || !gesto || ocupado || document.hidden) return false;
     if(typeof micEnabled !== 'undefined' && !micEnabled) return false;
     if(typeof voiceListening !== 'undefined' && voiceListening) return false;
+    // Otro micrófono de Vento está escuchando («Producto por voz», el asistente o la libreta): no se le quita.
+    try{ if(voiceProductListening) return false; }catch(e){}
+    try{ if(asisRecOn) return false; }catch(e){}
+    if(window.__lbMicOn) return false;
     try{ if(window.speechSynthesis && window.speechSynthesis.speaking) return false; }catch(e){}
     try{ if(typeof authUser !== 'undefined' && !authUser) return false; }catch(e){}
     const au = document.getElementById('authOverlay'); if(au && !au.hidden) return false;
@@ -8913,7 +8951,9 @@ function mesaPleg(btnId, cuerpoId, abrir){
 function pintarClienteN(){
   const el = document.getElementById('clienteN'); if(!el) return;
   const t = currentTable != null ? data.tables[currentTable] : null;
-  el.textContent = t && t.name && t.name.trim() ? '· ' + t.name.trim() : '· sin nombre';
+  const n = t && t.name ? String(t.name).trim() : '';
+  el.textContent = n;
+  const b = document.getElementById('clienteToggle'); if(b) b.classList.toggle('con-nombre', !!n);
 }
 // Títulos de los iconos del encabezado con el nombre que usa el negocio (mesa, silla, orden…).
 function mesaAccionesTitulos(){
@@ -8974,7 +9014,7 @@ function renderPeople(){
   const box = document.getElementById('peopleChips');
   box.innerHTML = '';
   const pn = document.getElementById('personasN');
-  if(pn) pn.textContent = t.people.length ? '· ' + t.people.length : '';
+  if(pn) pn.textContent = t.people.length ? String(t.people.length) : '';
   t.people.forEach(p=>{
     const bal = personTotalAmt(p.id);
     const chip = document.createElement('span');
@@ -9015,7 +9055,14 @@ function renderFavChips(){
   box.querySelectorAll('.fav-chip').forEach(chip => {
     chip.addEventListener('click', () => addFavoriteToTable(chip.dataset.id));
   });
+  requestAnimationFrame(favDesliza);
 }
+// Favoritos que no caben: el borde derecho se desvanece mientras quede algo por deslizar.
+function favDesliza(){
+  const box = document.getElementById('favChips'); if(!box) return;
+  box.classList.toggle('desliza', box.scrollLeft + box.clientWidth < box.scrollWidth - 4);
+}
+document.getElementById('favChips').addEventListener('scroll', favDesliza, { passive: true });
 function addFavoriteToTable(productId){
   const product = data.products.find(p => p.id === productId);
   const t = data.tables[currentTable];
@@ -9061,6 +9108,19 @@ document.addEventListener('keydown', e => {
   if(e.key !== 'Escape' || !overlay.classList.contains('show')) return;
   const encima = [...document.querySelectorAll('.overlay.show')].some(o => o !== overlay && !overlay.contains(o));
   if(!encima) document.getElementById('closeModalBtn').click();
+});
+// Computador: con la mesa abierta, escribir cualquier letra va directo al buscador de productos (sin tener que
+// hacer clic en él). En el celular no aplica: ahí el teclado solo sale al tocar el buscador.
+document.addEventListener('keydown', e => {
+  if(!overlay.classList.contains('show') || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+  if(!e.key || e.key.length !== 1 || !/\S/.test(e.key)) return;
+  const a = document.activeElement;
+  if(a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return;
+  if([...document.querySelectorAll('.overlay.show')].some(o => o !== overlay && !overlay.contains(o))) return;
+  try{ if(!matchMedia('(hover:hover) and (pointer:fine)').matches) return; }catch(err){ return; }
+  const s = document.getElementById('addProductSearch');
+  if(!s || s.disabled || !s.offsetParent) return;
+  s.focus({ preventScroll: false });   // la letra cae en el buscador (y se ven las sugerencias)
 });
 
 function refreshProductSelect(){
@@ -9982,13 +10042,19 @@ function parseVoiceProductCreation(rawText){
     .replace(/\s+/g, ' ').trim();
 
   // Precio: acepta "precio 5000", "a 5000", "por 5000", "vale 5000" y números hablados.
-  const priceRe = /(?:precio|vale|cuesta|cuestan|por|a)\s+(.+)$/;
-  const m = text.match(priceRe);
+  // Con \b: antes «Club Colombia precio cinco mil» tomaba la «a» final del nombre como «a …» y quedaba «club colombi».
+  // «precio/vale/cuesta» manda; si no está, se usa el ÚLTIMO «a/por» («pizza a la carta a 5000»).
+  let m = text.match(/\b(?:precio|vale|cuesta|cuestan)\s+(.+)$/), corte = m ? m.index : -1;
+  if(!m){
+    const re = /\b(?:por|a)\s+/g; let x, ult = null;
+    while((x = re.exec(text))) ult = x;
+    if(ult){ m = [ult[0], text.slice(ult.index + ult[0].length)]; corte = ult.index; }
+  }
   let price = null;
   let name = text;
   if(m){
     price = parseSpokenPrice(m[1]);
-    name = text.slice(0, m.index).trim();
+    name = text.slice(0, corte).trim();
   } else {
     // También acepta "poker cinco mil" al final.
     const tail = text.match(/\b(\d{2,9}|cero|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciseis|diecisiete|dieciocho|diecinueve|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|quinientos|quinientas|mil)(?:\s+(?:mil|cientos?|quinientos?|quinientas?))?$/);
@@ -10010,6 +10076,9 @@ function startVoiceProductCreation(){
     return;
   }
   if(voiceListening || voiceProductListening) return;
+  // Igual que el botón 🎤: Vento se calla y «Hola Vento» le pasa el micrófono (antes quedaban los dos peleándolo).
+  try{ if(window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); }catch(e){}
+  try{ window.ventoHola && window.ventoHola.soltar(true); }catch(e){}
   voiceProductListening = true;
   const btn = document.getElementById('voiceProductBtn');
   const hint = document.getElementById('voiceProductHint');
@@ -14991,6 +15060,8 @@ function asisMicStart(){
   rec.onend = () => asisMicStop(true);
   asisRec = rec; asisRecOn = true;
   asisSyncGo();
+  // «Hola Vento» le pasa el micrófono (antes seguía abierto y los dos se lo peleaban).
+  try{ window.ventoHola && window.ventoHola.soltar(true); }catch(e){}
   try{ rec.start(); }catch(e){ asisMicStop(false); }
 }
 
@@ -25968,7 +26039,7 @@ let fotosListas = false;
     const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
     const b = $l('lbMic');
     if(!Ctor) return lbResponder('Este celular no deja usar la voz aquí. Usa los botones de abajo.');
-    if(rec){ try{ rec.abort(); }catch(e){} rec = null; b.classList.remove('on'); b.textContent = '🎤 Toca y habla'; return; }
+    if(rec){ try{ rec.abort(); }catch(e){} rec = null; window.__lbMicOn = false; b.classList.remove('on'); b.textContent = '🎤 Toca y habla'; return; }
     rec = new Ctor(); rec.lang = 'es-CO'; rec.interimResults = false; rec.maxAlternatives = 4; rec.continuous = false;
     b.classList.add('on'); b.textContent = '👂 Te escucho…';
     rec.onresult = ev => {
@@ -25980,8 +26051,12 @@ let fotosListas = false;
       lbResponder(r.texto);
     };
     rec.onerror = ev => { if(ev.error === 'not-allowed') lbResponder('Hay que darle permiso al micrófono en el navegador.'); else if(ev.error === 'no-speech') lbResponder('No te escuché. Toca otra vez y habla cerca del celular.'); };
-    rec.onend = () => { rec = null; b.classList.remove('on'); b.textContent = '🎤 Toca y habla'; };
-    try{ rec.start(); }catch(e){ rec = null; b.classList.remove('on'); b.textContent = '🎤 Toca y habla'; }
+    rec.onend = () => { rec = null; window.__lbMicOn = false; b.classList.remove('on'); b.textContent = '🎤 Toca y habla'; };
+    // «Hola Vento» suelta el micrófono y no lo vuelve a abrir mientras la libreta escucha.
+    window.__lbMicOn = true;
+    try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+    try{ window.ventoHola && window.ventoHola.soltar(true); }catch(e){}
+    try{ rec.start(); }catch(e){ rec = null; window.__lbMicOn = false; b.classList.remove('on'); b.textContent = '🎤 Toca y habla'; }
   }
 
   // ---------- Botón grande en el modo fácil ----------
