@@ -2278,6 +2278,9 @@ body.mod-v #quickSaleBtn{ order:-1; background:var(--amber); color:#fff; border-
   .sub-bar b:last-of-type{ white-space:nowrap; color:var(--cream); }
   .sub-bar i{ font-style:normal; opacity:.6; padding:0 2px 0 6px; }
   .sub-bar[data-k="vencida"], .sub-bar[data-k="gracia"]{ border-color:var(--brick); background:color-mix(in srgb, var(--brick) 14%, var(--surface)); }
+  /* Suscripción en Vento Nube (nube/vento-suscripcion.js) */
+  .sub-bar[data-k="rechazada"]{ border-color:var(--brick); background:color-mix(in srgb, var(--brick) 14%, var(--surface)); }
+  .sub-bar b[data-sub="renovar"]{ padding:6px 12px; border-radius:999px; background:var(--amber); color:#fff; font-size:12px; letter-spacing:.06em; }
   .lic-plan{ margin:8px 0 10px; padding:10px 12px; border-radius:12px; background:var(--surface-2); border:1px solid var(--line); font-size:13.5px; line-height:1.45; }
   .lic-plan b{ color:var(--cream); }
   .lic-code{ font:800 22px/1.2 var(--font-main); letter-spacing:.12em; color:var(--cream); text-align:center; margin:6px 0; user-select:all; }
@@ -4851,6 +4854,7 @@ export default {
 <script src="nube/config.js"></script>
 <script src="nube/vento-nube.js"></script>
 <script src="nube/vento-pagos.js" defer></script>
+<script src="nube/vento-suscripcion.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 /* ---------- Lluvia de código (fondo Matrix) ---------- */
@@ -23443,7 +23447,11 @@ async function licDesdeLink(){
      firmada para el código del NEGOCIO (sirve en todos sus celulares) con fecha de vencimiento.
    • Sin suscripción: prueba gratis de PRUEBA_DIAS días + GRACIA_DIAS de gracia. Después, la app NO borra
      nada ni pierde pedidos: deja ver todo, cobrar las cuentas abiertas, recibir los pedidos del QR y sacar
-     respaldo, pero no deja hacer ventas nuevas hasta renovar. Nadie puede fabricar una licencia sin la llave. */
+     respaldo, pero no deja hacer ventas nuevas hasta renovar. Nadie puede fabricar una licencia sin la llave.
+   • NEGOCIO EN VENTO NUBE (nube/vento-suscripcion.js): el plan lo decide el SERVIDOR (suscripción de la cuenta +
+     el negocio, pagos Nequi/DaviPlata con comprobante). Cuando hay un estado VERIFICADO (token firmado por el
+     servidor), subEstado() usa ese estado, se vende con «pos_basic» y cada función PRO pide su permiso
+     (entitlement). Sin nube, o mientras el servidor no responde con un estado firmado, todo sigue como arriba. */
 let PRUEBA_DIAS = 15, GRACIA_DIAS = 3;
 let SUSCRIPCION_PRECIO_TEXTO = '';       // ej. '$59.900 al mes' (vacío = «consulta el precio»)
 /* Configuración que publica el proveedor desde Vento Admin (admin.html → «Configurar la app»): precio, días de prueba
@@ -23495,10 +23503,14 @@ function subPruebaDesde(){
   if(typeof data !== 'undefined' && data && data.pruebaDesde !== t){ data.pruebaDesde = t; try{ saveData(); }catch(e){} }
   return t;
 }
+// Suscripción de Vento Nube con estado verificado por el servidor (si no, null → sistema de siempre).
+const subNube = () => { try{ const s = window.ventoSuscripcion; return s && s.enCuenta() && s.verificado() ? s : null; }catch(e){ return null; } };
 function subEstado(){
   if(subEsProveedor) return { k: 'proveedor' };
   const now = Date.now();
   try{ if(ventoCfg && Array.isArray(ventoCfg.suspendidos) && ventoCfg.suspendidos.includes(codigoNegocio())) return { k: 'vencida', suspendido: true }; }catch(e){}
+  const sn = subNube();
+  if(sn){ const x = sn.estadoApp(); if(x) return x; }   // {k:'activa'|'prueba'|'revision'|'rechazada'|'vencida'|'cancelada'|'gratis', nube:true, …}
   if(subInfo && !subInfo.vencida && (!subInfo.v || subInfo.v > now)) return { k: 'activa', v: subInfo.v || 0, dias: subInfo.v ? Math.ceil((subInfo.v - now) / DIA_MS) : null, plan: subInfo.pl || '' };
   const finPrueba = subPruebaDesde() + PRUEBA_DIAS * DIA_MS;
   if(!subInfo && now < finPrueba) return { k: 'prueba', dias: Math.ceil((finPrueba - now) / DIA_MS) };
@@ -23507,8 +23519,11 @@ function subEstado(){
   return { k: 'vencida' };
 }
 window.ventoPlan = () => subEstado();
-const subPuedeVender = () => subEstado().k !== 'vencida';
 const subEsProv = () => subEstado().k === 'proveedor';
+// ¿El plan incluye esta función? Solo se restringe con la nube y un estado verificado; el proveedor puede todo.
+const subAcceso = ent => { if(subEsProv()) return true; const sn = subNube(); return !sn || sn.tiene(ent); };
+// En la nube se vende con «pos_basic» (el plan gratis lo trae: con el plan PRO vencido se sigue vendiendo).
+const subPuedeVender = () => { const st = subEstado(); if(st.k === 'proveedor') return true; if(st.nube) return subAcceso('pos_basic'); return st.k !== 'vencida'; };
 function subRenovarWa(){
   const st = subEstado();
   const pl = ((ventoCfg && ventoCfg.planes) || []).find(p => p.id === subPlanElegido);
@@ -23516,6 +23531,8 @@ function subRenovarWa(){
   window.open('https://wa.me/' + ventoWa() + '?text=' + encodeURIComponent(msg), '_blank');
 }
 function subPaywall(motivo){
+  const sn = subNube();
+  if(sn && !subEstado().suspendido){ sn.abrirPlanes(motivo || ''); return; }   // planes y pagos de Vento Nube
   let ov = document.getElementById('subOverlay');
   if(!ov){
     ov = document.createElement('div'); ov.id = 'subOverlay'; ov.className = 'overlay';
@@ -23578,22 +23595,26 @@ function subTexto(st){
   return '🔒 <b>Suscripción vencida</b>: puedes ver, cobrar y sacar respaldo, pero no hacer ventas nuevas.';
 }
 function subPintar(){
-  const st = subEstado();
+  const st = subEstado(), sn = st.nube ? subNube() : null;
   // Panel en Ajustes → Negocio
   let g = document.getElementById('subGrupo');
   if(!g){
     const ref = document.querySelector('#view-ajustes .settings-group[data-cat="negocio"]');
     if(ref){
       g = document.createElement('div'); g.className = 'settings-group'; g.id = 'subGrupo'; g.dataset.cat = 'negocio'; g.hidden = ref.hidden;
-      g.innerHTML = '<h2>💳 Plan y suscripción</h2><div class="lic-plan" id="subPlan"></div>' +
+      g.innerHTML = '<h2>💳 Plan y suscripción</h2><div id="subNubePanel" data-novocab hidden></div><div id="subViejo"><div class="lic-plan" id="subPlan"></div>' +
         '<div class="settings-desc">Vento es un servicio por suscripción. Solo el proveedor de Vento puede cambiar la aplicación, borrar todo o borrar historial; tus datos siempre quedan guardados.</div>' +
-        '<div class="mz-actions" style="flex-wrap:wrap"><button class="btn-warn" id="subRenovarBtn" type="button">💳 Planes y pagos</button><button class="btn-ghost" id="subCodigoBtn" type="button">🔑 Pegar código de activación</button><a class="btn-ghost" id="subLicLink" href="admin.html" target="_blank" rel="noopener" hidden>👑 Vento Admin (proveedor)</a></div>';
+        '<div class="mz-actions" style="flex-wrap:wrap"><button class="btn-warn" id="subRenovarBtn" type="button">💳 Planes y pagos</button><button class="btn-ghost" id="subCodigoBtn" type="button">🔑 Pegar código de activación</button><a class="btn-ghost" id="subLicLink" href="admin.html" target="_blank" rel="noopener" hidden>👑 Vento Admin (proveedor)</a></div></div>';
       ref.parentNode.insertBefore(g, ref);
       g.querySelector('#subRenovarBtn').onclick = () => subPaywall('');
       g.querySelector('#subCodigoBtn').onclick = () => subPaywall('');
     }
   }
   if(g){
+    // Con la nube: estado del servidor, pagos (solo dueño/administrador) y renovación. Sin nube: licencias de siempre.
+    const panel = g.querySelector('#subNubePanel');
+    g.querySelector('#subViejo').hidden = !!sn; panel.hidden = !sn;
+    if(sn) sn.pintarPanel(panel);
     g.querySelector('#subPlan').innerHTML = subTexto(st) + '<br>Código de tu negocio: <b>' + codigoNegocio() + '</b>' + (st.k === 'proveedor' ? ' · Código de este equipo: <b>' + codigoEquipo() + '</b>' : '');
     g.querySelector('#subLicLink').hidden = st.k !== 'proveedor';
   }
@@ -23604,9 +23625,17 @@ function subPintar(){
     const h = document.querySelector('.wrap > header'); if(!h) return;
     bar = document.createElement('div'); bar.id = 'subBar'; bar.className = 'sub-bar';
     h.parentNode.insertBefore(bar, h.nextSibling);
-    bar.addEventListener('click', e => { if(e.target.closest('[data-x]')){ try{ sessionStorage.setItem('vento-subbar-x', '1'); }catch(x){} bar.hidden = true; return; } subPaywall(''); });
+    bar.addEventListener('click', e => { if(e.target.closest('[data-x]')){ try{ sessionStorage.setItem('vento-subbar-x', '1'); }catch(x){} bar.hidden = true; return; }
+      const s2 = subNube(); if(s2 && bar.dataset.accion === 'renovar'){ s2.abrirRenovar(); return; } subPaywall(''); });
   }
   let cerrada = false; try{ cerrada = sessionStorage.getItem('vento-subbar-x') === '1'; }catch(e){}
+  if(sn){   // barra de Vento Nube: renovar, pago en revisión, rechazado, vencido (cajero y mesero no la ven)
+    const b = sn.barra() || {};
+    bar.hidden = !b.mostrar || (cerrada && !b.fija); bar.dataset.k = b.k || ''; bar.dataset.accion = b.accion || '';
+    bar.innerHTML = b.html || '';
+    return;
+  }
+  bar.dataset.accion = '';
   bar.hidden = !mostrar || (cerrada && st.k !== 'vencida');
   bar.dataset.k = st.k;
   bar.innerHTML = '<span>' + subTexto(st) + '</span><b>' + (st.k === 'vencida' ? 'Renovar' : 'Activar') + ' ›</b>' + (st.k !== 'vencida' ? '<i data-x title="Ocultar">✕</i>' : '');
@@ -23630,6 +23659,40 @@ document.addEventListener('click', ev => {
   }
 }, true);
 setInterval(() => { try{ subAplicar(); }catch(e){} }, 60 * 60000);
+// Funciones PRO (solo con el negocio en Vento Nube y un estado verificado): sin el permiso se abre «Función PRO».
+const SUB_FUNCIONES = [
+  ['voice', '#voiceFab, #voiceFabAI, #voiceProductBtn', 'Pedidos por voz'],
+  ['voice', '#holaVentoToggle', '«Hola Vento» (manos libres)'],
+  ['ocr', '#invInvoiceCamBtn, #invInvoiceGalBtn', 'Leer facturas con la cámara'],
+  ['ai_camera', '#scanSellBtn, #cameraBtn, #invPriceBtn, #qpCameraBtn, #domIaFotoBtn', 'La cámara con IA'],
+  ['advanced_reports', 'nav button[data-view="estadisticas"], .more-tile[data-go="estadisticas"]', 'Estadísticas avanzadas'],
+  ['multi_branch', '#sedeAddBtn', 'Agregar otra sede'],
+  ['employee_management', '#accAddBtn, #nubeInvitar', 'Invitar personas a tu equipo'],
+  ['invoices', '#invFacturaPanel > summary, #fiHistBtn', 'Facturas de proveedor'],
+  ['expenses', '#ctGuardar', 'Registrar gastos']
+];
+document.addEventListener('click', ev => {
+  const sn = subNube(); if(!sn || subEsProv()) return;
+  const el = ev.target && ev.target.closest ? ev.target : null; if(!el) return;
+  for(const [ent, sel, nombre] of SUB_FUNCIONES){
+    const t = el.closest(sel); if(!t) continue;
+    if(t.id === 'holaVentoToggle' && !t.checked) return;   // apagar «Hola Vento» siempre se puede
+    if(sn.tiene(ent)) return;
+    ev.preventDefault(); ev.stopImmediatePropagation();
+    sn.funcionPro(ent, nombre);
+    return;
+  }
+}, true);
+// Voz por «Hola Vento» (manos libres) y demás caminos al reconocedor: también piden el permiso «voice».
+if(typeof handleVoiceTranscript === 'function'){
+  const subVozOrig = handleVoiceTranscript;
+  handleVoiceTranscript = async function(){
+    if(!subAcceso('voice')){ try{ window.ventoSuscripcion.funcionPro('voice', 'Pedidos por voz'); }catch(e){} return; }
+    return subVozOrig.apply(this, arguments);
+  };
+}
+// El estado de la suscripción en la nube cambió (llegó del servidor, se aprobó un pago…): se repinta.
+window.addEventListener('vento-suscripcion', () => { try{ subAplicar(); }catch(e){} });
 
 /* ---------- YouTube del TV en vivo (protocolo «Vincular con código de TV») ----------
    La app de YouTube del TV acepta controles remotos: con el código del TV se obtiene un permiso
