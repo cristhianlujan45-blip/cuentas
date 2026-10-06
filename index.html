@@ -9698,6 +9698,7 @@ document.getElementById('personChargeBtn').addEventListener('click', async ()=>{
   t.payments = (t.payments||[]).filter(p => !(p.personId === currentPersonId));
   t.people = (t.people||[]).filter(p => p.id !== currentPersonId);
   saveData();
+  if(!(debt > 0)) sonidoPos('success');      // cuenta de la persona cobrada completa
   const personName = person ? person.name : 'La persona';
   closePersonModal();
   showToast(debt > 0 ? personName + ' quedó debiendo ' + fmt(debt) + '.' : 'Cuenta de ' + personName + ' cobrada y cerrada.');
@@ -15036,6 +15037,14 @@ function scanBeep(){
   }catch(e){}
 }
 
+// Código leído: si con él se agregó un producto, su «tún» (Sonidos POS) ya confirma la lectura y no se pita encima.
+function scanLeido(raw){
+  const t0 = Date.now();
+  if(navigator.vibrate) try{ navigator.vibrate(60); }catch(e){}
+  try{ if(scanOnResult) scanOnResult(raw); }
+  finally{ if(!(window.ventoSonidos && window.ventoSonidos.ultimo() >= t0)) scanBeep(); }
+}
+
 function closeScanOverlay(){
   const ov = document.getElementById('scanOverlay');
   if(ov) ov.classList.remove('show');
@@ -15109,9 +15118,7 @@ async function openScanOverlay(onResult, opts){
           // se dejaba quieto). Para sumar otra unidad del mismo, se retira un momento y se vuelve a mostrar.
           if(!(raw === scanLastCode && (now - scanLastAt) < 800)){
             scanLastCode = raw; scanLastAt = now;
-            scanBeep();
-            if(navigator.vibrate) try{ navigator.vibrate(60); }catch(e){}
-            if(scanOnResult) scanOnResult(raw);
+            scanLeido(raw);
           } else scanLastAt = now;
         }
       }catch(e){}

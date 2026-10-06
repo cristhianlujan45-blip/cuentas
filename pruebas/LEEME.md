@@ -17,6 +17,7 @@ el micrófono, la APK y los servicios externos se simulan.
 | `tvocupado` | Conectarse al TV aunque otro celular ya esté conectado |
 | `esc` | Computador: Enter abre la mesa, Esc la cierra, ancho de pantalla grande |
 | `pasos` | Tarjeta «Primeros pasos» para negocios nuevos |
+| `sonidos` | Sonidos POS (`lib/vento-sonidos.js`): + suena «tún», − suena «tic», favorito, escáner (sin pitar encima), voz «mesa 1 cinco águilas» y lista de 10 productos = UN sonido, pedidos del QR sin sonido, cobrar mesa / persona / venta rápida = éxito, volumen Bajo por defecto, Ajustes → 🔊 Sonidos (apagar «al quitar», volumen, Probar), pestaña oculta y micrófono abierto sin sonido, un solo AudioContext y 3 búferes reutilizados, también en la APK con «Hola Vento» |
 | `servidor` | Servidor de suscripciones con PostgreSQL 16 real (sin navegador): prueba gratis, pago Nequi/DaviPlata con comprobante, revisión y aprobación del admin (también dos a la vez), renovación, rechazo, vencimiento y cron, duplicados, token firmado, RLS y permisos. Está en `servidor/suscripciones.test.js` |
 
 ## Cómo correrlas

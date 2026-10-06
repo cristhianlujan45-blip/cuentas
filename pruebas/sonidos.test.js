@@ -7,7 +7,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
  await ctx.addInitScript(()=>{
   window.__aud={ctxInteractivo:0,ctxOtros:0,buffers:0,fuentes:0,ganancias:[]};
   const C=window.AudioContext; if(!C) return;
-  window.AudioContext=class extends C{ constructor(o){ super(o); if(o&&o.latencyHint==='interactive'){ window.__aud.ctxInteractivo++; this.__vento=1; } else window.__aud.ctxOtros++; } };
+  window.AudioContext=class extends C{ constructor(o){ super(o); if(o&&o.latencyHint==='interactive'){ window.__aud.ctxInteractivo++; this.__vento=1; window.__aud.ctx=this; } else window.__aud.ctxOtros++; } };
   const P=BaseAudioContext.prototype, cb=P.createBuffer, cs=P.createBufferSource, cg=P.createGain;
   P.createBuffer=function(){ window.__aud.buffers++; return cb.apply(this,arguments); };
   P.createBufferSource=function(){ if(this.__vento) window.__aud.fuentes++; return cs.apply(this,arguments); };
@@ -87,8 +87,9 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
  a=await S();
  await p.evaluate(()=>{ voiceListening=true; }); await p.click('#itemsContainer .li-qty-plus'); await pausa(); await p.evaluate(()=>{ voiceListening=false; });
  await p.evaluate(()=>{ window.__ventoEscuchando=true; }); await p.click('#itemsContainer .li-qty-plus'); await pausa(); await p.evaluate(()=>{ window.__ventoEscuchando=false; });
+ await p.evaluate(()=>{ voiceProductListening=true; }); await p.click('#itemsContainer .li-qty-plus'); await pausa(); await p.evaluate(()=>{ voiceProductListening=false; });
  d=await S();
- chk('Con el micrófono escuchando no suena', nuevos(a,d).length===0 && d.o.microfono===(a.o.microfono||0)+2, JSON.stringify(nuevos(a,d)));
+ chk('Con el micrófono escuchando no suena (botón, manos libres, producto por voz)', nuevos(a,d).length===0 && d.o.microfono===(a.o.microfono||0)+3, JSON.stringify(nuevos(a,d)));
 
  // Cobrar la mesa → success
  a=await S();
@@ -109,6 +110,43 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
  await p.click('#qsChargeBtn'); await p.waitForTimeout(300); await p.click('#confirmOkBtn'); await p.waitForTimeout(400); d=await S();
  r=await p.evaluate(()=>({h:data.history.length, t:data.history[0].tableName, tot:data.history[0].total}));
  chk('Venta rápida cobrada: queda en el historial y suena «success»', r.h===hAntes+1 && r.t==='Mostrador' && r.tot===8000 && JSON.stringify(nuevos(a,d))==='["success"]', JSON.stringify(r)+' '+JSON.stringify(nuevos(a,d)));
+
+ // Escáner: un código conocido agrega a la cuenta → UN «tún» y sin el pitido del lector encima
+ await p.evaluate(()=>{ document.querySelectorAll('.overlay.show').forEach(o=>o.classList.remove('show')); data.products.find(x=>x.id==='ag').barcodes=['7701234567890']; saveData(); openTableModal(3); });
+ await p.waitForTimeout(300);
+ await p.evaluate(()=>document.getElementById('scanSellBtn').click()); await p.waitForTimeout(200);
+ a=await S(); let otros=await p.evaluate(()=>__aud.ctxOtros); const ag3=await qty(3,'ag');
+ await p.evaluate(()=>scanLeido('7701234567890')); await pausa(); d=await S();
+ r=await p.evaluate(()=>__aud.ctxOtros);
+ chk('Escanear un código conocido: suma 1 y suena UN «add» sin el pitido del lector', (await qty(3,'ag'))===ag3+1 && JSON.stringify(nuevos(a,d))==='["add"]' && r===otros, (await qty(3,'ag'))+' '+JSON.stringify(nuevos(a,d))+' pitidos '+(r-otros));
+ a=await S(); await p.evaluate(()=>scanLeido('999000111222')); await pausa(); d=await S();
+ chk('Código desconocido: no suena «add» y sí pita el lector (como antes)', nuevos(a,d).length===0 && (await p.evaluate(()=>__aud.ctxOtros))===r+1, JSON.stringify(nuevos(a,d)));
+ await p.evaluate(()=>{ try{ closeLinkCodeOverlay(); closeScanOverlay(); }catch(e){} document.querySelectorAll('.overlay.show').forEach(o=>o.classList.remove('show')); });
+
+ // Cuenta por persona: agregar suena «add» y cobrar su cuenta completa suena «success»
+ await p.evaluate(()=>{ data.tables[4].people=[{id:'pp1',name:'Ana'}]; saveData(); openTableModal(4); openPersonModal('pp1'); });
+ await p.waitForTimeout(300);
+ a=await S();
+ await p.evaluate(()=>{ document.getElementById('personAddProductId').value='ag'; document.getElementById('personAddProductSearch').value='Águila'; document.getElementById('personAddQty').value=2; document.getElementById('personAddItemBtn').click(); });
+ await pausa(); d=await S();
+ r=await p.evaluate(()=>data.tables[4].items.filter(i=>i.personId==='pp1').reduce((s,i)=>s+i.qty,0));
+ chk('Cuenta por persona: agregar 2 suena UN «add»', r===2 && JSON.stringify(nuevos(a,d))==='["add"]', r+' '+JSON.stringify(nuevos(a,d)));
+ await p.evaluate(()=>{ data.tables[4].payments=(data.tables[4].payments||[]).concat([{amount:personTotalAmt('pp1'),method:'efectivo',personId:'pp1',note:''}]); saveData(); renderPersonModalItems(); });
+ a=await S(); await p.evaluate(()=>document.getElementById('personChargeBtn').click()); await p.waitForTimeout(300); await p.click('#confirmOkBtn'); await p.waitForTimeout(400); d=await S();
+ r=await p.evaluate(()=>({h:data.history[0].person, debt:data.history[0].debt, quedan:data.tables[4].items.filter(i=>i.personId==='pp1').length}));
+ chk('Cobrar la cuenta de una persona: se cierra y suena «success»', r.h==='Ana' && r.debt===0 && r.quedan===0 && JSON.stringify(nuevos(a,d))==='["success"]', JSON.stringify(r)+' '+JSON.stringify(nuevos(a,d)));
+
+ // Audio dormido (reposo): despierta y suena; si tarda demasiado en despertar, se descarta en vez de sonar tarde
+ r=await p.evaluate(async()=>{
+   const c=__aud.ctx, st=ventoSonidos._stats, f0=st.fuentes, t0=st.omitidos.tarde||0, espera=ms=>new Promise(x=>setTimeout(x,ms));
+   await c.suspend(); await espera(150); ventoSonidos.add(); await espera(250);
+   const rapido=st.fuentes-f0, estado=c.state;
+   await c.suspend(); const orig=c.resume.bind(c); c.resume=()=>new Promise(ok=>setTimeout(()=>orig().then(ok),900));
+   await espera(150); ventoSonidos.add(); await espera(1200);
+   delete c.resume; await c.resume();
+   return {rapido, estado, lento:st.fuentes-f0-rapido, tarde:(st.omitidos.tarde||0)-t0};
+ });
+ chk('Audio dormido: despierta y suena; si tarda más de 0,6 s no suena tarde', r.rapido===1 && r.estado==='running' && r.lento===0 && r.tarde===1, JSON.stringify(r));
 
  // Ajustes → 🔊 Sonidos: apagar «Sonido al quitar»
  await p.evaluate(()=>{ document.querySelectorAll('.overlay.show').forEach(o=>o.classList.remove('show')); asisGoView('ajustes'); });
@@ -174,6 +212,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
  r=await q2.evaluate(()=>window.ventoHola.estado());
  a=await S2(); await q2.click('#itemsContainer .li-qty-plus'); await q2.waitForTimeout(200); d=await S2();
  chk('APK: con «Hola Vento» atento y el micrófono abierto, tocar + no suena', r.corriendo && r.atento && (await pk())===5 && nuevos(a,d).length===0 && d.o.microfono===(a.o.microfono||0)+1, JSON.stringify(r)+' '+JSON.stringify(nuevos(a,d)));
- chk('APK: un solo AudioContext de sonidos', await q2.evaluate(()=>__aud===undefined ? ventoSonidos._stats.contextos===1 : true));
+ r=await q2.evaluate(()=>({c:ventoSonidos._stats.contextos, b:ventoSonidos._stats.buferes, e:ventoSonidos._estado()}));
+ chk('APK: un solo AudioContext de sonidos y 3 búferes reutilizados', r.c===1 && r.b===3 && r.e.buferes===3, JSON.stringify(r));
  chk('APK: sin errores de página', !errs2.length, errs2.join(' | '));
  console.log('RESULTADO',ok,'bien',mal,'mal'); await b.close(); })();
