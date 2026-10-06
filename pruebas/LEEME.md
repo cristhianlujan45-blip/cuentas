@@ -18,6 +18,8 @@ el micrófono, la APK y los servicios externos se simulan.
 | `esc` | Computador: Enter abre la mesa, Esc la cierra, ancho de pantalla grande |
 | `pasos` | Tarjeta «Primeros pasos» para negocios nuevos |
 | `servidor` | Servidor de suscripciones con PostgreSQL 16 real (sin navegador): prueba gratis, pago Nequi/DaviPlata con comprobante, revisión y aprobación del admin (también dos a la vez), renovación, rechazo, vencimiento y cron, duplicados, token firmado, RLS y permisos. Está en `servidor/suscripciones.test.js` |
+| `adminsub` | Panel de Administrador → 💳 Suscripciones (servidor y supabase-js simulados): entrar con la cuenta de Vento Nube, aviso claro si no es administradora, pagos pendientes, ver comprobante, aprobar (confirma inicio y vencimiento), rechazar con motivo obligatorio, suscripciones (filtro, dar meses, cambiar plan, cancelar), negocios con resumen y detalle, planes, configuración del cobro, textos peligrosos escapados, celular y computador |
+| `adminsubreal` | El mismo panel contra el «Supabase local» REAL (PostgreSQL 16 + la función de verdad): un dueño paga con comprobante en dos negocios, otro usuario hecho administrador entra, ve los pendientes, abre el comprobante, aprueba (en la base: suscripción activa y vence +1 mes) y rechaza otro con motivo. Se omite si no hay PostgreSQL |
 
 ## Cómo correrlas
 
@@ -38,4 +40,5 @@ desechable con todas las migraciones y la borra al terminar. El mismo «Supabase
 del navegador que usan Vento Nube: ver `servidor/LEEME.md`.
 
 Regla del equipo: **antes de publicar un cambio, correr todas las pruebas.**
-Las pruebas del panel de Administrador no están aquí porque usan el código personal del proveedor.
+Las pruebas del panel de Administrador (`adminsub`, `adminsubreal`) no usan el código personal del proveedor: ocultan ese
+bloqueo desde la prueba (solo protege la llave de las licencias); la seguridad de las suscripciones la hace el servidor.

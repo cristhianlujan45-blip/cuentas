@@ -34,7 +34,7 @@
   @media (max-width:520px){ .top h1 small{ display:none; } .top .b{ padding:8px 11px; } }
   nav{ max-width:1100px; margin:0 auto; padding:8px 12px; display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; }
   nav::-webkit-scrollbar{ display:none; }
-  nav button{ flex:0 0 auto; border:1px solid var(--line); background:var(--card); color:var(--ink); padding:8px 14px; border-radius:999px; font:600 14px inherit; cursor:pointer; }
+  nav button{ flex:0 0 auto; border:1px solid var(--line); background:var(--card); color:var(--ink); padding:8px 14px; border-radius:999px; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; }
   nav button.on{ background:var(--acc); border-color:var(--acc); color:#fff; }
   main{ max-width:1100px; margin:0 auto; padding:16px 16px 80px; }
   section[data-tab]{ display:none; }
@@ -53,7 +53,7 @@
   textarea{ min-height:70px; }
   .f2{ display:grid; gap:0 10px; grid-template-columns:1fr 1fr; }
   @media (max-width:520px){ .f2{ grid-template-columns:1fr; } }
-  button.b, a.b{ display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:10px 14px; border-radius:10px; border:1px solid var(--line); background:var(--card2); color:var(--ink); font:600 14px inherit; cursor:pointer; text-decoration:none; }
+  button.b, a.b{ display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:10px 14px; border-radius:10px; border:1px solid var(--line); background:var(--card2); color:var(--ink); font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; text-decoration:none; }
   button.p, a.p{ background:var(--acc); border-color:var(--acc); color:#fff; }
   button.ok{ background:color-mix(in srgb, var(--ok) 20%, var(--card2)); border-color:color-mix(in srgb, var(--ok) 50%, var(--line)); }
   button.bad{ color:var(--bad); }
@@ -101,7 +101,96 @@
   .guia h3{ margin:16px 0 6px; color:var(--acc2); }
   .guia ul, .guia ol{ margin:0; padding-left:20px; font-size:14px; }
   .guia li{ margin:4px 0; }
+
+  /* ---------- 💳 Suscripciones (Vento Nube) ---------- */
+  nav button .nb{ display:inline-block; min-width:18px; margin-left:6px; padding:0 6px; border-radius:999px; background:var(--warn); color:#1b1830; font-size:11.5px; font-weight:800; line-height:18px; text-align:center; }
+  .pill.acc{ color:var(--acc2); }
+  .sx-login{ max-width:440px; margin:8px auto 0; }
+  .sx-hero{ width:52px; height:52px; border-radius:15px; display:grid; place-items:center; font-size:26px; background:linear-gradient(135deg, var(--acc), #5b21b6); margin-bottom:10px; }
+  .sx-msg{ margin-top:10px; font-size:13.5px; min-height:1em; }
+  .sx-carga{ display:flex; align-items:center; justify-content:center; gap:10px; color:var(--soft); padding:40px 10px; }
+  .spin{ display:inline-block; width:18px; height:18px; border-radius:50%; border:2px solid var(--line); border-top-color:var(--acc2); animation:gira .8s linear infinite; vertical-align:middle; }
+  @keyframes gira{ to{ transform:rotate(360deg); } }
+  .sx-head{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .sx-who{ flex:1; min-width:0; display:flex; align-items:center; gap:10px; }
+  .sx-who .av{ flex:0 0 38px; height:38px; }
+  .sx-who .t{ min-width:0; }
+  .sx-who b{ display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sx-who small{ color:var(--ok); font-size:12px; font-weight:600; }
+  .kpi[data-ir]{ cursor:pointer; transition:border-color .15s; }
+  .kpi[data-ir]:hover{ border-color:color-mix(in srgb, var(--acc) 50%, var(--line)); }
+  .subnav{ display:flex; gap:4px; padding:4px; margin:14px 0 12px; background:var(--card); border:1px solid var(--line); border-radius:14px; overflow-x:auto; scrollbar-width:none; }
+  .subnav::-webkit-scrollbar{ display:none; }
+  .subnav button{ flex:1 0 auto; border:0; background:transparent; color:var(--soft); padding:9px 12px; border-radius:10px; font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer; white-space:nowrap; }
+  .subnav button.on{ background:var(--card2); color:var(--ink); box-shadow:0 0 0 1px var(--line) inset; }
+  .cnt{ display:inline-block; min-width:20px; margin-left:4px; padding:0 6px; border-radius:999px; background:var(--warn); color:#1b1830; font-size:11.5px; font-weight:800; line-height:19px; text-align:center; }
+  .cnt:empty{ display:none; }
+  .sx-aviso{ display:flex; gap:10px; align-items:flex-start; padding:11px 14px; border-radius:12px; margin-bottom:12px; font-size:14px; border:1px solid color-mix(in srgb, var(--ok) 45%, var(--line)); background:color-mix(in srgb, var(--ok) 10%, var(--card)); }
+  .sx-aviso.bad{ border-color:color-mix(in srgb, var(--bad) 45%, var(--line)); background:color-mix(in srgb, var(--bad) 10%, var(--card)); }
+  .sx-aviso span{ flex:1; }
+  .sx-cards{ display:grid; gap:12px; grid-template-columns:repeat(auto-fill, minmax(min(100%, 330px), 1fr)); }
+  .sxc{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:10px; min-width:0; }
+  .sxc.clic{ cursor:pointer; }
+  .sxc.clic:hover{ border-color:color-mix(in srgb, var(--acc) 50%, var(--line)); }
+  .sxc.rev{ border-color:color-mix(in srgb, var(--warn) 40%, var(--line)); }
+  .sxc .ph{ display:flex; align-items:center; gap:10px; min-width:0; }
+  .sxc .ph .t{ flex:1; min-width:0; }
+  .sxc .ph .t b{ display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sxc .ph .t small{ display:block; color:var(--soft); font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sxc .monto{ flex:1; font-size:22px; font-weight:800; letter-spacing:-.3px; }
+  .sxc .neg{ font-weight:700; font-size:16px; overflow-wrap:anywhere; }
+  .met{ flex:0 0 auto; font-size:11.5px; font-weight:800; letter-spacing:.4px; padding:4px 9px; border-radius:8px; color:#fff; background:var(--acc); }
+  .met.nequi{ background:linear-gradient(135deg, #da0081, #6b1b8e); }
+  .met.davi{ background:linear-gradient(135deg, #ef3340, #b0101b); }
+  .kv{ display:grid; grid-template-columns:auto 1fr; gap:5px 12px; margin:0; font-size:13.5px; }
+  .kv dt{ color:var(--soft); }
+  .kv dd{ margin:0; min-width:0; overflow-wrap:anywhere; }
+  .kv dd.fx{ color:var(--ok); font-weight:700; }
+  .acc3{ display:grid; gap:8px; grid-template-columns:repeat(auto-fit, minmax(96px, 1fr)); }
+  .acc3 .b{ padding:10px 8px; }
+  .acc2{ display:grid; gap:8px; grid-template-columns:1fr 1fr; }
+  .acc2 .todo{ grid-column:1 / -1; }
+  #sxKpis{ grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); }
+  #sxKpis .kpi b{ font-size:21px; }
+  @media (max-width:520px){ #sxKpis{ grid-template-columns:repeat(3, 1fr); gap:8px; } #sxKpis .kpi{ padding:9px 10px; } #sxKpis .kpi b{ font-size:18px; } #sxKpis .kpi span{ display:block; font-size:11px; line-height:1.25; } }
+  .b.no{ color:var(--bad); border-color:color-mix(in srgb, var(--bad) 40%, var(--line)); }
+  .b[disabled]{ opacity:.5; cursor:default; }
+  .stats{ display:grid; grid-template-columns:repeat(5, 1fr); gap:4px; padding:8px 4px; border-radius:12px; background:var(--card2); }
+  .stats div{ text-align:center; min-width:0; }
+  .stats b{ display:block; font-size:16px; line-height:1.3; }
+  .stats span{ display:block; font-size:10.5px; color:var(--soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{ display:inline-flex; align-items:center; gap:4px; font-size:12px; padding:3px 9px; border-radius:999px; background:var(--card2); border:1px solid var(--line); }
+  .chip.no{ opacity:.45; text-decoration:line-through; }
+  .sx-precio{ font-size:24px; font-weight:800; }
+  .sx-precio small{ font-size:13px; font-weight:500; color:var(--soft); }
+  .ents{ display:grid; gap:6px; grid-template-columns:repeat(auto-fill, minmax(min(100%, 150px), 1fr)); margin-top:6px; }
+  .ents label, label.tog{ display:flex; align-items:center; gap:9px; margin:0; padding:9px 10px; line-height:1.3; border:1px solid var(--line); border-radius:10px; background:var(--card2); color:var(--ink); font-size:13.5px; cursor:pointer; }
+  label.tog{ margin-top:12px; }
+  .ents input, label.tog input{ width:18px; height:18px; flex:0 0 auto; accent-color:var(--acc); }
+  .ents label:has(input:checked){ border-color:color-mix(in srgb, var(--acc) 55%, var(--line)); }
+  dialog.ancho{ width:min(780px, calc(100vw - 24px)); }
+  .visor{ margin-top:10px; border-radius:12px; background:#0b0b10; overflow:auto; max-height:62vh; display:grid; place-items:center; min-height:160px; }
+  .visor img{ display:block; max-width:100%; height:auto; cursor:zoom-in; }
+  .visor.zoom{ place-items:start; }
+  .visor.zoom img{ max-width:none; width:200%; cursor:zoom-out; }
+  .resumen-pago{ padding:12px; border-radius:12px; background:var(--card2); border:1px solid var(--line); margin-top:10px; }
+  .fechas{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+  .fechas div{ padding:12px; border-radius:12px; text-align:center; border:1px solid color-mix(in srgb, var(--ok) 40%, var(--line)); background:color-mix(in srgb, var(--ok) 8%, var(--card)); }
+  .fechas span{ display:block; font-size:12px; color:var(--soft); }
+  .fechas b{ font-size:18px; }
+  .motivos{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .motivos button{ border:1px solid var(--line); background:var(--card2); color:var(--ink); border-radius:999px; padding:6px 11px; font-family:inherit; font-size:13px; cursor:pointer; }
+  .err{ color:var(--bad); font-size:13.5px; min-height:1em; margin-top:6px; }
+  .tl{ margin:0; padding:0; list-style:none; }
+  .tl li{ position:relative; padding:0 0 12px 18px; border-left:2px solid var(--line); margin-left:5px; font-size:13.5px; }
+  .tl li::before{ content:''; position:absolute; left:-6px; top:4px; width:10px; height:10px; border-radius:50%; background:var(--acc2); }
+  .tl li small{ display:block; color:var(--soft); }
+  .sx-sec{ margin-top:16px; }
+  .sx-sec > h3{ font-size:13px; text-transform:uppercase; letter-spacing:.5px; color:var(--soft); }
+  @media (max-width:520px){ .stats b{ font-size:15px; } .sxc{ padding:12px; } .sx-head .b{ padding:8px 10px; } }
 </style>
+<script src="nube/config.js"></script>
 </head>
 <body>
 
@@ -125,6 +214,7 @@
   </div>
   <nav id="tabs">
     <button type="button" data-t="resumen" class="on">📊 Resumen</button>
+    <button type="button" data-t="subs">💳 Suscripciones<span class="nb" id="sxBadge" hidden></span></button>
     <button type="button" data-t="clientes">👥 Clientes</button>
     <button type="button" data-t="pagos">💵 Pagos</button>
     <button type="button" data-t="licencias">🔑 Licencias</button>
@@ -147,6 +237,112 @@
     <div class="card">
       <h2>⏰ Por cobrar (vencen en los próximos 7 días o ya vencieron)</h2>
       <div class="list" id="porCobrar"></div>
+    </div>
+  </section>
+
+  <!-- ===================== SUSCRIPCIONES (Vento Nube) ===================== -->
+  <section data-tab="subs">
+    <div class="sx-carga" id="sxCargando"><span class="spin"></span> Conectando con Vento Nube…</div>
+
+    <div class="card sx-login" id="sxLogin" hidden>
+      <div class="sx-hero">💳</div>
+      <h2>Suscripciones de Vento Nube</h2>
+      <p class="soft">Aprueba los pagos por Nequi y DaviPlata, maneja planes, precios y la prueba gratis. Entra con tu cuenta de Vento Nube: el servidor revisa que sea administradora de Vento.</p>
+      <label for="sxCorreo">Correo</label>
+      <input id="sxCorreo" type="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="tucorreo@gmail.com">
+      <label for="sxClave">Contraseña</label>
+      <input id="sxClave" type="password" autocomplete="current-password">
+      <div class="row"><button class="b p" id="sxEntrar" type="button">Entrar</button></div>
+      <div class="sx-msg" id="sxLoginMsg" role="status"></div>
+    </div>
+
+    <div class="card sx-login" id="sxNoAdmin" hidden>
+      <div class="sx-hero" style="background:linear-gradient(135deg,#fb7185,#be123c)">⛔</div>
+      <h2>Esta cuenta no es administradora de Vento</h2>
+      <p class="soft">Entraste como <b id="sxNoAdminCorreo"></b>, pero el servidor no la tiene en la lista de administradores (<code>platform_admins</code>). Pide que la agreguen, o pon tu correo en el secreto <code>VENTO_ADMIN_EMAILS</code> del servidor y vuelve a entrar.</p>
+      <div class="row"><button class="b p" id="sxOtra" type="button">Usar otra cuenta</button></div>
+    </div>
+
+    <div id="sxPanel" hidden>
+      <div class="sx-head">
+        <div class="sx-who"><div class="av">👑</div><div class="t"><b id="sxQuien"></b><small>✓ Administrador de Vento</small></div></div>
+        <button class="b" id="sxRefrescar" type="button" title="Actualizar">🔄</button>
+        <button class="b" id="sxSalir" type="button" title="Salir de la cuenta de Vento Nube">Salir</button>
+      </div>
+      <div class="grid" id="sxKpis"></div>
+      <div class="subnav" id="sxNav" role="tablist">
+        <button type="button" role="tab" data-s="pagos" class="on">⏳ Pagos<span class="cnt" id="sxCnt"></span></button>
+        <button type="button" role="tab" data-s="subs">📋 Suscripciones</button>
+        <button type="button" role="tab" data-s="negocios">🏪 Negocios</button>
+        <button type="button" role="tab" data-s="planes">📦 Planes</button>
+        <button type="button" role="tab" data-s="config">⚙️ Configuración</button>
+      </div>
+      <div class="sx-aviso" id="sxAviso" hidden><span id="sxAvisoTxt"></span><button class="x" type="button" id="sxAvisoX" style="font-size:18px">✕</button></div>
+
+      <div data-sx="pagos">
+        <div class="bar">
+          <select id="sxPagosEstado" aria-label="Estado de los pagos">
+            <option value="review">⏳ Por revisar</option>
+            <option value="approved">✅ Aprobados</option>
+            <option value="rejected">❌ Rechazados</option>
+            <option value="all">Todos</option>
+          </select>
+          <input id="sxPagosBuscar" type="search" placeholder="🔎 Negocio, correo o referencia">
+          <button class="b" id="sxPagosCsv" type="button">⬇️ CSV</button>
+        </div>
+        <div class="sx-cards" id="sxPagos"></div>
+      </div>
+
+      <div data-sx="subs" hidden>
+        <div class="bar">
+          <input id="sxSubsBuscar" type="search" placeholder="🔎 Negocio o correo del dueño">
+          <select id="sxSubsFiltro" aria-label="Filtrar por estado">
+            <option value="">Todos los estados</option>
+            <option value="active">✅ Activas (pagadas)</option>
+            <option value="trial">🎁 En prueba gratis</option>
+            <option value="porvencer">⏰ Vencen en 7 días</option>
+            <option value="payment_review">⏳ Pago en revisión</option>
+            <option value="expired">⌛ Vencidas</option>
+            <option value="canceled">⛔ Canceladas</option>
+            <option value="rejected">❌ Rechazadas</option>
+            <option value="pending_payment">Esperando pago</option>
+          </select>
+        </div>
+        <div class="sx-cards" id="sxSubs"></div>
+      </div>
+
+      <div data-sx="negocios" hidden>
+        <div class="bar"><input id="sxNegBuscar" type="search" placeholder="🔎 Negocio o correo del dueño"></div>
+        <div class="sx-cards" id="sxNegocios"></div>
+      </div>
+
+      <div data-sx="planes" hidden>
+        <p class="soft" style="margin-top:0">Esta es la ÚNICA lista de precios: la app de cada negocio la lee del servidor. Lo que marques en cada plan es lo que el negocio puede usar.</p>
+        <div class="sx-cards" id="sxPlanes"></div>
+        <div class="row"><button class="b" id="sxPlanNuevo" type="button">➕ Nuevo plan</button></div>
+      </div>
+
+      <div data-sx="config" hidden>
+        <div class="card">
+          <h2>⚙️ Cobro de las suscripciones</h2>
+          <label class="tog"><input type="checkbox" id="sxBeta"><span><b>Modo BETA</b> · pago manual por Nequi o DaviPlata con comprobante, aprobado por ti aquí</span></label>
+          <p class="soft" style="margin:6px 0 0">Déjalo encendido. Apagado, el servidor también ofrecería Google Play cuando esté configurado (todavía no está listo); el pago manual sigue disponible.</p>
+          <div class="f2">
+            <div><label for="sxPrueba">Días de prueba gratis (negocios nuevos)</label><input id="sxPrueba" type="number" min="0" max="365" inputmode="numeric"></div>
+            <div><label for="sxAvisoDias">Avisar la renovación (días antes de vencer)</label><input id="sxAvisoDias" type="number" min="0" max="60" inputmode="numeric"></div>
+          </div>
+          <h3 style="margin-top:18px">📱 Dónde te pagan</h3>
+          <div class="f2">
+            <div><label for="sxNequiNum">Nequi · número</label><input id="sxNequiNum" inputmode="tel" placeholder="3001234567"></div>
+            <div><label for="sxNequiTit">Nequi · titular</label><input id="sxNequiTit" placeholder="Nombre de quien recibe"></div>
+            <div><label for="sxDaviNum">DaviPlata · número</label><input id="sxDaviNum" inputmode="tel" placeholder="3001234567"></div>
+            <div><label for="sxDaviTit">DaviPlata · titular</label><input id="sxDaviTit" placeholder="Nombre de quien recibe"></div>
+            <div><label for="sxWa">WhatsApp de soporte</label><input id="sxWa" inputmode="tel" placeholder="573001234567"></div>
+          </div>
+          <div class="row"><button class="b p" id="sxCfgGuardar" type="button">💾 Guardar configuración</button></div>
+          <p class="soft" id="sxCfgInfo"></p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -220,6 +416,7 @@
     <div class="card">
       <h2>📦 Planes que vendes</h2>
       <p class="soft">Se usan al activar un cliente y se muestran en la app para que el negocio elija y pague (al publicar en «⚙️ Configurar la app»).</p>
+      <p class="soft">Son los planes del sistema de licencias (negocios sin Vento Nube). Los precios de los negocios conectados a Vento Nube se manejan en «💳 Suscripciones → 📦 Planes».</p>
       <div class="list" id="plLista"></div>
       <div class="row"><button class="b p" id="plNuevo" type="button">➕ Nuevo plan</button></div>
     </div>
@@ -331,7 +528,8 @@
     <ol><li>Le pasas el link de la app o la APK.</li><li>Se registra y usa la prueba gratis.</li><li>En «💳 Planes y pagos» elige plan y paga (link de tarjeta/PSE/Nequi o transferencia).</li>
       <li>Te llega el comprobante por WhatsApp → en 👥 Clientes tocas «🔑 Activar / renovar» → le mandas el link y queda activo en todos sus celulares.</li></ol>
     <h3>4. Cobro de suscripciones</h3>
-    <ul><li><b>Planes</b> (📦 Planes): nombre, precio, qué incluye y link de pago. Se publican en la app.</li>
+    <ul><li><b>💳 Suscripciones (Vento Nube)</b>: el negocio conectado a la nube paga por Nequi o DaviPlata desde la app y sube el comprobante. Tú lo revisas y lo apruebas en 💳 Suscripciones (con tu cuenta de Vento Nube de administrador) y el servidor activa el plan en todos sus celulares. Los precios y lo que incluye cada plan también se manejan ahí.</li>
+      <li><b>Planes</b> (📦 Planes): nombre, precio, qué incluye y link de pago. Se publican en la app.</li>
       <li><b>Links de pago</b>: créalos en Wompi, Mercado Pago o PayU (cobran tarjeta, PSE y Nequi). Pégalos en cada plan.</li>
       <li><b>Licencia</b>: de por vida o por meses. Si es mensual, en 📊 Resumen ves quién vence y le mandas el recordatorio por WhatsApp.</li>
       <li><b>Factura electrónica</b>: lo que cobras por Vento debe facturarse ante la DIAN (con tu proveedor de facturación).</li></ul>
@@ -345,7 +543,7 @@
     <h3>7. Lo legal en Colombia (checklist)</h3>
     <ul><li>Términos y condiciones del servicio y política de tratamiento de datos (Ley 1581 de 2012 – Habeas Data).</li><li>Facturación electrónica DIAN de tus suscripciones.</li><li>Registro de la marca «Vento» ante la SIC (opcional, recomendado).</li></ul>
     <h3>8. Rutina semanal</h3>
-    <ul><li>📊 Resumen: cobra a los que vencen.</li><li>💵 Pagos: revisa lo cobrado del mes (descarga CSV para tu contador).</li><li>💾 Respaldo: descárgalo y guárdalo en Drive.</li><li>⚙️ Configurar la app: anuncios para todos (mantenimientos, novedades).</li></ul>
+    <ul><li>💳 Suscripciones: aprueba o rechaza los pagos por revisar (mejor todos los días).</li><li>📊 Resumen: cobra a los que vencen.</li><li>💵 Pagos: revisa lo cobrado del mes (descarga CSV para tu contador).</li><li>💾 Respaldo: descárgalo y guárdalo en Drive.</li><li>⚙️ Configurar la app: anuncios para todos (mantenimientos, novedades).</li></ul>
   </div>
 </template>
 
@@ -406,6 +604,94 @@
     <label for="plLink">Link de pago con tarjeta / PSE / Nequi (Wompi, Mercado Pago, PayU…)</label><input id="plLink" type="url" placeholder="https://checkout.wompi.co/l/…">
     <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="plPub" style="width:auto" checked>Mostrar este plan en la app (al pagar o renovar)</label>
     <div class="row"><button class="b p" id="plGuardar" type="button">💾 Guardar</button><button class="b bad" id="plBorrar" type="button">🗑 Borrar</button></div>
+  </div>
+</dialog>
+
+<!-- ===================== SUSCRIPCIONES: comprobante ===================== -->
+<dialog id="dlgSxVer" class="ancho">
+  <div class="dh"><h2>🧾 Comprobante</h2><button class="x" type="button" data-cerrar>✕</button></div>
+  <div class="db">
+    <p class="soft" id="sxVerInfo" style="margin:10px 0 0"></p>
+    <div class="visor" id="sxVisor"><img id="sxVerImg" alt="Comprobante de pago" hidden></div>
+    <p class="soft" id="sxVerMsg" style="margin:8px 0 0"></p>
+    <div class="row">
+      <a class="b" id="sxVerAbrir" href="#" target="_blank" rel="noopener noreferrer" hidden>↗️ Abrir en otra pestaña</a>
+      <button class="b ok" id="sxVerAprobar" type="button">✅ Aprobar</button>
+      <button class="b no" id="sxVerRechazar" type="button">✕ Rechazar</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ===================== SUSCRIPCIONES: aprobar ===================== -->
+<dialog id="dlgSxOk">
+  <div class="dh"><h2>✅ Aprobar pago</h2><button class="x" type="button" data-cerrar>✕</button></div>
+  <div class="db">
+    <div class="resumen-pago" id="sxOkResumen"></div>
+    <p class="soft" style="margin:12px 0 0" id="sxOkTxt"></p>
+    <div class="fechas"><div><span>Inicio</span><b id="sxOkDesde"></b></div><div><span>Vence</span><b id="sxOkHasta"></b></div></div>
+    <p class="soft" style="margin:10px 0 0">Revisa en tu Nequi o DaviPlata que el dinero sí llegó antes de aprobar.</p>
+    <div class="row"><button class="b" type="button" data-cerrar>Cancelar</button><button class="b p" id="sxOkGo" type="button">✅ Sí, aprobar y activar</button></div>
+  </div>
+</dialog>
+
+<!-- ===================== SUSCRIPCIONES: rechazar ===================== -->
+<dialog id="dlgSxNo">
+  <div class="dh"><h2>✕ Rechazar pago</h2><button class="x" type="button" data-cerrar>✕</button></div>
+  <div class="db">
+    <div class="resumen-pago" id="sxNoResumen"></div>
+    <label for="sxNoMotivo">Motivo (lo ve el negocio para corregir su pago)</label>
+    <textarea id="sxNoMotivo" maxlength="200" placeholder="Ej: El valor del comprobante no coincide con el precio del plan."></textarea>
+    <div class="motivos" id="sxNoMotivos">
+      <button type="button">El dinero no ha llegado a la cuenta</button>
+      <button type="button">El valor no coincide con el plan</button>
+      <button type="button">No se ve bien el comprobante</button>
+      <button type="button">Ese comprobante es de otro pago</button>
+    </div>
+    <div class="err" id="sxNoErr" role="alert"></div>
+    <div class="row"><button class="b" type="button" data-cerrar>Cancelar</button><button class="b no" id="sxNoGo" type="button">✕ Rechazar pago</button></div>
+  </div>
+</dialog>
+
+<!-- ===================== SUSCRIPCIONES: acción sobre una suscripción ===================== -->
+<dialog id="dlgSxAcc">
+  <div class="dh"><h2 id="sxAccTit">Suscripción</h2><button class="x" type="button" data-cerrar>✕</button></div>
+  <div class="db">
+    <p class="soft" id="sxAccInfo" style="margin:10px 0 0"></p>
+    <div id="sxAccPlanBox"><label for="sxAccPlan">Plan</label><select id="sxAccPlan"></select></div>
+    <div id="sxAccMesesBox">
+      <label for="sxAccMeses">Meses de cortesía</label><input id="sxAccMeses" type="number" min="1" max="36" value="1" inputmode="numeric">
+      <div class="motivos" id="sxAccMesesRap"><button type="button" data-m="1">1 mes</button><button type="button" data-m="3">3 meses</button><button type="button" data-m="6">6 meses</button><button type="button" data-m="12">12 meses</button></div>
+    </div>
+    <div id="sxAccMotivoBox"><label for="sxAccMotivo">Motivo (opcional)</label><textarea id="sxAccMotivo" maxlength="200" placeholder="Ej: Lo pidió el dueño."></textarea></div>
+    <p class="soft" id="sxAccNota"></p>
+    <div class="err" id="sxAccErr" role="alert"></div>
+    <div class="row"><button class="b" type="button" data-cerrar>Cancelar</button><button class="b p" id="sxAccGo" type="button">Guardar</button></div>
+  </div>
+</dialog>
+
+<!-- ===================== SUSCRIPCIONES: detalle del negocio ===================== -->
+<dialog id="dlgSxNeg" class="ancho">
+  <div class="dh"><h2 id="sxNegTit">Negocio</h2><button class="x" type="button" data-cerrar>✕</button></div>
+  <div class="db" id="sxNegCuerpo"></div>
+</dialog>
+
+<!-- ===================== SUSCRIPCIONES: plan ===================== -->
+<dialog id="dlgSxPlan">
+  <div class="dh"><h2 id="sxPlanTit">Plan</h2><button class="x" type="button" data-cerrar>✕</button></div>
+  <div class="db">
+    <div class="f2">
+      <div><label for="sxPlId">Código (no se puede cambiar después)</label><input id="sxPlId" placeholder="pro" autocapitalize="none" spellcheck="false"></div>
+      <div><label for="sxPlNom">Nombre</label><input id="sxPlNom" placeholder="PRO" maxlength="60"></div>
+      <div><label for="sxPlPre">Precio (COP)</label><input id="sxPlPre" type="number" min="0" step="100" inputmode="numeric"></div>
+      <div><label for="sxPlMeses">Meses que cubre cada pago</label><input id="sxPlMeses" type="number" min="1" max="36" value="1" inputmode="numeric"></div>
+    </div>
+    <label class="tog"><input type="checkbox" id="sxPlAct"><span><b>Activo</b> · se ofrece en la app para pagar</span></label>
+    <label for="sxPlDesc">Descripción (la ven los negocios)</label>
+    <textarea id="sxPlDesc" maxlength="400" placeholder="Todo lo de Vento sin límites: facturas con cámara, voz, reportes…"></textarea>
+    <label>Funciones que incluye</label>
+    <div class="ents" id="sxPlEnts"></div>
+    <div class="err" id="sxPlErr" role="alert"></div>
+    <div class="row"><button class="b" type="button" data-cerrar>Cancelar</button><button class="b p" id="sxPlGuardar" type="button">💾 Guardar plan</button></div>
   </div>
 </dialog>
 
@@ -742,6 +1028,578 @@
   });
   $('tabs').addEventListener('click', e => { const b = e.target.closest('button[data-t="equipo"]'); if(b && $('aToken').value.trim()) eqCargar(); });
 
+  // ---------------- 💳 Suscripciones (Vento Nube · pago manual por Nequi / DaviPlata) ----------------
+  /* Entra con la cuenta de Vento Nube y usa el servidor (Edge Function vento-suscripciones, rutas /admin/*).
+     El SERVIDOR decide quién es administrador (tabla platform_admins) y hace cada cambio: el panel solo muestra lo que responde.
+     La sesión se guarda con una llave propia para no mezclarse con la cuenta del negocio que use Vento en este navegador. */
+  const SX_SDK = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js', SX_SESION = 'vento-admin-nube', SX_SEC = 'vento-admin-sx';
+  const SX_SECCIONES = ['pagos', 'subs', 'negocios', 'planes', 'config'];
+  const SX_EST = { pending_payment: ['Esperando pago', 'soft'], payment_review: ['⏳ Pago en revisión', 'warn'], active: ['✅ Activa', 'ok'], expired: ['⌛ Vencida', 'bad'], canceled: ['⛔ Cancelada', 'bad'], rejected: ['❌ Rechazada', 'bad'] };
+  const SX_PAGO = { review: ['⏳ Por revisar', 'warn'], approved: ['✅ Aprobado', 'ok'], rejected: ['❌ Rechazado', 'bad'], canceled: ['↩️ Anulado', 'soft'] };
+  const SX_TIPO = { new: 'Primer pago', renewal: 'Renovación', change: 'Cambio de plan' };
+  const SX_ORIGEN = { trial: 'Prueba gratis', manual: 'Pago manual', admin: 'Cortesía', google_play: 'Google Play' };
+  const SX_METODO = { NEQUI: 'NEQUI', DAVIPLATA: 'DAVIPLATA', GOOGLE_PLAY: 'GOOGLE PLAY' };
+  const SX_ROL = { dueno: 'Dueño', admin: 'Administrador', cajero: 'Caja', mesero: 'Mesero' };
+  const SX_ENT = { pos_basic: 'Ventas (POS)', inventory: 'Inventario', tables: 'Mesas', expenses: 'Gastos', invoices: 'Facturas de compra', ocr: 'Leer facturas (OCR)',
+    ai_camera: 'Cámara con IA', voice: 'Pedidos por voz', advanced_reports: 'Reportes avanzados', multi_branch: 'Varias sedes', employee_management: 'Equipo y empleados' };
+  const SX_EVENTO = { trial_started: '🎁 Empezó la prueba gratis', payment_submitted: '📨 Envió un pago', duplicate_blocked: '🚫 Pago repetido bloqueado', payment_approved: '✅ Pago aprobado',
+    payment_rejected: '❌ Pago rechazado', subscription_activated: '⚡ Suscripción activada', subscription_renewed: '🔁 Suscripción renovada', subscription_expired: '⌛ Venció',
+    subscription_canceled: '⛔ Suscripción cancelada', plan_changed: '🔀 Cambio de plan' };
+  const sx = { sb: null, sdk: null, yo: null, pend: [], pagos: [], subs: [], negocios: null, planes: [], ents: [], cfg: null, negAct: null, negPagos: [],
+    pago: null, verPago: null, acc: null, plan: null, sec: 'pagos', arranco: false, cargando: false };
+
+  // Fechas en hora de Colombia (como las ve el negocio): dd/mm/aaaa
+  const fCo = t => { if(!t) return '—'; const d = new Date(t); return isNaN(d) ? '—' : d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Bogota' }); };
+  const fCoHora = t => { if(!t) return '—'; const d = new Date(t); return isNaN(d) ? '—' : d.toLocaleString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Bogota' }); };
+  const fDia = s => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || '')); return m ? m[3] + '/' + m[2] + '/' + m[1] : fCo(s); };   // fecha sin hora (paid_at)
+  const hace = t => { const s = (Date.now() - new Date(t).getTime()) / 1000; if(!(s >= 0)) return ''; if(s < 3600) return 'hace ' + Math.max(1, Math.round(s / 60)) + ' min';
+    if(s < 86400) return 'hace ' + Math.round(s / 3600) + ' h'; const d = Math.round(s / 86400); return 'hace ' + d + ' día' + (d === 1 ? '' : 's'); };
+  const pillDe = par => '<span class="pill ' + esc(par[1]) + '">' + esc(par[0]) + '</span>';
+  const kv = (k, v, cls) => '<dt>' + esc(k) + '</dt><dd' + (cls ? ' class="' + esc(cls) + '"' : '') + '>' + esc(v == null || v === '' ? '—' : v) + '</dd>';
+  const inicial = s => esc((Array.from(String(s || '').trim())[0] || '?').toUpperCase());
+  const sxPlan = id => sx.planes.find(p => p.id === id);
+  const nomPlan = id => { const p = sxPlan(id); return p && p.name ? p.name : (id ? String(id).toUpperCase() : '—'); };
+  const nomEnt = k => SX_ENT[k] || (sx.ents.find(e => e.key === k) || {}).description || k;
+  const sxVigente = s => !!s && s.status === 'active' && !(s.expiry_date && new Date(s.expiry_date).getTime() <= Date.now());
+  function sxEstadoSub(s){
+    if(!s) return ['Sin suscripción', 'soft'];
+    if(s.status === 'active' && !sxVigente(s)) return SX_EST.expired;
+    if(s.status === 'active' && s.trial) return ['🎁 En prueba', 'acc'];
+    if(s.status === 'active' && s.dias_restantes != null && s.dias_restantes <= 7) return ['⏰ Vence en ' + s.dias_restantes + ' día' + (s.dias_restantes === 1 ? '' : 's'), 'warn'];
+    return SX_EST[s.status] || [s.status || '—', 'soft'];
+  }
+  function sxMetodo(m){ m = String(m || '').toUpperCase(); return '<span class="met' + (m === 'NEQUI' ? ' nequi' : m === 'DAVIPLATA' ? ' davi' : '') + '">' + esc(SX_METODO[m] || m || '—') + '</span>'; }
+
+  // ---- Conexión: misma nube que la app (nube/config.js o la que se configuró en este equipo) ----
+  function sxCfg(){
+    let c = null; try{ c = JSON.parse(localStorage.getItem('vento_nube_cfg') || 'null'); }catch(e){}
+    c = c || window.VENTO_NUBE_DEFAULT || {};
+    return { url: String(c.url || '').trim().replace(/\/+$/, ''), key: String(c.key || '').trim() };
+  }
+  function sxSdk(){
+    if(window.supabase && window.supabase.createClient) return Promise.resolve();
+    return sx.sdk || (sx.sdk = new Promise((ok, mal) => {
+      const s = document.createElement('script'); s.src = SX_SDK; s.async = true;
+      s.onload = () => ok(); s.onerror = () => { sx.sdk = null; mal(new Error('No se pudo cargar la conexión con Vento Nube. Revisa el internet.')); };
+      document.head.appendChild(s);
+    }));
+  }
+  async function sxCliente(){
+    if(sx.sb) return sx.sb;
+    const c = sxCfg();
+    if(!/^https:\/\/[\w.-]+$/.test(c.url) || c.key.length < 20) throw new Error('Falta la dirección de Vento Nube (nube/config.js).');
+    await sxSdk();
+    sx.sb = window.supabase.createClient(c.url, c.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: SX_SESION } });
+    return sx.sb;
+  }
+  async function sxSesion(){ const c = await sxCliente(); const r = await c.auth.getSession(); return r && r.data && r.data.session ? r.data.session : null; }
+  // POST /functions/v1/vento-suscripciones/admin/<ruta> con la sesión (apikey + Authorization: Bearer)
+  async function sxApi(ruta, cuerpo){
+    const s = await sxSesion();
+    if(!s || !s.access_token) throw Object.assign(new Error('Entra con tu cuenta de Vento Nube.'), { codigo: 'sin_sesion', status: 401 });
+    const c = sxCfg();
+    let r;
+    try{ r = await fetch(c.url + '/functions/v1/vento-suscripciones/admin/' + ruta, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: c.key, Authorization: 'Bearer ' + s.access_token }, body: JSON.stringify(cuerpo || {}) }); }
+    catch(e){ throw Object.assign(new Error('Sin conexión con el servidor de Vento. Revisa el internet.'), { codigo: 'red' }); }
+    const j = await r.json().catch(() => ({}));
+    if(!r.ok || !j || j.ok === false) throw Object.assign(new Error((j && j.mensaje) || ('El servidor respondió ' + r.status)), { codigo: (j && j.error) || ('http_' + r.status), status: r.status });
+    return j;
+  }
+  function sxMsgError(e){
+    const m = String((e && (e.message || e.error_description || e.msg)) || e || '');
+    if(/invalid login credentials/i.test(m)) return 'Correo o contraseña incorrectos.';
+    if(/email not confirmed/i.test(m)) return 'Falta confirmar el correo: abre el mensaje que te llegó y vuelve a entrar.';
+    if(/rate limit|too many/i.test(m)) return 'Demasiados intentos. Espera un momento y vuelve a intentar.';
+    if(/failed to fetch|networkerror|load failed/i.test(m)) return 'Sin conexión con Vento Nube. Revisa el internet.';
+    return m || 'Algo falló. Intenta otra vez.';
+  }
+  // «No es admin» y «sesión vencida» cambian la vista; lo demás es un aviso.
+  function sxFallo(e){
+    if(e && e.codigo === 'no_admin'){ sxNoAdmin(); return true; }
+    if(e && (e.codigo === 'sin_sesion' || e.status === 401)){ sxVista('login', 'Tu sesión venció. Vuelve a entrar.'); return true; }
+    toast('⚠️ ' + sxMsgError(e), 6000); return false;
+  }
+
+  // ---- Vistas: cargando · entrar · no es admin · panel ----
+  function sxVista(v, msg){
+    $('sxCargando').hidden = v !== 'cargando'; $('sxLogin').hidden = v !== 'login'; $('sxNoAdmin').hidden = v !== 'noadmin'; $('sxPanel').hidden = v !== 'panel';
+    if(v !== 'panel') document.querySelectorAll('dialog[id^="dlgSx"][open]').forEach(d => d.close());
+    if(v === 'login') $('sxLoginMsg').innerHTML = msg ? '<span class="bad-t">' + esc(msg) + '</span>' : '';
+  }
+  async function sxNoAdmin(){
+    let correo = ''; try{ const s = await sxSesion(); correo = (s && s.user && s.user.email) || ''; }catch(e){}
+    $('sxNoAdminCorreo').textContent = correo || 'esa cuenta';
+    sx.yo = null; sxVista('noadmin');
+  }
+  async function sxArrancar(){
+    if(sx.arranco || !$('lock').hidden) return;   // solo después de desbloquear con el código personal
+    sx.arranco = true; sxVista('cargando');
+    try{ if(!(await sxSesion())){ sxVista('login'); return; } }
+    catch(e){ sxVista('login', sxMsgError(e)); return; }
+    await sxComoAdmin();
+  }
+  async function sxComoAdmin(){
+    try{
+      const j = await sxApi('yo');   // el servidor responde 403 «no_admin» si la cuenta no está en platform_admins
+      sx.yo = j; $('sxQuien').textContent = j.email || '';
+    }catch(e){ if(!sxFallo(e)) sxVista('login', sxMsgError(e)); return; }
+    sxVista('panel');
+    let s = 'pagos'; try{ s = sessionStorage.getItem(SX_SEC) || 'pagos'; }catch(e){}
+    sxSeccion(s);
+    await sxCargar();
+  }
+  $('tabs').addEventListener('click', e => { if(e.target.closest('button[data-t="subs"]')) sxArrancar(); });
+  // Si la pestaña ya estaba abierta, arranca apenas se desbloquee el panel con el código personal.
+  new MutationObserver(() => { if($('lock').hidden && document.querySelector('#tabs button.on[data-t="subs"]')) sxArrancar(); }).observe($('lock'), { attributes: true, attributeFilter: ['hidden'] });
+
+  $('sxEntrar').onclick = async () => {
+    const correo = $('sxCorreo').value.trim(), clave = $('sxClave').value;
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo) || !clave){ $('sxLoginMsg').innerHTML = '<span class="bad-t">Escribe tu correo y tu contraseña.</span>'; return; }
+    const b = $('sxEntrar'); b.disabled = true; $('sxLoginMsg').innerHTML = '<span class="spin"></span> Entrando…';
+    try{
+      const c = await sxCliente();
+      const r = await c.auth.signInWithPassword({ email: correo, password: clave });
+      if(r && r.error) throw r.error;
+      $('sxClave').value = ''; $('sxLoginMsg').textContent = '';
+      await sxComoAdmin();
+    }catch(e){ $('sxLoginMsg').innerHTML = '<span class="bad-t">' + esc(sxMsgError(e)) + '</span>'; }
+    finally{ b.disabled = false; }
+  };
+  $('sxClave').onkeydown = e => { if(e.key === 'Enter') $('sxEntrar').click(); };
+  $('sxCorreo').onkeydown = e => { if(e.key === 'Enter') $('sxClave').focus(); };
+  async function sxSalir(){
+    // scope 'local': solo este equipo (la misma cuenta puede estar abierta en la app de su negocio)
+    try{ const c = await sxCliente(); await c.auth.signOut({ scope: 'local' }); }catch(e){}
+    try{ localStorage.removeItem(SX_SESION); }catch(e){}
+    Object.assign(sx, { yo: null, pend: [], pagos: [], subs: [], negocios: null, negAct: null, negPagos: [] });
+    sxBadge(); sxAviso(''); sxVista('login');
+  }
+  $('sxSalir').onclick = sxSalir; $('sxOtra').onclick = sxSalir;
+
+  // ---- Carga de datos ----
+  async function sxCargar(){
+    if(sx.cargando) return; sx.cargando = true; $('sxRefrescar').disabled = true;
+    try{
+      const est = $('sxPagosEstado').value;
+      const [pend, otros, subs, pl] = await Promise.all([sxApi('pagos', { status: 'review' }), est === 'review' ? null : sxApi('pagos', { status: est }), sxApi('suscripciones'), sxApi('planes')]);
+      sx.pend = pend.pagos || []; sx.pagos = otros ? otros.pagos || [] : sx.pend;
+      sx.subs = subs.suscripciones || []; sx.planes = pl.planes || []; sx.ents = pl.entitlements || []; sx.cfg = pl.config || {};
+      sx.negocios = null;
+      sxPintarKpis(); sxPintarPagos(); sxPintarSubs(); sxPintarPlanes(); sxPintarConfig();
+      if(sx.sec === 'negocios') sxCargarNegocios();
+    }catch(e){
+      // Sin datos no hay nada que mostrar: el aviso queda arriba hasta que se vuelva a intentar.
+      if(e && (e.codigo === 'no_admin' || e.codigo === 'sin_sesion' || e.status === 401)) sxFallo(e);
+      else sxAviso('⚠️ ' + sxMsgError(e) + ' Toca 🔄 para intentar otra vez.', true);
+    }
+    finally{ sx.cargando = false; $('sxRefrescar').disabled = false; }
+  }
+  async function sxCargarPagos(){
+    const est = $('sxPagosEstado').value;
+    const [pend, otros] = await Promise.all([sxApi('pagos', { status: 'review' }), est === 'review' ? null : sxApi('pagos', { status: est })]);
+    sx.pend = pend.pagos || []; sx.pagos = otros ? otros.pagos || [] : sx.pend;
+    sxPintarPagos(); sxPintarKpis();
+  }
+  async function sxCargarSubs(){ const j = await sxApi('suscripciones'); sx.subs = j.suscripciones || []; sxPintarSubs(); sxPintarKpis(); }
+  // Después de aprobar, rechazar o cambiar algo: pagos, suscripciones y (si está abierto) el negocio.
+  async function sxRecargar(){
+    try{
+      await Promise.all([sxCargarPagos(), sxCargarSubs()]);
+      if(sx.sec === 'negocios') sxCargarNegocios(); else sx.negocios = null;
+      if($('dlgSxNeg').open && sx.negAct && sx.negAct.negocio) sxAbrirNegocio(sx.negAct.negocio.id, true);
+    }catch(e){ sxFallo(e); }
+  }
+  $('sxRefrescar').onclick = () => { sxAviso(''); sxCargar(); };
+  // Revisa si llegaron pagos nuevos cada minuto (solo con la pestaña a la vista y sin ventanas abiertas).
+  setInterval(() => {
+    if(!sx.yo || sx.cargando || $('sxPanel').hidden || !$('lock').hidden || document.visibilityState !== 'visible' || document.querySelector('dialog[open]') || !document.querySelector('#tabs button.on[data-t="subs"]')) return;
+    sxCargarPagos().catch(() => {});
+  }, 60000);
+
+  // ---- Sub-secciones ----
+  function sxSeccion(s){
+    if(!SX_SECCIONES.includes(s)) s = 'pagos';
+    sx.sec = s;
+    document.querySelectorAll('#sxNav [data-s]').forEach(b => {
+      const on = b.dataset.s === s; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on));
+      if(on && !$('sxPanel').hidden) try{ b.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }catch(e){}
+    });
+    document.querySelectorAll('#sxPanel [data-sx]').forEach(d => { d.hidden = d.dataset.sx !== s; });
+    try{ sessionStorage.setItem(SX_SEC, s); }catch(e){}
+    if(s === 'negocios' && !sx.negocios && sx.yo) sxCargarNegocios();
+  }
+  $('sxNav').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if(b) sxSeccion(b.dataset.s); });
+  function sxAviso(t, malo){ $('sxAvisoTxt').textContent = t || ''; $('sxAviso').classList.toggle('bad', !!malo); $('sxAviso').hidden = !t; }
+  $('sxAvisoX').onclick = () => sxAviso('');
+  // Resultado de una acción: queda en la franja de arriba; si sigue una ventana abierta encima, también va completo en el aviso flotante.
+  function sxHecho(txt, malo, corto){ sxAviso(txt, malo); toast(document.querySelector('dialog[open]') ? txt : corto, 4000); }
+  function sxBadge(){ const n = sx.pend.length; $('sxCnt').textContent = n ? String(n) : ''; $('sxBadge').textContent = n ? String(n) : ''; $('sxBadge').hidden = !n; }
+
+  function sxPintarKpis(){
+    const vig = sx.subs.filter(sxVigente), pagadas = vig.filter(s => !s.trial), prueba = vig.filter(s => s.trial);
+    const pv = pagadas.filter(s => s.dias_restantes != null && s.dias_restantes <= 7).length;
+    const vencidas = sx.subs.filter(s => sxFiltraSub(s, 'expired')).length;
+    const mes = pagadas.reduce((t, s) => { const p = sxPlan(s.plan_id); return t + (p ? (+p.price || 0) / Math.max(1, +p.period_months || 1) : 0); }, 0);
+    const K = [['warn', sx.pend.length, 'Pagos por revisar', 'pagos'], ['ok', pagadas.length, 'Suscripciones pagadas', 'subs|active'], ['acc', prueba.length, 'En prueba gratis', 'subs|trial'],
+      ['warn', pv, 'Vencen en 7 días', 'subs|porvencer'], ['bad', vencidas, 'Vencidas', 'subs|expired'], ['acc', plata(mes), 'Ingreso mensual', 'subs|active']];
+    $('sxKpis').innerHTML = K.map(k => '<div class="kpi ' + k[0] + '" data-ir="' + esc(k[3]) + '" role="button" tabindex="0"><b>' + esc(k[1]) + '</b><span>' + esc(k[2]) + '</span></div>').join('');
+  }
+
+  // ---- PAGOS ----
+  function sxPagoHtml(p){
+    const rev = p.status === 'review', id = esc(p.id);
+    return '<article class="sxc' + (rev ? ' rev' : '') + '" data-pago="' + id + '">' +
+      '<div class="ph">' + sxMetodo(p.method) + '<b class="monto">' + esc(plata(p.amount)) + '</b>' + pillDe(SX_PAGO[p.status] || [p.status, 'soft']) + '</div>' +
+      '<div><div class="neg">' + esc(p.negocio || 'Negocio') + '</div><div class="soft">' + esc(p.usuario_email || 'sin correo') + '</div></div>' +
+      '<dl class="kv">' + kv('Plan', nomPlan(p.plan_id) + (SX_TIPO[p.kind] ? ' · ' + SX_TIPO[p.kind] : '')) + kv('Fecha del pago', fDia(p.paid_at)) + kv('Referencia', p.reference) +
+        kv('Pagó', [p.payer_name, p.payer_phone].filter(Boolean).join(' · ')) + kv('Enviado', fCo(p.created_at) + ' · ' + hace(p.created_at)) +
+        (rev && p.aprobar_desde ? kv('Si lo apruebas', fCo(p.aprobar_desde) + ' → ' + fCo(p.aprobar_hasta), 'fx') : '') +
+        (p.status === 'approved' ? kv('Período', fCo(p.period_start) + ' → ' + fCo(p.period_end), 'fx') : '') +
+        (p.status === 'rejected' ? kv('Motivo', p.reject_reason) : '') + '</dl>' +
+      '<div class="acc2"><button class="b todo" type="button" data-sxa="ver" data-id="' + id + '"' + (p.comprobante ? '' : ' disabled') + '>🧾 ' + (p.comprobante ? 'Ver comprobante' : 'Sin comprobante') + '</button>' +
+        (rev ? '<button class="b ok" type="button" data-sxa="aprobar" data-id="' + id + '">✅ Aprobar</button><button class="b no" type="button" data-sxa="rechazar" data-id="' + id + '">✕ Rechazar</button>' : '') +
+      '</div></article>';
+  }
+  function sxPintarPagos(){
+    sxBadge();
+    const q = $('sxPagosBuscar').value.trim().toLowerCase(), est = $('sxPagosEstado').value;
+    const l = sx.pagos.filter(p => !q || [p.negocio, p.usuario_email, p.reference, p.payer_name, p.payer_phone].join(' ').toLowerCase().includes(q));
+    $('sxPagos').innerHTML = l.length ? l.map(sxPagoHtml).join('') : '<div class="empty" style="grid-column:1/-1">' + (q ? 'Ningún pago coincide.' : est === 'review' ? '🎉 No hay pagos por revisar.' : 'No hay pagos en esta lista.') + '</div>';
+  }
+  $('sxPagosBuscar').oninput = sxPintarPagos;
+  $('sxPagosEstado').onchange = () => { $('sxPagos').innerHTML = '<div class="sx-carga" style="grid-column:1/-1"><span class="spin"></span> Cargando…</div>'; sxCargarPagos().catch(e => { sxPintarPagos(); sxFallo(e); }); };
+  const sxPagoDe = id => sx.pend.find(p => p.id === id) || sx.pagos.find(p => p.id === id) || sx.negPagos.find(p => p.id === id) || null;
+  function sxResumenPago(p){
+    return '<div style="display:flex;align-items:center;gap:10px">' + sxMetodo(p.method) + '<b style="font-size:20px">' + esc(plata(p.amount)) + '</b></div>' +
+      '<dl class="kv" style="margin-top:8px">' + kv('Negocio', p.negocio) + kv('Plan', nomPlan(p.plan_id) + (SX_TIPO[p.kind] ? ' · ' + SX_TIPO[p.kind] : '')) + kv('Referencia', p.reference) + kv('Fecha del pago', fDia(p.paid_at)) + '</dl>';
+  }
+  // Ver comprobante: URL firmada por el servidor (dura 10 minutos)
+  async function sxVerComprobante(p){
+    sx.verPago = p;
+    const img = $('sxVerImg'), msg = $('sxVerMsg');
+    $('sxVisor').classList.remove('zoom'); img.hidden = true; img.removeAttribute('src'); $('sxVerAbrir').hidden = true;
+    msg.innerHTML = '<span class="spin"></span> Cargando el comprobante…';
+    $('sxVerInfo').textContent = [p.negocio, plata(p.amount), SX_METODO[String(p.method || '').toUpperCase()] || p.method, p.reference ? 'Ref. ' + p.reference : '', p.paid_at ? fDia(p.paid_at) : ''].filter(Boolean).join(' · ');
+    $('sxVerAprobar').hidden = $('sxVerRechazar').hidden = p.status !== 'review';
+    if(!$('dlgSxVer').open) $('dlgSxVer').showModal();
+    try{
+      const r = await sxApi('comprobante', { payment: p.id });
+      const url = String(r.url || '');
+      if(!/^https?:\/\//i.test(url)) throw new Error('El servidor no devolvió el comprobante.');
+      if(sx.verPago !== p) return;
+      img.onload = () => { msg.textContent = 'Toca la imagen para acercar. El enlace dura 10 minutos.'; };
+      img.onerror = () => { msg.textContent = 'No se pudo mostrar la imagen aquí. Ábrela en otra pestaña.'; };
+      img.src = url; img.hidden = false; $('sxVerAbrir').href = url; $('sxVerAbrir').hidden = false;
+    }catch(e){
+      if(e.codigo === 'no_admin' || e.status === 401){ sxFallo(e); return; }
+      msg.innerHTML = '<span class="bad-t">⚠️ ' + esc(sxMsgError(e)) + '</span>';
+    }
+  }
+  $('sxVerImg').onclick = () => $('sxVisor').classList.toggle('zoom');
+  $('sxVerAprobar').onclick = () => { if(sx.verPago) sxAbrirAprobar(sx.verPago); };
+  $('sxVerRechazar').onclick = () => { if(sx.verPago) sxAbrirRechazo(sx.verPago); };
+
+  // Aprobar: confirma mostrando el inicio y el vencimiento que va a quedar (los calcula el servidor)
+  function sxAbrirAprobar(p){
+    sx.pago = p;
+    $('sxOkResumen').innerHTML = sxResumenPago(p);
+    $('sxOkTxt').textContent = 'Se activa el plan ' + nomPlan(p.plan_id) + ' para «' + (p.negocio || 'el negocio') + '»' + (p.kind === 'renewal' ? '. Es una renovación: se suma al final del plan vigente.' : '.');
+    $('sxOkDesde').textContent = p.aprobar_desde ? fCo(p.aprobar_desde) : 'Hoy';
+    $('sxOkHasta').textContent = p.aprobar_hasta ? fCo(p.aprobar_hasta) : '—';
+    $('sxOkGo').disabled = false; $('sxOkGo').textContent = '✅ Sí, aprobar y activar';
+    $('dlgSxOk').showModal();
+  }
+  $('sxOkGo').onclick = async () => {
+    const p = sx.pago; if(!p) return;
+    const b = $('sxOkGo'); b.disabled = true; b.textContent = 'Aprobando…';
+    try{
+      const r = await sxApi('aprobar', { payment: p.id });
+      const s = r.subscription || {}, pg = r.payment || {};
+      const desde = pg.period_start || s.start_date, hasta = pg.period_end || s.expiry_date;
+      $('dlgSxOk').close(); if($('dlgSxVer').open) $('dlgSxVer').close();
+      const txt = (r.repetido ? 'Ese pago ya estaba aprobado. ' : '✅ Pago aprobado. ') + '«' + (p.negocio || 'Negocio') + '» tiene el plan ' + nomPlan(s.plan_id || p.plan_id) + ' del ' + fCo(desde) + ' al ' + fCo(hasta) + '.';
+      sxHecho(txt, false, r.repetido ? 'Ese pago ya estaba aprobado.' : '✅ Pago aprobado.');
+      await sxRecargar();
+    }catch(e){
+      if(e.codigo === 'estado_invalido'){ $('dlgSxOk').close(); toast('⚠️ ' + sxMsgError(e), 6000); sxRecargar(); }
+      else sxFallo(e);
+    }finally{ b.disabled = false; b.textContent = '✅ Sí, aprobar y activar'; }
+  };
+
+  // Rechazar: el motivo es obligatorio (el negocio lo ve)
+  function sxAbrirRechazo(p){
+    sx.pago = p;
+    $('sxNoResumen').innerHTML = sxResumenPago(p);
+    $('sxNoMotivo').value = ''; $('sxNoErr').textContent = '';
+    $('dlgSxNo').showModal();
+  }
+  $('sxNoMotivos').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; $('sxNoMotivo').value = b.textContent.trim() + '.'; $('sxNoErr').textContent = ''; });
+  $('sxNoMotivo').oninput = () => { $('sxNoErr').textContent = ''; };
+  $('sxNoGo').onclick = async () => {
+    const p = sx.pago; if(!p) return;
+    const m = $('sxNoMotivo').value.trim();
+    if(!m){ $('sxNoErr').textContent = 'Escribe el motivo: el negocio lo ve para corregir su pago.'; $('sxNoMotivo').focus(); return; }
+    if(m.length > 200){ $('sxNoErr').textContent = 'El motivo puede tener máximo 200 caracteres.'; return; }
+    const b = $('sxNoGo'); b.disabled = true;
+    try{
+      await sxApi('rechazar', { payment: p.id, motivo: m });
+      $('dlgSxNo').close(); if($('dlgSxVer').open) $('dlgSxVer').close();
+      const txt = 'Pago de «' + (p.negocio || 'Negocio') + '» rechazado. Motivo: ' + m;
+      sxHecho(txt, true, 'Pago rechazado.');
+      await sxRecargar();
+    }catch(e){
+      if(e.codigo === 'no_admin' || e.status === 401) sxFallo(e);
+      else $('sxNoErr').textContent = '⚠️ ' + sxMsgError(e);
+    }finally{ b.disabled = false; }
+  };
+  // CSV de la lista que está a la vista (para el contador)
+  $('sxPagosCsv').onclick = () => {
+    if(!sx.pagos.length){ toast('No hay pagos en esta lista.'); return; }
+    const celda = x => { let s = String(x == null ? '' : x); if(/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
+    const filas = [['Enviado', 'Negocio', 'Correo', 'Plan', 'Tipo', 'Método', 'Valor', 'Referencia', 'Fecha del pago', 'Pagó', 'Teléfono', 'Estado', 'Inicio', 'Vence', 'Motivo del rechazo']]
+      .concat(sx.pagos.map(p => [fCoHora(p.created_at), p.negocio, p.usuario_email, nomPlan(p.plan_id), SX_TIPO[p.kind] || p.kind, p.method, p.amount, p.reference, fDia(p.paid_at), p.payer_name, p.payer_phone,
+        (SX_PAGO[p.status] || [p.status])[0], p.period_start ? fCo(p.period_start) : '', p.period_end ? fCo(p.period_end) : '', p.reject_reason]));
+    bajar('vento-suscripciones-pagos-' + new Date().toISOString().slice(0, 10) + '.csv', filas.map(r => r.map(celda).join(',')).join('\n'), 'text/csv');
+  };
+
+  // ---- SUSCRIPCIONES ----
+  function sxFiltraSub(s, f){
+    if(!f) return true;
+    const v = sxVigente(s);
+    if(f === 'active') return v && !s.trial;
+    if(f === 'trial') return v && !!s.trial;
+    if(f === 'porvencer') return v && !s.trial && s.dias_restantes != null && s.dias_restantes <= 7;
+    if(f === 'expired') return s.status === 'expired' || (s.status === 'active' && !v);
+    return s.status === f;
+  }
+  function sxSubHtml(s){
+    const id = esc(s.business_id), u = s.ultimo_pago;
+    return '<article class="sxc">' +
+      '<div class="ph" data-sxa="detalle" data-id="' + id + '" style="cursor:pointer"><div class="av">' + inicial(s.negocio) + '</div><div class="t"><b>' + esc(s.negocio || 'Negocio') + '</b><small>' + esc(s.dueno_email || 'sin correo') + '</small></div>' + pillDe(sxEstadoSub(s)) + '</div>' +
+      '<dl class="kv">' + kv('Plan', nomPlan(s.plan_id) + (s.plan_efectivo && s.plan_efectivo !== s.plan_id ? ' (hoy usa ' + nomPlan(s.plan_efectivo) + ')' : '')) +
+        kv('Vence', s.expiry_date ? fCo(s.expiry_date) + (sxVigente(s) && s.dias_restantes != null ? ' · faltan ' + s.dias_restantes + ' día' + (s.dias_restantes === 1 ? '' : 's') : '') : '—') +
+        kv('Origen', SX_ORIGEN[s.source] || s.source) + (u ? kv('Último pago', plata(u.amount) + ' · ' + (SX_PAGO[u.status] || [u.status])[0] + ' · ' + fCo(u.created_at)) : '') + '</dl>' +
+      '<div class="acc3"><button class="b" type="button" data-sxa="plan" data-id="' + id + '">🔀 Plan</button><button class="b" type="button" data-sxa="dar" data-id="' + id + '">🎁 Dar meses</button>' +
+        (s.status === 'canceled' ? '' : '<button class="b no" type="button" data-sxa="cancelar" data-id="' + id + '">⛔ Cancelar</button>') + '</div></article>';
+  }
+  function sxPintarSubs(){
+    const f = $('sxSubsFiltro').value, q = $('sxSubsBuscar').value.trim().toLowerCase();
+    const l = sx.subs.filter(s => sxFiltraSub(s, f) && (!q || [s.negocio, s.dueno_email, s.plan_id, s.plan_name].join(' ').toLowerCase().includes(q)));
+    $('sxSubs').innerHTML = l.length ? l.map(sxSubHtml).join('') : '<div class="empty" style="grid-column:1/-1">' + (sx.subs.length ? 'Ninguna suscripción coincide.' : 'Todavía no hay suscripciones.') + '</div>';
+  }
+  $('sxSubsBuscar').oninput = sxPintarSubs; $('sxSubsFiltro').onchange = sxPintarSubs;
+
+  // Cambiar plan · dar meses de cortesía · cancelar
+  function sxAbrirAccion(tipo, negocio){
+    let s = sx.subs.find(x => x.business_id === negocio);
+    if(!s && sx.negAct && sx.negAct.negocio && sx.negAct.negocio.id === negocio) s = Object.assign({ business_id: negocio, negocio: sx.negAct.negocio.nombre }, sx.negAct.suscripcion || {});
+    if(!s) return;
+    sx.acc = { tipo, negocio, s };
+    $('sxAccTit').textContent = { plan: '🔀 Cambiar plan', dar: '🎁 Dar meses de cortesía', cancelar: '⛔ Cancelar suscripción' }[tipo];
+    $('sxAccInfo').textContent = '«' + (s.negocio || 'Negocio') + '» · ' + (s.plan_id ? 'plan ' + nomPlan(s.plan_id) + ' · ' : '') + sxEstadoSub(s.status ? s : null)[0] + (s.expiry_date ? ' · vence ' + fCo(s.expiry_date) : '');
+    $('sxAccPlanBox').hidden = tipo === 'cancelar'; $('sxAccMesesBox').hidden = tipo !== 'dar'; $('sxAccMotivoBox').hidden = tipo !== 'cancelar';
+    const lista = sx.planes.filter(p => tipo === 'plan' || p.id !== 'free');
+    $('sxAccPlan').innerHTML = lista.map(p => '<option value="' + esc(p.id) + '">' + esc((p.name || p.id) + (p.price ? ' · ' + plata(p.price) : '') + (p.active ? '' : ' (inactivo)')) + '</option>').join('');
+    const pre = tipo === 'dar' ? (s.plan_id && s.plan_id !== 'free' ? s.plan_id : 'pro') : s.plan_id;
+    if(lista.some(p => p.id === pre)) $('sxAccPlan').value = pre;
+    $('sxAccMeses').value = 1; $('sxAccMotivo').value = ''; $('sxAccErr').textContent = '';
+    $('sxAccNota').textContent = tipo === 'plan' ? 'Conserva las mismas fechas: solo cambia lo que el negocio puede usar.'
+      : tipo === 'dar' ? 'Activa el plan sin pago (cortesía). Si ya tiene ese plan pagado y vigente, los meses se suman al final.'
+      : 'El negocio pasa al plan Gratis de inmediato. Sus datos no se borran.';
+    const go = $('sxAccGo'); go.textContent = { plan: '🔀 Cambiar plan', dar: '🎁 Dar meses', cancelar: '⛔ Cancelar suscripción' }[tipo]; go.className = 'b ' + (tipo === 'cancelar' ? 'no' : 'p');
+    $('dlgSxAcc').showModal();
+  }
+  $('sxAccMesesRap').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if(b) $('sxAccMeses').value = b.dataset.m; });
+  $('sxAccGo').onclick = async () => {
+    const a = sx.acc; if(!a) return;
+    const err = t => { $('sxAccErr').textContent = t; };
+    let ruta, cuerpo;
+    if(a.tipo === 'plan'){
+      const pl = $('sxAccPlan').value; if(!pl) return err('Elige un plan.');
+      if(pl === a.s.plan_id) return err('Ya tiene ese plan.');
+      ruta = 'cambiar_plan'; cuerpo = { negocio: a.negocio, plan: pl };
+    }else if(a.tipo === 'dar'){
+      const m = Math.round(+$('sxAccMeses').value);
+      if(!(m >= 1 && m <= 36)) return err('Los meses van de 1 a 36.');
+      if(!$('sxAccPlan').value) return err('Elige un plan.');
+      ruta = 'dar'; cuerpo = { negocio: a.negocio, plan: $('sxAccPlan').value, meses: m };
+    }else{ ruta = 'cancelar'; cuerpo = { negocio: a.negocio, motivo: $('sxAccMotivo').value.trim() }; }
+    const b = $('sxAccGo'); b.disabled = true; err('');
+    try{
+      const r = await sxApi(ruta, cuerpo), s = r.subscription || {}, nom = a.s.negocio || 'Negocio';
+      $('dlgSxAcc').close();
+      const txt = a.tipo === 'plan' ? '🔀 «' + nom + '» ahora tiene el plan ' + nomPlan(s.plan_id || cuerpo.plan) + '.'
+        : a.tipo === 'dar' ? '🎁 Listo: «' + nom + '» tiene ' + nomPlan(s.plan_id || cuerpo.plan) + ' hasta el ' + fCo(s.expiry_date) + '.'
+        : '⛔ Suscripción de «' + nom + '» cancelada.';
+      sxHecho(txt, a.tipo === 'cancelar', a.tipo === 'cancelar' ? '⛔ Suscripción cancelada.' : '✅ Listo.');
+      await sxRecargar();
+    }catch(e){
+      if(e.codigo === 'no_admin' || e.status === 401) sxFallo(e);
+      else err('⚠️ ' + sxMsgError(e));
+    }finally{ b.disabled = false; }
+  };
+
+  // ---- NEGOCIOS ----
+  function sxStats(r){
+    r = r || {};
+    const S = [['productos', 'Productos'], ['inventario', 'Inventario'], ['compras', 'Facturas'], ['gastos', 'Gastos'], ['ventas', 'Ventas']];
+    return '<div class="stats">' + S.map(x => '<div><b>' + esc((+r[x[0]] || 0).toLocaleString('es-CO')) + '</b><span>' + esc(x[1]) + '</span></div>').join('') + '</div>';
+  }
+  // Una sola consulta a la vez (al entrar directo a 🏪 Negocios se piden desde dos lados).
+  function sxCargarNegocios(){
+    if(sx.negProm) return sx.negProm;
+    if(!sx.negocios) $('sxNegocios').innerHTML = '<div class="sx-carga" style="grid-column:1/-1"><span class="spin"></span> Cargando negocios…</div>';
+    sx.negProm = sxApi('negocios').then(j => { sx.negocios = j.negocios || []; sxPintarNegocios(); })
+      .catch(e => { if(!sx.negocios) $('sxNegocios').innerHTML = '<div class="empty" style="grid-column:1/-1">No se pudieron cargar los negocios.</div>'; sxFallo(e); })
+      .finally(() => { sx.negProm = null; });
+    return sx.negProm;
+  }
+  function sxPintarNegocios(){
+    const q = $('sxNegBuscar').value.trim().toLowerCase();
+    const l = (sx.negocios || []).filter(n => !q || [n.nombre, n.dueno_email, n.id].join(' ').toLowerCase().includes(q));
+    $('sxNegocios').innerHTML = l.length ? l.map(n => {
+      const r = n.resumen || {}, m = +n.miembros || 0;
+      return '<article class="sxc clic" data-sxa="detalle" data-id="' + esc(n.id) + '">' +
+        '<div class="ph"><div class="av">' + inicial(n.nombre) + '</div><div class="t"><b>' + esc(n.nombre || 'Sin nombre') + '</b><small>' + esc((n.dueno_email || 'sin correo') + ' · ' + m + ' persona' + (m === 1 ? '' : 's')) + '</small></div>' +
+        '<span class="pill ' + (n.plan_efectivo && n.plan_efectivo !== 'free' ? 'ok' : 'soft') + '">' + esc(nomPlan(n.plan_efectivo || 'free')) + '</span></div>' +
+        sxStats(r) +
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="soft" style="flex:1;font-size:12.5px">' + esc('Creado ' + fCo(n.creado_en) + (r.actualizado_en ? ' · datos del ' + fCo(r.actualizado_en) : ' · sin datos en la nube')) + '</span>' + pillDe(sxEstadoSub(n.suscripcion)) + '</div>' +
+        '</article>';
+    }).join('') : '<div class="empty" style="grid-column:1/-1">' + ((sx.negocios || []).length ? 'Ningún negocio coincide.' : 'Todavía no hay negocios en Vento Nube.') + '</div>';
+  }
+  $('sxNegBuscar').oninput = () => { if(sx.negocios) sxPintarNegocios(); };
+  function sxEventoTxt(e){
+    const d = e.data || {}, x = [];
+    if(d.de && d.a) x.push(nomPlan(d.de) + ' → ' + nomPlan(d.a)); else if(d.plan) x.push('plan ' + nomPlan(d.plan));
+    if(d.monto) x.push(plata(d.monto)); if(d.metodo) x.push(d.metodo);
+    if(d.source && SX_ORIGEN[d.source]) x.push(SX_ORIGEN[d.source]); if(d.dias) x.push(d.dias + ' días');
+    if(d.hasta) x.push('hasta ' + fCo(d.hasta)); else if(d.expiry_date) x.push('venció el ' + fCo(d.expiry_date));
+    if(d.motivo) x.push('motivo: ' + d.motivo);
+    return x.join(' · ');
+  }
+  async function sxAbrirNegocio(id, refrescar){
+    const dlg = $('dlgSxNeg');
+    if(!refrescar){ $('sxNegTit').textContent = 'Negocio'; $('sxNegCuerpo').innerHTML = '<div class="sx-carga"><span class="spin"></span> Cargando…</div>'; if(!dlg.open) dlg.showModal(); }
+    try{
+      const j = await sxApi('negocio', { negocio: id });
+      const n = j.negocio || {}, s = j.suscripcion, ents = j.entitlements || {}, nid = esc(n.id);
+      sx.negAct = j; sx.negPagos = (j.pagos || []).map(p => Object.assign({ negocio: n.nombre, business_id: n.id }, p));
+      $('sxNegTit').textContent = n.nombre || 'Negocio';
+      const miembros = (j.miembros || []).map(m => '<div class="item" style="cursor:default"><div class="av">' + inicial(m.nombre || m.email) + '</div><div class="t"><b>' + esc(m.nombre || m.email || '—') + '</b><small>' + esc([m.email, SX_ROL[m.rol] || m.rol].filter(Boolean).join(' · ')) + '</small></div></div>').join('');
+      const pagos = sx.negPagos.map(p => '<div class="item" style="cursor:default">' + sxMetodo(p.method) + '<div class="t"><b>' + esc(plata(p.amount) + ' · ' + nomPlan(p.plan_id)) + '</b><small>' +
+        esc([fCo(p.created_at), p.reference ? 'Ref. ' + p.reference : '', p.period_end ? 'hasta ' + fCo(p.period_end) : '', p.reject_reason ? 'motivo: ' + p.reject_reason : ''].filter(Boolean).join(' · ')) + '</small></div>' +
+        pillDe(SX_PAGO[p.status] || [p.status, 'soft']) + (p.comprobante ? '<button class="b" type="button" data-sxa="ver" data-id="' + esc(p.id) + '" title="Ver comprobante">🧾</button>' : '') + '</div>').join('');
+      const eventos = (j.eventos || []).map(e => { const t = sxEventoTxt(e); return '<li><b>' + esc(SX_EVENTO[e.type] || e.type) + '</b><small>' + esc(fCoHora(e.created_at) + (t ? ' · ' + t : '')) + '</small></li>'; }).join('');
+      $('sxNegCuerpo').innerHTML =
+        '<div class="chips" style="margin-top:12px">' + pillDe(sxEstadoSub(s)) + '<span class="pill ' + (j.plan_efectivo && j.plan_efectivo !== 'free' ? 'ok' : 'soft') + '">' + esc('Usa hoy: ' + nomPlan(j.plan_efectivo || 'free')) + '</span></div>' +
+        '<dl class="kv" style="margin-top:12px">' + kv('Creado por', n.creado_por_email) + kv('Creado', fCo(n.creado_en)) +
+          (s ? kv('Plan', nomPlan(s.plan_id)) + kv('Origen', SX_ORIGEN[s.source] || s.source) + kv('Inicio', fCo(s.start_date)) + kv('Vence', fCo(s.expiry_date)) : kv('Suscripción', 'Todavía no tiene')) + '</dl>' +
+        '<div class="acc3" style="margin-top:12px">' + (s ? '<button class="b" type="button" data-sxa="plan" data-id="' + nid + '">🔀 Plan</button>' : '') +
+          '<button class="b" type="button" data-sxa="dar" data-id="' + nid + '">🎁 Dar meses</button>' + (s && s.status !== 'canceled' ? '<button class="b no" type="button" data-sxa="cancelar" data-id="' + nid + '">⛔ Cancelar</button>' : '') + '</div>' +
+        '<div class="sx-sec"><h3>Datos del negocio</h3>' + sxStats(j.resumen) + '</div>' +
+        '<div class="sx-sec"><h3>Lo que puede usar hoy</h3><div class="chips">' + (Object.keys(ents).map(k => '<span class="chip' + (ents[k] ? '' : ' no') + '">' + (ents[k] ? '✓ ' : '') + esc(nomEnt(k)) + '</span>').join('') || '<span class="soft">—</span>') + '</div></div>' +
+        '<div class="sx-sec"><h3>Equipo</h3><div class="list">' + (miembros || '<div class="soft">Sin personas.</div>') + '</div></div>' +
+        '<div class="sx-sec"><h3>Pagos</h3><div class="list">' + (pagos || '<div class="soft">Todavía no ha enviado pagos.</div>') + '</div></div>' +
+        '<div class="sx-sec"><h3>Historial</h3>' + (eventos ? '<ul class="tl">' + eventos + '</ul>' : '<div class="soft">Sin movimientos.</div>') + '</div>';
+    }catch(e){
+      if(e.codigo === 'no_admin' || e.status === 401){ sxFallo(e); return; }
+      $('sxNegCuerpo').innerHTML = '<div class="empty bad-t">⚠️ ' + esc(sxMsgError(e)) + '</div>';
+    }
+  }
+
+  // ---- PLANES (única lista de precios; la app la lee del servidor) ----
+  function sxPintarPlanes(){
+    $('sxPlanes').innerHTML = sx.planes.length ? sx.planes.map(p => {
+      const e = p.entitlements || [], id = esc(p.id);
+      return '<article class="sxc clic" data-sxa="editarplan" data-id="' + id + '">' +
+        '<div class="ph"><div class="av">📦</div><div class="t"><b>' + esc(p.name || p.id) + '</b><small>' + esc('código: ' + p.id) + '</small></div>' + (p.active ? '<span class="pill ok">Activo</span>' : '<span class="pill soft">Inactivo</span>') + '</div>' +
+        '<div class="sx-precio">' + esc(plata(p.price)) + ' <small>' + esc(+p.period_months > 1 ? 'cada ' + p.period_months + ' meses' : 'al mes') + '</small></div>' +
+        (p.description ? '<div class="soft">' + esc(p.description) + '</div>' : '') +
+        '<div class="chips">' + sx.ents.map(x => '<span class="chip' + (e.includes(x.key) ? '' : ' no') + '">' + (e.includes(x.key) ? '✓ ' : '') + esc(nomEnt(x.key)) + '</span>').join('') + '</div>' +
+        '<button class="b" type="button" data-sxa="editarplan" data-id="' + id + '">✏️ Editar plan</button></article>';
+    }).join('') : '<div class="empty" style="grid-column:1/-1">Sin planes.</div>';
+  }
+  function sxAbrirPlan(id){
+    const p = id ? sxPlan(id) : null, libre = !!p && p.id === 'free';
+    sx.plan = p;
+    $('sxPlanTit').textContent = p ? 'Plan ' + (p.name || p.id) : 'Nuevo plan';
+    $('sxPlId').value = p ? p.id : ''; $('sxPlId').disabled = !!p;
+    $('sxPlNom').value = p ? p.name || '' : ''; $('sxPlPre').value = p ? (+p.price || 0) : ''; $('sxPlMeses').value = p ? (+p.period_months || 1) : 1;
+    $('sxPlAct').checked = p ? !!p.active : true; $('sxPlDesc').value = p ? p.description || '' : '';
+    $('sxPlAct').disabled = libre; $('sxPlPre').disabled = libre;
+    const tiene = new Set(p ? p.entitlements || [] : []);
+    $('sxPlEnts').innerHTML = sx.ents.map(x => '<label><input type="checkbox" value="' + esc(x.key) + '"' + (tiene.has(x.key) ? ' checked' : '') + '><span>' + esc(nomEnt(x.key)) + '</span></label>').join('');
+    $('sxPlErr').textContent = libre ? 'El plan Gratis siempre está activo y vale $0.' : '';
+    $('dlgSxPlan').showModal();
+  }
+  $('sxPlanNuevo').onclick = () => sxAbrirPlan(null);
+  $('sxPlGuardar').onclick = async () => {
+    const err = t => { $('sxPlErr').textContent = t; };
+    const id = $('sxPlId').value.trim().toLowerCase();
+    if(!/^[a-z0-9_]{2,30}$/.test(id)) return err('El código va en minúsculas, sin espacios ni tildes (ej. pro, premium).');
+    if(!sx.plan && sxPlan(id)) return err('Ya existe un plan con ese código.');
+    const precio = Math.round(+$('sxPlPre').value), meses = Math.round(+$('sxPlMeses').value);
+    if(id === 'free' ? precio !== 0 : !(precio > 0)) return err(id === 'free' ? 'El plan Gratis vale $0.' : 'Escribe el precio del plan.');
+    if(!(meses >= 1 && meses <= 36)) return err('Los meses van de 1 a 36.');
+    const plan = { id, name: $('sxPlNom').value.trim() || id.toUpperCase(), price: precio, period_months: meses, active: id === 'free' ? true : $('sxPlAct').checked,
+      description: $('sxPlDesc').value.trim(), entitlements: [...$('sxPlEnts').querySelectorAll('input:checked')].map(i => i.value) };
+    const b = $('sxPlGuardar'); b.disabled = true; err('');
+    try{
+      const r = await sxApi('plan_guardar', { plan }), nuevo = r.plan && r.plan.id ? r.plan : plan;
+      const i = sx.planes.findIndex(x => x.id === nuevo.id); if(i >= 0) sx.planes[i] = nuevo; else sx.planes.push(nuevo);
+      $('dlgSxPlan').close(); sxPintarPlanes(); sxPintarKpis(); sxPintarSubs();
+      toast('✅ Plan «' + (nuevo.name || id) + '» guardado. La app lo ve al consultar los planes.', 5000);
+    }catch(e){
+      if(e.codigo === 'no_admin' || e.status === 401) sxFallo(e);
+      else err('⚠️ ' + sxMsgError(e));
+    }finally{ b.disabled = false; }
+  };
+
+  // ---- CONFIGURACIÓN del cobro ----
+  function sxPintarConfig(){
+    const c = sx.cfg || {}, m = c.manual_methods || {}, nq = m.NEQUI || {}, dv = m.DAVIPLATA || {};
+    $('sxBeta').checked = c.beta_mode !== false;
+    $('sxPrueba').value = c.trial_days != null ? c.trial_days : 15; $('sxAvisoDias').value = c.renew_notice_days != null ? c.renew_notice_days : 7;
+    $('sxNequiNum').value = nq.numero || ''; $('sxNequiTit').value = nq.titular || ''; $('sxDaviNum').value = dv.numero || ''; $('sxDaviTit').value = dv.titular || '';
+    $('sxWa').value = c.support_whatsapp || '';
+    $('sxCfgInfo').textContent = c.updated_at ? 'Última modificación: ' + fCoHora(c.updated_at) + '.' : '';
+  }
+  $('sxCfgGuardar').onclick = async () => {
+    const dig = id => $(id).value.replace(/\D/g, '');
+    const prueba = $('sxPrueba').value.trim(), aviso = $('sxAvisoDias').value.trim();
+    if(!/^\d{1,3}$/.test(prueba) || +prueba > 365){ toast('Los días de prueba van de 0 a 365.'); $('sxPrueba').focus(); return; }
+    if(!/^\d{1,2}$/.test(aviso) || +aviso > 60){ toast('El aviso de renovación va de 0 a 60 días.'); $('sxAvisoDias').focus(); return; }
+    const config = { beta_mode: $('sxBeta').checked, trial_days: +prueba, renew_notice_days: +aviso,
+      manual_methods: { NEQUI: { numero: dig('sxNequiNum'), titular: $('sxNequiTit').value.trim() }, DAVIPLATA: { numero: dig('sxDaviNum'), titular: $('sxDaviTit').value.trim() } },
+      support_whatsapp: waNum($('sxWa').value) };
+    if(!config.beta_mode && (sx.cfg || {}).beta_mode !== false && !confirm('¿Apagar el modo BETA? El pago manual sigue funcionando, pero el servidor ofrecerá Google Play si está configurado.')) return;
+    if(!config.manual_methods.NEQUI.numero && !config.manual_methods.DAVIPLATA.numero && !confirm('No hay número de Nequi ni de DaviPlata: los negocios no sabrán a dónde pagar. ¿Guardar así?')) return;
+    const b = $('sxCfgGuardar'); b.disabled = true;
+    try{
+      const r = await sxApi('config_guardar', { config });
+      sx.cfg = r.config || Object.assign({}, sx.cfg, config); sxPintarConfig();
+      toast('✅ Configuración guardada. Los negocios la ven al abrir los planes.', 5000);
+    }catch(e){ sxFallo(e); }
+    finally{ b.disabled = false; }
+  };
+
+  // ---- Clics del panel y del detalle del negocio ----
+  function sxClic(e){
+    const k = e.target.closest('[data-ir]');
+    if(k){ const [s, f] = k.dataset.ir.split('|'); if(s === 'subs'){ $('sxSubsFiltro').value = f || ''; sxPintarSubs(); } sxSeccion(s); return; }
+    const b = e.target.closest('[data-sxa]'); if(!b || b.disabled) return;
+    const a = b.dataset.sxa, id = b.dataset.id || '';
+    if(a === 'ver' || a === 'aprobar' || a === 'rechazar'){
+      const p = sxPagoDe(id); if(!p) return;
+      if(a === 'ver') sxVerComprobante(p); else if(a === 'aprobar') sxAbrirAprobar(p); else sxAbrirRechazo(p);
+    }else if(a === 'detalle') sxAbrirNegocio(id);
+    else if(a === 'plan' || a === 'dar' || a === 'cancelar') sxAbrirAccion(a, id);
+    else if(a === 'editarplan') sxAbrirPlan(id);
+  }
+  $('sxPanel').addEventListener('click', sxClic);
+  $('dlgSxNeg').addEventListener('click', sxClic);
+  $('sxKpis').addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); sxClic(e); } });
+
   // ---------------- Respaldo ----------------
   function bajar(nombre, texto, tipo){ if(window.VentoAdmin && typeof texto === 'string'){ try{ window.VentoAdmin.guardar(nombre, tipo || 'application/json', texto); return; }catch(e){} } const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([texto], { type: tipo || 'application/json' })); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
   $('dBajar').onclick = () => { let h = []; try{ h = JSON.parse(localStorage.getItem(HIST_LS) || '[]'); }catch(e){} bajar('vento-admin-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify({ tipo: 'vento-admin', db, licencias: h, config: cfgLeerForm() }, null, 2)); db.respaldo = Date.now(); guardar(); };
@@ -794,7 +1652,8 @@
     };
     $('lockGo').onclick = ir; $('lockPin').onkeydown = e => { if(e.key === 'Enter') ir(); };
   })();
-  $('salir').onclick = () => { try{ localStorage.removeItem(CODIGO_LS); }catch(e){} location.reload(); };
+  // Cerrar el panel también cierra (en este equipo) la cuenta de Vento Nube de 💳 Suscripciones.
+  $('salir').onclick = () => { try{ localStorage.removeItem(CODIGO_LS); localStorage.removeItem(SX_SESION); }catch(e){} location.reload(); };
 
   function copiar(t){ if(!t) return; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('📋 Copiado.'), () => prompt('Copia esto:', t)); }
   try{ $('guiaBox').appendChild($('tplGuia').content.cloneNode(true)); }catch(e){}
