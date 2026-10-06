@@ -16,6 +16,7 @@ el micrófono, la APK y los servicios externos se simulan.
 | `googletest` | Entrar con Google (Vento Nube simulada) |
 | `tvocupado` | Conectarse al TV aunque otro celular ya esté conectado |
 | `esc` | Computador: Enter abre la mesa, Esc la cierra, ancho de pantalla grande |
+| `mesa` | Panel de la mesa: el buscador de productos va primero y se ve sin desplazar (celular y computador), ✏️ 🔀 🔗 ♻️ como iconos chicos que abren lo suyo, agregar por buscador / Enter / favoritos, nombres escapados, personas y nombre del cliente plegables. Micrófono: con «Hola Vento» escuchando (APK simulada) el botón toma el micrófono ya abierto en < 150 ms sin cerrarlo ni reabrirlo, descarta lo dicho antes del toque, se reabre solo si Android lo cierra antes de hablar, y si Vento está hablando se calla y abre al instante sin reintentos; en el navegador, del toque a `rec.start()` < 150 ms |
 | `pasos` | Tarjeta «Primeros pasos» para negocios nuevos |
 | `servidor` | Servidor de suscripciones con PostgreSQL 16 real (sin navegador): prueba gratis, pago Nequi/DaviPlata con comprobante, revisión y aprobación del admin (también dos a la vez), renovación, rechazo, vencimiento y cron, duplicados, token firmado, RLS y permisos. Está en `servidor/suscripciones.test.js` |
 
