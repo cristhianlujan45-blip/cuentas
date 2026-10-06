@@ -199,13 +199,23 @@
     var n = negocio(); if(!n || est.canal) return;
     nube().cliente().then(function(c){
       if(!c.channel) return;
-      est.canal = c.channel('vento-pagos-' + n.id)
+      var canal = c.channel('vento-pagos-' + n.id), cerrado = false;
+      est.canal = canal
         .on('postgres_changes', { event: '*', schema: 'public', table: 'pagos', filter: 'negocio_id=eq.' + n.id }, function(ev){
           var p = ev && ev.new; if(!p || !p.id) return;
           recibir(p, true);
           var v = lsGet(K_VISTO, {}); if(!v[n.id] || p.actualizado_en > v[n.id]){ v[n.id] = p.actualizado_en; lsSet(K_VISTO, v); }
         })
-        .subscribe(function(s){ est.vivo = s === 'SUBSCRIBED'; if(s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED'){ try{ c.removeChannel(est.canal); }catch(e){} est.canal = null; setTimeout(conectarTiempoReal, 15000); } });
+        .subscribe(function(s){
+          est.vivo = s === 'SUBSCRIBED';
+          if(cerrado || !(s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED')) return;
+          // Una sola vez: quitar el canal vuelve a avisar «CLOSED» y antes esto se llamaba a sí mismo hasta reventar
+          // la pila («Maximum call stack size exceeded») cada vez que se caía el tiempo real.
+          cerrado = true;
+          if(est.canal === canal) est.canal = null;
+          try{ Promise.resolve(c.removeChannel(canal)).catch(function(){}); }catch(e){}
+          setTimeout(conectarTiempoReal, 15000);
+        });
     }).catch(function(){});
   }
 

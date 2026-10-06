@@ -157,11 +157,17 @@
     var dias = vence ? Math.max(0, Math.ceil((vence - Date.now()) / DIA)) : null;
     var avisoDias = (E.cat && E.cat.cfg && +E.cat.cfg.renew_notice_days) || 7;
     var ultimo = info.last_payment || null, planSub = String(sub.plan_id || (p && p.p !== 'free' ? p.p : '') || '');
+    /* Pago rechazado: con la suscripción «rejected», o con el plan TODAVÍA activo (una renovación anticipada que
+       no se aprobó: el servidor deja la suscripción activa hasta su fecha). En ese caso solo cuenta si se rechazó
+       después del último cambio de la suscripción (si luego se renovó o el admin dio meses, ya no se muestra). */
+    var motivo = String((ultimo && (ultimo.reject_reason || ultimo.motivo)) || '');
+    var rechazo = status === 'rejected' ? motivo :
+      (p && ultimo && ultimo.status === 'rejected' && !info.pending_payment && aMs(ultimo.rejected_at) >= aMs(sub.updated_at)) ? (motivo || 'no se pudo comprobar el pago') : '';
     return {
       enCuenta: !!n, verificado: !!p, negocio: n ? n.id : null, rol: rolActual(), manda: manda(),
       status: status, plan: p ? (viva ? String(p.p || 'free') : 'free') : null, planSub: planSub, entitlements: ents(), vence: vence || null, dias: dias, prueba: prueba,
       revision: !!p && (status === 'payment_review' || !!info.pending_payment), pago: info.pending_payment || null, ultimoPago: ultimo,
-      rechazo: status === 'rejected' ? String((ultimo && (ultimo.reject_reason || ultimo.motivo)) || '') : '',
+      rechazo: rechazo,
       // Lo decide el servidor (renew_notice); sin internet se calcula con los días de aviso.
       renovar: status === 'active' && !prueba && (!!info.renew_notice || (!E.recibido && !!vence && vence - Date.now() <= avisoDias * DIA)),
       sinInternet: E.error === 'red', ultimo: E.ultimo
@@ -330,7 +336,8 @@
     var P = esc(nombrePlan(s.status === 'active' ? s.plan : s.planSub || s.plan)), f = fecha(s.vence);
     if(s.status === 'active' && s.prueba) return '<div class="vs-estado ok"><span class="vs-chip">' + P + '</span><b>🎁 Prueba gratis del plan ' + P + '</b><small>Te quedan ' + s.dias + ' día' + (s.dias === 1 ? '' : 's') + (f ? ' (hasta el ' + f + ')' : '') + '.</small></div>';
     if(s.status === 'active') return '<div class="vs-estado ok"><span class="vs-chip">' + P + '</span><b>Plan ' + P + ' activo' + (f ? ' · vence el ' + f : '') + '</b><small>' + (s.dias != null ? 'Te quedan ' + s.dias + ' día' + (s.dias === 1 ? '' : 's') + '. ' : '') + 'Sirve en todos los celulares de tu negocio.</small>' +
-      (s.pago ? '<small>⏳ Tu renovación está en revisión.</small>' : '') + '</div>';
+      (s.pago ? '<small>⏳ Tu renovación está en revisión.</small>' : '') +
+      (s.rechazo ? '<small class="vs-rechazo">❌ Tu último pago no fue aprobado. Motivo: ' + esc(s.rechazo) + '</small>' : '') + '</div>';
     if(s.status === 'payment_review') return '<div class="vs-estado esp"><b>⏳ Pago en revisión</b><small>Recibimos tu comprobante' + (s.pago ? ' de ' + plata(s.pago.amount) + ' por ' + esc((METODOS[s.pago.method] || {}).nombre || s.pago.method || '') : '') + '. Apenas lo aprobemos se activa tu plan. Mientras tanto sigues vendiendo con el plan gratis.</small></div>';
     if(s.status === 'rejected') return '<div class="vs-estado mal"><b>❌ Tu pago no fue aprobado</b><small>Motivo: ' + esc(s.rechazo || 'no se pudo comprobar el pago') + '</small></div>';
     if(s.status === 'expired') return '<div class="vs-estado mal"><b>⌛ Tu plan ' + P + ' venció' + (f ? ' el ' + f : '') + '</b><small>Sigues vendiendo con el plan gratis. Renueva para volver a usar la voz, la cámara con IA y lo demás.</small></div>';
@@ -369,8 +376,8 @@
         pantalla('inicio', 'Plan del negocio', h + '<p class="vs-nota">Los pagos del plan los maneja el dueño o el administrador del negocio. Si necesitas una función PRO, pídeselo.</p><div class="vs-acciones"><button type="button" class="btn-primary vs-grande" data-vs="cerrar">Entendido</button></div>');
         return;
       }
-      if(s.renovar && !s.pago) h += '<div class="vs-aviso" id="vsAvisoRenovar"><span>⏰ Tu suscripción vence el ' + fecha(s.vence) + '.</span><button type="button" class="btn-primary" data-vs="renovar">RENOVAR</button></div>';
-      if(s.status === 'rejected') h += '<div class="vs-acciones vs-sep"><button type="button" class="btn-primary vs-grande" data-vs="reintentar">📸 Enviar otro comprobante</button></div>';
+      if(s.renovar && !s.pago && !s.rechazo) h += '<div class="vs-aviso" id="vsAvisoRenovar"><span>⏰ Tu suscripción vence el ' + fecha(s.vence) + '.</span><button type="button" class="btn-primary" data-vs="renovar">RENOVAR</button></div>';
+      if(s.status === 'rejected' || s.rechazo) h += '<div class="vs-acciones vs-sep"><button type="button" class="btn-primary vs-grande" data-vs="reintentar">📸 Enviar otro comprobante</button></div>';
       h += planesHtml(s);
       pantalla('inicio', 'Tu plan Vento', h, function(c){
         c.querySelectorAll('[data-pagar]').forEach(function(b){ b.onclick = function(){ pagarPlan(b.dataset.pagar); }; });
@@ -503,8 +510,13 @@
   function vRevision(j){
     var p = (j && j.payment) || {};
     return function(){
-      var s = estado();
-      if(s.verificado && s.status === 'active' && !s.pago && E.ultimo > ((j && j.t) || 0)){   // ya lo aprobaron
+      var s = estado(), nuevo = s.verificado && E.ultimo > ((j && j.t) || 0);
+      if(nuevo && !s.pago && (s.status === 'rejected' || s.rechazo)){   // lo rechazaron mientras se miraba esta pantalla
+        pantalla('revision', 'Tu plan Vento', '<div class="vs-grande-ic">❌</div><h3 class="vs-centro">Tu pago no fue aprobado</h3><p class="vs-nota vs-centro">Motivo: ' + esc(s.rechazo || 'no se pudo comprobar el pago') + '</p>' +
+          '<div class="vs-acciones"><button type="button" class="btn-primary vs-grande" data-vs="reintentar">📸 Enviar otro comprobante</button><button type="button" class="btn-ghost" data-vs="cerrar">Ahora no</button></div>');
+        return;
+      }
+      if(nuevo && s.status === 'active' && !s.pago){   // ya lo aprobaron
         pantalla('revision', 'Tu plan Vento', '<div class="vs-grande-ic">✅</div><h3 class="vs-centro">¡Tu plan ' + esc(nombrePlan(s.plan)) + ' está activo!</h3><p class="vs-nota vs-centro">Vence el ' + fecha(s.vence) + '.</p><div class="vs-acciones"><button type="button" class="btn-primary vs-grande" data-vs="cerrar">Listo</button></div>');
         return;
       }
@@ -539,17 +551,19 @@
       el.innerHTML = '<div class="lic-plan">Plan del negocio: <b>' + esc(nombrePlan(s.plan)) + '</b></div><div class="settings-desc">Los pagos del plan los maneja el dueño o el administrador del negocio.</div>';
       return;
     }
-    var otra = (s.renovar && !s.pago) || s.status === 'rejected';
+    var rechazado = s.status === 'rejected' || !!s.rechazo, otra = (s.renovar && !s.pago) || rechazado;
     el.innerHTML = tarjetaEstado(s) +
       '<div class="settings-desc">Tu plan es de tu cuenta y de tu negocio: sirve en todos tus celulares, aunque cambies de celular.</div>' +
-      '<div class="mz-actions" style="flex-wrap:wrap">' + (s.renovar && !s.pago ? '<button class="btn-primary" type="button" data-panel="renovar">🔁 RENOVAR</button>' : '') +
-      (s.status === 'rejected' ? '<button class="btn-primary" type="button" data-panel="reintentar">📸 Enviar otro comprobante</button>' : '') +
+      '<div class="mz-actions" style="flex-wrap:wrap">' + (s.renovar && !s.pago && !rechazado ? '<button class="btn-primary" type="button" data-panel="renovar">🔁 RENOVAR</button>' : '') +
+      (rechazado ? '<button class="btn-primary" type="button" data-panel="reintentar">📸 Enviar otro comprobante</button>' : '') +
       '<button class="' + (otra ? 'btn-ghost' : 'btn-primary') + '" type="button" data-panel="planes">💳 Planes y pagos</button></div>';
     el.querySelectorAll('[data-panel]').forEach(function(b){ b.onclick = function(){ var a = b.dataset.panel; if(a === 'renovar') abrirRenovar(); else { abrirPlanes(''); if(a === 'reintentar') reintentar(); } }; });
   }
   function barra(){
     var s = estado(); if(!s.verificado || !s.manda) return { mostrar: false };
     var P = esc(nombrePlan(s.planSub || s.plan));
+    // Renovación rechazada con el plan todavía activo: el motivo va primero (desde ahí se envía otro comprobante).
+    if(s.status === 'active' && s.rechazo) return { mostrar: true, k: 'rechazada', fija: true, html: '<span>❌ Tu pago no fue aprobado: ' + esc(s.rechazo) + '</span><b>Ver ›</b>' };
     if(s.renovar && !s.pago) return { mostrar: true, k: 'renovar', accion: 'renovar', html: '<span>⏰ Tu suscripción vence el ' + fecha(s.vence) + '.</span><b data-sub="renovar">RENOVAR</b><i data-x title="Ocultar">✕</i>' };
     if(s.status === 'payment_review') return { mostrar: true, k: 'revision', html: '<span>⏳ <b>Pago en revisión</b>: te avisamos cuando se active tu plan.</span><b>Ver ›</b><i data-x title="Ocultar">✕</i>' };
     if(s.status === 'rejected') return { mostrar: true, k: 'rechazada', fija: true, html: '<span>❌ Tu pago no fue aprobado' + (s.rechazo ? ': ' + esc(s.rechazo) : '') + '</span><b>Ver ›</b>' };
@@ -565,7 +579,7 @@
     '.vs-cab{display:flex;align-items:center;gap:8px;margin-bottom:12px}.vs-cab h2{flex:1;margin:0;font-size:clamp(15px,4.4vw,19px);line-height:1.2;text-align:center}' +
     '.vs-ic{width:38px;height:38px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:18px;line-height:1;cursor:pointer}' +
     '.vs-estado{border-radius:16px;padding:14px;border:1px solid var(--line);background:var(--surface-2);margin-bottom:12px}.vs-estado b{display:block;font-size:16px;line-height:1.3}' +
-    '.vs-estado small{display:block;color:var(--ink-soft);margin-top:4px;line-height:1.45;font-size:13px}' +
+    '.vs-estado small{display:block;color:var(--ink-soft);margin-top:4px;line-height:1.45;font-size:13px}.vs-estado small.vs-rechazo{color:var(--brick);font-weight:600}' +
     '.vs-estado.ok{border-color:color-mix(in srgb,var(--paid) 55%,var(--line));background:color-mix(in srgb,var(--paid) 10%,var(--surface-2))}' +
     '.vs-estado.esp{border-color:color-mix(in srgb,#f5a524 55%,var(--line));background:color-mix(in srgb,#f5a524 10%,var(--surface-2))}' +
     '.vs-estado.mal{border-color:color-mix(in srgb,var(--brick) 55%,var(--line));background:color-mix(in srgb,var(--brick) 10%,var(--surface-2))}' +

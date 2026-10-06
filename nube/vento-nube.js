@@ -342,6 +342,7 @@
   function accion(btn, fn){ msg(''); ocupado(btn, true); return Promise.resolve().then(fn).catch(function(e){ msg(msgError(e), true); }).then(function(){ ocupado(btn, false); }); }
   function q(id){ return document.getElementById(id); }
 
+  // Ojo: pintar() borra el mensaje; los avisos de «✅ listo» van DESPUÉS de pintar().
   function pintar(){
     var c = q('nubeCuerpo'); if(!c) return; msg('');
     if(!configurada()){
@@ -396,13 +397,13 @@
         box.querySelectorAll('[data-elegir]').forEach(function(b){ b.onclick = function(){
           var n = l[+b.dataset.elegir];
           if(!confirm('Se cargarán en este celular los datos de «' + n.nombre + '» que están en la nube. Lo que hay ahora en este celular se reemplaza (queda un punto de restauración local). ¿Seguir?')) return;
-          accion(b, function(){ return elegir(n).then(function(){ msg('✅ Listo: este celular ya usa «' + n.nombre + '».'); pintar(); entrarApp(); }); });
+          accion(b, function(){ return elegir(n).then(function(){ pintar(); msg('✅ Listo: este celular ya usa «' + n.nombre + '».'); entrarApp(); }); });
         }; });
       }).catch(function(e){ var box = q('nubeLista'); if(box) box.textContent = msgError(e); });
       q('nubeSubirEste').onclick = function(){ var d = datosApp() || {}; var nom = prompt('Nombre del negocio en la nube:', d.businessName || 'Mi negocio'); if(!nom) return;
-        accion(this, function(){ return crearNegocio(nom.trim()).then(function(){ msg('✅ Tu negocio ya está en la nube. Ahora invita a tu equipo.'); pintar(); entrarApp(); }); }); };
+        accion(this, function(){ return crearNegocio(nom.trim()).then(function(){ pintar(); msg('✅ Tu negocio ya está en la nube. Ahora invita a tu equipo.'); entrarApp(); }); }); };
       q('nubeUnirme').onclick = function(){ var cod = q('nubeCodigo').value.trim(); if(!cod) return msg('Escribe el código que te dio el dueño.', true);
-        accion(this, function(){ return unirse(cod, st.nombre).then(function(){ msg('✅ Te uniste a «' + st.negocio.nombre + '».'); pintar(); entrarApp(); }); }); };
+        accion(this, function(){ return unirse(cod, st.nombre).then(function(){ pintar(); msg('✅ Te uniste a «' + st.negocio.nombre + '».'); entrarApp(); }); }); };
       q('nubeSalir').onclick = function(){ accion(this, function(){ return salir().then(pintar); }); };
       return;
     }
