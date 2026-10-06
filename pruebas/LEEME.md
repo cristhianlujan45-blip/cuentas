@@ -16,6 +16,7 @@ el micrófono, la APK y los servicios externos se simulan.
 | `tvocupado` | Conectarse al TV aunque otro celular ya esté conectado |
 | `esc` | Computador: Enter abre la mesa, Esc la cierra, ancho de pantalla grande |
 | `pasos` | Tarjeta «Primeros pasos» para negocios nuevos |
+| `servidor` | Servidor de suscripciones con PostgreSQL 16 real (sin navegador): prueba gratis, pago Nequi/DaviPlata con comprobante, revisión y aprobación del admin (también dos a la vez), renovación, rechazo, vencimiento y cron, duplicados, token firmado, RLS y permisos. Está en `servidor/suscripciones.test.js` |
 
 ## Cómo correrlas
 
@@ -30,6 +31,10 @@ bash pruebas/correr.sh hola pasos # solo algunas
 
 El script levanta un servidor local en el puerto 8765 si no hay uno. Al final dice
 «✅ Todas las pruebas pasaron» o cuál falló.
+
+La prueba `servidor` necesita PostgreSQL 16 (si no está instalado se omite y lo avisa). Crea su propia base
+desechable con todas las migraciones y la borra al terminar. El mismo «Supabase local» sirve para las pruebas
+del navegador que usan Vento Nube: ver `servidor/LEEME.md`.
 
 Regla del equipo: **antes de publicar un cambio, correr todas las pruebas.**
 Las pruebas del panel de Administrador no están aquí porque usan el código personal del proveedor.

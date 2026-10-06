@@ -126,3 +126,38 @@ La llave de cifrado se deriva sola de la llave de servicio del proyecto.
   - se registra **una sola vez** en la mesa;
   - un aviso de DaviPlata se recupera al reconectarse.
 - **Revisión de tipos:** `deno check` y `deno lint` sin errores.
+
+## Suscripciones de Vento (beta, `functions/vento-suscripciones`)
+
+Cobro de la suscripción de **Vento** a cada negocio (no confundir con `pagos`, que son cobros a los clientes del negocio).
+La suscripción es de la **cuenta + el negocio** (`negocios.id`), una sola fila por negocio, y el plan lo decide **siempre el
+servidor**: la app consulta `POST /estado` y recibe un token firmado (ECDSA P-256, llave en `servidor_config` → `sub_firma`,
+se crea sola) que le sirve sin internet hasta 72 h.
+
+- **Migración** `20261005000000_suscripciones.sql`: `plans` (única fuente de precios), `entitlements`, `plan_entitlements`,
+  `billing_config`, `platform_admins`, `subscriptions`, `payment_records`, `payment_proofs`, `payment_events` y el bucket
+  privado `comprobantes`. RLS en todo; solo las funciones `srv_*` (servidor) escriben.
+- **Flujo beta:** prueba gratis automática (PRO, `trial_days`) → la persona paga por Nequi o DaviPlata al número de Vento y
+  envía la foto del comprobante (`POST /pago`) → queda **en revisión** (no activa nada) → un proveedor de Vento la aprueba o
+  rechaza en el panel (`/admin/*`). Aprobar suma `interval '1 month'` desde hoy, o desde el vencimiento actual si es una
+  renovación. Vencimiento al consultar y con el cron `/vencer` cada 10 minutos.
+- **Anti-duplicados:** misma idempotencia → mismo pago; la misma referencia (por método) o la misma foto (sha256) no sirven
+  para dos pagos vigentes; un solo pago en revisión por negocio; aprobar bloquea la fila (dos administradores a la vez →
+  una sola activación). La foto se sube primero y el pago se guarda con su comprobante en una sola transacción: si Storage
+  falla no se crea el pago.
+- **Medios de pago:** interfaz `PaymentProvider` (`proveedores/`): `manual` (ahora) y `google_play` (solo arquitectura:
+  responde 501 hasta que exista `GOOGLE_PLAY_PACKAGE` + `GOOGLE_PLAY_SERVICE_ACCOUNT` y `beta_mode = false`).
+- **Administradores:** usuarios en `platform_admins`, o cuyo correo (confirmado) esté en el secreto opcional
+  `VENTO_ADMIN_EMAILS` (GitHub → Secrets → `VENTO_ADMIN_EMAILS`, separados por comas): entran solos la primera vez.
+- **Otros servicios** pueden hacer cumplir el plan con `negocio_tiene(negocio, 'voice' | 'ai_camera' | …)`.
+
+| Ruta | Quién | Para qué |
+|---|---|---|
+| `GET /planes`, `GET /clave`, `GET /salud` | cualquiera | Catálogo y números de pago; llave pública del token. |
+| `POST /estado` | cualquier miembro | Plan efectivo, funciones, pago pendiente/último, aviso de renovación y token firmado. |
+| `POST /pago` | dueño o administrador | Pago con comprobante (JPEG/PNG/WebP ≤ 3 MB). |
+| `POST /admin/…` | administrador de Vento | `yo`, `pagos`, `comprobante`, `aprobar`, `rechazar`, `suscripciones`, `negocios`, `negocio`, `cancelar`, `cambiar_plan`, `dar`, `planes`, `plan_guardar`, `config_guardar`. |
+| `POST /vencer` | `X-Vento-Cron` | Vence las suscripciones con fecha pasada. |
+| `POST /google-play/rtdn` | — | 501 mientras sea beta. |
+
+Pruebas: `node pruebas/servidor/suscripciones.test.js` (141 casos contra PostgreSQL 16 real con `pruebas/servidor/supabase-local.js`).

@@ -1,4 +1,4 @@
-# Servidor Vento: despliega la base de datos y el servidor de pagos (Nequi y DaviPlata) en Supabase.
+# Servidor Vento: despliega la base de datos, el servidor de pagos (Nequi y DaviPlata) y el de suscripciones en Supabase.
 #
 # Una sola autorización del dueño (Settings → Secrets and variables → Actions → New repository secret):
 #   SUPABASE_ACCESS_TOKEN  token de tu cuenta de Supabase (Account → Access Tokens)
@@ -14,7 +14,7 @@ on:
       - "supabase/**"
       - ".github/workflows/servidor-vento.yml"
   schedule:
-    - cron: "*/10 * * * *"   # repaso de cobros pendientes (además del webhook y de los celulares abiertos)
+    - cron: "*/10 * * * *"   # repaso de cobros pendientes y vencimiento de suscripciones (además del webhook y de los celulares abiertos)
 
 permissions:
   contents: write
@@ -149,6 +149,25 @@ jobs:
           echo "::error title=Servidor Vento::La función se desplegó pero no responde todavía. Vuelve a correr este flujo en unos minutos."
           exit 1
 
+      - name: Suscripciones de Vento (Edge Function vento-suscripciones)
+        if: steps.listo.outputs.ok == 'true'
+        continue-on-error: true   # es nueva (beta): si falla, avisa pero no frena el resto del despliegue
+        env:
+          ADMINS: ${{ secrets.VENTO_ADMIN_EMAILS }}
+        run: |
+          # Opcional: correos de los proveedores de Vento que aprueban pagos (separados por comas).
+          if [ -n "$ADMINS" ]; then
+            supabase secrets set --project-ref "$PROJECT_REF" VENTO_ADMIN_EMAILS="$ADMINS" >/dev/null && echo "✅ Administradores de suscripciones guardados (no se muestran)."
+          else
+            echo "::notice title=Suscripciones::Agrega el secreto VENTO_ADMIN_EMAILS (tu correo de Vento Nube) para aprobar pagos desde el panel de administración."
+          fi
+          supabase functions deploy vento-suscripciones --project-ref "$PROJECT_REF" --no-verify-jwt
+          for i in 1 2 3 4 5 6; do
+            if R=$(curl -fsS "https://${PROJECT_REF}.supabase.co/functions/v1/vento-suscripciones/salud"); then echo "Suscripciones: $R"; exit 0; fi
+            sleep 10
+          done
+          echo "::warning title=Suscripciones::La función se desplegó pero no responde todavía."
+
       - name: Conectar todos los celulares (nube/config.js)
         if: steps.listo.outputs.ok == 'true'
         run: |
@@ -185,3 +204,10 @@ jobs:
           CRON=$(printf '%s' "vento-cron:${PROJECT_REF}:${SUPABASE_DB_PASSWORD}" | sha256sum | cut -c1-48)
           curl -fsS -X POST -H "x-vento-cron: $CRON" -H "content-type: application/json" -d '{}' \
             "https://${PROJECT_REF}.supabase.co/functions/v1/vento-pagos/sync" || echo "El servidor no respondió (se reintenta en 10 minutos)."
+
+      - name: Vencer suscripciones con fecha pasada
+        run: |
+          if [ -z "$PROJECT_REF" ] || [ -z "$SUPABASE_DB_PASSWORD" ]; then echo "Sin autorizar todavía."; exit 0; fi
+          CRON=$(printf '%s' "vento-cron:${PROJECT_REF}:${SUPABASE_DB_PASSWORD}" | sha256sum | cut -c1-48)
+          curl -fsS -X POST -H "x-vento-cron: $CRON" -H "content-type: application/json" -d '{}' \
+            "https://${PROJECT_REF}.supabase.co/functions/v1/vento-suscripciones/vencer" || echo "El servidor no respondió (se reintenta en 10 minutos)."

@@ -1,7 +1,7 @@
 {
   "name": "vento-pruebas",
   "private": true,
-  "description": "Pruebas automáticas de Vento (navegador sin ventana)",
+  "description": "Pruebas automáticas de Vento (navegador sin ventana + servidor con PostgreSQL real)",
   "scripts": { "test": "bash correr.sh" },
-  "devDependencies": { "playwright": "^1.47.0" }
+  "devDependencies": { "playwright": "^1.47.0", "pg": "^8.23.1", "@supabase/supabase-js": "^2.117.2" }
 }
