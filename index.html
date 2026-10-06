@@ -16822,6 +16822,7 @@ window.fxSet = fxSet;
 function applyEasyMode(){
   const on = !!(data && data.easyMode);
   document.body.classList.toggle('easy-mode', on);
+  try{ window.ventoFacil && window.ventoFacil.aplicar(); }catch(x){}   // la cáscara Vender / Hoy / Más (lib/vento-pos.js)
   const cb = document.getElementById('easyModeToggle');
   if(!cb) return;
   cb.checked = on;
@@ -16829,6 +16830,8 @@ function applyEasyMode(){
     data.easyMode = e.target.checked;
     document.body.classList.toggle('easy-mode', data.easyMode);
     try{ window.libretaFab && window.libretaFab(); }catch(x){}
+    try{ window.ventoFacil && window.ventoFacil.aplicar(); }catch(x){}
+    if(data.easyMode) showToast('🧓 Modo fácil prendido. Para volver a la app completa: «⋯ Más» → «Salir del modo fácil».', 6000);
     await saveData();
   };
 }
@@ -27396,7 +27399,7 @@ window.mesoraCelebrar = function(emojis){
   function defFunciones(tipo){ const fun = tipoDe(tipo).fun, o = {}; FUNCIONES.forEach(f => { o[f[0]] = f[4] === '*' || fun.includes(f[4]); }); return o; }
   // Modo de trabajo por defecto: las tiendas venden por caja (sin mesas); las que fían por cliente (distribuidora…) usan las dos.
   const MODOS = [['restaurante', '🍽️', 'Con mesas', 'Cada uno tiene su cuenta'], ['tienda', '🏪', 'Caja rápida', 'Buscas, cobras y listo'], ['mixto', '🔀', 'Las dos', 'Caja arriba y cuentas abajo']];
-  function modoDe(tipo){ const t = tipoDe(tipo); return t.fam !== 'tienda' ? 'restaurante' : (t.esp && t.esp[0] !== 'Cuenta' ? 'mixto' : 'tienda'); }
+  function modoDe(tipo){ try{ return window.ventoPOS.modoPorTipo(tipo); }catch(e){ const t = tipoDe(tipo); return t.fam !== 'tienda' ? 'restaurante' : (t.esp && t.esp[0] !== 'Cuenta' ? 'mixto' : 'tienda'); } }
   async function aplicar(){
     const cambioTipo = data.businessType !== st.tipo;
     data.businessType = st.tipo; data.businessName = st.nombre;
@@ -27467,12 +27470,14 @@ window.mesoraCelebrar = function(emojis){
   const fem = () => { try{ return espacio()[3] !== 'm'; }catch(e){ return true; } };
   function hayVentas(){ try{ return (data.history || []).length > 0; }catch(e){ return false; } }
   function hayAbierta(){ try{ return Object.keys(data.tables || {}).some(id => (data.tables[id].items || []).length); }catch(e){ return false; } }
+  // Modo tienda (lib/vento-pos.js): se vende en la caja, no abriendo cuentas.
+  function enCaja(){ try{ return !!window.ventoPOS && window.ventoPOS.modo() === 'tienda'; }catch(e){ return false; } }
   function pasos(){
     return [
       { k: 'config', ic: '🧭', t: 'Configura tu negocio', d: 'Nombre, tipo y lo que vas a usar.', ok: () => { try{ return !!data.onboarding; }catch(e){ return false; } }, ir: () => window.ventoBienvenida && window.ventoBienvenida(false) },
       { k: 'productos', ic: '📦', t: 'Revisa tus productos y precios', d: 'Agrega los tuyos o cárgalos con la foto de una factura.', ok: () => ls.get(K_HECHO + 'productos') === '1', ir: () => { const b = document.querySelector('nav button[data-view="productos"]'); if(b) b.click(); } },
-      { k: 'abrir', ic: '📝', t: 'Abre ' + (fem() ? 'tu primera ' : 'tu primer ') + sg(), d: 'Tócala y agrega lo que piden.', ok: () => hayAbierta() || hayVentas(), ir: () => { const t = document.querySelector('#tableGrid .ticket'); if(t){ t.scrollIntoView({ block: 'center', behavior: 'smooth' }); t.classList.add('pp-pulso'); setTimeout(() => t.classList.remove('pp-pulso'), 2400); } } },
-      { k: 'cobrar', ic: '💵', t: 'Cobra tu primera venta', d: 'Efectivo, transferencia o queda debiendo.', ok: hayVentas, ir: () => { const t = [...document.querySelectorAll('#tableGrid .ticket.open')][0] || document.querySelector('#tableGrid .ticket'); if(t) t.click(); } },
+      { k: 'abrir', ic: '📝', t: enCaja() ? 'Vende tu primer producto' : 'Abre ' + (fem() ? 'tu primera ' : 'tu primer ') + sg(), d: enCaja() ? 'Toca un producto en la caja: se suma a la venta.' : 'Tócala y agrega lo que piden.', ok: () => hayAbierta() || hayVentas(), ir: () => { if(enCaja()) return window.ventoPOS.enfocar(); const t = document.querySelector('#tableGrid .ticket'); if(t){ t.scrollIntoView({ block: 'center', behavior: 'smooth' }); t.classList.add('pp-pulso'); setTimeout(() => t.classList.remove('pp-pulso'), 2400); } } },
+      { k: 'cobrar', ic: '💵', t: 'Cobra tu primera venta', d: 'Efectivo, transferencia o queda debiendo.', ok: hayVentas, ir: () => { if(enCaja()) return window.ventoPOS.enfocar(); const t = [...document.querySelectorAll('#tableGrid .ticket.open')][0] || document.querySelector('#tableGrid .ticket'); if(t) t.click(); } },
       { k: 'voz', ic: '🎙️', t: 'Prueba la voz', d: 'Di «Hola Vento, ' + sg() + ' 1, dos gaseosas».', ok: () => ls.get(K_HECHO + 'voz') === '1', ir: () => { if(typeof startVoiceCommand === 'function') startVoiceCommand(false); } }
     ];
   }
