@@ -159,13 +159,16 @@ const b64u = s => Buffer.from(s).toString('base64url');
       await p.click('#tableGrid .ticket >> nth=0');
       await p.click('#addProductSearch'); await p.fill('#addProductSearch', buscar);
       await p.click('#addProductSuggestions .product-suggestion-item >> nth=0');
-      await p.click('#qtyPlusBtn'); await p.click('#qtyPlusBtn'); await p.click('#addItemBtn');
+      await p.click('#qtyPlusBtn'); await p.click('#qtyPlusBtn');
+      // La cantidad que muestra el contador (al elegir el producto arranca en 1 desde 1.30) es la que debe quedar en la mesa.
+      const pedida = +(await p.inputValue('#addQty'));
+      await p.click('#addItemBtn');
       const enMesa = await p.evaluate(() => (data.tables[1].items || []).reduce((s, i) => s + (i.qty || 0), 0));
       await p.click('#chargeBtn');
       if(await p.waitForSelector('button[data-v="0"]', { timeout: 600 }).then(() => true, () => false)) await p.click('button[data-v="0"]');   // propina (si está activada)
       await p.click('button[data-m="efectivo"]');
       const cobro = await esperar(p, h => data.history.length > h, h0, 6000);
-      return Object.assign({ enMesa, cobro }, await p.evaluate(() => ({ h: data.history.length, total: (data.history[0] || {}).total, debe: (data.history[0] || {}).debt, libre: !(data.tables[1].items || []).length })));
+      return Object.assign({ enMesa, pedida, cobro }, await p.evaluate(() => ({ h: data.history.length, total: (data.history[0] || {}).total, debe: (data.history[0] || {}).debt, libre: !(data.tables[1].items || []).length })));
     }
     // ENVÍA TU COMPROBANTE: foto de la galería + datos.
     async function llenarComprobante(p, foto, ref, nombre, tel){
@@ -207,7 +210,7 @@ const b64u = s => Buffer.from(s).toString('base64url');
     // 2. Plan Gratis: vender funciona; el micrófono es PRO
     // =====================================================================
     let v = await vender(pA, 'Aguila');
-    chk('2. Gratis: agregar a la mesa y cobrar en efectivo (queda en el historial y la mesa libre)', v.enMesa === 2 && v.cobro && v.total > 0 && v.debe === 0 && v.libre, v);
+    chk('2. Gratis: agregar a la mesa y cobrar en efectivo (queda en el historial y la mesa libre)', v.enMesa === v.pedida && v.pedida >= 2 && v.cobro && v.total > 0 && v.debe === 0 && v.libre, v);
     let mic = await microfono(pA);
     chk('2. Gratis: el micrófono NO se abre y sale «Función PRO» con [Ver planes]', !mic.abrio && mic.pro && /Función PRO/.test(mic.texto) && /Ver planes/.test(mic.texto), mic);
     await captura(pA, '2-funcion-pro');
@@ -417,7 +420,7 @@ const b64u = s => Buffer.from(s).toString('base64url');
     chk('8. Vencido: el micrófono abre «Función PRO» («venció»)', !mic.abrio && mic.pro && /venció/.test(mic.texto), mic);
     await pA.click('#vsOv [data-vs="cerrar"]');
     v = await vender(pA, 'Heineken');
-    chk('8. Vencido: SIGUE vendiendo (mesa → cobrar)', v.enMesa === 2 && v.cobro && v.debe === 0 && v.libre, v);
+    chk('8. Vencido: SIGUE vendiendo (mesa → cobrar)', v.enMesa === v.pedida && v.pedida >= 2 && v.cobro && v.debe === 0 && v.libre, v);
     await pA.evaluate(() => subAplicar());
     t = await barra(pA);
     chk('8. Barra: «Tu plan PRO venció» con RENOVAR', /PRO venció/.test(t) && /RENOVAR/.test(t), t);
