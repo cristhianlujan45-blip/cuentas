@@ -152,6 +152,17 @@ El nombre elegido aparece en el menú, los títulos, los avisos y en Laya. La co
   - En iPhone se intenta abrir la app y, si no abre, se usa la web.
   - En esta modalidad el tiempo es aproximado, porque esa app no informa el avance.
 
+## Suscripciones (beta: pago manual por Nequi y DaviPlata)
+
+Con el negocio en **Vento Nube**, la suscripción es de la cuenta + el negocio (no del celular) y la decide el servidor
+(`supabase/functions/vento-suscripciones`): planes Gratis y PRO, prueba gratis, pago por Nequi/DaviPlata con foto del
+comprobante, aprobación desde **Vento Admin → 💳 Suscripciones**, vencimiento y renovación. Las funciones de cada
+plan (voz, lectura de facturas, estadísticas, equipo…) llegan a la app en un token firmado por el servidor.
+Sin Vento Nube sigue el sistema anterior (prueba local + código de activación).
+
+- Cómo cobrar, aprobar, renovar, cancelar y cambiar planes: [BETA_BILLING.md](BETA_BILLING.md)
+- Qué queda listo para Google Play Billing: [FUTURE_GOOGLE_PLAY.md](FUTURE_GOOGLE_PLAY.md)
+
 ## Todo corre en GitHub (y qué queda de Netlify)
 
 La app, la página de pedidos, la preparación, el TV, los meseros y los QR nuevos salen de **GitHub Pages**. La app no tiene ninguna referencia a Netlify.
@@ -183,6 +194,8 @@ Así el QR físico sigue funcionando sin reimprimirlo.
 ## Seguridad
 
 - No hay claves privadas en el frontend. La clave de Laya vive como secreto del Worker.
+- La llave que firma el APK **no** está en el repositorio: sale de los secretos `VENTO_KEYSTORE_B64` y `VENTO_KS_PASS` (ver `android/LEEME.md` → Firma).
+- La base de datos de producción solo se despliega desde la rama principal (`.github/workflows/servidor-vento.yml`).
 - La clave de navegador de YouTube Data API que trae la app debe estar restringida por referente HTTP a `cristhianlujan45-blip.github.io` en Google Cloud.
 - Los archivos subidos se validan por tipo (imagen o PDF), tamaño (15 MB) y cantidad (10). Los textos se muestran escapados.
 - `puente/youtube-tv-worker.js` usa el sistema de "Vincular con código de TV" de YouTube. No es una API pública documentada, así que puede dejar de funcionar si YouTube lo cambia. Las demás opciones de música (`tv.html` y el reproductor de la app) usan solo la YouTube IFrame Player API oficial.
