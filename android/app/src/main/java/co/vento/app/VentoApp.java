@@ -122,6 +122,11 @@ public class VentoApp extends Application {
     private long vozInicio = 0;
     private boolean vozHablo = false;
     private int vozReintentos = 0;
+    // Cada escucha lleva su número: los avisos tardíos de una escucha ya cancelada (llegan después de abrir la
+    // siguiente) se ignoran. Antes uno de esos «error» tardíos se tomaba como fallo de la escucha NUEVA y la app
+    // reintentaba con espera: era parte de la demora de «Abriendo el micrófono…».
+    private int vozSesion = 0;
+    private boolean vozActiva = false;      // hay una escucha abierta en el reconocedor
 
     void iniciarVoz() {
         vozPendiente = false;
@@ -137,14 +142,19 @@ public class VentoApp extends Application {
         if (nuevo || voz == null) {
             try { if (voz != null) voz.destroy(); } catch (Exception ignorado) { }
             voz = SpeechRecognizer.createSpeechRecognizer(this);
-        } else {
+        } else if (vozActiva) {
+            // Solo se cancela si de verdad hay una escucha abierta: cancelar justo antes de volver a escuchar
+            // es lo que hace que Android responda «ocupado».
             try { voz.cancel(); } catch (Exception ignorado) { }
         }
+        vozActiva = false;
+        final int sesion = ++vozSesion;
         vozInicio = System.currentTimeMillis();
         vozHablo = false;
         voz.setRecognitionListener(new RecognitionListener() {
-            @Override public void onReadyForSpeech(android.os.Bundle b) { js("window.__ventoVoz&&window.__ventoVoz('start',{})"); }
-            @Override public void onBeginningOfSpeech() { vozHablo = true; }
+            private boolean vieja() { return sesion != vozSesion; }
+            @Override public void onReadyForSpeech(android.os.Bundle b) { if (vieja()) return; js("window.__ventoVoz&&window.__ventoVoz('start',{})"); }
+            @Override public void onBeginningOfSpeech() { if (vieja()) return; vozHablo = true; }
             @Override public void onRmsChanged(float v) { }
             @Override public void onBufferReceived(byte[] b) { }
             @Override public void onEndOfSpeech() { }
@@ -152,15 +162,18 @@ public class VentoApp extends Application {
 
             @Override
             public void onError(int error) {
+                if (vieja()) return;
+                vozActiva = false;
                 long dura = System.currentTimeMillis() - vozInicio;
                 boolean arranque = dura < 2500 && error != SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS;
                 boolean sinOir = !vozHablo && (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY);
                 if (vozReintentos < 2 && (arranque || sinOir) && dura < 9000) {
                     vozReintentos++;
                     // Primer tropiezo: se vuelve a pedir con el MISMO reconocedor (crearlo de nuevo es lo que tarda y
-                    // hace perder lo que se dice); solo si vuelve a fallar se crea uno nuevo.
+                    // hace perder lo que se dice); solo si vuelve a fallar se crea uno nuevo. «Ocupado» se vuelve a
+                    // intentar enseguida (150 ms; antes 450): Android suele liberarse en menos de eso.
                     final boolean recrear = vozReintentos >= 2 && (error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_SERVER);
-                    ui.postDelayed(() -> escucharVoz(recrear), error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY ? 450 : 200);
+                    ui.postDelayed(() -> { if (sesion == vozSesion) escucharVoz(recrear); }, error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY ? 150 : 120);
                     return;
                 }
                 String e;
@@ -179,10 +192,12 @@ public class VentoApp extends Application {
                 js("window.__ventoVoz&&window.__ventoVoz('error',{error:" + q(e) + "});window.__ventoVoz&&window.__ventoVoz('end',{})");
             }
 
-            @Override public void onPartialResults(android.os.Bundle b) { vozHablo = true; mandarResultados(b, false); }
+            @Override public void onPartialResults(android.os.Bundle b) { if (vieja()) return; vozHablo = true; mandarResultados(b, false); }
 
             @Override
             public void onResults(android.os.Bundle b) {
+                if (vieja()) return;
+                vozActiva = false;
                 mandarResultados(b, true);
                 js("window.__ventoVoz&&window.__ventoVoz('end',{})");
             }
@@ -197,9 +212,9 @@ public class VentoApp extends Application {
         i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1800L);
         i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L);
         i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1200L);
-        try { voz.startListening(i); }
+        try { voz.startListening(i); vozActiva = true; }
         catch (Exception e) {
-            if (vozReintentos < 2) { vozReintentos++; ui.postDelayed(() -> escucharVoz(true), 350); return; }
+            if (vozReintentos < 2) { vozReintentos++; ui.postDelayed(() -> { if (sesion == vozSesion) escucharVoz(true); }, 200); return; }
             js("window.__ventoVoz&&window.__ventoVoz('error',{error:'aborted'});window.__ventoVoz&&window.__ventoVoz('end',{})");
         }
     }
@@ -689,7 +704,10 @@ public class VentoApp extends Application {
         @JavascriptInterface
         public void vozCancelar() {
             ui.post(() -> {
-                try { if (voz != null) voz.cancel(); } catch (Exception ignorado) { }
+                // La escucha cancelada ya no avisa nada (ni reintenta): su único «terminé» es este.
+                vozSesion++;
+                try { if (voz != null && vozActiva) voz.cancel(); } catch (Exception ignorado) { }
+                vozActiva = false;
                 js("window.__ventoVoz&&window.__ventoVoz('end',{})");
             });
         }

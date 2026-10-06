@@ -18,28 +18,94 @@
   // Dictado por voz: misma forma que SpeechRecognition del navegador (onresult, isFinal, alternativas…)
   var activo = null;
   function SR(){ this.lang = 'es-CO'; this.continuous = false; this.interimResults = false; this.maxAlternatives = 1; this.onresult = this.onerror = this.onend = this.onstart = null; this._fin = []; }
-  SR.prototype.start = function(){ if(activo && activo !== this){ try{ activo._vivo = false; }catch(e){} } activo = this; this._fin = []; this._vivo = true; A.vozIniciar(this.lang || 'es-CO', !!this.interimResults, !!this.continuous); };
-  SR.prototype.stop = function(){ try{ A.vozParar(); }catch(e){} };
+  /* Pasar el micrófono abierto: «Hola Vento» deja escuchando el reconocedor de Android casi todo el tiempo. Antes, al
+     tocar 🎤 se cancelaba esa escucha y se abría otra enseguida; Android todavía estaba soltando la anterior, respondía
+     «ocupado» y la app reintentaba (450 ms, luego creaba otro reconocedor): 1–3 s de «Abriendo el micrófono…».
+     Ahora, si la escucha ya está abierta, ceder() la suelta SIN cerrarla y el próximo start() la toma al instante. */
+  var libre = null, libreT = 0;
+  function palabras(t){ var x = String(t || '').toLowerCase(); try{ x = x.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }catch(e){} return x.replace(/[^a-z0-9ñ\s]/g, ' ').split(/\s+/).filter(Boolean); }
+  // Android repite en cada resultado todo lo oído en la escucha: se quita lo que se oyó ANTES de tocar el botón.
+  function sinPrevio(alts, previo){
+    var pv = palabras(previo); if(!pv.length) return alts;
+    var out = [];
+    alts.forEach(function(a){
+      var w = String(a.t || '').trim().split(/\s+/), n = 0;
+      while(n < w.length && n < pv.length && palabras(w[n])[0] === pv[n]) n++;
+      var t = w.slice(n).join(' ').trim(); if(t) out.push({ t: t, c: a.c });
+    });
+    return out;
+  }
+  SR.prototype.start = function(){
+    if(activo && activo !== this){ try{ activo._vivo = false; }catch(e){} }
+    activo = this; this._fin = []; this._vivo = true; this._parado = false; this._oyo = false; this._ultimo = null; this._reabrir = false;
+    var l = libre; libre = null; clearTimeout(libreT);
+    if(l && l.lang === (this.lang || 'es-CO') && l.parcial === !!this.interimResults){
+      // El micrófono ya está escuchando: se toma tal cual (sin cerrarlo ni volverlo a abrir).
+      var me = this; me._tomada = Date.now(); me._previo = l.previo; me._listo = true;
+      setTimeout(function(){ if(activo === me && me._vivo) me.onstart && me.onstart({}); }, 0);
+      return;
+    }
+    this._tomada = 0; this._previo = null; this._listo = false;
+    A.vozIniciar(this.lang || 'es-CO', !!this.interimResults, !!this.continuous);
+  };
+  SR.prototype.stop = function(){ this._parado = true; try{ A.vozParar(); }catch(e){} };
   // Cancelar: el aviso de «terminé» que manda Android después es de ESTA escucha; si llegara a la siguiente
   // (p. ej. «Hola Vento» suelta el micrófono y enseguida se toca el botón) la cortaría. Se descarta.
   var finesIgnorar = 0;
   SR.prototype.abort = function(){ var me = this; if(activo !== me) return; activo = null; me._vivo = false; finesIgnorar++; try{ A.vozCancelar(); }catch(e){ finesIgnorar--; } setTimeout(function(){ me.onend && me.onend({}); }, 0); };
+  SR.prototype.ceder = function(){
+    var me = this; if(activo !== me) return;
+    if(!me._listo || !me._vivo){ me.abort(); return; }          // todavía abriendo o ya terminando: como antes
+    activo = null; me._vivo = false;
+    libre = { lang: me.lang || 'es-CO', parcial: !!me.interimResults, previo: me._ultimo };
+    clearTimeout(libreT);
+    // Si nadie la toma enseguida, se cierra como siempre.
+    libreT = setTimeout(function(){ if(!libre) return; libre = null; finesIgnorar++; try{ A.vozCancelar(); }catch(e){ finesIgnorar--; } }, 600);
+    setTimeout(function(){ me.onend && me.onend({}); }, 0);
+  };
   SR.prototype.addEventListener = function(t, f){ this['on' + t] = f; };
   function lista(arr){ arr.item = function(i){ return this[i]; }; return arr; }
+  // Escucha tomada que se acaba sin haber oído nada del comando (Android la cierra por silencio, o ya venía
+  // cerrándose): se vuelve a abrir sola, sin «No escuché nada».
+  function reabrir(r){ return r._tomada && !r._oyo && !r._parado && r._vivo && Date.now() - r._tomada < 8000; }
   window.__ventoVoz = function(tipo, d){
     if(tipo === 'end' && finesIgnorar > 0){ finesIgnorar--; return; }
-    var r = activo; if(!r) return;
-    if(tipo === 'start'){ r.onstart && r.onstart({}); return; }
+    var r = activo;
+    if(!r){
+      // Escucha abierta sin dueño (cedida): se lleva la cuenta de lo oído; si se cierra, ya no hay nada que tomar.
+      if(libre){ if(tipo === 'result' && d && d.alts && d.alts[0]) libre.previo = d.alts[0].t; else if(tipo === 'error' || tipo === 'end'){ libre = null; clearTimeout(libreT); } }
+      return;
+    }
+    if(tipo === 'start'){ r._listo = true; r.onstart && r.onstart({}); return; }
     if(tipo === 'result'){
-      var res = lista((d.alts || []).map(function(a){ return { transcript: a.t, confidence: a.c }; })); res.isFinal = !!d.final;
+      var alts = (d && d.alts) || [];
+      if(r._tomada){
+        // Lo que llega apenas se tomó la escucha se dijo ANTES del toque: no es parte del comando.
+        if(!r._oyo && Date.now() - r._tomada < 350){ if(d.final) r._reabrir = true; else if(alts[0]) r._previo = alts[0].t; return; }
+        if(r._previo){ alts = sinPrevio(alts, r._previo); if(!alts.length){ if(d.final && !r._oyo) r._reabrir = true; return; } }
+      }
+      if(alts[0]){ r._oyo = true; r._ultimo = alts[0].t; }
+      var res = lista(alts.map(function(a){ return { transcript: a.t, confidence: a.c }; })); res.isFinal = !!d.final;
       var todos;
       if(d.final){ r._fin.push(res); todos = lista(r._fin.slice()); }
       else { todos = lista(r._fin.slice().concat([res])); }
       r.onresult && r.onresult({ results: todos, resultIndex: todos.length - 1 });
       return;
     }
-    if(tipo === 'error'){ r.onerror && r.onerror({ error: d && d.error }); return; }
-    if(tipo === 'end'){ if(!r._vivo && r._finAvisado) return; r._vivo = false; r._finAvisado = true; if(activo === r) activo = null; r.onend && r.onend({}); setTimeout(function(){ r._finAvisado = false; }, 0); }
+    if(tipo === 'error'){
+      r._listo = false;
+      if(reabrir(r) && !(d && /not-allowed/.test(d.error || ''))){ r._reabrir = true; return; }
+      r.onerror && r.onerror({ error: d && d.error }); return;
+    }
+    if(tipo === 'end'){
+      if(r._reabrir || reabrir(r)){
+        if(r._vivo && !r._parado){
+          r._reabrir = false; r._tomada = 0; r._previo = null; r._listo = false; r._fin = [];
+          try{ A.vozIniciar(r.lang || 'es-CO', !!r.interimResults, !!r.continuous); return; }catch(e){}
+        }
+      }
+      if(!r._vivo && r._finAvisado) return; r._vivo = false; r._finAvisado = true; if(activo === r) activo = null; r.onend && r.onend({}); setTimeout(function(){ r._finAvisado = false; }, 0);
+    }
   };
   window.SpeechRecognition = window.webkitSpeechRecognition = SR;
   // El reconocedor queda listo desde que abre la app: así la PRIMERA vez que se toca el micrófono ya escucha.
@@ -3080,6 +3146,85 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
 #loyaltyRow[hidden]{ display:none !important; }
 #loyaltyRow input{ min-width:0; flex:1 1 0; background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; font-size:14px; }
 .modal h2{ overflow-wrap:anywhere; }
+/* ---------- Panel de la mesa (1.30): primero buscar y agregar productos; lo demás, discreto ---------- */
+/* Nombre e iconos en la primera línea; el estado debajo, a todo lo ancho */
+#overlay .mesa-head{ display:grid; grid-template-columns:minmax(0, 1fr) auto; align-items:center; column-gap:8px; margin:0 0 12px; }
+#overlay .mesa-head-t{ display:contents; }
+#overlay .mesa-head h2{ grid-column:1; grid-row:1; min-width:0; font-size:22px; line-height:1.2; }
+#overlay .mesa-head .modal-sub{ grid-column:1 / -1; grid-row:2; margin:2px 0 0; font-size:13px; }
+#overlay .mesa-acts{ grid-column:2; grid-row:1; display:flex; align-items:center; gap:2px; margin-right:-6px; }
+#overlay .mesa-ico{ display:grid; place-items:center; width:34px; height:34px; min-width:34px; min-height:0; padding:0; border-radius:50%; border:1px solid transparent; background:transparent; color:var(--ink-soft); cursor:pointer; opacity:.8; }
+#overlay .mesa-ico svg{ width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+#overlay .mesa-ico:hover, #overlay .mesa-ico:focus-visible{ opacity:1; color:var(--ink); border-color:var(--line); background:var(--surface); }
+#overlay .mesa-ico.on{ opacity:1; color:var(--cream); border-color:color-mix(in srgb, var(--amber) 55%, var(--line)); }
+#overlay .mesa-ico[hidden]{ display:none; }
+body.easy-mode #overlay .mesa-ico{ min-height:0; width:38px; height:38px; }
+#overlay #grupoBar:empty{ display:none; }
+#overlay .mesa-buscar{ margin:0 0 14px; padding:12px; border:1px solid color-mix(in srgb, var(--amber) 32%, var(--line)); border-radius:18px; background:color-mix(in srgb, var(--amber) 7%, var(--surface)); box-shadow:0 8px 22px rgba(0,0,0,.18); }
+#overlay .mesa-buscar .add-row:has(.product-search-wrap){ margin:0; padding:0; border:0; border-radius:0; background:none; gap:10px; }
+#overlay .mesa-buscar .product-search-wrap input[type=text]{ height:54px; padding:0 54px 0 44px; border-width:2px; font-size:16px; font-weight:600; background-position:16px center; }
+#overlay .mesa-buscar .product-search-wrap input[type=text]::placeholder{ font-weight:500; }
+/* Con el id: le gana a la regla vieja del botón grande «Vender escaneando código» (min-height 44 y margen) */
+#overlay #scanSellBtn.mesa-scan{ position:absolute; right:7px; top:7px; width:40px; height:40px; min-height:0; margin:0; padding:0; display:grid; place-items:center; border-radius:50%; border:1px solid var(--line); background:var(--surface); color:var(--ink-soft); cursor:pointer; box-shadow:none; }
+#overlay #scanSellBtn.mesa-scan svg{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; }
+#overlay #scanSellBtn.mesa-scan:hover{ color:var(--ink); border-color:var(--cream-soft); background:var(--surface-2); }
+#overlay .mesa-buscar #addItemBtn{ white-space:nowrap; }
+/* Celulares angostos: el contador se achica para que «Agregar» quede en una sola línea */
+@media (max-width:400px){
+  #overlay .mesa-buscar .add-row:has(.product-search-wrap){ gap:8px; }
+  #overlay .mesa-buscar .add-row .qty-stepper button{ width:36px; height:36px; }
+  #overlay .mesa-buscar .add-row .qty-stepper input[type=number]{ width:36px; }
+  #overlay .mesa-buscar #addItemBtn{ padding:0 10px; }
+}
+#overlay .mesa-buscar .fav-chips{ margin:10px 0 0; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+#overlay .mesa-buscar .fav-chips::-webkit-scrollbar{ display:none; }
+#overlay .mesa-buscar .fav-chips:empty{ display:none; }
+/* Si hay más favoritos de los que caben, el borde derecho se desvanece (invita a deslizar) */
+#overlay .mesa-buscar .fav-chips.desliza{ -webkit-mask-image:linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image:linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+#overlay .fav-chips{ align-items:center; gap:6px; }
+#overlay .fav-lbl{ flex:none; font-size:14px; opacity:.85; }
+#overlay .fav-chip{ flex:none; min-height:34px; padding:5px 11px; gap:5px; font:inherit; font-size:13px; font-weight:600; white-space:nowrap; }
+#overlay .fav-chip:hover{ border-color:var(--cream-soft); }
+@media (min-width:700px){ #overlay .mesa-buscar .fav-chips{ flex-wrap:wrap; overflow:visible; } }
+#overlay #itemsContainer .empty-note{ text-align:center; padding:8px 0 14px; }
+.mesa-total{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin:6px 0 12px; padding:10px 2px 0; border-top:1px solid var(--line); font-size:14px; color:var(--ink-soft); }
+.mesa-total b{ font-size:18px; color:var(--ink); }
+.mesa-total[hidden]{ display:none; }
+/* Personas y cliente: dos botones discretos en una sola línea; lo que despliegan va debajo, a todo lo ancho.
+   (Sin separación entre filas de la cuadrícula: las filas vacías no dejan huecos; cada pieza trae su margen.) */
+#overlay .mesa-sec{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); column-gap:8px; row-gap:0; margin:2px 0 12px; }
+#overlay .mesa-sec > .mesa-pleg{ display:contents; }
+.mesa-pleg-btn{ grid-row:1; display:flex; align-items:center; gap:6px; width:100%; min-width:0; min-height:40px; overflow:hidden; padding:0 10px 0 12px; border:1px solid var(--line); border-radius:12px; background:var(--surface); color:var(--ink-soft); font:inherit; font-size:13px; font-weight:700; text-align:left; cursor:pointer; transition:border-color .15s ease, background .15s ease; }
+.mesa-pleg-btn:hover{ color:var(--ink); border-color:var(--cream-soft); }
+.mesa-pleg-btn[aria-expanded="true"]{ color:var(--ink); border-color:color-mix(in srgb, var(--amber) 55%, var(--line)); background:color-mix(in srgb, var(--amber) 8%, var(--surface)); }
+.mesa-pleg-btn .mp-ic{ flex:none; font-size:14px; opacity:.85; }
+.mesa-pleg-btn .mp-t{ flex:none; color:var(--ink); }
+.mesa-pleg-btn .mp-n{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+/* Cuántas personas: globito con el número (no se corta aunque el botón sea angosto) */
+#personasN{ flex:0 1 auto; }
+#personasN:not(:empty){ display:inline-grid; place-items:center; min-width:20px; height:20px; padding:0 6px; border-radius:999px; background:color-mix(in srgb, var(--amber) 22%, var(--surface)); color:var(--cream); font-size:12px; font-weight:800; }
+#personasToggle .mp-n + .mp-ch{ margin-left:auto; }
+/* Cliente con nombre: se ve el nombre en vez de la etiqueta */
+#clienteToggle.con-nombre .mp-t{ display:none; }
+#clienteToggle.con-nombre .mp-n{ color:var(--ink); }
+.mesa-pleg-btn .mp-ch{ flex:none; font-size:18px; line-height:1; opacity:.7; transition:transform .15s ease; }
+.mesa-pleg-btn[aria-expanded="true"] .mp-ch{ transform:rotate(90deg); }
+/* Celulares angostos: sin la flechita y un poco más juntos, para que quepan los dos en la línea */
+@media (max-width:400px){
+  #overlay .mesa-sec .mesa-pleg-btn{ gap:5px; padding:0 8px 0 10px; }
+  #overlay .mesa-sec .mesa-pleg-btn .mp-ch{ display:none; }
+}
+#personasToggle{ grid-column:1; }
+#clienteToggle{ grid-column:2; }
+/* Si el negocio usa solo uno de los dos, ese ocupa toda la línea */
+body:not(.mod-n) #personasToggle, body:not(.mod-d) #clienteToggle{ grid-column:1 / -1; }
+#overlay .mesa-sec #peopleChips{ grid-column:1 / -1; grid-row:2; margin:8px 0 0; padding:0; }
+#overlay .mesa-sec #peopleChips:empty{ display:none; }
+#overlay .mesa-sec #personasCuerpo{ grid-column:1 / -1; grid-row:3; margin:8px 0 0; padding:0; }
+#overlay .mesa-sec #clienteRow{ grid-column:1 / -1; grid-row:4; margin:8px 0 0; }
+.mesa-pleg-cuerpo[hidden], #clienteRow[hidden]{ display:none !important; }
+#overlay .mesa-sec .persona-add{ margin:0 0 6px; }
+#overlay .mesa-sec + .section-divider{ margin-top:14px; }
 </style>
 </head>
 <body>
@@ -4295,46 +4440,66 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
 </div>
 
 <div class="overlay" id="overlay">
-  <div class="modal">
-    <div class="modal-title-row">
-      <h2 id="modalTitle">Mesa 1</h2>
-      <button class="rename-table-btn" id="renameTableBtn" title="Renombrar mesa">✏️</button>
-      <button class="rename-table-btn mov-btn" id="moveTableBtn" title="Cambiar de mesa" type="button">🔀 Cambiar de mesa</button>
+  <div class="modal mesa-modal">
+    <!-- Encabezado compacto: nombre + estado; las acciones secundarias son iconos pequeños -->
+    <div class="modal-title-row mesa-head">
+      <div class="mesa-head-t">
+        <h2 id="modalTitle">Mesa 1</h2>
+        <div class="modal-sub" id="modalSub">Cuenta abierta</div>
+      </div>
+      <div class="mesa-acts">
+        <button class="mesa-ico" id="renameTableBtn" type="button" title="Renombrar mesa" aria-label="Renombrar mesa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg></button>
+        <button class="mesa-ico" id="moveTableBtn" type="button" title="Cambiar de mesa" aria-label="Cambiar de mesa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h13l-3.5-3.5"/><path d="M20 16H7l3.5 3.5"/></svg></button>
+        <button class="mesa-ico" id="combinarMesaBtn" type="button" title="Combinar con otras mesas" aria-label="Combinar con otras mesas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></button>
+        <button class="mesa-ico" id="reiniciarMesaBtn" type="button" title="Reiniciar esta mesa" aria-label="Reiniciar esta mesa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg></button>
+      </div>
     </div>
-    <div class="modal-sub" id="modalSub">Cuenta abierta</div>
     <div id="grupoBar" data-novocab></div>
 
-    <div class="add-row" id="clienteRow" data-mod="n" data-novocab>
-      <input type="text" id="clienteNombre" placeholder="¿A nombre de quién? (ej. Ana Pérez)" autocomplete="off" maxlength="40">
-      <button type="button" id="clienteGuardar">Guardar</button>
-    </div>
-
-    <div class="section-divider" data-mod="d">Personas en la mesa</div>
-    <div class="persona-add" data-mod="d">
-      <span class="persona-ico">👤</span>
-      <input type="text" id="personNameInput" placeholder="Nombre (ej. Ana)" autocomplete="off" maxlength="30" enterkeyhint="done">
-      <button id="addPersonBtn" type="button">＋ Agregar</button>
-    </div>
-    <div class="persona-hint" data-mod="d">Cada persona lleva su cuenta aparte dentro de la mesa. Tócala para pedir o pagar lo suyo.</div>
-    <div id="peopleChips" data-mod="d"></div>
-
-    <div id="favChips" class="fav-chips"></div>
-    <div class="add-row">
-      <div class="product-search-wrap">
-        <input type="text" id="addProductSearch" placeholder="Buscar producto por nombre…" autocomplete="off">
-        <input type="hidden" id="addProductId" value="">
-        <div class="product-suggestions" id="addProductSuggestions"></div>
+    <!-- Lo primero: buscar y agregar productos -->
+    <div class="mesa-buscar">
+      <div class="add-row">
+        <div class="product-search-wrap">
+          <input type="text" id="addProductSearch" placeholder="Buscar producto…" autocomplete="off" enterkeyhint="go">
+          <button type="button" class="mesa-scan" id="scanSellBtn" title="Vender escaneando código" aria-label="Vender escaneando código"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 9v6M11 9v6M14 9v6M17 9v6"/></svg></button>
+          <input type="hidden" id="addProductId" value="">
+          <div class="product-suggestions" id="addProductSuggestions"></div>
+        </div>
+        <div class="qty-stepper">
+          <button type="button" id="qtyMinusBtn" aria-label="Menos">−</button>
+          <input type="number" id="addQty" value="0" min="0" inputmode="numeric" aria-label="Cantidad">
+          <button type="button" id="qtyPlusBtn" aria-label="Más">+</button>
+        </div>
+        <button id="addItemBtn" type="button">＋ Agregar</button>
       </div>
-      <div class="qty-stepper">
-        <button type="button" id="qtyMinusBtn">−</button>
-        <input type="number" id="addQty" value="0" min="0">
-        <button type="button" id="qtyPlusBtn">+</button>
-      </div>
-      <button id="addItemBtn">＋ Agregar</button>
+      <div id="favChips" class="fav-chips"></div>
     </div>
-    <button type="button" class="btn-camera" id="scanSellBtn" style="width:100%;margin-top:8px">🔳 Vender escaneando código</button>
 
     <div id="itemsContainer"></div>
+    <div class="mesa-total" id="mesaTotal" hidden><span id="mesaTotalN">Total</span><b id="mesaTotalV">$0</b></div>
+
+    <!-- Secundario y plegable: personas de la mesa y nombre del cliente (dos botones discretos en una línea) -->
+    <div class="mesa-sec">
+      <div class="mesa-pleg" data-mod="d">
+        <button type="button" class="mesa-pleg-btn" id="personasToggle" aria-expanded="false" aria-controls="personasCuerpo" title="Personas en la mesa: cada una con su cuenta aparte"><span class="mp-ic" aria-hidden="true">👥</span><span class="mp-t">Personas</span><span class="mp-n" id="personasN"></span><span class="mp-ch" aria-hidden="true">›</span></button>
+        <div id="peopleChips" data-mod="d"></div>
+        <div class="mesa-pleg-cuerpo" id="personasCuerpo" hidden>
+          <div class="persona-add">
+            <span class="persona-ico">👤</span>
+            <input type="text" id="personNameInput" placeholder="Nombre (ej. Ana)" autocomplete="off" maxlength="30" enterkeyhint="done">
+            <button id="addPersonBtn" type="button">＋ Agregar</button>
+          </div>
+          <div class="persona-hint">Cada persona lleva su cuenta aparte dentro de la mesa. Tócala para pedir o pagar lo suyo.</div>
+        </div>
+      </div>
+      <div class="mesa-pleg" data-mod="n" data-novocab>
+        <button type="button" class="mesa-pleg-btn" id="clienteToggle" aria-expanded="false" aria-controls="clienteRow" title="¿A nombre de quién va la cuenta?"><span class="mp-ic" aria-hidden="true">🧾</span><span class="mp-t">Cliente</span><span class="mp-n" id="clienteN"></span><span class="mp-ch" aria-hidden="true">›</span></button>
+        <div class="add-row" id="clienteRow" data-mod="n" data-novocab hidden>
+          <input type="text" id="clienteNombre" placeholder="¿A nombre de quién? (ej. Ana Pérez)" autocomplete="off" maxlength="40" enterkeyhint="done">
+          <button type="button" id="clienteGuardar">Guardar</button>
+        </div>
+      </div>
+    </div>
 
     <div class="section-divider" data-mod="d" hidden>Dividir cuenta</div>
     <div class="split-row" data-mod="d" hidden>
@@ -7517,6 +7682,8 @@ let voiceInterim = '';        // lo último que se oyó aunque no llegara «fina
 let voiceSilenceTimer = null;
 const VOICE_SILENCE_MS = 1700;      // silencio tras hablar antes de procesar el comando
 const VOICE_INITIAL_TIMEOUT_MS = 6000; // tiempo máximo esperando que empiece a hablar
+const VOICE_ABRIENDO_MS = 400;         // si el micrófono tarda más que esto en abrir, se avisa «Abriendo…»
+let voiceAbriendoT = null, voiceTocado = 0, voiceAvisado = false;
 
 function updateVoiceFabUI(){
   const fab = document.getElementById('voiceFab');
@@ -7602,11 +7769,17 @@ function ensureVoiceRecognizer(){
   };
   voiceRecognizer.onstart = () => {
     if(!voiceListening) return;
-    try{ navigator.vibrate && navigator.vibrate(35); }catch(e){}
-    showToast(voiceModoIA ? '🤖 Habla ahora: di tu pedido con tus palabras.' : '🎤 Habla ahora…', 2500);
+    clearTimeout(voiceAbriendoT);
+    if(!voiceAvisado){
+      voiceAvisado = true;
+      // Si tardó en abrir (se alcanzó a ver «Abriendo…»), una vibración avisa que ya se puede hablar.
+      if(Date.now() - voiceTocado > VOICE_ABRIENDO_MS) try{ navigator.vibrate && navigator.vibrate(35); }catch(e){}
+      showToast(voiceModoIA ? '🤖 Habla ahora: di tu pedido con tus palabras.' : '🎤 Habla ahora…', 2500);
+    }
     scheduleVoiceSilenceStop(VOICE_INITIAL_TIMEOUT_MS);   // el tiempo de espera cuenta desde que de verdad escucha
   };
   voiceRecognizer.onerror = (e) => {
+    clearTimeout(voiceAbriendoT);
     if(voiceSilenceTimer) clearTimeout(voiceSilenceTimer);
     voiceListening = false;
     updateVoiceFabUI();
@@ -7619,6 +7792,7 @@ function ensureVoiceRecognizer(){
     }
   };
   voiceRecognizer.onend = () => {
+    clearTimeout(voiceAbriendoT);
     if(voiceSilenceTimer) clearTimeout(voiceSilenceTimer);
     voiceListening = false;
     updateVoiceFabUI();
@@ -7642,16 +7816,24 @@ function startVoiceCommand(conIA){
     return;
   }
   if(voiceListening) return;
-  try{ window.ventoHola && window.ventoHola.soltar(); }catch(e){}
+  // Si Vento está hablando se calla: el micrófono abre YA, sin esperar a que termine (y no se oye a sí misma).
+  try{ if(window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); }catch(e){}
+  // «Hola Vento» le pasa el micrófono que ya tiene abierto (en la APK no se cierra y se vuelve a abrir).
+  try{ window.ventoHola && window.ventoHola.soltar(true); }catch(e){}
   try{
-    voiceListening = true;
+    voiceListening = true; voiceAvisado = false; voiceTocado = Date.now();
     voiceFinalBuffer = ''; voiceInterim = '';
-    updateVoiceFabUI();
-    if(window.VentoAndroid) showToast('⏳ Abriendo el micrófono…', 2500);
-    else showToast(conIA ? '🤖 Escuchando con IA… di tu pedido con tus palabras. Toca de nuevo para terminar.' : '🎤 Escuchando… ej: "mesa 1, 5 águilas", "agrega una mesa a nombre de Juan con dos póker", "deshacer". Di "comandos" para ver todos. Toca 🎤 de nuevo para terminar.');
+    updateVoiceFabUI();                                              // el botón cambia a «escuchando» al instante
+    try{ navigator.vibrate && navigator.vibrate(15); }catch(e){}    // y una vibración corta confirma el toque
+    clearTimeout(voiceAbriendoT);
+    if(window.VentoAndroid){
+      // «Abriendo el micrófono…» solo si de verdad tarda; casi siempre ya está escuchando antes.
+      voiceAbriendoT = setTimeout(() => { if(voiceListening && !voiceAvisado) showToast('⏳ Abriendo el micrófono…', 2500); }, VOICE_ABRIENDO_MS);
+    } else showToast(conIA ? '🤖 Escuchando con IA… di tu pedido con tus palabras. Toca de nuevo para terminar.' : '🎤 Escuchando… ej: "mesa 1, 5 águilas", "agrega una mesa a nombre de Juan con dos póker", "deshacer". Di "comandos" para ver todos. Toca 🎤 de nuevo para terminar.');
     rec.start();
     scheduleVoiceSilenceStop(VOICE_INITIAL_TIMEOUT_MS);
   }catch(e){
+    clearTimeout(voiceAbriendoT);
     voiceListening = false;
     updateVoiceFabUI();
   }
@@ -7679,6 +7861,10 @@ function stopVoiceCommand(){
     if(!Ctor || !prendido() || !gesto || ocupado || document.hidden) return false;
     if(typeof micEnabled !== 'undefined' && !micEnabled) return false;
     if(typeof voiceListening !== 'undefined' && voiceListening) return false;
+    // Otro micrófono de Vento está escuchando («Producto por voz», el asistente o la libreta): no se le quita.
+    try{ if(voiceProductListening) return false; }catch(e){}
+    try{ if(asisRecOn) return false; }catch(e){}
+    if(window.__lbMicOn) return false;
     try{ if(window.speechSynthesis && window.speechSynthesis.speaking) return false; }catch(e){}
     try{ if(typeof authUser !== 'undefined' && !authUser) return false; }catch(e){}
     const au = document.getElementById('authOverlay'); if(au && !au.hidden) return false;
@@ -7724,7 +7910,8 @@ function stopVoiceCommand(){
     rec = rec || crear(); hechos = 0; corriendo = true; desde = Date.now(); silencio(true);
     try{ rec.start(); }catch(e){ corriendo = false; silencio(false); seguir(2000); }
   }
-  function soltar(){ clearTimeout(timer); if(corriendo){ corriendo = false; try{ rec && rec.abort(); }catch(e){} } silencio(false); }
+  // paraOtro: lo pide el botón 🎤. En la APK se le PASA la escucha abierta (rec.ceder) en vez de cerrarla y abrir otra.
+  function soltar(paraOtro){ clearTimeout(timer); if(corriendo){ corriendo = false; try{ if(rec){ if(paraOtro && rec.ceder) rec.ceder(); else rec.abort(); } }catch(e){} } silencio(false); }
   function oir(res){
     const alts = []; for(let k = 0; k < res.length; k++) alts.push(String(res[k].transcript || ''));
     let cmd = null;
@@ -8698,6 +8885,11 @@ function openTableModal(id){
   // Negocios de órdenes, vehículos, mascotas o pacientes: cada cuenta va a nombre de alguien.
   const cli = document.getElementById('clienteNombre');
   if(cli){ const t = data.tables[id] || {}; cli.value = (t.name || '').trim(); cli.placeholder = '¿A nombre de quién? (ej. Ana Pérez)'; }
+  // Lo secundario (personas, nombre del cliente) arranca plegado: lo primero es buscar productos.
+  mesaPleg('personasToggle', 'personasCuerpo', false);
+  mesaPleg('clienteToggle', 'clienteRow', false);
+  pintarClienteN();
+  mesaAccionesTitulos();
   try{ window.grupoBarPintar && window.grupoBarPintar(id); }catch(e){}
   overlay.classList.add('show');
   // Ya no se pone el cursor solo en «¿A nombre de quién?»: abría el teclado cada vez que se abría una
@@ -8727,6 +8919,8 @@ function saveTableRename(){
   t.name = newName ? newName : null;
   saveData();
   document.getElementById('modalTitle').textContent = tableLabel(currentTable);
+  const cli = document.getElementById('clienteNombre'); if(cli) cli.value = t.name || '';
+  pintarClienteN();
   renderMesas();
   closeRenameModal();
   showToast(i18nPut(espacioN()) + ' renombrada.');
@@ -8741,9 +8935,39 @@ function guardarCliente(){
   t.name = n || null;
   saveData();
   document.getElementById('modalTitle').textContent = tableLabel(currentTable);
+  pintarClienteN();
   renderMesas();
   if(n) showToast('✅ ' + i18nPut(espacioN()) + ' a nombre de ' + n + '.');
 }
+// Plegables de la mesa (personas, nombre del cliente): secundarios, se abren solo al tocarlos.
+function mesaPleg(btnId, cuerpoId, abrir){
+  const b = document.getElementById(btnId), c = document.getElementById(cuerpoId);
+  if(!b || !c) return false;
+  const on = abrir == null ? c.hidden : !!abrir;
+  c.hidden = !on;
+  b.setAttribute('aria-expanded', on ? 'true' : 'false');
+  return on;
+}
+function pintarClienteN(){
+  const el = document.getElementById('clienteN'); if(!el) return;
+  const t = currentTable != null ? data.tables[currentTable] : null;
+  const n = t && t.name ? String(t.name).trim() : '';
+  el.textContent = n;
+  const b = document.getElementById('clienteToggle'); if(b) b.classList.toggle('con-nombre', !!n);
+}
+// Títulos de los iconos del encabezado con el nombre que usa el negocio (mesa, silla, orden…).
+function mesaAccionesTitulos(){
+  const u = i18nPut(espacioN()).toLowerCase();
+  [['renameTableBtn', 'Renombrar ' + u], ['moveTableBtn', 'Cambiar de ' + u]].forEach(([id, txt]) => {
+    const b = document.getElementById(id); if(b){ b.title = txt; b.setAttribute('aria-label', txt); }
+  });
+}
+document.getElementById('personasToggle').addEventListener('click', () => {
+  if(mesaPleg('personasToggle', 'personasCuerpo')) setTimeout(() => { try{ document.getElementById('personNameInput').focus(); }catch(e){} }, 30);
+});
+document.getElementById('clienteToggle').addEventListener('click', () => {
+  if(mesaPleg('clienteToggle', 'clienteRow')) setTimeout(() => { try{ const i = document.getElementById('clienteNombre'); i.focus(); i.select(); }catch(e){} }, 30);
+});
 document.getElementById('clienteGuardar').addEventListener('click', guardarCliente);
 document.getElementById('clienteNombre').addEventListener('change', guardarCliente);
 document.getElementById('clienteNombre').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); guardarCliente(); } });
@@ -8789,13 +9013,15 @@ function renderPeople(){
   if(!t.people) t.people = [];
   const box = document.getElementById('peopleChips');
   box.innerHTML = '';
+  const pn = document.getElementById('personasN');
+  if(pn) pn.textContent = t.people.length ? String(t.people.length) : '';
   t.people.forEach(p=>{
     const bal = personTotalAmt(p.id);
     const chip = document.createElement('span');
     chip.className = 'chip';
     chip.title = 'Ver cuenta aparte de ' + p.name;
     const ini = String(p.name || '?').trim().charAt(0).toUpperCase().replace(/[<>&"]/g, '');
-    chip.innerHTML = `<i class="pc-av">${ini}</i>${String(p.name).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}${bal > 0 ? ' <small>' + fmt(bal) + '</small>' : ''}<span class="chip-del" data-id="${p.id}" title="Quitar persona">✕</span>`;
+    chip.innerHTML = `<i class="pc-av">${ini}</i>${String(p.name).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}${bal > 0 ? ' <small>' + fmt(bal) + '</small>' : ''}<span class="chip-del" data-id="${invEsc(p.id)}" title="Quitar persona">✕</span>`;
     chip.addEventListener('click', (e)=>{
       if(e.target.classList.contains('chip-del')) return;
       openPersonModal(p.id);
@@ -8824,11 +9050,19 @@ function renderFavChips(){
   if(!box) return;
   const favs = data.products.filter(p => p.favorite && !p.combo);
   if(!favs.length){ box.innerHTML = ''; return; }
-  box.innerHTML = favs.map(p => '<span class="fav-chip" data-id="' + p.id + '">⭐ ' + invEsc(p.name) + ' <b>' + fmt(p.price) + '</b></span>').join('');
+  // Botones (no <span>): así también los alcanza el bloqueo de ventas con la suscripción vencida (#favChips button).
+  box.innerHTML = '<span class="fav-lbl" title="Favoritos: un toque agrega 1">⭐</span>' + favs.map(p => '<button type="button" class="fav-chip" data-fav data-id="' + invEsc(p.id) + '">' + invEsc(p.name) + ' <b>' + fmt(p.price) + '</b></button>').join('');
   box.querySelectorAll('.fav-chip').forEach(chip => {
     chip.addEventListener('click', () => addFavoriteToTable(chip.dataset.id));
   });
+  requestAnimationFrame(favDesliza);
 }
+// Favoritos que no caben: el borde derecho se desvanece mientras quede algo por deslizar.
+function favDesliza(){
+  const box = document.getElementById('favChips'); if(!box) return;
+  box.classList.toggle('desliza', box.scrollLeft + box.clientWidth < box.scrollWidth - 4);
+}
+document.getElementById('favChips').addEventListener('scroll', favDesliza, { passive: true });
 function addFavoriteToTable(productId){
   const product = data.products.find(p => p.id === productId);
   const t = data.tables[currentTable];
@@ -8875,6 +9109,19 @@ document.addEventListener('keydown', e => {
   const encima = [...document.querySelectorAll('.overlay.show')].some(o => o !== overlay && !overlay.contains(o));
   if(!encima) document.getElementById('closeModalBtn').click();
 });
+// Computador: con la mesa abierta, escribir cualquier letra va directo al buscador de productos (sin tener que
+// hacer clic en él). En el celular no aplica: ahí el teclado solo sale al tocar el buscador.
+document.addEventListener('keydown', e => {
+  if(!overlay.classList.contains('show') || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+  if(!e.key || e.key.length !== 1 || !/\S/.test(e.key)) return;
+  const a = document.activeElement;
+  if(a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return;
+  if([...document.querySelectorAll('.overlay.show')].some(o => o !== overlay && !overlay.contains(o))) return;
+  try{ if(!matchMedia('(hover:hover) and (pointer:fine)').matches) return; }catch(err){ return; }
+  const s = document.getElementById('addProductSearch');
+  if(!s || s.disabled || !s.offsetParent) return;
+  s.focus({ preventScroll: false });   // la letra cae en el buscador (y se ven las sugerencias)
+});
 
 function refreshProductSelect(){
   const searchInput = document.getElementById('addProductSearch');
@@ -8886,7 +9133,7 @@ function refreshProductSelect(){
     searchInput.placeholder = 'Agrega productos primero';
     searchInput.disabled = true;
   } else {
-    searchInput.placeholder = 'Buscar producto por nombre…';
+    searchInput.placeholder = 'Buscar producto…';
     searchInput.disabled = false;
   }
 }
@@ -8909,13 +9156,13 @@ function productSizeLabel(productOrItem){
 
 function productSizeHtml(productOrItem, className='li-size'){
   const size = productSizeLabel(productOrItem);
-  return size ? `<span class="${className}">📦 ${size}</span>` : '';
+  return size ? `<span class="${className}">📦 ${invEsc(size)}</span>` : '';
 }
 
 function productSuggestionItemHtml(p){
   return `
-    <div class="product-suggestion-item" data-id="${p.id}">
-      <span class="psi-name">${p.name}${productSizeHtml(p, 'psi-size')}</span>
+    <div class="product-suggestion-item" data-id="${invEsc(p.id)}">
+      <span class="psi-name">${invEsc(p.name)}${productSizeHtml(p, 'psi-size')}</span>
       <span class="psi-price">${fmt(p.price)}</span>
     </div>
   `;
@@ -8934,7 +9181,10 @@ function groupSuggestionsByOrdered(query, orderedItems){
   }
   const orderedProducts = orderedIds.map(id => data.products.find(p=>p.id===id)).filter(Boolean);
   const restProducts = data.products.filter(p => !seen.has(p.id));
-  const filterFn = p => !q || p.name.toLowerCase().includes(q);
+  // Sin importar tildes: «agu» encuentra «Águila».
+  const sinTilde = s => { s = String(s || '').toLowerCase(); try{ return s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }catch(e){ return s; } };
+  const qn = sinTilde(q);
+  const filterFn = p => !q || sinTilde(p.name).includes(qn);
   return {
     orderedMatches: orderedProducts.filter(filterFn),
     restMatches: restProducts.filter(filterFn)
@@ -8974,6 +9224,9 @@ function renderProductSuggestions(query){
       if(!product) return;
       document.getElementById('addProductSearch').value = product.name;
       document.getElementById('addProductId').value = product.id;
+      // Más ágil: al elegir el producto la cantidad queda en 1, así basta con tocar «Agregar».
+      const q = document.getElementById('addQty');
+      if(q && (parseInt(q.value, 10) || 0) <= 0) q.value = 1;
       hideProductSuggestions();
     });
   });
@@ -8988,8 +9241,24 @@ document.getElementById('addProductSearch').addEventListener('focus', (e)=>{
   document.getElementById('addProductId').value = '';
   renderProductSuggestions('');
 });
+// Enter (o «Ir» del teclado del celular): toma el primer producto de la lista y lo agrega de una.
+document.getElementById('addProductSearch').addEventListener('keydown', (e)=>{
+  if(e.key !== 'Enter' || e.isComposing) return;
+  e.preventDefault();
+  if(!document.getElementById('addProductId').value){
+    const first = document.querySelector('#addProductSuggestions .product-suggestion-item');
+    if(!first) return;
+    first.click();
+  }
+  const q = document.getElementById('addQty');
+  if((parseInt(q.value, 10) || 0) <= 0) q.value = 1;
+  const t = data.tables[currentTable], cuantos = () => ((t && t.items) || []).reduce((s, it) => s + it.qty, 0), antes = cuantos();
+  document.getElementById('addItemBtn').click();
+  // Agregado: el buscador queda limpio para escribir el siguiente producto.
+  if(cuantos() !== antes){ e.target.value = ''; document.getElementById('addProductId').value = ''; hideProductSuggestions(); }
+});
 document.addEventListener('click', (e)=>{
-  if(!e.target.closest('.product-search-wrap')) hideProductSuggestions();
+  if(!e.target.closest('.product-search-wrap') || e.target.closest('.mesa-scan')) hideProductSuggestions();
 });
 
 function renderModalItems(){
@@ -9009,7 +9278,7 @@ function renderModalItems(){
         const subtotal = groupItems.reduce((s,it)=>s+it.price*it.qty,0);
         const header = document.createElement('div');
         header.className = 'person-group-title';
-        header.innerHTML = `<span>${g.name}</span><span>${fmt(subtotal)}</span>`;
+        header.innerHTML = `<span>${invEsc(g.name)}</span><span>${fmt(subtotal)}</span>`;
         container.appendChild(header);
       }
       groupItems.forEach(it=>{
@@ -9019,7 +9288,7 @@ function renderModalItems(){
         const row = document.createElement('div');
         row.className = 'line-item';
         row.innerHTML = `
-          <div><span class="li-name">${it.name}</span>${productSizeHtml(it)}${qtyStepperHtml(idx, it.qty)}</div>
+          <div><span class="li-name">${invEsc(it.name)}</span>${productSizeHtml(it)}${qtyStepperHtml(idx, it.qty)}</div>
           <div class="li-right">
             <span class="li-price">${fmt(it.price*it.qty)}</span>
             <button class="li-clock" data-idx="${idx}" title="Ver horario de pedidos">🕐</button>
@@ -9083,6 +9352,16 @@ function renderModalItems(){
   balanceEl.classList.toggle('balance-zero', balance === 0 && total > 0);
   balanceEl.classList.toggle('balance-pending', balance > 0);
   document.getElementById('chargeBtn').disabled = !(t.items && t.items.length);
+  // Estado en el encabezado y total justo debajo de los productos.
+  const unidades = (t.items || []).reduce((s, it) => s + (Number(it.qty) || 0), 0);
+  const sub = document.getElementById('modalSub');
+  if(sub) sub.textContent = unidades ? 'Cuenta abierta · ' + unidades + (unidades === 1 ? ' producto' : ' productos') : 'Libre · sin productos todavía';
+  const tot = document.getElementById('mesaTotal');
+  if(tot){
+    tot.hidden = !unidades;
+    document.getElementById('mesaTotalN').textContent = paid + debt > 0 ? 'Total · falta ' + fmt(balance) : 'Total';
+    document.getElementById('mesaTotalV').textContent = fmt(total);
+  }
 }
 
 function renderPayments(){
@@ -9100,7 +9379,7 @@ function renderPayments(){
     const row = document.createElement('div');
     row.className = 'line-item payment-item';
     row.innerHTML = `
-      <div><span class="li-name">${p.note || 'Abono'}</span><span class="pay-method ${method}">${methodLabel[method] || method}</span>${payItemsHtml(p)}</div>
+      <div><span class="li-name">${invEsc(p.note || 'Abono')}</span><span class="pay-method ${method}">${methodLabel[method] || method}</span>${payItemsHtml(p)}</div>
       <div class="li-right">
         <span class="li-price">${fmt(p.amount)}</span>
         <button class="li-remove" data-idx="${idx}">✕</button>
@@ -9534,7 +9813,7 @@ function renderPersonModalItems(){
       const row = document.createElement('div');
       row.className = 'line-item';
       row.innerHTML = `
-        <div><span class="li-name">${it.name}</span>${productSizeHtml(it)}${qtyStepperHtml(idx, it.qty)}</div>
+        <div><span class="li-name">${invEsc(it.name)}</span>${productSizeHtml(it)}${qtyStepperHtml(idx, it.qty)}</div>
         <div class="li-right">
           <span class="li-price">${fmt(it.price*it.qty)}</span>
           <button class="li-clock" data-idx="${idx}" title="Ver horario de pedidos">🕐</button>
@@ -9615,7 +9894,7 @@ function renderPersonModalPayments(){
     const row = document.createElement('div');
     row.className = 'line-item payment-item';
     row.innerHTML = `
-      <div><span class="li-name">${p.note || 'Abono'}</span><span class="pay-method ${method}">${methodLabel[method] || method}</span>${payItemsHtml(p)}</div>
+      <div><span class="li-name">${invEsc(p.note || 'Abono')}</span><span class="pay-method ${method}">${methodLabel[method] || method}</span>${payItemsHtml(p)}</div>
       <div class="li-right">
         <span class="li-price">${fmt(p.amount)}</span>
         <button class="li-remove" data-idx="${idx}">✕</button>
@@ -9763,13 +10042,19 @@ function parseVoiceProductCreation(rawText){
     .replace(/\s+/g, ' ').trim();
 
   // Precio: acepta "precio 5000", "a 5000", "por 5000", "vale 5000" y números hablados.
-  const priceRe = /(?:precio|vale|cuesta|cuestan|por|a)\s+(.+)$/;
-  const m = text.match(priceRe);
+  // Con \b: antes «Club Colombia precio cinco mil» tomaba la «a» final del nombre como «a …» y quedaba «club colombi».
+  // «precio/vale/cuesta» manda; si no está, se usa el ÚLTIMO «a/por» («pizza a la carta a 5000»).
+  let m = text.match(/\b(?:precio|vale|cuesta|cuestan)\s+(.+)$/), corte = m ? m.index : -1;
+  if(!m){
+    const re = /\b(?:por|a)\s+/g; let x, ult = null;
+    while((x = re.exec(text))) ult = x;
+    if(ult){ m = [ult[0], text.slice(ult.index + ult[0].length)]; corte = ult.index; }
+  }
   let price = null;
   let name = text;
   if(m){
     price = parseSpokenPrice(m[1]);
-    name = text.slice(0, m.index).trim();
+    name = text.slice(0, corte).trim();
   } else {
     // También acepta "poker cinco mil" al final.
     const tail = text.match(/\b(\d{2,9}|cero|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciseis|diecisiete|dieciocho|diecinueve|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|quinientos|quinientas|mil)(?:\s+(?:mil|cientos?|quinientos?|quinientas?))?$/);
@@ -9791,6 +10076,9 @@ function startVoiceProductCreation(){
     return;
   }
   if(voiceListening || voiceProductListening) return;
+  // Igual que el botón 🎤: Vento se calla y «Hola Vento» le pasa el micrófono (antes quedaban los dos peleándolo).
+  try{ if(window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.pending)) speechSynthesis.cancel(); }catch(e){}
+  try{ window.ventoHola && window.ventoHola.soltar(true); }catch(e){}
   voiceProductListening = true;
   const btn = document.getElementById('voiceProductBtn');
   const hint = document.getElementById('voiceProductHint');
@@ -14772,6 +15060,8 @@ function asisMicStart(){
   rec.onend = () => asisMicStop(true);
   asisRec = rec; asisRecOn = true;
   asisSyncGo();
+  // «Hola Vento» le pasa el micrófono (antes seguía abierto y los dos se lo peleaban).
+  try{ window.ventoHola && window.ventoHola.soltar(true); }catch(e){}
   try{ rec.start(); }catch(e){ asisMicStop(false); }
 }
 
@@ -16936,7 +17226,7 @@ function coveredQty(t, it, kind){   // kind: 'paid' | 'debe' | undefined (ambos)
   }, 0);
 }
 function payItemsHtml(p){
-  let h = (p.items && p.items.length) ? '<div class="li-paystatus">' + p.items.map(x => x.qty + ' ' + x.name).join(', ') + '</div>' : '';
+  let h = (p.items && p.items.length) ? '<div class="li-paystatus">' + p.items.map(x => x.qty + ' ' + invEsc(x.name)).join(', ') + '</div>' : '';
   if(p.receiptId) h += '<button type="button" class="rcpt-view" data-rid="' + p.receiptId + '">📎 Ver comprobante</button>';
   return h;
 }
@@ -25749,7 +26039,7 @@ let fotosListas = false;
     const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
     const b = $l('lbMic');
     if(!Ctor) return lbResponder('Este celular no deja usar la voz aquí. Usa los botones de abajo.');
-    if(rec){ try{ rec.abort(); }catch(e){} rec = null; b.classList.remove('on'); b.textContent = '🎤 Toca y habla'; return; }
+    if(rec){ try{ rec.abort(); }catch(e){} rec = null; window.__lbMicOn = false; b.classList.remove('on'); b.textContent = '🎤 Toca y habla'; return; }
     rec = new Ctor(); rec.lang = 'es-CO'; rec.interimResults = false; rec.maxAlternatives = 4; rec.continuous = false;
     b.classList.add('on'); b.textContent = '👂 Te escucho…';
     rec.onresult = ev => {
@@ -25761,8 +26051,12 @@ let fotosListas = false;
       lbResponder(r.texto);
     };
     rec.onerror = ev => { if(ev.error === 'not-allowed') lbResponder('Hay que darle permiso al micrófono en el navegador.'); else if(ev.error === 'no-speech') lbResponder('No te escuché. Toca otra vez y habla cerca del celular.'); };
-    rec.onend = () => { rec = null; b.classList.remove('on'); b.textContent = '🎤 Toca y habla'; };
-    try{ rec.start(); }catch(e){ rec = null; b.classList.remove('on'); b.textContent = '🎤 Toca y habla'; }
+    rec.onend = () => { rec = null; window.__lbMicOn = false; b.classList.remove('on'); b.textContent = '🎤 Toca y habla'; };
+    // «Hola Vento» suelta el micrófono y no lo vuelve a abrir mientras la libreta escucha.
+    window.__lbMicOn = true;
+    try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+    try{ window.ventoHola && window.ventoHola.soltar(true); }catch(e){}
+    try{ rec.start(); }catch(e){ rec = null; window.__lbMicOn = false; b.classList.remove('on'); b.textContent = '🎤 Toca y habla'; }
   }
 
   // ---------- Botón grande en el modo fácil ----------
@@ -26447,10 +26741,21 @@ window.mesoraCelebrar = function(emojis){
   function pintarBarra(id){
     const box = document.getElementById('grupoBar'); if(!box) return;
     const g = grupoDe(id);
-    box.innerHTML = (g ? '<div class="grp-info">🔗 <b>' + esc4(etiqueta(g)) + '</b> · total ' + fmt(totalGrupo(g)) + ' · falta ' + fmt(saldoGrupo(g)) +
-        '<small>' + g.miembros.map(m => esc4(num(m)) + ': ' + fmt(tableTotal(m))).join(' · ') + '</small></div>' : '') +
-      '<div class="grp-acts">' + (g ? '<button type="button" class="btn-ghost" data-g="cobrar">💵 Cobrar el grupo</button><button type="button" class="btn-ghost" data-g="separar">✂️ Separar</button>' : '') +
-      '<button type="button" class="btn-ghost" data-g="combinar">🔗 ' + (g ? 'Cambiar grupo' : 'Combinar') + '</button><button type="button" class="btn-ghost" data-g="reiniciar">♻️ Reiniciar</button></div>';
+    // Combinar y reiniciar son iconos pequeños del encabezado de la mesa (antes eran botones grandes aquí).
+    const bc = document.getElementById('combinarMesaBtn'), br = document.getElementById('reiniciarMesaBtn');
+    if(bc){
+      const tc = g ? 'Cambiar el grupo de ' + UP().toLowerCase() + ' combinad' + (espacio()[3] === 'm' ? 'os' : 'as') : 'Combinar con otr' + (espacio()[3] === 'm' ? 'os' : 'as') + ' ' + UP().toLowerCase();
+      bc.title = tc; bc.setAttribute('aria-label', tc); bc.classList.toggle('on', !!g);
+      bc.onclick = () => { if(currentTable != null) dialogoCombinar(currentTable); };
+    }
+    if(br){
+      const tr = 'Reiniciar est' + (espacio()[3] === 'm' ? 'e ' : 'a ') + U().toLowerCase();
+      br.title = tr; br.setAttribute('aria-label', tr); br.hidden = !esAdmin();   // solo un administrador puede reiniciar
+      br.onclick = () => { if(currentTable != null) dialogoReinicio([currentTable]); };
+    }
+    box.innerHTML = g ? '<div class="grp-info">🔗 <b>' + esc4(etiqueta(g)) + '</b> · total ' + fmt(totalGrupo(g)) + ' · falta ' + fmt(saldoGrupo(g)) +
+        '<small>' + g.miembros.map(m => esc4(num(m)) + ': ' + fmt(tableTotal(m))).join(' · ') + '</small></div>' +
+      '<div class="grp-acts"><button type="button" class="btn-ghost" data-g="cobrar">💵 Cobrar el grupo</button><button type="button" class="btn-ghost" data-g="separar">✂️ Separar</button></div>' : '';
     box.onclick = async e => {
       const b = e.target.closest('[data-g]'); if(!b) return; const a = b.dataset.g;
       if(a === 'combinar') dialogoCombinar(id);
