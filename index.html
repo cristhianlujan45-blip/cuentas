@@ -3468,6 +3468,7 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
       <button type="button" class="ajustes-cat" data-cat="pedidos"><span class="ac-icon">🛎️</span><span class="ac-label">Pedidos, QR y caja</span><span class="ac-arrow">›</span></button>
       <button type="button" class="ajustes-cat" data-cat="apariencia"><span class="ac-icon">🎨</span><span class="ac-label">Apariencia</span><span class="ac-arrow">›</span></button>
       <button type="button" class="ajustes-cat" data-cat="voz"><span class="ac-icon">🎤</span><span class="ac-label">Voz</span><span class="ac-arrow">›</span></button>
+      <button type="button" class="ajustes-cat" data-cat="sonidos"><span class="ac-icon">🔊</span><span class="ac-label">Sonidos</span><span class="ac-arrow">›</span></button>
       <button type="button" class="ajustes-cat" data-cat="nube"><span class="ac-icon">☁️</span><span class="ac-label">Nube y usuarios</span><span class="ac-arrow">›</span></button>
       <button type="button" class="ajustes-cat" data-cat="datos"><span class="ac-icon">💾</span><span class="ac-label">Datos y herramientas</span><span class="ac-arrow">›</span></button>
       <button type="button" class="ajustes-cat" data-cat="ayuda"><span class="ac-icon">📖</span><span class="ac-label">Guía y soporte</span><span class="ac-arrow">›</span></button>
@@ -3613,6 +3614,35 @@ body:has(#overlay.show) .voice-fab-help{ display:none; }
           <input type="checkbox" id="voiceAiToggle">
           <span class="switch-slider"></span>
         </label>
+      </div>
+    </div>
+
+    <div class="settings-group" hidden data-cat="sonidos" id="sndGrupo">
+      <h2>🔊 Sonidos</h2>
+      <div class="settings-desc">Un «tún» suave al agregar un producto, un «tic» al quitarlo y dos notas cortas al completar una venta: sabes que quedó anotado sin mirar la pantalla. No suenan mientras el micrófono te escucha ni con la app en segundo plano. Se guarda solo en este celular.</div>
+      <div class="settings-row">
+        <div class="settings-row-text"><strong>Sonidos de productos</strong><span>Prende o apaga todos los sonidos de venta.</span></div>
+        <label class="switch"><input type="checkbox" id="sndOn" checked><span class="switch-slider"></span></label>
+      </div>
+      <div class="settings-row snd-sub snd-vol-row">
+        <div class="settings-row-text"><strong>Volumen</strong><span>Bajo es discreto, ideal para el mostrador.</span></div>
+        <div class="snd-vol" role="group" aria-label="Volumen de los sonidos"><button type="button" data-snd-vol="bajo">Bajo</button><button type="button" data-snd-vol="medio">Medio</button><button type="button" data-snd-vol="alto">Alto</button></div>
+      </div>
+      <div class="settings-row snd-sub">
+        <div class="settings-row-text"><strong>Sonido al agregar</strong><span>«Tún» corto al sumar un producto a la cuenta o al carrito.</span></div>
+        <label class="switch"><input type="checkbox" id="sndAdd" checked><span class="switch-slider"></span></label>
+      </div>
+      <div class="settings-row snd-sub">
+        <div class="settings-row-text"><strong>Sonido al quitar</strong><span>«Tic» suave al restar o quitar un producto.</span></div>
+        <label class="switch"><input type="checkbox" id="sndRemove" checked><span class="switch-slider"></span></label>
+      </div>
+      <div class="settings-row snd-sub">
+        <div class="settings-row-text"><strong>Sonido al completar venta</strong><span>Dos notas cortas al cobrar una cuenta o una venta rápida.</span></div>
+        <label class="switch"><input type="checkbox" id="sndSale" checked><span class="switch-slider"></span></label>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-text"><strong>Probar</strong><span>Escucha los tres sonidos con el volumen elegido.</span></div>
+        <button type="button" class="btn-ghost" id="sndProbar">🔊 Probar</button>
       </div>
     </div>
 
@@ -4852,6 +4882,7 @@ export default {
 <script src="nube/vento-nube.js"></script>
 <script src="nube/vento-pagos.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="lib/vento-sonidos.js"></script>
 <script>
 /* ---------- Lluvia de código (fondo Matrix) ---------- */
 (function(){
@@ -5234,10 +5265,16 @@ function fmtTime(ts){
   return new Date(ts).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit' });
 }
 
+/* ---------- Sonidos POS (lib/vento-sonidos.js): «tún» al agregar, «tic» al quitar, éxito al cobrar ---------- */
+function sonidoPos(tipo){ try{ window.ventoSonidos && window.ventoSonidos[tipo](); }catch(e){} }
+function sonidoLote(fn){ return window.ventoSonidos ? window.ventoSonidos.lote(fn) : fn(); }        // UN sonido al final
+function sinSonidoPos(fn){ return window.ventoSonidos ? window.ventoSonidos.callar(fn) : fn(); }   // pedidos que llegan de afuera
+
 function recordItemHistory(item, qty){
   if(!item.history) item.history = [];
   item.history.push({ qty, at: Date.now() });
   try{ invOnSale(item, qty); }catch(e){}
+  if(qty) sonidoPos(qty > 0 ? 'add' : 'remove');   // todo +/− de una cuenta pasa por aquí (toques, favoritos, escáner, voz)
   if(item.history.length > 30) item.history = item.history.slice(-30);
 }
 
@@ -5282,6 +5319,7 @@ function attachQtyStepperHandlers(container, t, rerender){
         noteManualChange(tableIdOf(t), it.name, -it.qty);
         try{ invOnSale(it, -it.qty); }catch(e){}
         t.items.splice(idx, 1);
+        sonidoPos('remove');
       } else {
         it.qty -= 1;
         recordItemHistory(it, -1);
@@ -6492,7 +6530,11 @@ function extractVoiceTableId(rawText){
   return null;
 }
 
+// Un comando de voz suena UNA sola vez aunque agregue 5 unidades o una lista; lo de la app de meseros no suena aquí.
 function applyVoiceItems(tableId, items, mode){
+  return (window.__pedidoOrigen ? sinSonidoPos : sonidoLote)(() => aplicarItemsVoz(tableId, items, mode));
+}
+function aplicarItemsVoz(tableId, items, mode){
   mode = mode || 'add';
   const t = data.tables[tableId];
   if(!t) return { added: [], notFound: items.map(it => it.productText) };
@@ -6508,7 +6550,7 @@ function applyVoiceItems(tableId, items, mode){
     if(mode === 'set'){
       const target = Math.max(0, it.qty);
       if(target === 0){
-        if(existing){ try{ invOnSale(existing, -existing.qty); }catch(e){} t.items.splice(t.items.indexOf(existing), 1); }
+        if(existing){ try{ invOnSale(existing, -existing.qty); }catch(e){} t.items.splice(t.items.indexOf(existing), 1); sonidoPos('remove'); }
         added.push({ name: product.name, qty: 0 });
       } else if(existing){
         const diff = target - existing.qty;
@@ -6528,6 +6570,7 @@ function applyVoiceItems(tableId, items, mode){
         if(newQty <= 0){
           try{ invOnSale(existing, -existing.qty); }catch(e){}
           t.items.splice(t.items.indexOf(existing), 1);
+          sonidoPos('remove');
           added.push({ name: product.name, qty: 0 });
         } else {
           existing.qty = newQty;
@@ -9003,6 +9046,7 @@ function renderModalItems(){
         noteManualChange(currentTable, it.name, -it.qty);
         try{ invOnSale(it, -it.qty); }catch(e){}
         t.items.splice(idx,1);
+        sonidoPos('remove');
         saveData();
         renderModalItems();
         renderMesas();
@@ -9187,13 +9231,15 @@ document.getElementById('addItemBtn').addEventListener('click', ()=>{
 
 document.getElementById('qtyMinusBtn').addEventListener('click', ()=>{
   const qtyInput = document.getElementById('addQty');
-  const val = Math.max(0, (parseInt(qtyInput.value,10) || 0) - 1);
+  const antes = parseInt(qtyInput.value,10) || 0, val = Math.max(0, antes - 1);
   qtyInput.value = val;
+  if(val < antes) sonidoPos('remove');
 });
 document.getElementById('qtyPlusBtn').addEventListener('click', ()=>{
   const qtyInput = document.getElementById('addQty');
   const val = Math.max(0, (parseInt(qtyInput.value,10) || 0) + 1);
   qtyInput.value = val;
+  sonidoPos('add');
 });
 
 // ---------- Propina opcional al cobrar (si está activada en Ajustes) ----------
@@ -9271,6 +9317,7 @@ document.getElementById('chargeBtn').addEventListener('click', async ()=>{
   const loyaltyPhone = data.loyaltyOn ? document.getElementById('loyaltyPhone').value : '';
   const loyaltyName = data.loyaltyOn ? document.getElementById('loyaltyName').value : '';
   const entry = closeTableToHistory(currentTable);
+  if(entry && !(entry.debt > 0)) sonidoPos('success');      // cuenta cobrada completa
   if(loyaltyPhone) registrarVisitaCliente(loyaltyPhone, loyaltyName, entry.total);
   saveData();
   renderLoyaltyClientsList();
@@ -9425,11 +9472,14 @@ document.addEventListener('click', (e)=>{
 
 document.getElementById('personQtyMinusBtn').addEventListener('click', ()=>{
   const qtyInput = document.getElementById('personAddQty');
-  qtyInput.value = Math.max(1, (parseInt(qtyInput.value,10) || 1) - 1);
+  const antes = parseInt(qtyInput.value,10) || 1, val = Math.max(1, antes - 1);
+  qtyInput.value = val;
+  if(val < antes) sonidoPos('remove');
 });
 document.getElementById('personQtyPlusBtn').addEventListener('click', ()=>{
   const qtyInput = document.getElementById('personAddQty');
   qtyInput.value = Math.max(1, (parseInt(qtyInput.value,10) || 1) + 1);
+  sonidoPos('add');
 });
 
 document.getElementById('personAddItemBtn').addEventListener('click', ()=>{
@@ -9510,6 +9560,7 @@ function renderPersonModalItems(){
         noteManualChange(currentTable, it.name, -it.qty);
         try{ invOnSale(it, -it.qty); }catch(e){}
         t.items.splice(idx,1);
+        sonidoPos('remove');
         saveData();
         renderPersonModalItems();
         renderMesas();
@@ -13415,11 +13466,14 @@ document.addEventListener('click', (e)=>{
 });
 document.getElementById('qsQtyMinus').addEventListener('click', ()=>{
   const qtyInput = document.getElementById('qsQty');
-  qtyInput.value = Math.max(0, (parseInt(qtyInput.value,10) || 0) - 1);
+  const antes = parseInt(qtyInput.value,10) || 0, val = Math.max(0, antes - 1);
+  qtyInput.value = val;
+  if(val < antes) sonidoPos('remove');
 });
 document.getElementById('qsQtyPlus').addEventListener('click', ()=>{
   const qtyInput = document.getElementById('qsQty');
   qtyInput.value = Math.max(0, (parseInt(qtyInput.value,10) || 0) + 1);
+  sonidoPos('add');
 });
 
 function qsEnvioValor(){
@@ -13453,6 +13507,7 @@ function qsRenderCart(){
         const it = quickSaleCart[idx]; if(!it) return;
         it.qty -= 1;
         if(it.qty <= 0) quickSaleCart.splice(idx,1);
+        sonidoPos('remove');
         qsRenderCart();
       });
     });
@@ -13461,13 +13516,14 @@ function qsRenderCart(){
         const idx = parseInt(btn.dataset.idx,10);
         const it = quickSaleCart[idx]; if(!it) return;
         it.qty += 1;
+        sonidoPos('add');
         qsRenderCart();
       });
     });
     container.querySelectorAll('.li-remove').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         const idx = parseInt(btn.dataset.idx,10);
-        quickSaleCart.splice(idx,1);
+        if(quickSaleCart.splice(idx,1).length) sonidoPos('remove');
         qsRenderCart();
       });
     });
@@ -13480,6 +13536,7 @@ function qsAddToCart(product, qty, noRender){
   const existing = quickSaleCart.find(it => it.productId === product.id);
   if(existing) existing.qty += qty;
   else quickSaleCart.push({ productId: product.id, name: product.name, price: product.price, size: product.size || '', qty });
+  if(qty > 0) sonidoPos('add');
   if(!noRender) qsRenderCart();
 }
 document.getElementById('qsAddBtn').addEventListener('click', ()=>{
@@ -13593,11 +13650,11 @@ function domAbrir(id){
   if(d.texto){
     let items = [];
     try{ items = (parseVoiceCommand('mesa 1, ' + d.texto).items) || []; }catch(e){}
-    items.forEach(it => {
+    sinSonidoPos(() => items.forEach(it => {        // pedido que llegó por el link de domicilios: no suena
       const prod = matchProductVoice(it.productText);
       if(prod) qsAddToCart(prod, Math.max(1, it.qty || 1), true);
       else noReconocidos.push(it.productText);
-    });
+    }));
   }
   qsRenderCart();
   document.getElementById('qsSub').textContent = '🛵 Pedido que entró por tu link de domicilios' +
@@ -13766,6 +13823,7 @@ document.getElementById('qsChargeBtn').addEventListener('click', async ()=>{
   quickSaleCart = [];
   if(isDom && domActual){ domQuitar(domActual); domActual = null; }
   document.getElementById('quickSaleOverlay').classList.remove('show');
+  if(method !== 'debe') sonidoPos('success');
   if(method !== 'debe') try{ window.mesoraCelebrar && window.mesoraCelebrar(isDom ? ['🛵', '💰', '✨'] : ['💰', '✨', '🎉']); }catch(e){}
   showToast(method === 'debe' ? '⏳ ' + deudor + ' quedó debiendo ' + fmt(total) + '. Está en Historial → Deben.' : (isDom ? '✅ Domicilio facturado: ' + fmt(total) + '.' : '✅ Venta de mostrador registrada: ' + fmt(total) + '.'));
 });
@@ -19528,7 +19586,8 @@ function pedidoPublicar(p){
 function pedidoAplicar(p){
   if(p.aplicado)return;
   const its=p.items.filter(i=>i.ok).map(i=>({productText:i.name,qty:i.qty}));
-  if(its.length){const r=applyVoiceItems(p.mesa,its,'add');p.agregados=r.added.map(a=>a.qty+' '+a.name);}
+  // Pedidos del QR: no suenan aquí (ya tienen su timbre y su aviso; si llegan muchos no se llena de «tún»).
+  if(its.length){const r=sinSonidoPos(()=>applyVoiceItems(p.mesa,its,'add'));p.agregados=r.added.map(a=>a.qty+' '+a.name);}
   p.aplicado=true;
   try{saveData();renderMesas();if(typeof refrescarTodoEnVivo==='function')refrescarTodoEnVivo();}catch(e){}
 }
@@ -19570,7 +19629,7 @@ function pedidoCambiar(id,estado){
   const p=pedidosLista().find(x=>x.id===id);if(!p||!PEDIDO_EST[estado]||p.estado===estado)return p;
   if(estado==='cancelado'&&p.aplicado&&['recibido','preparacion','nuevo'].includes(p.estado)){
     const its=p.items.filter(i=>i.ok).map(i=>({productText:i.name,qty:i.qty}));
-    if(its.length)try{applyVoiceItems(p.mesa,its,'subtract');}catch(e){}
+    if(its.length)try{sinSonidoPos(()=>applyVoiceItems(p.mesa,its,'subtract'));}catch(e){}
     p.aplicado=false;try{renderMesas();}catch(e){}
   }
   if(estado!=='cancelado'&&!p.aplicado)pedidoAplicar(p);
