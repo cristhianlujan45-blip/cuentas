@@ -10310,14 +10310,16 @@ function cleanAiJsonText(text){
 const AI_PROVIDER_STORAGE = 'bar-ai-provider';
 const GEMINI_KEY_STORAGE = 'bar-gemini-api-key';
 const GEMINI_MODEL_STORAGE = 'bar-gemini-model';
-// 🔑 OPCIONAL: pega aquí tu API key de Gemini (AIza...) entre las comillas si quieres que la IA
+// 🔑 OPCIONAL: pega aquí tu API key de Gemini (AIza... o AQ....) entre las comillas si quieres que la IA
 // funcione sola en todos los dispositivos donde abras este archivo. Quien tenga el archivo podrá
 // ver la clave. Si la dejas vacía se usa la que guardes en ⚙️ Configurar IA (solo en el dispositivo).
 const BUILTIN_GEMINI_KEY = '';
-const GEMINI_MODEL_DEFAULT = 'gemini-2.5-flash-lite';
+// Las claves nuevas de Google (las que empiezan por «AQ.») ya no tienen los modelos 2.5: se usa uno de la serie 3.5,
+// rápido (menos de 1 s) y que respeta el modo JSON. Los 2.5 quedan al final para claves viejas que aún los tengan.
+const GEMINI_MODEL_DEFAULT = 'gemini-3.5-flash-lite';
 // Si el modelo principal no está disponible o se acabó su cuota diaria, se prueban estos en orden
 // (y, si ninguno sirve, la app le pregunta a Google qué modelos "flash" tiene tu clave).
-const GEMINI_MODEL_FALLBACKS = ['gemini-2.5-flash', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-2.0-flash'];
+const GEMINI_MODEL_FALLBACKS = ['gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite', 'gemini-2.5-flash'];
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 /* IA de Vento ya configurada: si el negocio no puso su propia clave, Vento usa la IA del PROVEEDOR a través del
    Servidor Vento (Supabase → función vento-ia). La clave de Gemini vive allá como secreto del servidor: nunca está
@@ -10745,12 +10747,12 @@ function openAIConfigDialog(){
   provEl.value = current;
 
   const HELP = {
-    gemini: 'Consigue tu API key <b>gratis</b> en <b>aistudio.google.com/apikey</b> (entra con tu cuenta de Google y toca “Create API key”). Empieza por <b>AIza</b>. Se guarda solo en este dispositivo. La app no pone límites; el plan gratis tiene topes diarios y por minuto que fija Google, y la voz clásica sigue funcionando sin límites.',
+    gemini: 'Consigue tu API key <b>gratis</b> en <b>aistudio.google.com/apikey</b> (entra con tu cuenta de Google y toca “Create API key”). Empieza por <b>AIza</b> o <b>AQ.</b>. Se guarda solo en este dispositivo. La app no pone límites; el plan gratis tiene topes diarios y por minuto que fija Google, y la voz clásica sigue funcionando sin límites.',
     openai: 'Pega tu API key de OpenAI (empieza por <b>sk-</b>). Se guarda solo en este dispositivo. No la compartas. La app no pone límites; los únicos son los de tu cuenta en platform.openai.com.'
   };
   const paint = () => {
     helpEl.innerHTML = HELP[current];
-    keyEl.placeholder = current === 'gemini' ? 'AIza...' : 'sk-...';
+    keyEl.placeholder = current === 'gemini' ? 'AIza… o AQ.…' : 'sk-...';
     modelEl.placeholder = 'Modelo (por defecto ' + (current === 'gemini' ? GEMINI_MODEL_DEFAULT : OPENAI_MODEL_DEFAULT) + ')';
     keyEl.value = vals[current].key;
     modelEl.value = vals[current].model;
