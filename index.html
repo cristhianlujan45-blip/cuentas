@@ -2801,6 +2801,43 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
     <div class="settings-group" hidden data-cat="negocio">
       <h2>Cuenta y negocio</h2>
       <div class="settings-desc">Sesión iniciada como <strong id="accUserLabel"></strong>. Sirve para tiendas, cafeterías, restaurantes y bares.</div>
+
+      <div class="section-divider">Cuenta en la nube</div>
+      <div class="settings-desc">Para entrar con <b>el mismo correo y la misma contraseña</b> en todos tus equipos (el celular, el computador del local, el de la casa) y que cada uno quede cuadrado solo: la clave de la IA, el YouTube, la música, los avisos, el QR, los domicilios y la carta. Se monta una sola vez y es gratis. <b>No</b> se copian las mesas abiertas ni el historial de ventas: eso se queda en cada equipo.</div>
+      <div class="lic-plan" id="nubeEstado"></div>
+      <div class="settings-row" style="flex-direction:column;align-items:stretch">
+        <div class="settings-row-text"><strong>1. Publica tu puente de cuenta</strong><span>Es un archivito gratis en Cloudflare donde viven tu cuenta y tu configuración, en <b>tu</b> propia cuenta, no en un servidor de nadie más. Copia el código, pégalo en Cloudflare y conéctale la base de datos.</span></div>
+        <div class="mz-actions">
+          <button class="btn-warn" id="nubeCopy" type="button">📋 Copiar el código del puente</button>
+          <button class="btn-ghost" id="nubeHow" type="button">❓ Ver los pasos</button>
+        </div>
+      </div>
+      <div class="settings-row" style="flex-direction:column;align-items:stretch">
+        <div class="settings-row-text"><strong>2. Pega aquí su dirección</strong><span>La que te da Cloudflare al publicarlo (termina en <code>.workers.dev</code>).</span></div>
+        <input id="nubeUrl" class="mz-in" placeholder="https://…workers.dev" autocapitalize="none" autocomplete="off" spellcheck="false">
+        <div class="mz-actions">
+          <button class="btn-warn" id="nubeTest" type="button">🔧 Probar</button>
+          <button class="btn-primary" id="nubeUnir" type="button">☁️ Conectar esta cuenta</button>
+        </div>
+      </div>
+      <div class="settings-row" style="flex-direction:column;align-items:stretch">
+        <div class="settings-row-text"><strong>3. Tus otros equipos</strong><span>Abre este link en el otro celular o computador: ya queda apuntando a tu cuenta y solo tiene que entrar con tu correo y contraseña.</span></div>
+        <div class="mz-actions">
+          <button class="btn-ghost" id="nubeLink" type="button">🔗 Copiar el link para otro equipo</button>
+          <button class="btn-ghost" id="nubeBajar" type="button">⬇️ Traer la configuración</button>
+          <button class="btn-ghost" id="nubeSubir" type="button">⬆️ Guardar la de este equipo</button>
+        </div>
+      </div>
+
+      <div class="section-divider">Tu cuenta</div>
+      <div class="settings-row" style="flex-direction:column;align-items:stretch">
+        <div class="settings-row-text"><strong>📧 Tu correo</strong><span id="accMailState">Es con el que entras en todos tus equipos. Un correo = una cuenta.</span></div>
+        <div class="acc-inline">
+          <input id="accMail" type="email" placeholder="nombre@gmail.com" autocapitalize="none" autocomplete="email" spellcheck="false">
+          <button class="btn-warn" id="accMailBtn" type="button">Guardar</button>
+        </div>
+      </div>
+
       <div class="settings-row">
         <div class="settings-row-text"><strong>Tipo de negocio</strong><span>Solo cambia la etiqueta del negocio; tus productos no se tocan.</span></div>
         <select id="accType" class="acc-inline" style="padding:10px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px"></select>
@@ -2810,6 +2847,7 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
         <div id="accUsersList" class="acc-users"></div>
         <div class="acc-inline">
           <input id="accNewUser" placeholder="Usuario" autocapitalize="none" autocomplete="off">
+          <input id="accNewMail" type="email" placeholder="Correo (opcional)" autocapitalize="none" autocomplete="off" spellcheck="false">
           <input id="accNewPass" type="password" placeholder="Contraseña (mín. 6)" autocomplete="new-password">
           <select id="accNewRole" class="acc-role"><option value="staff">Mesero</option><option value="admin">Administrador</option></select>
           <button class="btn-warn" id="accAddBtn" type="button">Agregar</button>
@@ -3855,6 +3893,267 @@ export default {
 };
 </script>
 
+<script type="text/plain" id="cuWorkerSrc">/* Puente de Mesora para la CUENTA EN LA NUBE (Cloudflare Worker, gratis).
+
+   Para qué sirve: para que entres con el MISMO correo y la MISMA contraseña en cualquier
+   equipo (el celular, el computador del local, el de la casa) y la app ya aparezca cuadrada:
+   la clave de la IA, el YouTube, la música, los avisos, el QR, los domicilios y la carta.
+   Sin esto, cada aparato guarda lo suyo y hay que volver a montar todo en cada uno.
+
+   Qué guarda: tu cuenta (correo, usuario y la contraseña cifrada, nunca en texto) y tu
+   configuración. Todo queda en TU propia cuenta de Cloudflare, no en un servidor de nadie más.
+   No guarda las mesas abiertas ni el historial de ventas: eso se queda en cada equipo.
+
+   Cómo publicarlo (una sola vez, son 3 pasos):
+   1) dash.cloudflare.com → Workers & Pages → Create → Create Worker → Deploy.
+      Luego Edit code → borra todo, pega este archivo completo → Deploy.
+   2) Crea la base de datos donde viven las cuentas:
+      dash.cloudflare.com → Storage & Databases → KV → Create a namespace → ponle «mesora».
+   3) Conéctala a este Worker con el nombre exacto CUENTAS:
+      el Worker → Settings → Bindings → Add → KV namespace →
+        Variable name: CUENTAS      KV namespace: mesora     → Deploy.
+   Para comprobar que quedó: abre la dirección del Worker en el navegador. Debe decir
+   «puente de cuenta funcionando ✔» y NO debe pedirte conectar la base de datos.
+
+   Opcional: en Settings → Variables and Secrets puedes agregar un secreto llamado SECRETO
+   con cualquier palabra larga que inventes. Si no lo pones, el puente se crea uno solo y lo
+   guarda; funciona igual. Si algún día lo cambias, todos tendrán que volver a entrar.
+
+   Después pega la dirección de este Worker en Mesora: Ajustes → Cuenta → Cuenta en la nube. */
+
+const ITER = 120000;                   // vueltas de PBKDF2 para cifrar la contraseña
+const DIAS_TOKEN = 90;                 // cuánto dura la sesión antes de pedir contraseña otra vez
+const MAX_CFG = 4 * 1024 * 1024;       // tope de la configuración que se guarda (4 MB)
+
+const te = new TextEncoder();
+const b64 = u8 => btoa(String.fromCharCode.apply(null, Array.from(u8)));
+const unb64 = s => Uint8Array.from(atob(String(s).replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+const b64url = u8 => b64(u8).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Max-Age': '86400'
+};
+const json = (o, status) => new Response(JSON.stringify(o), {
+  status: status || 200,
+  headers: Object.assign({}, cors, { 'Content-Type': 'application/json; charset=utf-8' })
+});
+
+const normUser = u => String(u == null ? '' : u).trim().toLowerCase();
+const mailOk = m => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(m == null ? '' : m).trim());
+
+/* Clave con la que se busca el correo. Sirve para que «Juan.Perez+bar@Gmail.com» y
+   «juanperez@gmail.com» NO puedan ser dos cuentas distintas: en Gmail son el mismo buzón. */
+function mailKey(m){
+  const s = String(m == null ? '' : m).trim().toLowerCase();
+  const i = s.lastIndexOf('@');
+  if(i < 1 || i === s.length - 1) return '';
+  let user = s.slice(0, i).split('+')[0], dom = s.slice(i + 1);
+  if(dom === 'googlemail.com') dom = 'gmail.com';
+  if(dom === 'gmail.com') user = user.replace(/\./g, '');
+  return user && dom ? user + '@' + dom : '';
+}
+
+async function pbkdf2(pass, salt){
+  const k = await crypto.subtle.importKey('raw', te.encode(String(pass)), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: ITER, hash: 'SHA-256' }, k, 256);
+  return b64(new Uint8Array(bits));
+}
+
+/* Comparación que tarda lo mismo acierte o no, para no dar pistas de la contraseña. */
+function igual(a, b){
+  a = String(a); b = String(b);
+  if(a.length !== b.length) return false;
+  let d = 0;
+  for(let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+
+async function secreto(env){
+  if(env.SECRETO) return String(env.SECRETO);
+  let s = await env.CUENTAS.get('sys:secreto');
+  if(!s){
+    s = b64url(crypto.getRandomValues(new Uint8Array(32)));
+    await env.CUENTAS.put('sys:secreto', s);
+  }
+  return s;
+}
+
+async function firma(msg, sec){
+  const k = await crypto.subtle.importKey('raw', te.encode(sec), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return b64url(new Uint8Array(await crypto.subtle.sign('HMAC', k, te.encode(msg))));
+}
+async function tokenNuevo(user, sec){
+  const exp = Date.now() + DIAS_TOKEN * 864e5;
+  return b64url(te.encode(user)) + '.' + exp + '.' + (await firma(user + '|' + exp, sec));
+}
+async function tokenUser(tok, sec){
+  const p = String(tok == null ? '' : tok).split('.');
+  if(p.length !== 3) return null;
+  let user;
+  try{ user = new TextDecoder().decode(unb64(p[0])); }catch(e){ return null; }
+  const exp = Number(p[1]);
+  if(!user || !exp || exp < Date.now()) return null;
+  return igual(await firma(user + '|' + exp, sec), p[2]) ? user : null;
+}
+
+/* Freno a quien prueba contraseñas al puro intento. */
+async function frenado(env, id){
+  const r = await env.CUENTAS.get('freno:' + id, 'json');
+  if(r && Date.now() - r.t < 6e5 && r.n >= 8) return Math.ceil((6e5 - (Date.now() - r.t)) / 6e4);
+  return 0;
+}
+async function fallo(env, id){
+  const r = await env.CUENTAS.get('freno:' + id, 'json');
+  const fresco = r && Date.now() - r.t < 6e5;
+  await env.CUENTAS.put('freno:' + id, JSON.stringify({ n: (fresco ? r.n : 0) + 1, t: Date.now() }), { expirationTtl: 900 });
+}
+
+export default {
+  async fetch(req, env) {
+    if(req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+
+    const u = new URL(req.url);
+    const ruta = u.pathname.replace(/\/+$/, '') || '/';
+
+    if(req.method === 'GET'){
+      const falta = !env.CUENTAS;
+      const txt = 'Mesora: puente de cuenta funcionando ✔' + (falta
+        ? '\n\n⚠️ Falta un paso: conectar la base de datos KV con el nombre exacto CUENTAS.\n' +
+          'En el panel de Cloudflare: este Worker → Settings → Bindings → Add → KV namespace →\n' +
+          'Variable name: CUENTAS   ·   KV namespace: el que creaste (ej. «mesora») → Deploy.'
+        : '\n\nBase de datos conectada ✔  Ya puedes pegar esta dirección en Mesora\n(Ajustes → Cuenta → Cuenta en la nube).');
+      return new Response(txt, {
+        status: ruta === '/' ? 200 : 404,
+        headers: Object.assign({}, cors, { 'Content-Type': 'text/plain; charset=utf-8' })
+      });
+    }
+    if(req.method !== 'POST') return json({ error: 'Este puente solo responde a POST.' }, 405);
+    if(!env.CUENTAS) return json({ error: 'Falta conectar la base de datos KV con el nombre CUENTAS en el panel de Cloudflare (Settings → Bindings → Add → KV namespace). Abre la dirección del puente en el navegador y te dice los pasos.' }, 500);
+
+    let b;
+    try{ b = await req.json(); }catch(e){ return json({ error: 'No se entendió la solicitud (JSON inválido).' }, 400); }
+    if(!b || typeof b !== 'object') b = {};
+
+    const sec = await secreto(env);
+    const guardar = cta => env.CUENTAS.put('cuenta:' + cta.user, JSON.stringify(cta));
+    const sesion = async () => {
+      const user = await tokenUser(b.token, sec);
+      return user ? await env.CUENTAS.get('cuenta:' + user, 'json') : null;
+    };
+    const salida = async cta => ({
+      ok: true,
+      token: await tokenNuevo(cta.user, sec),
+      user: cta.user,
+      email: cta.email || '',
+      rol: cta.rol || 'admin',
+      cfg: cta.cfg || null,
+      at: cta.cfgAt || 0
+    });
+
+    // ---------- Crear la cuenta ----------
+    if(ruta === '/registro'){
+      const user = normUser(b.user);
+      const mail = String(b.email == null ? '' : b.email).trim();
+      const mk = mailKey(mail);
+      if(user.length < 3) return json({ error: 'El usuario debe tener al menos 3 caracteres.' }, 400);
+      if(!/^[a-z0-9._-]+$/.test(user)) return json({ error: 'El usuario solo puede llevar letras, números, punto, guion y guion bajo (sin espacios ni tildes).' }, 400);
+      if(!mailOk(mail) || !mk) return json({ error: 'Escribe un correo válido (ejemplo: nombre@gmail.com).' }, 400);
+      if(String(b.pass == null ? '' : b.pass).length < 6) return json({ error: 'La contraseña debe tener al menos 6 caracteres.' }, 400);
+      if(await env.CUENTAS.get('mail:' + mk)) return json({ error: 'Ya hay una cuenta con ese correo. Entra con ella, o recupera la contraseña si no la recuerdas.' }, 409);
+      if(await env.CUENTAS.get('cuenta:' + user)) return json({ error: 'Ese usuario ya está tomado. Elige otro.' }, 409);
+
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const cta = {
+        user, email: mail, mk,
+        salt: b64(salt), hash: await pbkdf2(b.pass, salt),
+        rol: 'admin', creada: Date.now(), cfg: null, cfgAt: 0
+      };
+      await guardar(cta);
+      await env.CUENTAS.put('mail:' + mk, user);
+      return json(await salida(cta));
+    }
+
+    // ---------- Entrar (con el correo o con el usuario) ----------
+    if(ruta === '/entrar'){
+      const id = normUser(b.id || b.email || b.user);
+      if(!id) return json({ error: 'Escribe tu correo o tu usuario.' }, 400);
+      const esperar = await frenado(env, id);
+      if(esperar) return json({ error: '🔒 Demasiados intentos. Espera ' + esperar + ' min. e intenta de nuevo.' }, 429);
+
+      let user = id;
+      if(id.indexOf('@') >= 0) user = (await env.CUENTAS.get('mail:' + mailKey(id))) || '';
+      const cta = user ? await env.CUENTAS.get('cuenta:' + user, 'json') : null;
+      const bien = !!cta && igual(await pbkdf2(String(b.pass == null ? '' : b.pass), unb64(cta.salt)), cta.hash);
+      if(!bien){
+        await fallo(env, id);
+        return json({ error: 'Correo (o usuario) y contraseña no coinciden.' }, 401);
+      }
+      await env.CUENTAS.delete('freno:' + id);
+      return json(await salida(cta));
+    }
+
+    // ---------- Bajar la configuración ----------
+    if(ruta === '/bajar'){
+      const cta = await sesion();
+      if(!cta) return json({ error: 'La sesión venció. Entra otra vez con tu correo y contraseña.' }, 401);
+      return json({ ok: true, user: cta.user, email: cta.email || '', cfg: cta.cfg || null, at: cta.cfgAt || 0 });
+    }
+
+    // ---------- Subir la configuración ----------
+    if(ruta === '/subir'){
+      const cta = await sesion();
+      if(!cta) return json({ error: 'La sesión venció. Entra otra vez con tu correo y contraseña.' }, 401);
+      const at = Number(b.at) || Date.now();
+      // Si otro equipo guardó algo más nuevo, no se pisa: se le devuelve lo nuevo a este.
+      if(at < (cta.cfgAt || 0)) return json({ ok: true, viejo: true, cfg: cta.cfg || null, at: cta.cfgAt || 0 });
+      const txt = JSON.stringify(b.cfg == null ? null : b.cfg);
+      if(txt.length > MAX_CFG) return json({ error: 'La configuración es demasiado grande para guardarla en la nube.' }, 413);
+      cta.cfg = b.cfg == null ? null : b.cfg;
+      cta.cfgAt = at;
+      await guardar(cta);
+      return json({ ok: true, at });
+    }
+
+    // ---------- Cambiar la contraseña ----------
+    if(ruta === '/clave'){
+      const cta = await sesion();
+      if(!cta) return json({ error: 'La sesión venció. Entra otra vez con tu correo y contraseña.' }, 401);
+      if(!igual(await pbkdf2(String(b.actual == null ? '' : b.actual), unb64(cta.salt)), cta.hash)) return json({ error: 'La contraseña actual no coincide.' }, 401);
+      if(String(b.nueva == null ? '' : b.nueva).length < 6) return json({ error: 'La contraseña nueva debe tener al menos 6 caracteres.' }, 400);
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      cta.salt = b64(salt);
+      cta.hash = await pbkdf2(b.nueva, salt);
+      await guardar(cta);
+      return json({ ok: true, token: await tokenNuevo(cta.user, sec) });
+    }
+
+    // ---------- Cambiar el correo de la cuenta ----------
+    if(ruta === '/correo'){
+      const cta = await sesion();
+      if(!cta) return json({ error: 'La sesión venció. Entra otra vez con tu correo y contraseña.' }, 401);
+      const mail = String(b.email == null ? '' : b.email).trim();
+      const mk = mailKey(mail);
+      if(!mailOk(mail) || !mk) return json({ error: 'Escribe un correo válido (ejemplo: nombre@gmail.com).' }, 400);
+      if(mk !== cta.mk){
+        const dueno = await env.CUENTAS.get('mail:' + mk);
+        if(dueno && dueno !== cta.user) return json({ error: 'Ese correo ya lo está usando otra cuenta.' }, 409);
+        if(cta.mk) await env.CUENTAS.delete('mail:' + cta.mk);
+        await env.CUENTAS.put('mail:' + mk, cta.user);
+      }
+      cta.email = mail;
+      cta.mk = mk;
+      await guardar(cta);
+      return json({ ok: true, email: mail });
+    }
+
+    return json({ error: 'Ruta desconocida: ' + ruta }, 404);
+  }
+};
+</script>
+
 <script type="text/plain" id="waWorkerSrc">/* Puente de Mesora para WhatsApp (Cloudflare Worker, gratis).
    Mesora es una página web y no puede recibir directamente los mensajes que WhatsApp Business
    manda por su "webhook" (necesita un servidor con dirección fija). Este puente sí la tiene:
@@ -3980,15 +4279,19 @@ export default {
   <form class="auth-card" id="authForm" autocomplete="on">
     <h2 id="authTitle">Iniciar sesión</h2>
     <div id="authSetup" hidden style="display:flex;flex-direction:column;gap:12px">
-      <div class="auth-hint">Primera vez: crea el usuario administrador de este equipo.</div>
+      <div class="auth-hint">Primera vez: crea tu cuenta de dueño. Con este correo y esta contraseña entras en todos tus equipos.</div>
       <label>Nombre del negocio<input id="authBiz" placeholder="Ej: Cafetería Vito" autocomplete="organization"></label>
       <label>Tipo de negocio<select id="authType"></select></label>
+      <label>Correo<input id="authEmail" type="email" placeholder="nombre@gmail.com" autocomplete="email" autocapitalize="none" spellcheck="false"></label>
     </div>
-    <label>Usuario<input id="authUser" autocomplete="username" autocapitalize="none" spellcheck="false"></label>
+    <label><span id="authUserLbl">Usuario</span><input id="authUser" autocomplete="username" autocapitalize="none" spellcheck="false"></label>
     <label>Contraseña<input id="authPass" type="password" autocomplete="current-password"></label>
     <div class="auth-err" id="authErr"></div>
     <button class="btn-primary" type="submit" id="authBtn">Entrar</button>
+    <button type="button" class="auth-link" id="authNubeBtn" hidden>☁️ Ya tengo cuenta: traerla a este equipo</button>
+    <label id="authNubeWrap" hidden>Dirección de tu cuenta en la nube<input id="authNubeUrl" placeholder="https://…workers.dev" autocapitalize="none" spellcheck="false"><small class="auth-hint" style="display:block;margin-top:6px">La copias de tu otro equipo en Ajustes → Cuenta → Cuenta en la nube.</small></label>
     <button type="button" class="auth-link" id="authForgot">¿Olvidaste tu contraseña? Recupérala con WhatsApp</button>
+    <button type="button" class="auth-link" id="authCrearBtn" hidden>➕ No tengo cuenta todavía: crear una nueva</button>
     <button type="button" class="auth-link" id="authRestoreBtn">📥 ¿Ya tenías una cuenta? Restaura tu copia de respaldo</button>
     <input type="file" id="authRestoreFile" accept="application/json,.json" hidden>
   </form>
@@ -4192,7 +4495,11 @@ async function saveData(){
     const json = JSON.stringify(data);
     const result = await storageSet(STORAGE_KEY, json);
     if(!result) showToast('No se pudo guardar. Intenta de nuevo.');
-    else autoBackupTick(json);
+    else{
+      autoBackupTick(json);
+      // Si hay cuenta en la nube, la carta y los ajustes del negocio se copian a tus otros equipos.
+      if(typeof window.nubeSubirPronto === 'function') window.nubeSubirPronto();
+    }
   }catch(e){
     const cod = window.mesoraLogError ? window.mesoraLogError('guardar', 'No se pudo guardar: ' + (e && (e.name + ' ' + e.message) || e), 'saveData') : '';
     const lleno = e && (e.name === 'QuotaExceededError' || /quota/i.test(e.message || ''));
@@ -14244,6 +14551,218 @@ function authIsAdmin(){
 }
 const voiceAiOn = () => localStorage.getItem(VOICE_AI_KEY) === '1';
 
+/* ---------- Cuenta en la nube: la misma cuenta en todos los equipos ----------
+   Sin esto, cada aparato guardaba lo suyo: entrabas en el computador del local y te tocaba
+   volver a poner la clave de la IA, el YouTube, la música y los avisos desde cero. Con el
+   puente de cuenta (puente/cuenta-worker.js, gratis en Cloudflare) la cuenta y toda la
+   configuración viven en un solo lado: entras con tu correo y tu contraseña y el equipo
+   nuevo queda cuadrado solo.
+
+   Lo que NO viaja: las mesas abiertas y el historial de ventas (eso es el trabajo de cada
+   día en cada equipo), ni lo que es propio del aparato (su pantalla, su micrófono, su TV
+   vinculado). Si no hay internet o no hay puente, la app sigue funcionando igual que antes
+   con el usuario local. */
+const NUBE_KEY = 'mesora-nube';
+/* Si publicas la app con la dirección de tu puente ya escrita aquí, los equipos nuevos no
+   tienen que escribirla: basta con entrar con el correo y la contraseña. */
+const NUBE_FIJA = '';
+function nubeCfg(){ try{ return JSON.parse(localStorage.getItem(NUBE_KEY)) || {}; }catch(e){ return {}; } }
+function nubeSet(c){ try{ localStorage.setItem(NUBE_KEY, JSON.stringify(c || {})); }catch(e){} }
+function nubeUrl(){
+  const u = String(nubeCfg().url || NUBE_FIJA || '').trim().replace(/\/+$/, '');
+  return /^https:\/\/\S+$/.test(u) ? u : '';
+}
+const nubeOn = () => !!nubeUrl();
+function nubeSesion(){ const c = nubeCfg(); return (nubeOn() && c.token) ? c : null; }
+/* Montar otro equipo de un toque: basta abrir index.html#nube=<dirección del puente>. */
+(function(){
+  try{
+    const m = (location.hash + '&' + location.search).match(/[#&?]nube=([^&]+)/);
+    if(!m) return;
+    const url = decodeURIComponent(m[1]).trim().replace(/\/+$/, '');
+    if(!/^https:\/\/\S+$/.test(url)) return;
+    const c = nubeCfg();
+    if(c.url !== url){ c.url = url; nubeSet(c); }
+  }catch(e){}
+})();
+
+async function nubeApi(ruta, cuerpo, ms){
+  const url = nubeUrl();
+  if(!url) throw new Error('Todavía no has puesto la dirección de tu cuenta en la nube.');
+  const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), ms || 15000);
+  try{
+    const r = await fetch(url + ruta, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cuerpo || {}), signal: ctrl.signal
+    });
+    let j = null; try{ j = await r.json(); }catch(e){}
+    if(!r.ok){
+      const e = new Error((j && j.error) || ('Tu cuenta en la nube respondió con un error (' + r.status + ').'));
+      e.codigo = r.status;
+      throw e;
+    }
+    return j || {};
+  }catch(e){
+    if(e.name === 'AbortError' || e.name === 'TypeError'){
+      const n = new Error('No se pudo hablar con tu cuenta en la nube (revisa el internet o la dirección del puente).');
+      n.red = true;
+      throw n;
+    }
+    throw e;
+  }finally{ clearTimeout(t); }
+}
+
+/* Lo que NO se copia entre equipos. */
+const NUBE_NO = [
+  AUTH_USERS_KEY, AUTH_SESSION_KEY, NUBE_KEY, 'cm-login-lock', 'cm-rec-lock', 'cm-tutorial-seen',
+  'bar-current-sede', 'bar-autobk-points', 'bar-last-backup',
+  'vito_cola', 'vito_now', 'vito_pedidos_pend', 'vito_kds_ack', 'vito_vistos', 'vito_errlog',
+  'vito_probe', 'vito_yt_bad', 'vito_auto_antes', 'vito_cast', 'vito_tv_vinculado', 'vito_ytok',
+  'voice-fab-pos', 'voice-fab-hidden', 'voice-mic-enabled'
+];
+const nubeSalta = k => NUBE_NO.indexOf(k) >= 0 || /^bar-data/.test(k);
+/* Del negocio viaja la carta y la configuración, no el trabajo del día. */
+const NUBE_NEG_NO = ['tables', 'history', 'closures', 'clientesFrecuentes', 'casos', 'invoiceNextNo'];
+const NUBE_TOPE = 300000;   // ni ajustes ni campos gigantes (fotos de fondo, etc.)
+
+function nubeRecoger(){
+  const ajustes = {};
+  try{
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(!k || nubeSalta(k)) continue;
+      const v = localStorage.getItem(k);
+      if(v != null && v.length <= NUBE_TOPE) ajustes[k] = v;
+    }
+  }catch(e){}
+  const negocio = {};
+  try{
+    Object.keys(data || {}).forEach(k => {
+      if(NUBE_NEG_NO.indexOf(k) >= 0) return;
+      const t = JSON.stringify(data[k]);
+      if(t != null && t.length <= NUBE_TOPE) negocio[k] = data[k];
+    });
+  }catch(e){}
+  // Los usuarios (dueño y meseros) también viajan, para no tener que crearlos de nuevo
+  // en cada equipo. Se mandan aparte porque se juntan, no se reemplazan.
+  return { v: 1, ajustes, negocio, usuarios: authUsers() };
+}
+
+/* Deja este equipo igual que el otro. Devuelve true si algo cambió de verdad (entonces
+   conviene recargar, para que todas las pantallas se vuelvan a dibujar con lo nuevo). */
+async function nubeAplicar(cfg){
+  if(!cfg || typeof cfg !== 'object') return false;
+  let cambio = false;
+  const aj = cfg.ajustes || {};
+  Object.keys(aj).forEach(k => {
+    if(nubeSalta(k) || typeof aj[k] !== 'string') return;
+    try{
+      if(localStorage.getItem(k) === aj[k]) return;
+      localStorage.setItem(k, aj[k]);
+      cambio = true;
+    }catch(e){}
+  });
+  const neg = cfg.negocio || {};
+  if(Object.keys(neg).length){
+    try{
+      const res = await storageGet(STORAGE_KEY);
+      const d = res ? JSON.parse(res.value) : defaultData();
+      Object.keys(neg).forEach(k => {
+        if(NUBE_NEG_NO.indexOf(k) >= 0) return;
+        if(JSON.stringify(d[k]) === JSON.stringify(neg[k])) return;
+        d[k] = neg[k];
+        cambio = true;
+      });
+      if(cambio) await storageSet(STORAGE_KEY, JSON.stringify(d));
+    }catch(e){}
+  }
+  // Usuarios: se AGREGAN los que este equipo no tenía. Nunca se tocan ni se borran los de
+  // aquí, para que nadie se quede por fuera por una copia vieja de otro equipo.
+  if(Array.isArray(cfg.usuarios) && cfg.usuarios.length){
+    try{
+      const mios = authUsers(), hay = {};
+      mios.forEach(u => { hay[u.user] = true; });
+      let sumo = false;
+      cfg.usuarios.forEach(u => {
+        if(!u || !u.user || !u.hash || !u.salt || hay[u.user]) return;
+        mios.push(u); hay[u.user] = true; sumo = true;
+      });
+      if(sumo){ localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(mios)); cambio = true; }
+    }catch(e){}
+  }
+  return cambio;
+}
+
+async function nubeRegistrar(user, email, pass){
+  const r = await nubeApi('/registro', { user, email, pass });
+  const c = nubeCfg();
+  c.token = r.token; c.user = r.user; c.email = r.email; c.at = r.at || 0;
+  nubeSet(c);
+  return r;
+}
+async function nubeEntrar(id, pass){
+  const r = await nubeApi('/entrar', { id, pass });
+  const c = nubeCfg();
+  c.token = r.token; c.user = r.user; c.email = r.email; c.at = r.at || 0;
+  nubeSet(c);
+  return r;
+}
+function nubeSalir(){ const c = nubeCfg(); delete c.token; delete c.user; delete c.email; nubeSet(c); }
+
+let nubeTimer = null, nubeUltimo = '', nubeOcupado = false, nubeAvisoViejo = false;
+function nubeSubirPronto(ms){
+  if(!nubeSesion()) return;
+  clearTimeout(nubeTimer);
+  nubeTimer = setTimeout(nubeSubirYa, ms == null ? 4000 : ms);
+}
+async function nubeSubirYa(){
+  const s = nubeSesion();
+  if(!s || nubeOcupado) return { ok: false };
+  if(typeof navigator !== 'undefined' && navigator.onLine === false) return { ok: false };
+  const cfg = nubeRecoger(), txt = JSON.stringify(cfg);
+  if(txt === nubeUltimo) return { ok: true, igual: true };
+  nubeOcupado = true;
+  try{
+    const r = await nubeApi('/subir', { token: s.token, cfg, at: Date.now() });
+    nubeUltimo = txt;
+    const c = nubeCfg(); c.at = r.at || Date.now(); c.ult = Date.now(); nubeSet(c);
+    // Otro equipo había guardado algo más nuevo: no se pisa, se avisa.
+    if(r.viejo && !nubeAvisoViejo){
+      nubeAvisoViejo = true;
+      if(typeof showToast === 'function') showToast('☁️ Otro de tus equipos cambió la configuración después que este. Toca «Traer la configuración» en Ajustes → Cuenta para quedar igual.', 7000);
+    }
+    return r;
+  }catch(e){
+    if(e.codigo === 401) nubeSalir();
+    return { ok: false, error: e.message };
+  }finally{ nubeOcupado = false; }
+}
+async function nubeBajarYAplicar(){
+  const s = nubeSesion();
+  if(!s) throw new Error('Este equipo no está conectado a tu cuenta en la nube.');
+  const r = await nubeApi('/bajar', { token: s.token });
+  const cambio = await nubeAplicar(r.cfg);
+  const c = nubeCfg(); c.at = r.at || 0; c.ult = Date.now(); nubeSet(c);
+  nubeAvisoViejo = false;
+  return cambio;
+}
+// Sube sola cuando algo cambió (no manda nada si no hay cambios).
+setInterval(() => { nubeSubirYa(); }, 25000);
+window.nubeSubirPronto = nubeSubirPronto;
+
+const authMailOk = m => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(String(m == null ? '' : m).trim());
+/* Igual que en el puente: así «Juan.Perez+bar@Gmail.com» y «juanperez@gmail.com» no
+   pueden ser dos cuentas distintas, porque en Gmail son el mismo buzón. */
+function authMailKey(m){
+  const s = String(m == null ? '' : m).trim().toLowerCase();
+  const i = s.lastIndexOf('@');
+  if(i < 1 || i === s.length - 1) return '';
+  let user = s.slice(0, i).split('+')[0], dom = s.slice(i + 1);
+  if(dom === 'googlemail.com') dom = 'gmail.com';
+  if(dom === 'gmail.com') user = user.replace(/\./g, '');
+  return user && dom ? user + '@' + dom : '';
+}
+
 function authUsers(){ try{ return JSON.parse(localStorage.getItem(AUTH_USERS_KEY)) || []; }catch(e){ return []; } }
 async function authHash(pass, salt){
   const str = salt + ':' + pass;
@@ -14252,16 +14771,47 @@ async function authHash(pass, salt){
     return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2,'0')).join('');
   }catch(e){ let h = 5381; for(const c of str) h = ((h << 5) + h + c.charCodeAt(0)) >>> 0; return 'x' + h.toString(16); }
 }
-async function authAddUser(user, pass, role){
+async function authAddUser(user, pass, role, email){
   user = (user || '').trim().toLowerCase();
+  email = String(email == null ? '' : email).trim();
   if(user.length < 3) return 'El usuario debe tener al menos 3 caracteres.';
+  if(!/^[a-z0-9._-]+$/.test(user)) return 'El usuario solo puede llevar letras, números, punto, guion y guion bajo (sin espacios ni tildes).';
   if((pass || '').length < 6) return 'La contraseña debe tener al menos 6 caracteres.';
   const users = authUsers();
   if(users.some(u => u.user === user)) return 'Ese usuario ya existe.';
+  if(email){
+    if(!authMailOk(email)) return 'Escribe un correo válido (ejemplo: nombre@gmail.com).';
+    const mk = authMailKey(email);
+    // Un correo = una cuenta. Así no quedan dos cuentas del mismo dueño sin darse cuenta.
+    if(users.some(u => u.email && authMailKey(u.email) === mk)) return 'Ya hay una cuenta con ese correo. Entra con ella, o usa otro correo.';
+  }
   const salt = Math.random().toString(36).slice(2) + Date.now().toString(36);
-  users.push({ user, salt, hash: await authHash(pass, salt), role: role || 'staff' });
+  users.push({ user, email, salt, hash: await authHash(pass, salt), role: role || 'staff' });
   localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
   return null;
+}
+/* Deja en ESTE equipo el usuario que acabó de entrar por la nube, con su misma contraseña.
+   Para que si mañana no hay internet igual pueda entrar aquí. */
+async function authGuardarLocal(user, pass, email, role){
+  const users = authUsers();
+  let u = users.find(x => x.user === user);
+  if(!u){ u = { user }; users.push(u); }
+  u.salt = u.salt || (Math.random().toString(36).slice(2) + Date.now().toString(36));
+  u.hash = await authHash(pass, u.salt);
+  if(email) u.email = email;
+  u.role = role || u.role || 'admin';
+  u.nube = true;
+  localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
+}
+/* Busca al usuario por su nombre o por su correo (se puede entrar con cualquiera de los dos). */
+function authBuscar(id){
+  id = String(id == null ? '' : id).trim().toLowerCase();
+  if(!id) return null;
+  const users = authUsers();
+  const porUser = users.find(x => x.user === id);
+  if(porUser) return porUser;
+  const mk = authMailKey(id);
+  return mk ? users.find(x => x.email && authMailKey(x.email) === mk) || null : null;
 }
 const authNorm = n => String(n || '').replace(/\D/g, '').replace(/^57(?=\d{10}$)/, '');   // 3001234567
 const authNormCode = c => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -14432,6 +14982,36 @@ function showAuth(firstRun){
   ov.hidden = false;
   const af = document.getElementById('authForm'), rf = document.getElementById('recForm'), g = i => document.getElementById(i);
   g('authForgot').hidden = firstRun;
+  // Al entrar se puede escribir el correo o el usuario; al crear la cuenta, el usuario es aparte.
+  g('authUserLbl').textContent = firstRun ? 'Usuario' : 'Correo o usuario';
+  g('authUser').autocomplete = firstRun ? 'username' : 'email';
+  // «Ya tengo cuenta»: si este equipo no sabe dónde vive la cuenta, pide la dirección;
+  // si ya la sabe y está en «crear cuenta», lleva derecho a entrar.
+  const faltaNube = !nubeOn();
+  g('authNubeBtn').hidden = !(faltaNube || firstRun);
+  g('authNubeBtn').textContent = faltaNube ? '☁️ Ya tengo cuenta: traerla a este equipo' : '☁️ Ya tengo cuenta: entrar';
+  g('authNubeWrap').hidden = true;
+  g('authNubeUrl').value = nubeCfg().url || '';
+  // Si este equipo no tiene ninguna cuenta guardada, siempre debe quedar la salida de
+  // crear una nueva (por ejemplo si abrió el link de la nube antes de tener cuenta).
+  g('authCrearBtn').hidden = firstRun || authUsers().length > 0;
+  g('authCrearBtn').onclick = () => showAuth(true);
+  g('authNubeBtn').onclick = () => {
+    if(!faltaNube){ showAuth(false); return; }
+    const w = g('authNubeWrap');
+    w.hidden = !w.hidden;
+    g('authNubeBtn').hidden = true;
+    if(!w.hidden) g('authNubeUrl').focus();
+  };
+  // Si pega la dirección del puente, este equipo pasa a modo «entrar» (no «crear cuenta»).
+  g('authNubeUrl').onchange = () => {
+    const url = g('authNubeUrl').value.trim().replace(/\/+$/, '');
+    if(!url) return;
+    if(!/^https:\/\/\S+$/.test(url)){ g('authErr').textContent = 'La dirección debe empezar por https://'; return; }
+    const c = nubeCfg(); c.url = url; nubeSet(c);
+    g('authErr').textContent = '';
+    showAuth(false);
+  };
   // Usuarios de este equipo: se tocan para no tener que escribir el nombre.
   let chips = document.getElementById('authUsers');
   if(!chips){ chips = document.createElement('div'); chips.id = 'authUsers'; chips.className = 'auth-users'; g('authUser').closest('label').before(chips); }
@@ -14470,23 +15050,79 @@ function showAuth(firstRun){
   document.getElementById('authForm').onsubmit = async (e) => {
     e.preventDefault();
     const err = document.getElementById('authErr'); err.textContent = '';
-    const user = document.getElementById('authUser').value.trim().toLowerCase();
+    const btn = document.getElementById('authBtn'), etiq = btn.textContent;
+    const esperando = t => { btn.disabled = true; btn.textContent = t; };
+    const listo = () => { btn.disabled = false; btn.textContent = etiq; };
+    const id = document.getElementById('authUser').value.trim().toLowerCase();
     const pass = document.getElementById('authPass').value;
     if(firstRun){
-      const msg = await authAddUser(user, pass, 'admin');
-      if(msg){ err.textContent = msg; return; }
-      await enterApp(user, { biz: document.getElementById('authBiz').value.trim(), type: document.getElementById('authType').value });
-    }else{
-      const waitMin = authLoginLocked(user);
-      if(waitMin){ err.textContent = '🔒 Demasiados intentos con "' + user + '". Espera ' + waitMin + ' min. e intenta de nuevo.'; return; }
-      const u = authUsers().find(x => x.user === user);
-      if(!u || await authHash(pass, u.salt) !== u.hash){
-        authLoginFail(user);
-        err.textContent = 'Usuario o contraseña incorrectos.'; return;
+      const email = document.getElementById('authEmail').value.trim();
+      // Con puente de cuenta, el correo se reserva allá primero: así dos equipos no pueden
+      // crear dos cuentas con el mismo correo cada uno por su lado.
+      if(nubeOn()){
+        esperando('Creando tu cuenta…');
+        try{
+          await nubeRegistrar(id, email, pass);
+        }catch(ex){
+          listo();
+          err.textContent = ex.red
+            ? ex.message + ' Si quieres crear la cuenta solo en este equipo, borra la dirección del puente en la pantalla anterior.'
+            : ex.message;
+          return;
+        }
+        listo();
       }
-      authLoginClear(user);
+      const msg = await authAddUser(id, pass, 'admin', email);
+      if(msg){ err.textContent = msg; return; }
+      await enterApp(id, { biz: document.getElementById('authBiz').value.trim(), type: document.getElementById('authType').value });
+      nubeSubirPronto(1500);
+    }else{
+      const waitMin = authLoginLocked(id);
+      if(waitMin){ err.textContent = '🔒 Demasiados intentos con "' + id + '". Espera ' + waitMin + ' min. e intenta de nuevo.'; return; }
+      // 1) Con puente de cuenta: la cuenta buena es la de la nube, y de una se trae
+      //    la configuración para que este equipo quede igual que los otros.
+      if(nubeOn()){
+        esperando('Entrando…');
+        try{
+          const r = await nubeEntrar(id, pass);
+          // Primero se deja el equipo igual que los otros y SOLO DESPUÉS se guarda la
+          // contraseña local: así la que queda aquí es siempre la que acabó de funcionar.
+          const cambio = await nubeAplicar(r.cfg);
+          await authGuardarLocal(r.user, pass, r.email, r.rol === 'admin' ? 'admin' : (r.rol || 'admin'));
+          authLoginClear(id);
+          document.getElementById('authPass').value = '';
+          localStorage.setItem(AUTH_SESSION_KEY, r.user);
+          if(cambio){
+            // Quedó configuración nueva: se recarga para que todas las pantallas la tomen.
+            btn.textContent = 'Trayendo tu configuración…';
+            location.reload();
+            return;
+          }
+          listo();
+          await enterApp(r.user, null);
+          return;
+        }catch(ex){
+          listo();
+          if(!ex.red){
+            if(ex.codigo === 401) authLoginFail(id);
+            err.textContent = ex.message;
+            return;
+          }
+          // Sin internet: se sigue con el usuario de este equipo, como siempre.
+        }
+      }
+      // 2) Como antes: el usuario guardado en este equipo (sirve con o sin internet).
+      const u = authBuscar(id);
+      if(!u || await authHash(pass, u.salt) !== u.hash){
+        authLoginFail(id);
+        err.textContent = nubeOn()
+          ? 'No hubo internet para revisar tu cuenta en la nube, y en este equipo ese usuario y contraseña no coinciden.'
+          : 'Usuario o contraseña incorrectos.';
+        return;
+      }
+      authLoginClear(id);
       document.getElementById('authPass').value = '';
-      await enterApp(user, null);
+      await enterApp(u.user, null);
     }
   };
 }
@@ -14501,6 +15137,158 @@ function aplicarMusica(){
     if(act && act.dataset.view === 'musica'){ const b = document.querySelector('nav button[data-view="mesas"]'); if(b) b.click(); }
   }
 }
+/* ---------- Ajustes → Cuenta en la nube ---------- */
+function nubeEstadoPintar(){
+  const e = document.getElementById('nubeEstado');
+  if(!e) return;
+  const c = nubeCfg();
+  if(!nubeOn()){ e.textContent = '⚪ Sin cuenta en la nube: este equipo guarda solo lo suyo. Si entras en otro, te toca volver a montar la clave de la IA, el YouTube y los avisos.'; return; }
+  if(!c.token){ e.textContent = '🟠 Puente puesto, pero esta cuenta todavía no está conectada: toca «Conectar esta cuenta».'; return; }
+  const cuando = c.ult ? new Date(c.ult).toLocaleString('es-CO', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : 'todavía no';
+  e.textContent = '🟢 Conectada como ' + (c.email || c.user || authUser) + ' · última vez al día: ' + cuando + '. Entra con este correo en cualquier equipo y queda cuadrado solo.';
+}
+function iniNube(){
+  const g = i => document.getElementById(i);
+  const inp = g('nubeUrl');
+  if(!inp) return;
+  inp.value = nubeCfg().url || '';
+  const leerUrl = () => {
+    let v = inp.value.trim().replace(/\/+$/, '');
+    if(v && !/^https?:\/\//.test(v)) v = 'https://' + v;
+    v = v.replace(/^http:\/\//, 'https://');
+    inp.value = v;
+    return v;
+  };
+  inp.onchange = () => {
+    const c = nubeCfg(), v = leerUrl();
+    if(v && !/^https:\/\/\S+$/.test(v)){ showToast('⚠️ La dirección debe empezar por https:// y terminar en .workers.dev'); return; }
+    if(c.url !== v){ c.url = v; delete c.token; nubeSet(c); }   // puente nuevo = hay que volver a conectar
+    nubeEstadoPintar();
+  };
+  g('nubeCopy').onclick = async () => {
+    const src = g('cuWorkerSrc').textContent.trim();
+    try{ await navigator.clipboard.writeText(src); showToast('📋 Código del puente copiado. Pégalo en Cloudflare (Edit code), toca Deploy y conéctale la base de datos KV con el nombre CUENTAS.', 8000); }
+    catch(e){ showToast('⚠️ No se pudo copiar. El código está en la carpeta «puente» del proyecto en GitHub (cuenta-worker.js).', 7000); }
+  };
+  g('nubeHow').onclick = () => {
+    alert('Cuenta en la nube — los pasos (una sola vez):\n\n' +
+      '1) Entra a dash.cloudflare.com → Workers & Pages → Create → Create Worker → Deploy.\n' +
+      '   Luego Edit code → borra todo → pega el código que copiaste → Deploy.\n\n' +
+      '2) Crea la base de datos donde viven las cuentas:\n' +
+      '   Storage & Databases → KV → Create a namespace → ponle «mesora».\n\n' +
+      '3) Conéctala al Worker con el nombre exacto CUENTAS:\n' +
+      '   el Worker → Settings → Bindings → Add → KV namespace →\n' +
+      '   Variable name: CUENTAS · KV namespace: mesora → Deploy.\n\n' +
+      '4) Copia la dirección del Worker (termina en .workers.dev), pégala aquí y toca «Probar».\n' +
+      '   Debe decir que funciona Y que la base de datos está conectada.\n\n' +
+      '5) Toca «Conectar esta cuenta» y escribe tu contraseña.\n\n' +
+      'En tus otros equipos: abre el link de «Copiar el link para otro equipo» y entra con\n' +
+      'tu correo y contraseña. Ya quedan cuadrados solos.');
+  };
+  g('nubeTest').onclick = async () => {
+    const v = leerUrl();
+    if(!v) return showToast('⚠️ Pega primero la dirección del puente.');
+    inp.onchange();
+    try{
+      const r = await fetch(v + '/');
+      const t = await r.text();
+      if(!/Mesora/.test(t)) return showToast('⚠️ Esa dirección responde, pero no es el puente de cuenta de Mesora. Revisa que pegaste el código completo y tocaste Deploy.', 8000);
+      if(/Falta un paso/.test(t)) return showToast('🟠 El puente está publicado, pero le falta la base de datos: Settings → Bindings → Add → KV namespace, con el nombre CUENTAS.', 9000);
+      showToast('✅ El puente funciona y la base de datos está conectada. Ya puedes tocar «Conectar esta cuenta».', 7000);
+    }catch(e){ showToast('⚠️ No responde. Revisa la dirección (termina en .workers.dev) y que tocaste Deploy.', 7000); }
+    nubeEstadoPintar();
+  };
+  g('nubeUnir').onclick = async () => {
+    inp.onchange();
+    if(!nubeOn()) return showToast('⚠️ Primero pega la dirección de tu puente.');
+    const yo = authUsers().find(x => x.user === authUser) || {};
+    const email = (g('accMail').value || yo.email || '').trim();
+    if(!authMailOk(email)) return showToast('⚠️ Escribe primero tu correo en «Tu correo», arriba.');
+    const pass = prompt('Escribe la contraseña de tu cuenta «' + authUser + '».\n\nCon este correo y esta contraseña vas a entrar en todos tus equipos.');
+    if(!pass) return;
+    const btn = g('nubeUnir'), et = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Conectando…';
+    try{
+      try{
+        // La contraseña tiene que ser la de verdad de esta cuenta: así «conectar» nunca
+        // le cambia la contraseña a nadie sin querer.
+        if(yo.salt && await authHash(pass, yo.salt) !== yo.hash){
+          showToast('⚠️ Esa no es la contraseña de «' + authUser + '». Escribe la que usas para entrar.', 7000);
+          return;
+        }
+        await nubeRegistrar(authUser, email, pass);
+        nubeUltimo = '';
+        await nubeSubirYa();
+        const users = authUsers(), u = users.find(x => x.user === authUser);
+        if(u && u.email !== email){ u.email = email; localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users)); }
+        showToast('✅ Cuenta conectada y configuración guardada en la nube. Ahora abre el link en tus otros equipos.', 8000);
+      }catch(ex){
+        if(ex.codigo !== 409) throw ex;
+        // Ya existía (otro equipo la creó): se entra con la contraseña de la nube y se
+        // trae lo que haya. Aquí sí se iguala la contraseña local a la de la nube.
+        const r = await nubeEntrar(email, pass);
+        const cambio = await nubeBajarYAplicar();
+        await authGuardarLocal(r.user, pass, r.email || email, r.rol || 'admin');
+        showToast(cambio ? '✅ Cuenta conectada. Trayendo la configuración de tus otros equipos…' : '✅ Cuenta conectada. Este equipo ya estaba igual.', 7000);
+        if(cambio){ setTimeout(() => location.reload(), 1500); return; }
+      }
+      g('accMail').value = email;
+    }catch(ex){
+      showToast('⚠️ ' + ex.message, 9000);
+    }finally{
+      btn.disabled = false; btn.textContent = et;
+      nubeEstadoPintar();
+    }
+  };
+  g('nubeLink').onclick = async () => {
+    if(!nubeOn()) return showToast('⚠️ Primero pega la dirección de tu puente.');
+    const base = location.origin + location.pathname;
+    const link = base + '#nube=' + encodeURIComponent(nubeUrl());
+    try{ await navigator.clipboard.writeText(link); showToast('🔗 Link copiado. Ábrelo en tu otro equipo y entra con tu correo y contraseña.', 8000); }
+    catch(e){ showToast('Abre esta dirección en tu otro equipo: ' + link, 12000); }
+  };
+  g('nubeBajar').onclick = async () => {
+    if(!nubeSesion()) return showToast('⚠️ Esta cuenta todavía no está conectada a la nube.');
+    const btn = g('nubeBajar'), et = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Trayendo…';
+    try{
+      const cambio = await nubeBajarYAplicar();
+      if(cambio){ showToast('✅ Configuración traída. Recargando para dejar todo igual…', 4000); setTimeout(() => location.reload(), 1200); }
+      else showToast('✅ Este equipo ya estaba igual que los otros.');
+    }catch(ex){ showToast('⚠️ ' + ex.message, 8000); }
+    finally{ btn.disabled = false; btn.textContent = et; nubeEstadoPintar(); }
+  };
+  g('nubeSubir').onclick = async () => {
+    if(!nubeSesion()) return showToast('⚠️ Esta cuenta todavía no está conectada a la nube.');
+    const btn = g('nubeSubir'), et = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    nubeUltimo = '';   // forzar el envío aunque no haya cambiado nada desde la última vez
+    try{
+      const r = await nubeSubirYa();
+      showToast(r && r.ok ? '✅ La configuración de este equipo quedó guardada en tu cuenta.' : '⚠️ No se pudo guardar: ' + ((r && r.error) || 'sin conexión'), 7000);
+    }finally{ btn.disabled = false; btn.textContent = et; nubeEstadoPintar(); }
+  };
+  // ---- Tu correo ----
+  const mail = g('accMail');
+  const yo = () => authUsers().find(x => x.user === authUser) || {};
+  mail.value = yo().email || '';
+  g('accMailBtn').onclick = async () => {
+    const v = mail.value.trim();
+    if(!authMailOk(v)) return showToast('⚠️ Escribe un correo válido (ejemplo: nombre@gmail.com).');
+    const mk = authMailKey(v);
+    if(authUsers().some(u => u.user !== authUser && u.email && authMailKey(u.email) === mk)) return showToast('⚠️ Ese correo ya lo está usando otra cuenta de este equipo.');
+    if(nubeSesion()){
+      try{ await nubeApi('/correo', { token: nubeSesion().token, email: v }); }
+      catch(ex){ return showToast('⚠️ ' + ex.message, 8000); }
+      const c = nubeCfg(); c.email = v; nubeSet(c);
+    }
+    const users = authUsers(), u = users.find(x => x.user === authUser);
+    if(u){ u.email = v; localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users)); }
+    showToast('✅ Correo guardado: ' + v);
+    nubeEstadoPintar();
+  };
+  nubeEstadoPintar();
+}
 function wireAccountUI(){
   document.getElementById('accUserLabel').textContent = authUser;
   const sel = document.getElementById('accType');
@@ -14513,12 +15301,15 @@ function wireAccountUI(){
   document.getElementById('accAddBtn').onclick = async () => {
     if(!authIsAdmin()){ showToast('🔒 Solo el usuario administrador puede agregar cuentas nuevas.'); return; }
     const u = document.getElementById('accNewUser'), p = document.getElementById('accNewPass'), r = document.getElementById('accNewRole');
+    const m = document.getElementById('accNewMail');
     const rol = r && r.value === 'admin' ? 'admin' : 'staff';
-    const msg = await authAddUser(u.value, p.value, rol);
+    const msg = await authAddUser(u.value, p.value, rol, m ? m.value : '');
     if(msg){ showToast(msg); return; }
-    showToast('✅ Usuario agregado: ' + u.value.trim().toLowerCase() + ' (' + (rol === 'admin' ? 'Administrador' : 'Mesero') + ')'); u.value = ''; p.value = '';
+    showToast('✅ Usuario agregado: ' + u.value.trim().toLowerCase() + ' (' + (rol === 'admin' ? 'Administrador' : 'Mesero') + ')');
+    u.value = ''; p.value = ''; if(m) m.value = '';
     accUsuariosPintar();
   };
+  iniNube();
   const waState = () => { const u = authUsers().find(x => x.user === authUser); document.getElementById('accWaState').textContent = u && u.wa ? '✅ Activa · WhatsApp terminado en ' + u.wa.tail : 'Sin configurar: genera un código y guárdalo en tu WhatsApp.'; };
   waState();
   document.getElementById('accWaBtn').onclick = async () => {
@@ -14699,11 +15490,40 @@ function wireAccountUI(){
     orderHoursNoteInput.addEventListener('blur', () => { data.orderHoursNote = orderHoursNoteInput.value.trim().slice(0, 100); orderHoursNoteInput.value = data.orderHoursNote; rePublish(); });
   }
 }
+/* Al abrir la app: si otro de tus equipos cambió algo, este se pone al día solo.
+   Solo se trae lo de la nube si es MÁS NUEVO que lo de aquí; si lo de aquí es más
+   nuevo, se sube. Así no se pisan entre equipos. */
+async function nubeAlAbrir(){
+  const s = nubeSesion();
+  if(!s) return;
+  try{
+    const r = await nubeApi('/bajar', { token: s.token });
+    const mio = Number(nubeCfg().at) || 0;
+    if(r.cfg && r.at && r.at > mio){
+      const cambio = await nubeAplicar(r.cfg);
+      const c = nubeCfg(); c.at = r.at; c.ult = Date.now(); nubeSet(c);
+      // Se recarga una sola vez para que todas las pantallas tomen lo nuevo.
+      if(cambio && !sessionStorage.getItem('nube-recargo')){
+        try{ sessionStorage.setItem('nube-recargo', '1'); }catch(e){}
+        location.reload();
+        return;
+      }
+    }
+    nubeSubirPronto(3000);
+  }catch(e){
+    if(e.codigo === 401) nubeSalir();
+  }
+}
 async function bootApp(){
   { const us = authUsers(); if(us.some(u => u.rec)){ us.forEach(u => delete u.rec); localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(us)); } }
   const users = authUsers(), ses = localStorage.getItem(AUTH_SESSION_KEY);
-  if(ses && users.some(u => u.user === ses)) return enterApp(ses, null);
-  showAuth(users.length === 0);
+  if(ses && users.some(u => u.user === ses)){
+    await enterApp(ses, null);
+    nubeAlAbrir();
+    return;
+  }
+  // Equipo nuevo que YA tiene cuenta en la nube: hay que entrar, no crear otra cuenta.
+  showAuth(users.length === 0 && !nubeOn());
 }
 bootApp();
 </script>
@@ -18282,7 +19102,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-09-26 · v46';
+const MESORA_VERSION = '2026-10-09 · v47';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
