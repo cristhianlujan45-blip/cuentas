@@ -26,6 +26,21 @@ cualquier dato antes de guardar.
 
 ### Novedades
 
+- **Se instala como app de verdad** (Ajustes → 📲 Instalar Mesora): queda con su
+  propio ícono en la pantalla de inicio, abre en pantalla completa (sin la barra
+  del navegador) y funciona aunque no haya internet. Antes no se podía: el
+  manifest iba incrustado como `data:` dentro del HTML —y Chrome nunca deja
+  instalar así— y no había service worker, que es justo lo que el navegador
+  exige para ofrecer «Instalar». Ahora hay `manifest.webmanifest`, iconos de
+  verdad (192, 512 y uno *maskable* para Android) y `sw.js`.
+  El botón explica los pasos de cada aparato: en iPhone se hace desde Safari
+  (Compartir → Agregar a inicio), en Android desde el menú de Chrome, y en el
+  computador desde el ícono de la barra de direcciones.
+  **El service worker pide la página siempre a internet primero** y solo usa la
+  copia guardada si no hay señal: así la app nunca se queda pegada en una
+  versión vieja, que es lo que pasaba antes. El botón «Actualizar ahora» del
+  aviso de versión nueva además borra todo lo guardado antes de recargar.
+
 - **Una sola cuenta para todos tus equipos**: entras con el mismo correo y la
   misma contraseña en el celular, el computador del local o el de la casa, y la
   app aparece cuadrada sola (la clave de la IA, el YouTube, la música, los
