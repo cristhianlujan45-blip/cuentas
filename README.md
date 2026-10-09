@@ -26,6 +26,26 @@ cualquier dato antes de guardar.
 
 ### Novedades
 
+- **Una sola cuenta para todos tus equipos**: entras con el mismo correo y la
+  misma contraseña en el celular, el computador del local o el de la casa, y la
+  app aparece cuadrada sola (la clave de la IA, el YouTube, la música, los
+  avisos, el QR, los domicilios, los meseros y la carta). Los cambios que hagas
+  en uno se copian a los otros. Las mesas abiertas y el historial de ventas
+  **no** viajan: eso es el trabajo de cada día en cada equipo. Se monta una vez
+  con el puente gratis `puente/cuenta-worker.js` (Ajustes → Cuenta → Cuenta en
+  la nube), que vive en **tu propia** cuenta de Cloudflare. Las contraseñas se
+  guardan cifradas (PBKDF2, nunca en texto) y un correo = una cuenta: no se
+  pueden crear dos cuentas con el mismo correo, ni escribiéndolo distinto
+  (mayúsculas, puntos de más o `+etiqueta` en Gmail, que son el mismo buzón).
+  Sin internet o sin puente, la app sigue funcionando igual que antes.
+- **Música de fondo con tus playlists de YouTube** (Música → Música de fondo):
+  elige una playlist que ya tengas guardada en tu cuenta (o pega su link o su
+  código) y suena sola mientras no haya canciones pedidas. Cuando una mesa pide
+  algo, se pone lo que pidieron y al terminar vuelve tu playlist. Sirve en el
+  reproductor de la app, en la pantalla del TV (`tv.html`), en el YouTube del TV
+  (código de TV) y al transmitir con Chromecast. Se le pasa la playlist entera a
+  YouTube, así que funciona con playlists de cualquier tamaño.
+
 - **Mesi (IA) más rápida**: las preguntas simples (ventas, mesas, deudas,
   precios, stock) se responden al instante sin IA; las demás se muestran en
   vivo mientras la IA escribe (la primera frase sale en ~1 segundo) y nunca
@@ -78,6 +98,15 @@ clásica), pide la misma ronda y crea mesas con nombre. Los pedidos llegan
 directo al celular principal (con Mesora abierta) por un canal privado que
 los clientes no conocen. En el mismo equipo del negocio, un usuario con rol
 **Mesero** entra en modo mesero: solo mesas, cocina y música.
+
+## `puente/cuenta-worker.js` — tu cuenta y tu configuración en todos los equipos
+
+Con **Ajustes → Cuenta → Cuenta en la nube**, Mesora guarda tu cuenta (correo,
+usuario y la contraseña cifrada) y tu configuración en este puente, para que
+entres con el mismo correo en cualquier equipo y aparezca todo montado. Se
+publica gratis como Cloudflare Worker con una base de datos KV llamada
+`CUENTAS` (los pasos están dentro de la app, y también arriba del archivo).
+Queda en **tu** cuenta de Cloudflare: ni Mesora ni nadie más ve esos datos.
 
 ## `licencias.html` — códigos para sedes adicionales
 

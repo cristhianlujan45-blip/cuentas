@@ -2671,6 +2671,23 @@ section.active > *:nth-child(n+6){animation-delay:.14s}
       <div id="mzList"></div>
     </div>
     <div class="settings-group">
+      <h2>🎧 Música de fondo: tus playlists de YouTube <span class="tvp-badge">Nuevo</span></h2>
+      <div class="settings-desc">Pon una playlist que ya tengas guardada en tu cuenta de YouTube (o pega su link o su código) y <b>suena sola</b> mientras no haya canciones pedidas. Cuando una mesa pide algo, se pone lo que pidieron y al terminar vuelve tu playlist. Funciona en el reproductor de la app, en la pantalla del TV, en el YouTube del TV y al transmitir con Chromecast.</div>
+      <div class="settings-row"><div class="settings-row-text"><strong>Poner mi playlist de fondo</strong><span id="plEstado"></span></div><label class="switch"><input type="checkbox" id="plOn"><span class="switch-slider"></span></label></div>
+      <div id="plBox">
+        <div class="mz-actions"><button class="btn-warn" id="plMias" type="button">📻 Ver mis playlists de YouTube</button></div>
+        <select id="plSel" class="mz-in" hidden></select>
+        <input id="plCode" class="mz-in" placeholder="…o pega aquí el link o el código de la playlist (PL…)" autocapitalize="none" autocomplete="off" spellcheck="false">
+        <div class="mz-actions">
+          <button class="btn-primary" id="plUsar" type="button">Usar esta playlist</button>
+          <button class="btn-ghost" id="plOrden" type="button">🔀 Orden</button>
+          <button class="btn-ghost" id="plProbar" type="button">▶ Probar</button>
+          <button class="btn-ghost" id="plQuitar" type="button">Quitar</button>
+        </div>
+        <div class="settings-desc" id="plInfo"></div>
+      </div>
+    </div>
+    <div class="settings-group">
       <h2>🔊 Reproductor en la app</h2>
       <div class="settings-desc">La app reproduce sola las canciones en orden justo, una tras otra, y las que piden los clientes entran solas a la cola. Deja esta pantalla abierta con el celular encendido y con volumen.<br><br>🔈 Suena en este celular (o en el parlante Bluetooth conectado a él).</div>
       <div class="settings-row"><div class="settings-row-text"><strong>Reproducir automáticamente</strong><span id="autoEstado"></span></div><label class="switch"><input type="checkbox" id="autoPlay"><span class="switch-slider"></span></label></div>
@@ -16951,6 +16968,51 @@ function yAvisoReconectar(){
   b.hidden=!falta;
 }
 
+/* ---------- Música de fondo: una playlist de YouTube del dueño ----------
+   Suena sola mientras no haya canciones pedidas por las mesas. Cuando llega una pedida,
+   se pone lo pedido y al terminar vuelve la playlist. No se copian los videos uno por uno:
+   se le pasa la playlist entera a YouTube (igual que cuando uno la pone a mano), así sirve
+   para playlists de cualquier tamaño y en los cuatro caminos: el reproductor de la app, la
+   pantalla del TV (tv.html), el YouTube del TV (código de TV) y transmitir con Chromecast. */
+const PL_KEY='vito_plist';
+const plCfg=()=>Object.assign({id:'',title:'',n:0,on:false,shuffle:false},LS(PL_KEY,{}));
+const plOn=()=>{const c=plCfg();return !!(c.on&&c.id);};
+/* Acepta el link completo, el link corto o el código pelado. */
+function plIdDe(txt){
+  const s=String(txt==null?'':txt).trim();
+  if(!s) return '';
+  const m=s.match(/[?&]list=([A-Za-z0-9_-]+)/);
+  if(m) return m[1];
+  if(/^(PL|OLAK5uy_|RD|UU|FL|LL|OL)[A-Za-z0-9_-]+$/.test(s)) return s;
+  if(/^[A-Za-z0-9_-]{13,}$/.test(s)&&!/^https?:/i.test(s)) return s;   // códigos nuevos sin prefijo conocido
+  return '';
+}
+const plUrl=id=>'https://www.youtube.com/playlist?list='+encodeURIComponent(id);
+/* Mira que la playlist exista y de paso trae su nombre y cuántas canciones tiene. */
+async function plMirar(id){
+  const j=await yGet('playlists?part=snippet,contentDetails&id='+encodeURIComponent(id));
+  const it=j&&j.items&&j.items[0];
+  if(!it) return null;
+  return {id,title:(it.snippet&&it.snippet.title)||'Mi playlist',n:(it.contentDetails&&it.contentDetails.itemCount)||0};
+}
+/* Las playlists guardadas en SU cuenta: esto sí necesita «Conectar con Google». */
+async function plMisPlaylists(){
+  if(!yTok()) throw new Error('Para ver tus playlists hay que conectar tu cuenta de Google (botón «Conectar con Google», más abajo). Si no quieres conectarla, pega el link de la playlist en el campo de abajo.');
+  const out=[];
+  let page='';
+  for(let i=0;i<4;i++){
+    const j=await yApi('playlists?part=snippet,contentDetails&mine=true&maxResults=50'+(page?'&pageToken='+page:''));
+    ((j&&j.items)||[]).forEach(it=>out.push({id:it.id,title:(it.snippet&&it.snippet.title)||'(sin nombre)',n:(it.contentDetails&&it.contentDetails.itemCount)||0}));
+    page=j&&j.nextPageToken;
+    if(!page) break;
+  }
+  return out;
+}
+/* ¿Hay alguna canción pedida esperando? Si hay, lo pedido manda sobre el fondo. */
+function plHayPedidas(){
+  try{ return ordenJusto(cola()).some(y=>y.vid&&(y.ok||!yTestListo)); }catch(e){ return false; }
+}
+
 /* ---------- Reproductor automático dentro de la app ---------- */
 const AUTO=()=>!!LS('vito_auto_play',{}).on;
 let yPl=null,yListo=false,sonando=false,cargadoEn=0;
@@ -16964,8 +17026,10 @@ function crearPlayer(){
   if(yPl)return;
   yPl=new YT.Player('ytPlayer',{width:'100%',height:'200',playerVars:{playsinline:1,rel:0},events:{
     onReady:()=>{yListo=true;crearTest();siguienteAuto();},
-    onStateChange:e=>{if(e.data===1)cargadoEn=0;if(e.data===0){sonando=false;if(!ordenJusto(cola()).some(y=>y.vid))ytMostrar(false);siguienteAuto();}},
-    onError:()=>{reemplazarBloqueada();}}});
+    onStateChange:e=>{if(e.data===1)cargadoEn=0;if(e.data===0){sonando=false;if(!ordenJusto(cola()).some(y=>y.vid)&&!plOn())ytMostrar(false);siguienteAuto();}},
+    // Sonando el fondo, un video malo de la playlist no es cosa de buscar otra versión:
+    // se pasa al siguiente de la playlist, que es lo que haría YouTube.
+    onError:()=>{if(enFondo){try{yPl.nextVideo();}catch(e){}return;}reemplazarBloqueada();}}});
 }
 // El video que sonaba está bloqueado para reproductores fuera de YouTube: se busca otra versión
 // de la MISMA canción (hasta 3 intentos) antes de pasar a la siguiente; si ya no queda ninguna,
@@ -17046,13 +17110,36 @@ function ytMostrar(si){
   const b=$('ytBox');if(!b)return;
   b.classList.toggle('yt-espera',!si);
 }
+let enFondo=false;
 function siguienteAuto(){
   if(!AUTO()||!yListo||sonando)return;
   if(tvOn())return;                                   // el TV es el reproductor
   const o=ordenJusto(cola()).filter(y=>y.vid);
-  const x=o.find(y=>y.ok||!yTestListo);if(!x)return;  // solo versiones ya comprobadas
+  const x=o.find(y=>y.ok||!yTestListo);
+  if(!x){ ponerFondoApp(); return; }                  // nada pedido: sigue la playlist del dueño
+  enFondo=false;
   const l=cola(),it=l.find(y=>y.id===x.id);if(it)it.done=true;
   SS('vito_cola',l);SS('vito_now',x);sonando=true;cargadoEn=Date.now();ytMostrar(true);yPl.loadVideoById(x.vid);renderMusica();
+}
+/* Pone la playlist de fondo. Si ya está sonando no se reinicia: YouTube va pasando sus
+   canciones solo, y aquí únicamente se vuelve a entrar cuando se acabó una pedida. */
+function ponerFondoApp(){
+  if(!plOn()||!yListo||!yPl||enFondo)return;
+  const c=plCfg();
+  enFondo=true;sonando=false;cargadoEn=0;
+  try{
+    ytMostrar(true);
+    yPl.loadPlaylist({listType:'playlist',list:c.id});
+    if(c.shuffle) setTimeout(()=>{try{yPl.setShuffle(true);yPl.nextVideo();}catch(e){}},1500);
+  }catch(e){ enFondo=false; }
+}
+/* Si está sonando el fondo y entra una canción pedida, se corta el fondo y se pone lo pedido:
+   para eso se pide la playlist, no para tapar a los clientes. */
+function fondoCederAPedidas(){
+  if(!enFondo||!AUTO()||!yListo||tvOn())return;
+  if(!plHayPedidas())return;
+  enFondo=false;sonando=false;
+  siguienteAuto();
 }
 // Algunos videos bloqueados por el sello discográfico (ej. WMG) muestran su
 // propio aviso de "vídeo no disponible" DENTRO del reproductor sin avisarle
@@ -17076,7 +17163,92 @@ function iniAutoPlay(){
     yEstado();
   };
   if(AUTO()||tvOn())cargarAPI();
-  setInterval(()=>{siguienteAuto();vigilarAtascado();verificarCola();},3000);
+  setInterval(()=>{fondoCederAPedidas();siguienteAuto();vigilarAtascado();verificarCola();},3000);
+}
+
+/* ---------- Música de fondo: los controles ---------- */
+function plPintar(){
+  const c=plCfg(),e=$('plEstado'),i=$('plInfo');
+  if(e) e.textContent=!c.id?'⚪ Sin playlist puesta.':(c.on?'🟢 Activa: ':'⚪ Puesta pero apagada: ')+'«'+c.title+'»'+(c.n?' · '+c.n+' canciones':'')+(c.shuffle?' · 🔀 al azar':' · en orden');
+  if(i){
+    i.textContent='';
+    if(c.id){
+      const a=document.createElement('a');
+      a.href=plUrl(c.id);a.target='_blank';a.rel='noopener';a.style.color='var(--ink)';
+      a.textContent='🔗 Ver «'+c.title+'» en YouTube';
+      i.appendChild(a);
+      i.appendChild(document.createTextNode(' · código: '+c.id));
+    }
+  }
+  const t=$('plOn');if(t)t.checked=!!c.on;
+  const o=$('plOrden');if(o)o.textContent=c.shuffle?'🔀 Al azar':'🔢 En orden';
+}
+function iniFondo(){
+  const t=$('plOn');if(!t)return;
+  const guardar=x=>{SS(PL_KEY,Object.assign(plCfg(),x));plPintar();try{tvPublicar(true);}catch(e){}};
+  t.onchange=()=>{
+    const c=plCfg();
+    if(t.checked&&!c.id){ t.checked=false; showToast('Primero elige una playlist (o pega su link) y toca «Usar esta playlist».',6000); return; }
+    guardar({on:t.checked});
+    enFondo=false;
+    if(t.checked){ if(!AUTO()&&!tvOn()&&!(typeof lngOn==='function'&&lngOn())) showToast('🎧 Playlist puesta. Para que suene, prende «Reproducir automáticamente» aquí abajo, o usa la pantalla del TV.',8000); cargarAPI(); siguienteAuto(); }
+    else if(yPl&&yPl.stopVideo){ try{yPl.stopVideo();}catch(e){} }
+  };
+  $('plMias').onclick=async()=>{
+    const b=$('plMias'),et=b.textContent;
+    b.disabled=true;b.textContent='Buscando tus playlists…';
+    try{
+      const ls=await plMisPlaylists();
+      const sel=$('plSel');
+      if(!ls.length){ showToast('Tu cuenta de YouTube no tiene playlists guardadas. Puedes pegar el link de cualquier playlist en el campo de abajo.',8000); sel.hidden=true; return; }
+      sel.innerHTML='<option value="">— Elige una de tus '+ls.length+' playlists —</option>'+
+        ls.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.title)+(x.n?' ('+x.n+')':'')+'</option>').join('');
+      sel.hidden=false;
+      sel.onchange=()=>{ if(sel.value) $('plCode').value=sel.value; };
+      showToast('📻 Listo: elige una de tus '+ls.length+' playlists y toca «Usar esta playlist».',6000);
+    }catch(ex){ showToast('⚠️ '+ex.message,9000); }
+    finally{ b.disabled=false;b.textContent=et; }
+  };
+  $('plUsar').onclick=async()=>{
+    const txt=$('plCode').value||($('plSel')&&$('plSel').value)||'';
+    const id=plIdDe(txt);
+    if(!id){ showToast('Pega el link de la playlist (el que tiene «list=») o su código, o elige una de la lista.',8000); return; }
+    const b=$('plUsar'),et=b.textContent;
+    b.disabled=true;b.textContent='Revisando…';
+    try{
+      let info=null;
+      try{ info=await plMirar(id); }catch(e){}
+      if(!info){
+        // Sin API key o con una playlist privada no se puede mirar: se guarda igual, porque
+        // el reproductor de YouTube sí la abre si el dueño tiene permiso.
+        info={id,title:'Mi playlist',n:0};
+        showToast('No pude leer el nombre de la playlist (puede ser privada o faltar la API key), pero la guardé igual. Toca «▶ Probar» para ver si suena.',9000);
+      }
+      guardar({id:info.id,title:info.title,n:info.n,on:true});
+      $('plCode').value='';
+      enFondo=false;
+      cargarAPI();siguienteAuto();
+      if(info.n) showToast('🎧 Lista: «'+info.title+'» ('+info.n+' canciones) suena cuando no haya canciones pedidas.',8000);
+    }finally{ b.disabled=false;b.textContent=et; }
+  };
+  $('plOrden').onclick=()=>{ const c=plCfg();guardar({shuffle:!c.shuffle});enFondo=false;if(plOn()){cargarAPI();siguienteAuto();} };
+  $('plProbar').onclick=()=>{
+    const c=plCfg();
+    if(!c.id) return showToast('Primero elige una playlist.');
+    if(tvOn()){ tvPublicar(true); return showToast('📺 Se la mandé a la pantalla del TV.',6000); }
+    if(!AUTO()){ $('autoPlay').checked=true;$('autoPlay').dispatchEvent(new Event('change')); }
+    enFondo=false;cargarAPI();
+    setTimeout(()=>{ponerFondoApp();},600);
+    showToast('▶ Poniendo «'+c.title+'»…',5000);
+  };
+  $('plQuitar').onclick=()=>{
+    SS(PL_KEY,{id:'',title:'',n:0,on:false,shuffle:plCfg().shuffle});
+    enFondo=false;
+    if(yPl&&yPl.stopVideo){try{yPl.stopVideo();}catch(e){}}
+    plPintar();try{tvPublicar(true);}catch(e){}
+    showToast('Playlist quitada. Vuelve a la cola de canciones pedidas.');
+  };
+  plPintar();
 }
 
 /* ---------- Pantalla del TV: el propio TV es el reproductor ----------
@@ -17098,7 +17270,10 @@ function tvPublicar(force){
   if(!tvOn())return;
   const q=ordenJusto(cola()).filter(x=>x.vid&&!x.sinVersion&&(x.ok||!yTestListo)).slice(0,15)
     .map(x=>({i:x.id,v:x.vid,s:String(x.song).slice(0,60),m:String(tableLabel(x.mesa)).slice(0,20)}));
+  const pf=plCfg();
   const msg={q,b:String(data&&data.businessName||'').slice(0,40)};
+  // La playlist de fondo va como dato aparte: el TV la pone cuando no hay nada pedido.
+  if(plOn()){ msg.f=pf.id; if(pf.shuffle) msg.fs=1; }
   const s=JSON.stringify(msg);
   if(!force&&s===tvHash&&Date.now()-tvHashT<5*6e4)return;
   tvHash=s;tvHashT=Date.now();
@@ -17231,7 +17406,7 @@ async function publicarCatalogo(force){
 window.vitoPublicarCatalogo = publicarCatalogo;
 window.vitoQCfg = qCfg;   // lo usan los domicilios por web/WhatsApp, que viven fuera de este módulo
 // Lo que usan las fotos de la carta y la transmisión al TV (script del final).
-window.vitoMod = { linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente, ytDur, ytPosicionSiguiente, ytTanda: () => ytTanda, procesar, notifPedidos, notifMusica };
+window.vitoMod = { linkMesa, mCfg, mUrl, mVistos, mPublicar, reconectarPedidos: () => { try{conectar();}catch(e){} }, tvOn, tvUrl, LS, SS, qCfg, yCfg, yTok, yConectar, cola, ordenJusto, yLista, ytAgregar, ySearch, AUTO, renderMusica, esperarYT: () => cadena, yFuente: () => yFuente, ytDur, ytPosicionSiguiente, ytTanda: () => ytTanda, procesar, notifPedidos, notifMusica, plCfg, plOn, plIdDe, plUrl, plMirar, plMisPlaylists };
 function publicarCuentas(){
   if(typeof data==='undefined'||!data)return;
   try{publicarCatalogo();}catch(e){}             // la carta se publica siempre (aunque "en vivo" esté apagado)
@@ -17287,7 +17462,7 @@ function iniReloj(){
 }
 
 /* ---------- Arranque ---------- */
-aplicarTipo();iniTipo();iniAjustesCats();iniAuto();iniHist();iniMusica();iniYT();iniAutoPlay();iniTVPantalla();iniReloj();
+aplicarTipo();iniTipo();iniAjustesCats();iniAuto();iniHist();iniMusica();iniYT();iniAutoPlay();iniFondo();iniTVPantalla();iniReloj();
 const w=setInterval(()=>{if(typeof data!=='undefined'&&data){clearInterval(w);iniQR();renderMusica();mejorarHist();if(typeof i18nRefreshDynamic==='function')i18nRefreshDynamic();setTimeout(publicarCuentas,4000);}},400);
 })();
 
@@ -19102,7 +19277,7 @@ function castBuscarYTransmitir(){ transmitirTV(); }
 /* Entorno y estado de la transmisión. Chromecast / Google TV / Android TV se manejan más abajo
    (ccTransmitir): abren la app de YouTube del TV. Los Smart TV LG/Samsung sin Chromecast se
    conectan con «Vincular con código de TV» (sección YouTube del TV). */
-const MESORA_VERSION = '2026-10-09 · v47';
+const MESORA_VERSION = '2026-10-09 · v48';
 // Visible en Ajustes: así se puede confirmar de un vistazo si la app ya tomó la última versión.
 try{ const ve = document.getElementById('appVersionEl'); if(ve) ve.textContent = 'Mesora · versión ' + MESORA_VERSION.split('·').pop().trim() + ' (' + MESORA_VERSION.split('·')[0].trim() + ')'; }catch(e){}
 // Si el navegador (o el celular, con la app agregada a la pantalla de inicio) se quedó con
@@ -19431,6 +19606,14 @@ function castAbrirApp(){
   const env = castEntorno();
   if(env.bad){ showToast(env.t, 9000); return; }
   const hay = vm().cola && vm().cola().some(x => !x.done);
+  // Sin canciones pedidas pero con playlist de fondo: se abre la playlist, lista para
+  // transmitir al TV. Es lo que uno haría a mano, pero de un toque.
+  if(!hay && vm().plOn && vm().plOn()){
+    const pf = vm().plCfg();
+    abrirAppElegida('playlist?list=' + encodeURIComponent(pf.id));
+    showToast('🎧 Abrí tu playlist «' + (pf.title || pf.id) + '». Toca el ícono de transmitir y elige tu TV.', 8000);
+    return;
+  }
   if(!hay && !(vm().yTok && vm().yTok() && vm().yCfg().pl)){
     abrirAppElegida('');
     showToast('📺 Abrí ' + (castApp() === 'yt' ? 'YouTube' : 'YouTube Music') + '. Toca el ícono de transmitir y elige tu TV.', 7000);
@@ -19770,6 +19953,22 @@ async function lngSync(forzar){
       const l = vm().cola(), it = l.find(y => y.id === x.id);
       if(it){ it.lng = true; it.done = true; it.lngAt = Date.now(); SS('vito_cola', l); }
       SS('vito_now', x);
+    }
+    // Sin canciones pedidas y con playlist de fondo: se le pone la playlist entera al TV
+    // (listId es justo para esto). Solo cuando ya no le queda nada de Mesora por sonar,
+    // para no cortar una canción que una mesa acabó de pedir.
+    if(!pend.length && vm().plOn && vm().plOn()){
+      const pf = vm().plCfg();
+      const cc = lngCfg();
+      const leQueda = cc.hasta && Date.now() < cc.hasta;
+      const yaPuesta = cc.fondoId === pf.id && cc.fondoAt && Date.now() - cc.fondoAt < 6 * 36e5;
+      if(!leQueda && (!yaPuesta || lng.tvPlay === false)){
+        lngLog('sin canciones pedidas → le pongo tu playlist de fondo (' + pf.id + ')');
+        await lngAsegurar(true);
+        await lngCmd('setPlaylist', { listId: pf.id, currentIndex: 0, currentTime: 0, audioOnly: false, videoId: '' });
+        lng.ultimoEnvio = Date.now();
+        SS(LNG_KEY, Object.assign(lngCfg(), { fondoId: pf.id, fondoAt: Date.now(), arranco: Date.now() }));
+      }
     }
     lng.error = '';
   }catch(e){ lng.error = e.message || String(e); }

@@ -70,6 +70,7 @@
   if(!code){ $('err').textContent = 'Falta el código del link. Copia de nuevo el link desde Mesora → Música → Pantalla del TV.'; $('go').style.display = 'none'; return; }
 
   var cola = [], tocadas = {}, actual = null, player = null, listo = false, empezado = false, cargadoEn = 0, ultimoMsg = 0;
+  var fondo = '', fondoAzar = false, enFondo = false;   // playlist de fondo que manda el celular
   try{ tocadas = JSON.parse(localStorage.getItem('tv_tocadas_' + code) || '{}') || {}; }catch(e){ tocadas = {}; }
   function guardarTocadas(){
     var ks = Object.keys(tocadas); if(ks.length > 300){ ks.sort(function(a, b){ return tocadas[a] - tocadas[b]; }).slice(0, ks.length - 300).forEach(function(k){ delete tocadas[k]; }); }
@@ -82,7 +83,8 @@
   function pendientes(){ return cola.filter(function(x){ return !tocadas[x.i] && (!actual || x.i !== actual.i); }); }
   function pintar(){
     var p = pendientes();
-    $('next').innerHTML = p.length ? p.slice(0, 6).map(function(x){ return '<li><b>' + esc(x.s) + '</b><span>' + esc(x.m) + '</span></li>'; }).join('') : '<li class="empty">No hay más canciones en cola.</li>';
+    $('next').innerHTML = p.length ? p.slice(0, 6).map(function(x){ return '<li><b>' + esc(x.s) + '</b><span>' + esc(x.m) + '</span></li>'; }).join('')
+      : '<li class="empty">' + (enFondo ? '🎧 Suena tu playlist de fondo. Lo que pidan las mesas entra de una.' : 'No hay más canciones en cola.') + '</li>';
     $('now').style.display = actual ? '' : 'none';
     $('idle').style.display = actual ? 'none' : '';
     if(actual){ $('nowSong').textContent = actual.s; $('nowMesa').textContent = actual.m; }
@@ -93,13 +95,24 @@
   function siguiente(){
     if(!listo || !empezado) return;
     var p = pendientes();
-    if(!p.length){ actual = null; pintar(); return; }
+    if(!p.length){ actual = null; ponerFondo(); pintar(); return; }
+    enFondo = false;
     actual = p[0];
     tocadas[actual.i] = Date.now(); guardarTocadas();
     cargadoEn = Date.now();
     try{ player.loadVideoById(actual.v); }catch(e){}
     avisar({ p: actual.i, s: actual.s });
     pintar();
+  }
+  /* Playlist de fondo del dueño: suena mientras no haya canciones pedidas. Si ya está
+     sonando no se reinicia — YouTube va pasando sus canciones solo. */
+  function ponerFondo(){
+    if(!fondo || !listo || !empezado || enFondo) return;
+    enFondo = true; cargadoEn = 0;
+    try{
+      player.loadPlaylist({ listType: 'playlist', list: fondo });
+      if(fondoAzar) setTimeout(function(){ try{ player.setShuffle(true); player.nextVideo(); }catch(e){} }, 1500);
+    }catch(e){ enFondo = false; }
   }
   function mala(){                              // esta versión no se deja reproducir: avisa y sigue
     if(!actual) return;
@@ -111,7 +124,8 @@
     player = new YT.Player('yt', { width: '100%', height: '100%', playerVars: { autoplay: 1, playsinline: 1, rel: 0, controls: 0, modestbranding: 1 }, events: {
       onReady: function(){ listo = true; siguiente(); },
       onStateChange: function(e){ if(e.data === 1) cargadoEn = 0; if(e.data === 0){ actual = null; siguiente(); } },
-      onError: function(){ mala(); }
+      // Sonando el fondo no hay canción pedida que reemplazar: se pasa a la siguiente de la playlist.
+      onError: function(){ if(enFondo){ try{ player.nextVideo(); }catch(e){} return; } mala(); }
     } });
   }
   // Si una canción "cargada" no arranca en 12 s (bloqueo que no avisa), se da por mala.
@@ -131,6 +145,11 @@
     ultimoMsg = Date.now();
     cola = m.q;
     if(m.b) $('biz').textContent = m.b;
+    var antes = fondo;
+    fondo = m.f || '';
+    fondoAzar = !!m.fs;
+    // Si cambió (o se quitó) la playlist de fondo, se vuelve a poner la nueva.
+    if(fondo !== antes){ enFondo = false; if(!fondo && !actual){ try{ player.stopVideo(); }catch(e){} } }
     if(!actual) siguiente(); else pintar();
   }
   // Canal en vivo (ntfy). Si el navegador del TV no soporta EventSource, se consulta cada 5 s.
